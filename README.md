@@ -26,14 +26,15 @@ The following operations are available on pages where the script is active.
 
 | Action | Key |
 | :--- | :--- |
-| **Next Image** | `↓` `→` `PageDown` `Space` |
-| **Previous Image** | `↑` `←` `PageUp` `Shift + Space` |
+| **Next Image** | `↓` `→` `PageDown` `Space` `j` |
+| **Previous Image** | `↑` `←` `PageUp` `Shift + Space` `k` |
 
 ### On-screen UI
 
-You can use the panel fixed at the bottom right of the screen.
+You can use the panel at the bottom right of the screen. **The panel is draggable**; you can move it to any position by dragging with your mouse.
 
 *   **Page Counter**: Displays "Current Image / Total Images".
+*   **Toggle Spread**: Enable/disable dual page (spread) view (can also be toggled with `d` key).
 *   **<<**: Go to the first image.
 *   **<**: Go to the previous image.
 *   **>**: Go to the next image.

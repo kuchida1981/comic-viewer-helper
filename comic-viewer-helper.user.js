@@ -16,6 +16,7 @@
   const IMG_SELECTOR = '#post-comic img';
   const CONTAINER_SELECTOR = '#post-comic';
   const STORAGE_KEY_DUAL_VIEW = 'comic-viewer-helper-dual-view';
+  const STORAGE_KEY_GUI_POS = 'comic-viewer-helper-gui-pos';
 
   let pageCounter = null;
   let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === 'true';
@@ -341,8 +342,75 @@
       backgroundColor: 'rgba(0, 0, 0, 0.7)',
       padding: '8px',
       borderRadius: '8px',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+      boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+      cursor: 'move',
+      userSelect: 'none',
+      touchAction: 'none' // Prevent scrolling on touch devices during drag
     });
+
+    // Restore position if saved
+    const savedPos = loadGUIPosition();
+    if (savedPos) {
+      Object.assign(container.style, {
+        top: `${savedPos.top}px`,
+        left: `${savedPos.left}px`,
+        bottom: 'auto',
+        right: 'auto'
+      });
+    }
+
+    // Drag Logic
+    let isDragging = false;
+    let dragStartX, dragStartY;
+    let initialTop, initialLeft;
+
+    container.addEventListener('mousedown', (e) => {
+      // Only drag with left click and not on interactive elements
+      if (e.button !== 0 || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+
+      isDragging = true;
+      const rect = container.getBoundingClientRect();
+      
+      // Switch to top/left if not already
+      initialTop = rect.top;
+      initialLeft = rect.left;
+      
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+
+      Object.assign(container.style, {
+        top: `${initialTop}px`,
+        left: `${initialLeft}px`,
+        bottom: 'auto',
+        right: 'auto'
+      });
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      
+      e.preventDefault();
+    });
+
+    function onMouseMove(e) {
+      if (!isDragging) return;
+      
+      const deltaX = e.clientX - dragStartX;
+      const deltaY = e.clientY - dragStartY;
+      
+      container.style.top = `${initialTop + deltaY}px`;
+      container.style.left = `${initialLeft + deltaX}px`;
+    }
+
+    function onMouseUp() {
+      if (!isDragging) return;
+      isDragging = false;
+      
+      const rect = container.getBoundingClientRect();
+      saveGUIPosition(rect.top, rect.left);
+      
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
 
     // Create Page Counter
     pageCounter = document.createElement('span');
@@ -442,6 +510,7 @@
       e.key === 'ArrowDown' ||
       e.key === 'PageDown' ||
       e.key === 'ArrowRight' ||
+      e.key === 'j' ||
       (e.key === ' ' && !e.shiftKey)
     ) {
       e.preventDefault();
@@ -453,6 +522,7 @@
       e.key === 'ArrowUp' ||
       e.key === 'PageUp' ||
       e.key === 'ArrowLeft' ||
+      e.key === 'k' ||
       (e.key === ' ' && e.shiftKey)
     ) {
       e.preventDefault();
@@ -492,6 +562,31 @@
       if (targetImg) {
         targetImg.scrollIntoView({ block: 'start' }); // Instant jump, no smooth scroll needed here
       }
+    }
+  }
+
+  /* =========================
+   * GUI Positioning Helpers
+   * ========================= */
+  function saveGUIPosition(top, left) {
+    localStorage.setItem(STORAGE_KEY_GUI_POS, JSON.stringify({ top, left }));
+  }
+
+  function loadGUIPosition() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_GUI_POS);
+      if (!saved) return null;
+      const pos = JSON.parse(saved);
+      
+      // Sanity check: ensure it's within viewport (at least partially)
+      const buffer = 50;
+      if (pos.left < -buffer || pos.left > window.innerWidth + buffer ||
+          pos.top < -buffer || pos.top > window.innerHeight + buffer) {
+        return null;
+      }
+      return pos;
+    } catch (e) {
+      return null;
     }
   }
 
