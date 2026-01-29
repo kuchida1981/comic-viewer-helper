@@ -4,6 +4,7 @@
 // @version      1.0.0
 // @description  Fit comic images to viewport and scroll per image
 // @match        https://something/magazine/*
+// @match        https://something/fanzine/*
 // @run-at       document-idle
 // @grant        unsafeWindow
 // ==/UserScript==
@@ -14,8 +15,22 @@
 
   const IMG_SELECTOR = '#post-comic img';
 
+  /**
+   * Check if the target element is an input field.
+   * @param {HTMLElement} target
+   * @returns {boolean}
+   */
+  function isInputField(target) {
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      target.isContentEditable
+    );
+  }
+
   /* =========================
-   * 画像サイズを viewport に合わせる
+   * Fit images to viewport
    * ========================= */
   function fitImagesToViewport() {
     const imgs = document.querySelectorAll(IMG_SELECTOR);
@@ -23,108 +38,105 @@
     const vh = window.innerHeight;
 
     imgs.forEach(img => {
-      img.style.maxWidth = `${vw}px`;
-      img.style.maxHeight = `${vh}px`;
-      img.style.width = 'auto';
-      img.style.height = 'auto';
-      img.style.display = 'block';
-      img.style.margin = '0 auto';
+      Object.assign(img.style, {
+        maxWidth: `${vw}px`,
+        maxHeight: `${vh}px`,
+        width: 'auto',
+        height: 'auto',
+        display: 'block',
+        margin: '0 auto'
+      });
     });
   }
 
   /* =========================
-   * 画像一覧取得
+   * Get image list
    * ========================= */
   function getImages() {
-    return [...document.querySelectorAll(IMG_SELECTOR)];
+    return Array.from(document.querySelectorAll(IMG_SELECTOR));
   }
 
   /* =========================
-   * 次 / 前の画像の「上端」にスナップ
+   * Snap to the top of the next/previous image
    * ========================= */
-  function scrollToNextImage(direction) {
+  function scrollToImage(direction) {
     const imgs = getImages();
     if (imgs.length === 0) return;
 
-    const viewportTop = 0;
-    const viewportBottom = window.innerHeight;
+    // Use a small threshold to find the next/prev target relative to current view
+    const THRESHOLD = 5;
+    let targetImg = null;
 
     if (direction > 0) {
-      // 下方向：次の画像
-      const next = imgs.find(img => {
+      // Down: Find the first image whose top is below the current viewport top
+      targetImg = imgs.find(img => {
         const rect = img.getBoundingClientRect();
-        return rect.top >= viewportBottom - 5;
+        return rect.top > THRESHOLD;
       });
-
-      if (next) {
-        window.scrollBy({
-          top: next.getBoundingClientRect().top,
-          behavior: 'smooth'
-        });
-      }
     } else {
-      // 上方向：前の画像
-      const prev = [...imgs].reverse().find(img => {
+      // Up: Find the last image whose top is above the current viewport top
+      // (checking reverse list)
+      const prevImgs = [...imgs].reverse();
+      targetImg = prevImgs.find(img => {
         const rect = img.getBoundingClientRect();
-        return rect.bottom <= viewportTop + 5;
+        return rect.top < -THRESHOLD;
       });
+    }
 
-      if (prev) {
-        window.scrollBy({
-          top: prev.getBoundingClientRect().top,
-          behavior: 'smooth'
-        });
-      }
+    if (targetImg) {
+      targetImg.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
     }
   }
 
   /* =========================
-   * キーハンドラ
+   * Key Handler
    * ========================= */
   function onKeyDown(e) {
-    const target = e.target;
-
-    // 入力中は無効化
-    if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement ||
-      target.isContentEditable
-    ) {
+    if (isInputField(e.target)) {
       return;
     }
 
-    // 下方向
+    // Down
     if (
       e.key === 'ArrowDown' ||
       e.key === 'PageDown' ||
       (e.key === ' ' && !e.shiftKey)
     ) {
       e.preventDefault();
-      scrollToNextImage(1);
+      scrollToImage(1);
     }
 
-    // 上方向
+    // Up
     if (
       e.key === 'ArrowUp' ||
       e.key === 'PageUp' ||
       (e.key === ' ' && e.shiftKey)
     ) {
       e.preventDefault();
-      scrollToNextImage(-1);
+      scrollToImage(-1);
     }
   }
 
   /* =========================
-   * 初期化
+   * Initialization
    * ========================= */
   function init() {
     fitImagesToViewport();
-    window.addEventListener('resize', fitImagesToViewport);
+
+    // Throttled resize handler
+    let resizeReq;
+    window.addEventListener('resize', () => {
+      if (resizeReq) cancelAnimationFrame(resizeReq);
+      resizeReq = requestAnimationFrame(fitImagesToViewport);
+    });
+
     document.addEventListener('keydown', onKeyDown, true);
   }
 
-  // DOM が後から来るサイト対策
+  // Handle late DOM loading
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
