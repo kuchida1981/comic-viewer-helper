@@ -88,7 +88,8 @@
         const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
         
         // If the next image is the one we want to align to (start a spread), 
-        // we must NOT pair the current image with it.
+        // we must NOT pair the current image with it. This forces the current image 
+        // to be single (or end of previous flow), ensuring 'alignIndex' starts a new spread pair.
         const nextIsAlignmentTarget = (i + 1) === alignIndex;
 
         if (!nextIsLandscape && !nextIsAlignmentTarget) {
@@ -191,6 +192,39 @@
     }
     
     return currentIndex;
+  }
+
+  /* =========================
+   * Get the index of the image that occupies the most vertical space in the viewport
+   * ========================= */
+  function getPrimaryVisibleImageIndex() {
+    const imgs = getImages();
+    if (imgs.length === 0) return -1;
+
+    const windowHeight = window.innerHeight;
+    let maxVisibleHeight = 0;
+    let primaryIndex = -1;
+
+    imgs.forEach((img, index) => {
+      const rect = img.getBoundingClientRect();
+      
+      // Calculate visible height
+      const visibleTop = Math.max(0, rect.top);
+      const visibleBottom = Math.min(windowHeight, rect.bottom);
+      const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+      if (visibleHeight > maxVisibleHeight) {
+        maxVisibleHeight = visibleHeight;
+        primaryIndex = index;
+      }
+    });
+
+    // Fallback to center check if no clear winner (rare)
+    if (primaryIndex === -1) {
+      return getCurrentPageIndex();
+    }
+
+    return primaryIndex;
   }
 
   /* =========================
@@ -428,7 +462,8 @@
 
   function toggleDualView(enabled) {
     // 1. Capture current page index before re-layout
-    const currentIndex = getCurrentPageIndex();
+    // Use the primary visible image (most screen real estate) as the anchor
+    const currentIndex = getPrimaryVisibleImageIndex();
 
     // 2. Update state and layout
     // If enabling dual view, use the current index as the alignment target
