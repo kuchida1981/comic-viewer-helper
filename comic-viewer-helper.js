@@ -107,6 +107,77 @@
   }
 
   /* =========================
+   * Scroll to the first or last image
+   * ========================= */
+  function scrollToEdge(position) {
+    const imgs = getImages();
+    if (imgs.length === 0) return;
+    
+    const target = position === 'start' ? imgs[0] : imgs[imgs.length - 1];
+    target.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
+
+  /* =========================
+   * Create Navigation UI
+   * ========================= */
+  function createNavigationUI() {
+    const container = document.createElement('div');
+    Object.assign(container.style, {
+      position: 'fixed',
+      bottom: '20px',
+      right: '20px',
+      zIndex: '10000',
+      display: 'flex',
+      gap: '8px',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      padding: '8px',
+      borderRadius: '8px',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+    });
+
+    const buttons = [
+      { text: '<<', label: 'Go to First', action: () => scrollToEdge('start') },
+      { text: '<', label: 'Go to Previous', action: () => scrollToImage(-1) },
+      { text: '>', label: 'Go to Next', action: () => scrollToImage(1) },
+      { text: '>>', label: 'Go to Last', action: () => scrollToEdge('end') }
+    ];
+
+    buttons.forEach(btnDef => {
+      const btn = document.createElement('button');
+      btn.textContent = btnDef.text;
+      btn.title = btnDef.label;
+      Object.assign(btn.style, {
+        cursor: 'pointer',
+        padding: '6px 12px',
+        border: 'none',
+        background: '#fff',
+        color: '#333',
+        borderRadius: '4px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+        minWidth: '50px'
+      });
+      
+      // Add hover effect
+      btn.onmouseenter = () => btn.style.background = '#eee';
+      btn.onmouseleave = () => btn.style.background = '#fff';
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        btnDef.action();
+        btn.blur();
+      });
+      container.appendChild(btn);
+    });
+
+    document.body.appendChild(container);
+  }
+
+  /* =========================
    * Key Handler
    * ========================= */
   function onKeyDown(e) {
@@ -114,20 +185,27 @@
       return;
     }
 
-    // Down
+    // Ignore if modifier keys are pressed (to avoid conflicting with browser shortcuts)
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      return;
+    }
+
+    // Down / Next
     if (
       e.key === 'ArrowDown' ||
       e.key === 'PageDown' ||
+      e.key === 'ArrowRight' ||
       (e.key === ' ' && !e.shiftKey)
     ) {
       e.preventDefault();
       scrollToImage(1);
     }
 
-    // Up
+    // Up / Prev
     if (
       e.key === 'ArrowUp' ||
       e.key === 'PageUp' ||
+      e.key === 'ArrowLeft' ||
       (e.key === ' ' && e.shiftKey)
     ) {
       e.preventDefault();
@@ -140,6 +218,7 @@
    * ========================= */
   function init() {
     fitImagesToViewport();
+    createNavigationUI();
 
     // Throttled resize handler
     let resizeReq;
