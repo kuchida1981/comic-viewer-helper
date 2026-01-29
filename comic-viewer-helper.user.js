@@ -36,8 +36,9 @@
 
   /* =========================
    * Fit images to viewport
+   * @param {number} [alignmentIndex=-1] - The index of the image that MUST start a spread (be on the right)
    * ========================= */
-  function fitImagesToViewport() {
+  function fitImagesToViewport(alignmentIndex = -1) {
     const container = document.querySelector(CONTAINER_SELECTOR);
     if (!container) return;
 
@@ -65,17 +66,32 @@
     });
 
     // 2. Process Images
+    // We handle the alignment target (the page that MUST be the start of a spread/right side)
+    // by ensuring that the page immediately BEFORE it is NOT paired with it.
+    // So if i+1 is the alignment target, we force 'pairWithNext' to false.
+    let alignIndex = (typeof alignmentIndex === 'number') ? alignmentIndex : -1;
+
     for (let i = 0; i < allImages.length; i++) {
       const img = allImages[i];
       const isLandscape = img.naturalWidth > img.naturalHeight;
       
       // Determine if we should pair this image with the next
-      // Conditions: Dual Mode ON, Not Landscape, Next exists, Next is Not Landscape
+      // Conditions: 
+      // 1. Dual Mode ON
+      // 2. Not Landscape
+      // 3. Next exists
+      // 4. Next is Not Landscape
+      // 5. Next is NOT the alignment target (if next is target, current must be single so target starts new pair)
       let pairWithNext = false;
       if (isDualViewEnabled && !isLandscape && i + 1 < allImages.length) {
         const nextImg = allImages[i+1];
         const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
-        if (!nextIsLandscape) {
+        
+        // If the next image is the one we want to align to (start a spread), 
+        // we must NOT pair the current image with it.
+        const nextIsAlignmentTarget = (i + 1) === alignIndex;
+
+        if (!nextIsLandscape && !nextIsAlignmentTarget) {
           pairWithNext = true;
         }
       }
@@ -91,20 +107,29 @@
           flexDirection: 'row-reverse', // Right-to-Left for Manga (Right: Older/i, Left: Newer/i+1)
           justifyContent: 'center',
           alignItems: 'center',
-          width: '100%',
+          
+          // Force full viewport width regardless of parent container width
+          width: '100vw',
+          maxWidth: '100vw',
+          marginLeft: 'calc(50% - 50vw)', // Center relative to viewport
+          marginRight: 'calc(50% - 50vw)',
+          
           height: '100vh', // Force full viewport height for the spread
-          marginBottom: '0'
+          marginBottom: '0',
+          position: 'relative',
+          boxSizing: 'border-box'
         });
 
         // Style Images for Spread
         [img, nextImg].forEach(im => {
           Object.assign(im.style, {
-            maxWidth: '50%', // Each takes half width
-            maxHeight: '100%',
-            width: 'auto',
-            height: 'auto',
+            maxWidth: '50%',   // Limit to half width
+            maxHeight: '100%', // Limit to full height
+            width: 'auto',     // Maintain aspect ratio
+            height: 'auto',    // Maintain aspect ratio
             objectFit: 'contain',
-            margin: '0'
+            margin: '0',
+            display: 'block'
           });
         });
 
@@ -116,6 +141,9 @@
         i++; // Skip next image since we processed it
       } else {
         // Single Page Mode (Normal or Landscape)
+        // Reset styles first to ensure clean state
+        img.style.cssText = ''; 
+        
         Object.assign(img.style, {
           maxWidth: `${vw}px`,
           maxHeight: `${vh}px`,
@@ -124,14 +152,8 @@
           display: 'block',
           margin: '0 auto',
           flexShrink: '0',
-          objectFit: 'contain' // Ensure aspect ratio is kept
+          objectFit: 'contain'
         });
-        
-        // In dual mode, if we force single (landscape), maybe center it vertically in 100vh?
-        // But original behavior was just max-width/height. Let's keep it consistent.
-        // However, specifically for landscape in dual mode, the spec says "centered".
-        // The original code centered horizontally via margin: 0 auto.
-        // That is sufficient.
       }
     }
   }
@@ -144,16 +166,11 @@
   }
 
   /* =========================
-   * Update Page Counter
+   * Get current visible page index (0-based)
    * ========================= */
-  function updatePageCounter() {
-    if (!pageCounter) return;
-
+  function getCurrentPageIndex() {
     const imgs = getImages();
-    if (imgs.length === 0) {
-      pageCounter.textContent = '0 / 0';
-      return;
-    }
+    if (imgs.length === 0) return -1;
 
     const windowHeight = window.innerHeight;
     const centerLine = windowHeight / 2;
@@ -172,7 +189,24 @@
          return rect.bottom > 0 && rect.top < windowHeight;
        });
     }
+    
+    return currentIndex;
+  }
 
+  /* =========================
+   * Update Page Counter
+   * ========================= */
+  function updatePageCounter() {
+    if (!pageCounter) return;
+
+    const imgs = getImages();
+    if (imgs.length === 0) {
+      pageCounter.textContent = '0 / 0';
+      return;
+    }
+
+    const currentIndex = getCurrentPageIndex();
+    
     // Display 1-based index
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
@@ -393,10 +427,26 @@
   }
 
   function toggleDualView(enabled) {
+    // 1. Capture current page index before re-layout
+    const currentIndex = getCurrentPageIndex();
+
+    // 2. Update state and layout
+    // If enabling dual view, use the current index as the alignment target
+    // so it becomes the start (right side) of the spread.
     isDualViewEnabled = enabled;
     localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled);
-    fitImagesToViewport();
+    
+    fitImagesToViewport(enabled ? currentIndex : -1);
     updatePageCounter();
+
+    // 3. Restore position to the same page
+    if (currentIndex !== -1) {
+      const imgs = getImages();
+      const targetImg = imgs[currentIndex];
+      if (targetImg) {
+        targetImg.scrollIntoView({ block: 'start' }); // Instant jump, no smooth scroll needed here
+      }
+    }
   }
 
   /* =========================
