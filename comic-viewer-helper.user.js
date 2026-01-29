@@ -19,6 +19,7 @@
 
   let pageCounter = null;
   let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === 'true';
+  let originalImages = []; // Cache original image order
 
   /**
    * Check if the target element is an input field.
@@ -42,17 +43,24 @@
     const container = document.querySelector(CONTAINER_SELECTOR);
     if (!container) return;
 
-    // 1. Flatten DOM: Move all images back to container and remove wrappers
-    const allImages = Array.from(container.querySelectorAll('img'));
-    // Sort by current DOM position to maintain relative order before re-appending
-    // (Though querySelectorAll usually returns document order, safety first if we moved things)
-    allImages.forEach(img => container.appendChild(img));
+    // 1. Flatten DOM: Restore all images to container in original order
+    if (originalImages.length === 0) {
+        // Fallback if init didn't capture (shouldn't happen usually)
+        originalImages = Array.from(container.querySelectorAll('img'));
+    }
+
+    // Append images in original order. This moves them out of any wrappers and puts them at the end.
+    // Since we do this for ALL images in correct order, the final DOM order is guaranteed.
+    originalImages.forEach(img => container.appendChild(img));
     
+    // Remove any empty wrappers left behind
     const wrappers = container.querySelectorAll('.comic-row-wrapper');
     wrappers.forEach(w => w.remove());
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    
+    const allImages = [...originalImages];
 
     // Reset Container
     Object.assign(container.style, {
@@ -70,6 +78,7 @@
     // by ensuring that the page immediately BEFORE it is NOT paired with it.
     // So if i+1 is the alignment target, we force 'pairWithNext' to false.
     let alignIndex = (typeof alignmentIndex === 'number') ? alignmentIndex : -1;
+    console.log(`[DEBUG] fitImagesToViewport: alignIndex=${alignIndex}`);
 
     for (let i = 0; i < allImages.length; i++) {
       const img = allImages[i];
@@ -88,7 +97,8 @@
         const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
         
         // If the next image is the one we want to align to (start a spread), 
-        // we must NOT pair the current image with it.
+        // we must NOT pair the current image with it. This forces the current image 
+        // to be single (or end of previous flow), ensuring 'alignIndex' starts a new spread pair.
         const nextIsAlignmentTarget = (i + 1) === alignIndex;
 
         if (!nextIsLandscape && !nextIsAlignmentTarget) {
@@ -162,6 +172,7 @@
    * Get image list
    * ========================= */
   function getImages() {
+    if (originalImages.length > 0) return originalImages;
     return Array.from(document.querySelectorAll(IMG_SELECTOR));
   }
 
@@ -191,6 +202,39 @@
     }
     
     return currentIndex;
+  }
+
+  /* =========================
+   * Get the index of the image that occupies the most vertical space in the viewport
+   * ========================= */
+  function getPrimaryVisibleImageIndex() {
+    const imgs = getImages();
+    if (imgs.length === 0) return -1;
+
+    const windowHeight = window.innerHeight;
+    let maxVisibleHeight = 0;
+    let primaryIndex = -1;
+
+    imgs.forEach((img, index) => {
+      const rect = img.getBoundingClientRect();
+      
+      // Calculate visible height
+      const visibleTop = Math.max(0, rect.top);
+      const visibleBottom = Math.min(windowHeight, rect.bottom);
+      const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+
+      if (visibleHeight > maxVisibleHeight) {
+        maxVisibleHeight = visibleHeight;
+        primaryIndex = index;
+      }
+    });
+
+    // Fallback to center check if no clear winner (rare)
+    if (primaryIndex === -1) {
+      return getCurrentPageIndex();
+    }
+
+    return primaryIndex;
   }
 
   /* =========================
@@ -428,7 +472,9 @@
 
   function toggleDualView(enabled) {
     // 1. Capture current page index before re-layout
-    const currentIndex = getCurrentPageIndex();
+    // Use the primary visible image (most screen real estate) as the anchor
+    const currentIndex = getPrimaryVisibleImageIndex();
+    console.log(`[DEBUG] toggleDualView: enabled=${enabled}, currentIndex=${currentIndex}`);
 
     // 2. Update state and layout
     // If enabling dual view, use the current index as the alignment target
@@ -461,6 +507,9 @@
 
     console.log("Magazine Comic View Helper Loaded");
     
+    // Capture original image order
+    originalImages = Array.from(document.querySelectorAll(IMG_SELECTOR));
+
     // Attach load listeners to ensure layout updates when dimensions are known
     const imgs = document.querySelectorAll(IMG_SELECTOR);
     imgs.forEach(img => {
