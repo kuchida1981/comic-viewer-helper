@@ -6,7 +6,7 @@
 // @match        https://something/magazine/*
 // @match        https://something/fanzine/*
 // @run-at       document-idle
-// @grant        unsafeWindow
+// @grant        none
 // ==/UserScript==
 
 (function() {
@@ -14,6 +14,9 @@
   console.log("Magazine Comic View Helper Loaded");
 
   const IMG_SELECTOR = '#post-comic img';
+  const CONTAINER_SELECTOR = '#post-comic';
+
+  let pageCounter = null;
 
   /**
    * Check if the target element is an input field.
@@ -38,7 +41,7 @@
     const vh = window.innerHeight;
 
     // Ensure the container is centered and has no extra padding
-    const container = document.querySelector('#post-comic');
+    const container = document.querySelector(CONTAINER_SELECTOR);
     if (container) {
       Object.assign(container.style, {
         display: 'flex',
@@ -69,6 +72,43 @@
    * ========================= */
   function getImages() {
     return Array.from(document.querySelectorAll(IMG_SELECTOR));
+  }
+
+  /* =========================
+   * Update Page Counter
+   * ========================= */
+  function updatePageCounter() {
+    if (!pageCounter) return;
+
+    const imgs = getImages();
+    if (imgs.length === 0) {
+      pageCounter.textContent = '0 / 0';
+      return;
+    }
+
+    const windowHeight = window.innerHeight;
+    const centerLine = windowHeight / 2;
+
+    // Find the image closest to the center of the viewport
+    let currentIndex = imgs.findIndex(img => {
+      const rect = img.getBoundingClientRect();
+      // An image is considered "active" if it covers the center line of the viewport
+      return rect.top <= centerLine && rect.bottom >= centerLine;
+    });
+
+    // Fallback: If no image covers the center (e.g. gaps), find the one closest to top
+    if (currentIndex === -1) {
+       currentIndex = imgs.findIndex(img => {
+         const rect = img.getBoundingClientRect();
+         return rect.bottom > 0 && rect.top < windowHeight;
+       });
+    }
+
+    // Display 1-based index
+    const current = currentIndex !== -1 ? currentIndex + 1 : 1;
+    const total = imgs.length;
+
+    pageCounter.textContent = `${current} / ${total}`;
   }
 
   /* =========================
@@ -137,6 +177,22 @@
       borderRadius: '8px',
       boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
     });
+
+    // Create Page Counter
+    pageCounter = document.createElement('span');
+    Object.assign(pageCounter.style, {
+      color: '#fff',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      padding: '0 8px',
+      display: 'flex',
+      alignItems: 'center',
+      userSelect: 'none',
+      minWidth: '60px',
+      justifyContent: 'center'
+    });
+    pageCounter.textContent = '1 / 1';
+    container.appendChild(pageCounter);
 
     const buttons = [
       { text: '<<', label: 'Go to First', action: () => scrollToEdge('start') },
@@ -217,14 +273,32 @@
    * Initialization
    * ========================= */
   function init() {
+    const container = document.querySelector(CONTAINER_SELECTOR);
+    if (!container) {
+      console.warn("Magazine Comic View Helper: Target container (#post-comic) not found. Skipping initialization.");
+      return;
+    }
+
+    console.log("Magazine Comic View Helper Loaded");
     fitImagesToViewport();
     createNavigationUI();
+    updatePageCounter();
 
     // Throttled resize handler
     let resizeReq;
     window.addEventListener('resize', () => {
       if (resizeReq) cancelAnimationFrame(resizeReq);
-      resizeReq = requestAnimationFrame(fitImagesToViewport);
+      resizeReq = requestAnimationFrame(() => {
+        fitImagesToViewport();
+        updatePageCounter();
+      });
+    });
+
+    // Throttled scroll handler for page counter
+    let scrollReq;
+    window.addEventListener('scroll', () => {
+      if (scrollReq) cancelAnimationFrame(scrollReq);
+      scrollReq = requestAnimationFrame(updatePageCounter);
     });
 
     document.addEventListener('keydown', onKeyDown, true);
