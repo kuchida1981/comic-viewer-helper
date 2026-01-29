@@ -37,6 +37,20 @@
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
+    // Ensure the container is centered and has no extra padding
+    const container = document.querySelector('#post-comic');
+    if (container) {
+      Object.assign(container.style, {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '0',
+        margin: '0',
+        width: '100%',
+        maxWidth: 'none'
+      });
+    }
+
     imgs.forEach(img => {
       Object.assign(img.style, {
         maxWidth: `${vw}px`,
@@ -44,7 +58,8 @@
         width: 'auto',
         height: 'auto',
         display: 'block',
-        margin: '0 auto'
+        margin: '0 auto',
+        flexShrink: '0'
       });
     });
   }
