@@ -15,8 +15,10 @@
 
   const IMG_SELECTOR = '#post-comic img';
   const CONTAINER_SELECTOR = '#post-comic';
+  const STORAGE_KEY_DUAL_VIEW = 'comic-viewer-helper-dual-view';
 
   let pageCounter = null;
+  let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === 'true';
 
   /**
    * Check if the target element is an input field.
@@ -36,35 +38,102 @@
    * Fit images to viewport
    * ========================= */
   function fitImagesToViewport() {
-    const imgs = document.querySelectorAll(IMG_SELECTOR);
+    const container = document.querySelector(CONTAINER_SELECTOR);
+    if (!container) return;
+
+    // 1. Flatten DOM: Move all images back to container and remove wrappers
+    const allImages = Array.from(container.querySelectorAll('img'));
+    // Sort by current DOM position to maintain relative order before re-appending
+    // (Though querySelectorAll usually returns document order, safety first if we moved things)
+    allImages.forEach(img => container.appendChild(img));
+    
+    const wrappers = container.querySelectorAll('.comic-row-wrapper');
+    wrappers.forEach(w => w.remove());
+
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    // Ensure the container is centered and has no extra padding
-    const container = document.querySelector(CONTAINER_SELECTOR);
-    if (container) {
-      Object.assign(container.style, {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '0',
-        margin: '0',
-        width: '100%',
-        maxWidth: 'none'
-      });
-    }
-
-    imgs.forEach(img => {
-      Object.assign(img.style, {
-        maxWidth: `${vw}px`,
-        maxHeight: `${vh}px`,
-        width: 'auto',
-        height: 'auto',
-        display: 'block',
-        margin: '0 auto',
-        flexShrink: '0'
-      });
+    // Reset Container
+    Object.assign(container.style, {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      padding: '0',
+      margin: '0',
+      width: '100%',
+      maxWidth: 'none'
     });
+
+    // 2. Process Images
+    for (let i = 0; i < allImages.length; i++) {
+      const img = allImages[i];
+      const isLandscape = img.naturalWidth > img.naturalHeight;
+      
+      // Determine if we should pair this image with the next
+      // Conditions: Dual Mode ON, Not Landscape, Next exists, Next is Not Landscape
+      let pairWithNext = false;
+      if (isDualViewEnabled && !isLandscape && i + 1 < allImages.length) {
+        const nextImg = allImages[i+1];
+        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
+        if (!nextIsLandscape) {
+          pairWithNext = true;
+        }
+      }
+
+      if (pairWithNext) {
+        const nextImg = allImages[i+1];
+        
+        // Create Wrapper
+        const row = document.createElement('div');
+        row.className = 'comic-row-wrapper';
+        Object.assign(row.style, {
+          display: 'flex',
+          flexDirection: 'row-reverse', // Right-to-Left for Manga (Right: Older/i, Left: Newer/i+1)
+          justifyContent: 'center',
+          alignItems: 'center',
+          width: '100%',
+          height: '100vh', // Force full viewport height for the spread
+          marginBottom: '0'
+        });
+
+        // Style Images for Spread
+        [img, nextImg].forEach(im => {
+          Object.assign(im.style, {
+            maxWidth: '50%', // Each takes half width
+            maxHeight: '100%',
+            width: 'auto',
+            height: 'auto',
+            objectFit: 'contain',
+            margin: '0'
+          });
+        });
+
+        // Move images into row
+        row.appendChild(img);     // i (Right due to row-reverse)
+        row.appendChild(nextImg); // i+1 (Left due to row-reverse)
+        container.appendChild(row);
+
+        i++; // Skip next image since we processed it
+      } else {
+        // Single Page Mode (Normal or Landscape)
+        Object.assign(img.style, {
+          maxWidth: `${vw}px`,
+          maxHeight: `${vh}px`,
+          width: 'auto',
+          height: 'auto',
+          display: 'block',
+          margin: '0 auto',
+          flexShrink: '0',
+          objectFit: 'contain' // Ensure aspect ratio is kept
+        });
+        
+        // In dual mode, if we force single (landscape), maybe center it vertically in 100vh?
+        // But original behavior was just max-width/height. Let's keep it consistent.
+        // However, specifically for landscape in dual mode, the spec says "centered".
+        // The original code centered horizontally via margin: 0 auto.
+        // That is sufficient.
+      }
+    }
   }
 
   /* =========================
@@ -107,8 +176,27 @@
     // Display 1-based index
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
+    
+    let displayStr = `${current}`;
+    
+    // Check if the current image is part of a spread
+    if (currentIndex !== -1) {
+      const activeImg = imgs[currentIndex];
+      const parent = activeImg.parentElement;
+      if (parent && parent.classList.contains('comic-row-wrapper')) {
+        // Find sibling in the same wrapper
+        const siblings = Array.from(parent.children).filter(el => el.tagName === 'IMG');
+        if (siblings.length > 1) {
+          // Get indices of all images in this wrapper
+          const indices = siblings.map(img => imgs.indexOf(img) + 1).sort((a, b) => a - b);
+          if (indices.length > 0) {
+            displayStr = `${indices[0]}-${indices[indices.length - 1]}`;
+          }
+        }
+      }
+    }
 
-    pageCounter.textContent = `${current} / ${total}`;
+    pageCounter.textContent = `${displayStr} / ${total}`;
   }
 
   /* =========================
@@ -194,6 +282,31 @@
     pageCounter.textContent = '1 / 1';
     container.appendChild(pageCounter);
 
+    // Create Dual View Toggle
+    const toggleLabel = document.createElement('label');
+    Object.assign(toggleLabel.style, {
+      display: 'flex',
+      alignItems: 'center',
+      color: '#fff',
+      fontSize: '12px',
+      cursor: 'pointer',
+      userSelect: 'none',
+      marginRight: '8px'
+    });
+    
+    const toggleInput = document.createElement('input');
+    toggleInput.type = 'checkbox';
+    toggleInput.checked = isDualViewEnabled;
+    toggleInput.style.marginRight = '4px';
+    toggleInput.addEventListener('change', (e) => {
+      toggleDualView(e.target.checked);
+      toggleInput.blur(); // Remove focus so space/arrow keys work immediately
+    });
+
+    toggleLabel.appendChild(toggleInput);
+    toggleLabel.appendChild(document.createTextNode('Spread'));
+    container.appendChild(toggleLabel);
+
     const buttons = [
       { text: '<<', label: 'Go to First', action: () => scrollToEdge('start') },
       { text: '<', label: 'Go to Previous', action: () => scrollToImage(-1) },
@@ -267,6 +380,23 @@
       e.preventDefault();
       scrollToImage(-1);
     }
+
+    // Toggle Dual View
+    if (e.key === 'd') {
+      e.preventDefault();
+      const newState = !isDualViewEnabled;
+      // Update UI checkbox if it exists
+      const checkbox = document.querySelector('input[type="checkbox"]');
+      if (checkbox) checkbox.checked = newState;
+      toggleDualView(newState);
+    }
+  }
+
+  function toggleDualView(enabled) {
+    isDualViewEnabled = enabled;
+    localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled);
+    fitImagesToViewport();
+    updatePageCounter();
   }
 
   /* =========================
@@ -280,6 +410,23 @@
     }
 
     console.log("Magazine Comic View Helper Loaded");
+    
+    // Attach load listeners to ensure layout updates when dimensions are known
+    const imgs = document.querySelectorAll(IMG_SELECTOR);
+    imgs.forEach(img => {
+      if (!img.complete) {
+        img.addEventListener('load', () => {
+           // Debounce or just call? Calling is safe as it's fast enough or we can use the resizeReq
+           // Using the throttled resize handler logic for consistency
+           if (resizeReq) cancelAnimationFrame(resizeReq);
+           resizeReq = requestAnimationFrame(() => {
+             fitImagesToViewport();
+             updatePageCounter();
+           });
+        });
+      }
+    });
+
     fitImagesToViewport();
     createNavigationUI();
     updatePageCounter();
