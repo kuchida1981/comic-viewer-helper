@@ -19,6 +19,7 @@
 
   let pageCounter = null;
   let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === 'true';
+  let originalImages = []; // Cache original image order
 
   /**
    * Check if the target element is an input field.
@@ -42,17 +43,24 @@
     const container = document.querySelector(CONTAINER_SELECTOR);
     if (!container) return;
 
-    // 1. Flatten DOM: Move all images back to container and remove wrappers
-    const allImages = Array.from(container.querySelectorAll('img'));
-    // Sort by current DOM position to maintain relative order before re-appending
-    // (Though querySelectorAll usually returns document order, safety first if we moved things)
-    allImages.forEach(img => container.appendChild(img));
+    // 1. Flatten DOM: Restore all images to container in original order
+    if (originalImages.length === 0) {
+        // Fallback if init didn't capture (shouldn't happen usually)
+        originalImages = Array.from(container.querySelectorAll('img'));
+    }
+
+    // Append images in original order. This moves them out of any wrappers and puts them at the end.
+    // Since we do this for ALL images in correct order, the final DOM order is guaranteed.
+    originalImages.forEach(img => container.appendChild(img));
     
+    // Remove any empty wrappers left behind
     const wrappers = container.querySelectorAll('.comic-row-wrapper');
     wrappers.forEach(w => w.remove());
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    
+    const allImages = [...originalImages];
 
     // Reset Container
     Object.assign(container.style, {
@@ -70,6 +78,7 @@
     // by ensuring that the page immediately BEFORE it is NOT paired with it.
     // So if i+1 is the alignment target, we force 'pairWithNext' to false.
     let alignIndex = (typeof alignmentIndex === 'number') ? alignmentIndex : -1;
+    console.log(`[DEBUG] fitImagesToViewport: alignIndex=${alignIndex}`);
 
     for (let i = 0; i < allImages.length; i++) {
       const img = allImages[i];
@@ -163,6 +172,7 @@
    * Get image list
    * ========================= */
   function getImages() {
+    if (originalImages.length > 0) return originalImages;
     return Array.from(document.querySelectorAll(IMG_SELECTOR));
   }
 
@@ -464,6 +474,7 @@
     // 1. Capture current page index before re-layout
     // Use the primary visible image (most screen real estate) as the anchor
     const currentIndex = getPrimaryVisibleImageIndex();
+    console.log(`[DEBUG] toggleDualView: enabled=${enabled}, currentIndex=${currentIndex}`);
 
     // 2. Update state and layout
     // If enabling dual view, use the current index as the alignment target
@@ -496,6 +507,9 @@
 
     console.log("Magazine Comic View Helper Loaded");
     
+    // Capture original image order
+    originalImages = Array.from(document.querySelectorAll(IMG_SELECTOR));
+
     // Attach load listeners to ensure layout updates when dimensions are known
     const imgs = document.querySelectorAll(IMG_SELECTOR);
     imgs.forEach(img => {
