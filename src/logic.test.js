@@ -31,31 +31,21 @@ describe('logic.js', () => {
 
   describe('shouldPairWithNext', () => {
     it('should return true for normal dual view pairing', () => {
-      const current = { isLandscape: false, index: 0 };
-      const next = { isLandscape: false, index: 1 };
-      const options = { isDualViewEnabled: true, alignmentIndex: -1 };
-      expect(shouldPairWithNext(current, next, options)).toBe(true);
+      const current = { isLandscape: false };
+      const next = { isLandscape: false };
+      expect(shouldPairWithNext(current, next, true)).toBe(true);
     });
 
     it('should return false if dual view is disabled', () => {
-      const current = { isLandscape: false, index: 0 };
-      const next = { isLandscape: false, index: 1 };
-      const options = { isDualViewEnabled: false, alignmentIndex: -1 };
-      expect(shouldPairWithNext(current, next, options)).toBe(false);
+      const current = { isLandscape: false };
+      const next = { isLandscape: false };
+      expect(shouldPairWithNext(current, next, false)).toBe(false);
     });
 
     it('should return false if current is landscape', () => {
-      const current = { isLandscape: true, index: 0 };
-      const next = { isLandscape: false, index: 1 };
-      const options = { isDualViewEnabled: true, alignmentIndex: -1 };
-      expect(shouldPairWithNext(current, next, options)).toBe(false);
-    });
-
-    it('should return false if next is alignment target', () => {
-      const current = { isLandscape: false, index: 0 };
-      const next = { isLandscape: false, index: 1 };
-      const options = { isDualViewEnabled: true, alignmentIndex: 1 };
-      expect(shouldPairWithNext(current, next, options)).toBe(false);
+      const current = { isLandscape: true };
+      const next = { isLandscape: false };
+      expect(shouldPairWithNext(current, next, true)).toBe(false);
     });
   });
 

@@ -12,6 +12,7 @@ let pageCounter = null;
 let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === 'true';
 let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== 'false';
 let originalImages = [];
+let spreadOffset = 0;
 
 function isInputField(target) {
   return (
@@ -114,14 +115,18 @@ function toggleActivation(enabled) {
   localStorage.setItem(STORAGE_KEY_ENABLED, enabled);
 
   if (enabled) {
-    fitImagesToViewport(currentIndex, isDualViewEnabled);
+    // Re-calculate offset if enabling for the first time or re-enabling
+    if (currentIndex !== -1) {
+        spreadOffset = currentIndex % 2;
+    }
+    fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
     updatePageCounter();
     if (currentIndex !== -1) {
        const imgs = getImages();
        if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: 'start' });
     }
   } else {
-    revertToOriginal(getImages());
+    revertToOriginal(getImages(), CONTAINER_SELECTOR);
   }
   createNavigationUI();
 }
@@ -271,6 +276,28 @@ function createNavigationUI() {
   toggleLabel.appendChild(document.createTextNode('Spread'));
   container.appendChild(toggleLabel);
 
+  // Adjust Button
+  if (isDualViewEnabled) {
+      const adjustBtn = document.createElement('button');
+      adjustBtn.textContent = 'Adjust';
+      adjustBtn.title = 'Adjust Spread Alignment';
+      Object.assign(adjustBtn.style, {
+           cursor: 'pointer', padding: '2px 6px', border: '1px solid #fff', 
+           background: 'transparent', color: '#fff', borderRadius: '4px', 
+           fontSize: '10px', marginLeft: '4px', fontWeight: 'normal'
+      });
+      adjustBtn.onmouseenter = () => adjustBtn.style.background = 'rgba(255,255,255,0.2)';
+      adjustBtn.onmouseleave = () => adjustBtn.style.background = 'transparent';
+
+      adjustBtn.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          spreadOffset = spreadOffset === 0 ? 1 : 0;
+          fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
+          updatePageCounter();
+      });
+      container.appendChild(adjustBtn);
+  }
+
   const buttons = [
     { text: '<<', label: 'Go to First', action: () => scrollToEdge('start') },
     { text: '<', label: 'Go to Previous', action: () => scrollToImage(-1) },
@@ -324,8 +351,17 @@ function toggleDualView(enabled) {
   const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
   isDualViewEnabled = enabled;
   localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled);
-  fitImagesToViewport(enabled ? currentIndex : -1, isDualViewEnabled);
+  
+  if (enabled) {
+      if (currentIndex !== -1) {
+          spreadOffset = currentIndex % 2;
+      }
+  }
+
+  fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
   updatePageCounter();
+  createNavigationUI(); // Re-render UI to show/hide Adjust button
+
   if (currentIndex !== -1) {
     const imgs = getImages();
     const targetImg = imgs[currentIndex];
@@ -357,7 +393,7 @@ function init() {
          if (resizeReq) cancelAnimationFrame(resizeReq);
          resizeReq = requestAnimationFrame(() => { 
              if (isEnabled) {
-               fitImagesToViewport(); updatePageCounter(); 
+               fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled); updatePageCounter(); 
              }
          });
       });
@@ -365,7 +401,7 @@ function init() {
   });
   
   if (isEnabled) {
-    fitImagesToViewport(-1, isDualViewEnabled);
+    fitImagesToViewport(CONTAINER_SELECTOR, -1, isDualViewEnabled);
   }
   
   createNavigationUI();
@@ -377,7 +413,10 @@ function init() {
   window.addEventListener('resize', () => {
     if (!isEnabled) return;
     if (resizeReq) cancelAnimationFrame(resizeReq);
-    resizeReq = requestAnimationFrame(() => { fitImagesToViewport(); updatePageCounter(); });
+    resizeReq = requestAnimationFrame(() => { 
+        fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled); 
+        updatePageCounter(); 
+    });
   });
   let scrollReq;
   window.addEventListener('scroll', () => {

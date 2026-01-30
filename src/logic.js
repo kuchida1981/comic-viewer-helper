@@ -2,8 +2,6 @@
  * Logic extracted from comic-viewer-helper.user.js for unit testing.
  */
 
-const CONTAINER_SELECTOR = '#post-comic';
-
 /**
  * Calculate visible height of an image in the viewport
  * @param {DOMRect} rect 
@@ -17,21 +15,17 @@ export function calculateVisibleHeight(rect, windowHeight) {
 }
 
 /**
- * Determine if two images should be paired in dual view
- * @param {Object} current - { isLandscape, index }
- * @param {Object} next - { isLandscape, index }
- * @param {Object} options - { isDualViewEnabled, alignmentIndex }
+ * Determine if two images can be paired based on their properties
+ * @param {Object} current - { isLandscape }
+ * @param {Object} next - { isLandscape }
+ * @param {boolean} isDualViewEnabled
  * @returns {boolean}
  */
-export function shouldPairWithNext(current, next, options) {
-  const { isDualViewEnabled, alignmentIndex } = options;
-  
+export function shouldPairWithNext(current, next, isDualViewEnabled) {
   if (!isDualViewEnabled) return false;
   if (current.isLandscape) return false;
   if (!next) return false;
   if (next.isLandscape) return false;
-  
-  if (next.index === alignmentIndex) return false;
   
   return true;
 }
@@ -73,11 +67,30 @@ export function getImageElementByIndex(imgs, index) {
 }
 
 /**
+ * Cleanup DOM: remove wrappers and reset image styles
+ * @param {HTMLElement} container
+ */
+export function cleanupDOM(container) {
+  const allImages = Array.from(container.querySelectorAll('img'));
+  const wrappers = container.querySelectorAll('.comic-row-wrapper');
+  
+  wrappers.forEach(w => w.remove());
+  
+  allImages.forEach(img => {
+    img.style.cssText = '';
+    container.appendChild(img);
+  });
+}
+
+/**
  * Fit images to viewport
  */
-export function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled = false) {
-  const container = document.querySelector(CONTAINER_SELECTOR);
+export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualViewEnabled = false) {
+  const container = document.querySelector(containerSelector);
   if (!container) return;
+
+  // Cleanup first to avoid DOM pollution
+  cleanupDOM(container);
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -94,11 +107,21 @@ export function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled = fal
     const isLandscape = img.naturalWidth > img.naturalHeight;
     
     let pairWithNext = false;
-    if (isDualViewEnabled && !isLandscape && i + 1 < allImages.length) {
+    
+    // Deterministic pairing logic based on spreadOffset
+    // We pair (i, i+1) only if:
+    // 1. Dual View is enabled
+    // 2. Current position allows pairing: (i - spreadOffset) is even
+    // 3. Image properties allow pairing (both portrait)
+    
+    const effectiveIndex = i - spreadOffset;
+    const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
+
+    if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length) {
       const nextImg = allImages[i+1];
       const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
-      const nextIsAlignmentTarget = (i + 1) === alignmentIndex;
-      if (!nextIsLandscape && !nextIsAlignmentTarget) {
+      
+      if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
         pairWithNext = true;
       }
     }
@@ -138,7 +161,7 @@ export function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled = fal
  * @param {Array<HTMLImageElement>} originalImages 
  * @param {string} containerSelector 
  */
-export function revertToOriginal(originalImages, containerSelector = CONTAINER_SELECTOR) {
+export function revertToOriginal(originalImages, containerSelector) {
   const container = document.querySelector(containerSelector);
   if (!container) return;
 
