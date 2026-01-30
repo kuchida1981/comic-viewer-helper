@@ -14,4 +14,4 @@ package-lock.json
 
 # Vitest / Testing
 coverage/
-.vitest/
+.vitest/\ndist/
