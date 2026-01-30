@@ -6,7 +6,6 @@
 
 # Dependencies
 node_modules/
-package-lock.json
 
 # Build and IDE
 .DS_Store
@@ -14,4 +13,8 @@ package-lock.json
 
 # Vitest / Testing
 coverage/
-.vitest/\ndist/
+.vitest/
+
+# Build artifacts
+dist/*
+!dist/*.user.js
