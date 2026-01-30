@@ -62,6 +62,17 @@ export function getPrimaryVisibleImageIndex(imgs, windowHeight) {
 }
 
 /**
+ * Get image element by index (0-based)
+ * @param {Array<HTMLImageElement>} imgs 
+ * @param {number} index 
+ * @returns {HTMLImageElement|null}
+ */
+export function getImageElementByIndex(imgs, index) {
+  if (index < 0 || index >= imgs.length) return null;
+  return imgs[index];
+}
+
+/**
  * Fit images to viewport
  */
 export function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled = false) {

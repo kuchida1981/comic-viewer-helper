@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex } from './logic';
 
 describe('logic.js', () => {
   describe('calculateVisibleHeight', () => {
@@ -71,6 +71,19 @@ describe('logic.js', () => {
 
     it('should return -1 for empty list', () => {
       expect(getPrimaryVisibleImageIndex([], 1000)).toBe(-1);
+    });
+  });
+
+  describe('getImageElementByIndex', () => {
+    it('should return the element if index is within range', () => {
+      const imgs = ['img0', 'img1', 'img2'];
+      expect(getImageElementByIndex(imgs, 1)).toBe('img1');
+    });
+
+    it('should return null if index is out of range', () => {
+      const imgs = ['img0', 'img1'];
+      expect(getImageElementByIndex(imgs, 2)).toBe(null);
+      expect(getImageElementByIndex(imgs, -1)).toBe(null);
     });
   });
 });

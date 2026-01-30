@@ -1,4 +1,4 @@
-import { fitImagesToViewport, getPrimaryVisibleImageIndex } from './logic.js';
+import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex } from './logic.js';
 
 console.log("Magazine Comic View Helper Loaded");
 
@@ -43,35 +43,48 @@ function getCurrentPageIndex() {
   return currentIndex;
 }
 
-function updatePageCounter() {
-  if (!pageCounter) return;
-  const imgs = getImages();
-  if (imgs.length === 0) {
-    pageCounter.textContent = '0 / 0';
-    return;
+  function updatePageCounter() {
+    if (!pageCounter) return;
+    const imgs = getImages();
+    const totalEl = document.getElementById('comic-total-counter');
+    
+    if (imgs.length === 0) {
+      pageCounter.value = 0;
+      if (totalEl) totalEl.textContent = ' / 0';
+      return;
+    }
+    
+    const currentIndex = getCurrentPageIndex();
+    const current = currentIndex !== -1 ? currentIndex + 1 : 1;
+    const total = imgs.length;
+    
+    // Don't update if input is focused to avoid cursor jumping
+    if (document.activeElement !== pageCounter) {
+      pageCounter.value = current;
+    }
+    if (totalEl) totalEl.textContent = ` / ${total}`;
   }
-  const currentIndex = getCurrentPageIndex();
-  const current = currentIndex !== -1 ? currentIndex + 1 : 1;
-  const total = imgs.length;
-  let displayStr = `${current}`;
-  if (currentIndex !== -1) {
-    const activeImg = imgs[currentIndex];
-    const parent = activeImg.parentElement;
-    if (parent && parent.classList.contains('comic-row-wrapper')) {
-      const siblings = Array.from(parent.children).filter(el => el.tagName === 'IMG');
-      if (siblings.length > 1) {
-        const indices = siblings.map(img => imgs.indexOf(img) + 1).sort((a, b) => a - b);
-        if (indices.length > 0) {
-          displayStr = `${indices[0]}-${indices[indices.length - 1]}`;
-        }
-      }
+
+  function jumpToPage(pageNumber) {
+    const imgs = getImages();
+    const index = parseInt(pageNumber, 10) - 1;
+    const targetImg = getImageElementByIndex(imgs, index);
+    
+    if (targetImg) {
+      targetImg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      pageCounter.blur();
+    } else {
+      // Validation failure: revert to current page and show feedback
+      updatePageCounter();
+      pageCounter.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+      setTimeout(() => {
+        pageCounter.style.backgroundColor = 'transparent';
+      }, 500);
+      pageCounter.blur();
     }
   }
-  pageCounter.textContent = `${displayStr} / ${total}`;
-}
 
-function scrollToImage(direction) {
-  const imgs = getImages();
+  function scrollToImage(direction) {  const imgs = getImages();
   if (imgs.length === 0) return;
   const THRESHOLD = 5;
   let targetImg = null;
@@ -108,50 +121,74 @@ function createNavigationUI() {
     cursor: 'move', userSelect: 'none', touchAction: 'none'
   });
 
-  const savedPos = loadGUIPosition();
-  if (savedPos) {
-    Object.assign(container.style, { top: `${savedPos.top}px`, left: `${savedPos.left}px`, bottom: 'auto', right: 'auto' });
-  }
-
-  let isDragging = false;
-  let dragStartX, dragStartY, initialTop, initialLeft;
-
-  container.addEventListener('mousedown', (e) => {
-    if (e.button !== 0 || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-    isDragging = true;
-    const rect = container.getBoundingClientRect();
-    initialTop = rect.top; initialLeft = rect.left;
-    dragStartX = e.clientX; dragStartY = e.clientY;
-    Object.assign(container.style, { top: `${initialTop}px`, left: `${initialLeft}px`, bottom: 'auto', right: 'auto' });
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-    e.preventDefault();
-  });
-
-  function onMouseMove(e) {
-    if (!isDragging) return;
-    const deltaX = e.clientX - dragStartX;
-    const deltaY = e.clientY - dragStartY;
-    container.style.top = `${initialTop + deltaY}px`;
-    container.style.left = `${initialLeft + deltaX}px`;
-  }
-
-  function onMouseUp() {
-    if (!isDragging) return;
-    isDragging = false;
-    const rect = container.getBoundingClientRect();
-    saveGUIPosition(rect.top, rect.left);
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
-  }
-
-  pageCounter = document.createElement('span');
-  Object.assign(pageCounter.style, { color: '#fff', fontSize: '14px', fontWeight: 'bold', padding: '0 8px', display: 'flex', alignItems: 'center', userSelect: 'none', minWidth: '60px', justifyContent: 'center' });
-  pageCounter.textContent = '1 / 1';
-  container.appendChild(pageCounter);
-
-  const toggleLabel = document.createElement('label');
-  Object.assign(toggleLabel.style, { display: 'flex', alignItems: 'center', color: '#fff', fontSize: '12px', cursor: 'pointer', userSelect: 'none', marginRight: '8px' });
+      const savedPos = loadGUIPosition();
+      if (savedPos) {
+        Object.assign(container.style, { top: `${savedPos.top}px`, left: `${savedPos.left}px`, bottom: 'auto', right: 'auto' });
+      }
+  
+      let isDragging = false;
+      let dragStartX, dragStartY, initialTop, initialLeft;
+  
+      container.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+        isDragging = true;
+        const rect = container.getBoundingClientRect();
+        initialTop = rect.top; initialLeft = rect.left;
+        dragStartX = e.clientX; dragStartY = e.clientY;
+        Object.assign(container.style, { top: `${initialTop}px`, left: `${initialLeft}px`, bottom: 'auto', right: 'auto' });
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+      });
+  
+      function onMouseMove(e) {
+        if (!isDragging) return;
+        const deltaX = e.clientX - dragStartX;
+        const deltaY = e.clientY - dragStartY;
+        container.style.top = `${initialTop + deltaY}px`;
+        container.style.left = `${initialLeft + deltaX}px`;
+      }
+  
+      function onMouseUp() {
+        if (!isDragging) return;
+        isDragging = false;
+        const rect = container.getBoundingClientRect();
+        saveGUIPosition(rect.top, rect.left);
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      }
+  
+      const counterWrapper = document.createElement('span');
+      Object.assign(counterWrapper.style, { color: '#fff', fontSize: '14px', fontWeight: 'bold', padding: '0 8px', display: 'flex', alignItems: 'center', userSelect: 'none' });
+  
+      pageCounter = document.createElement('input');
+      pageCounter.type = 'number';
+      pageCounter.min = 1;
+      Object.assign(pageCounter.style, {
+        width: '45px', background: 'transparent', border: '1px solid transparent', color: '#fff',
+        fontSize: '14px', fontWeight: 'bold', textAlign: 'right', padding: '2px', outline: 'none',
+        appearance: 'textfield', margin: '0'
+      });
+      // Hide spin buttons
+      pageCounter.style.setProperty('-moz-appearance', 'textfield');
+      
+          pageCounter.addEventListener('focus', () => { pageCounter.style.border = '1px solid #fff'; pageCounter.style.background = 'rgba(255,255,255,0.1)'; });
+          pageCounter.addEventListener('blur', () => { pageCounter.style.border = '1px solid transparent'; pageCounter.style.background = 'transparent'; });
+          pageCounter.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              jumpToPage(pageCounter.value);
+            }
+          });
+      
+          const totalCounter = document.createElement('span');      totalCounter.id = 'comic-total-counter';
+      totalCounter.textContent = ' / 1';
+  
+      counterWrapper.appendChild(pageCounter);
+      counterWrapper.appendChild(totalCounter);
+      container.appendChild(counterWrapper);
+  
+      const toggleLabel = document.createElement('label');  Object.assign(toggleLabel.style, { display: 'flex', alignItems: 'center', color: '#fff', fontSize: '12px', cursor: 'pointer', userSelect: 'none', marginRight: '8px' });
       const toggleInput = document.createElement('input');
       toggleInput.type = 'checkbox';
       toggleInput.checked = isDualViewEnabled;
