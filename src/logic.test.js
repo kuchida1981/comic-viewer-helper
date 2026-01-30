@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport } from './logic';
 
 describe('logic.js', () => {
   describe('calculateVisibleHeight', () => {
@@ -140,5 +140,92 @@ describe('logic.js', () => {
       expect(container.appendChild).not.toHaveBeenCalled();
     });
   });
-});
 
+  describe('fitImagesToViewport', () => {
+    let container;
+    let images;
+    let createdElements = [];
+
+    beforeEach(() => {
+      createdElements = [];
+      images = Array.from({ length: 4 }, (_, i) => ({
+        naturalWidth: 100,
+        naturalHeight: 200,
+        style: {},
+        remove: vi.fn()
+      }));
+
+      container = {
+        style: {},
+        appendChild: vi.fn(),
+        querySelectorAll: vi.fn().mockImplementation((selector) => {
+          if (selector === 'img') return images;
+          if (selector === '.comic-row-wrapper') return [];
+          return [];
+        })
+      };
+
+      vi.stubGlobal('document', {
+        querySelector: vi.fn().mockReturnValue(container),
+        createElement: vi.fn().mockImplementation((tag) => {
+          const el = { 
+            tagName: tag.toUpperCase(), 
+            style: {}, 
+            appendChild: vi.fn(), 
+            className: '' 
+          };
+          createdElements.push(el);
+          return el;
+        })
+      });
+      vi.stubGlobal('window', { innerWidth: 1000, innerHeight: 1000 });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should pair 0-1 and 2-3 when offset is 0', () => {
+      fitImagesToViewport('#container', 0, true);
+      
+      // Expect 2 wrapper divs created
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(2);
+      
+      // First wrapper should contain img 0 and 1
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[1]);
+      
+      // Second wrapper should contain img 2 and 3
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[2]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[3]);
+    });
+
+    it('should pair 1-2 when offset is 1 (0 is solo)', () => {
+      fitImagesToViewport('#container', 1, true);
+      
+      // Expect 1 wrapper div created (for 1-2)
+      // 0 and 3 are solo
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(1);
+      
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[1]);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[2]);
+      
+      // Solo images are just styled, not appended to wrappers
+      expect(images[0].style.display).toBe('block'); // check if styled
+    });
+
+    it('should call cleanupDOM (remove wrappers)', () => {
+      const existingWrapper = { remove: vi.fn() };
+      container.querySelectorAll.mockImplementation((selector) => {
+        if (selector === '.comic-row-wrapper') return [existingWrapper];
+        if (selector === 'img') return images;
+        return [];
+      });
+
+      fitImagesToViewport('#container', 0, true);
+      expect(existingWrapper.remove).toHaveBeenCalled();
+    });
+  });
+});
