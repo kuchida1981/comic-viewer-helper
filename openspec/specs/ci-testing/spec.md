@@ -1,7 +1,7 @@
 # ci-testing
 
 ## Purpose
-GitHub Actions を利用して、継続的な品質管理のための自動テスト実行機能を提供します。
+GitHub Actions を利用して、コードの品質管理および開発プロセスの検証を自動化します。
 
 ## Requirements
 
@@ -13,8 +13,8 @@ GitHub Actions を利用して、継続的な品質管理のための自動テ�
 - **THEN** GitHub Actions のワークフローが起動し、ユニットテストが実行される
 
 ### Requirement: テスト失敗時のブロック
-GitHub Actions でのテストが失敗した場合、そのプルリクエストのマージを制限するためのステータスチェックを提供しなければならない（MUST）。
+GitHub Actions でのテスト（コードテストおよびプロセス検証）が失敗した場合、そのプルリクエストのマージを制限するためのステータスチェックを提供しなければならない（MUST）。
 
 #### Scenario: テスト失敗の検知
-- **WHEN** コードの変更によりテストが失敗する
+- **WHEN** コードの変更によりテストが失敗する、またはTODOが未完了である
 - **THEN** GitHub Actions のジョブが失敗し、GitHub 上で「Failed」ステータスが表示される
