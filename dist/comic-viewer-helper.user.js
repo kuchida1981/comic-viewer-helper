@@ -292,6 +292,7 @@
     pageCounter.addEventListener("focus", () => {
       pageCounter.style.border = "1px solid #fff";
       pageCounter.style.background = "rgba(255,255,255,0.1)";
+      pageCounter.select();
     });
     pageCounter.addEventListener("blur", () => {
       pageCounter.style.border = "1px solid transparent";
