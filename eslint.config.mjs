@@ -4,16 +4,22 @@ import pluginJs from "@eslint/js";
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    files: ["**/*.js"],
+    ignores: ["comic-viewer-helper.user.js", "dist/*"],
+  },
+  {
+    files: ["src/**/*.js"],
     languageOptions: {
-      sourceType: "script",
+      sourceType: "module",
       globals: {
         ...globals.browser,
         ...globals.greasemonkey,
       }
     }
   },
-  pluginJs.configs.recommended,
+  {
+    files: ["**/*.js"],
+    ...pluginJs.configs.recommended,
+  },
   {
     rules: {
       "no-unused-vars": "warn",
