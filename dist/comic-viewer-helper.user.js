@@ -36,6 +36,10 @@
     });
     return primaryIndex;
   }
+  function getImageElementByIndex(imgs, index) {
+    if (index < 0 || index >= imgs.length) return null;
+    return imgs[index];
+  }
   function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled2 = false) {
     const container = document.querySelector(CONTAINER_SELECTOR$1);
     if (!container) return;
@@ -146,28 +150,35 @@
   function updatePageCounter() {
     if (!pageCounter) return;
     const imgs = getImages();
+    const totalEl = document.getElementById("comic-total-counter");
     if (imgs.length === 0) {
-      pageCounter.textContent = "0 / 0";
+      pageCounter.value = 0;
+      if (totalEl) totalEl.textContent = " / 0";
       return;
     }
     const currentIndex = getCurrentPageIndex();
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
-    let displayStr = `${current}`;
-    if (currentIndex !== -1) {
-      const activeImg = imgs[currentIndex];
-      const parent = activeImg.parentElement;
-      if (parent && parent.classList.contains("comic-row-wrapper")) {
-        const siblings = Array.from(parent.children).filter((el) => el.tagName === "IMG");
-        if (siblings.length > 1) {
-          const indices = siblings.map((img) => imgs.indexOf(img) + 1).sort((a, b) => a - b);
-          if (indices.length > 0) {
-            displayStr = `${indices[0]}-${indices[indices.length - 1]}`;
-          }
-        }
-      }
+    if (document.activeElement !== pageCounter) {
+      pageCounter.value = current;
     }
-    pageCounter.textContent = `${displayStr} / ${total}`;
+    if (totalEl) totalEl.textContent = ` / ${total}`;
+  }
+  function jumpToPage(pageNumber) {
+    const imgs = getImages();
+    const index = parseInt(pageNumber, 10) - 1;
+    const targetImg = getImageElementByIndex(imgs, index);
+    if (targetImg) {
+      targetImg.scrollIntoView({ behavior: "smooth", block: "start" });
+      pageCounter.blur();
+    } else {
+      updatePageCounter();
+      pageCounter.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
+      setTimeout(() => {
+        pageCounter.style.backgroundColor = "transparent";
+      }, 500);
+      pageCounter.blur();
+    }
   }
   function scrollToImage(direction) {
     const imgs = getImages();
@@ -197,6 +208,18 @@
     target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function createNavigationUI() {
+    const style = document.createElement("style");
+    style.textContent = `
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  `;
+    document.head.appendChild(style);
     const container = document.createElement("div");
     Object.assign(container.style, {
       position: "fixed",
@@ -247,10 +270,46 @@
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     }
-    pageCounter = document.createElement("span");
-    Object.assign(pageCounter.style, { color: "#fff", fontSize: "14px", fontWeight: "bold", padding: "0 8px", display: "flex", alignItems: "center", userSelect: "none", minWidth: "60px", justifyContent: "center" });
-    pageCounter.textContent = "1 / 1";
-    container.appendChild(pageCounter);
+    const counterWrapper = document.createElement("span");
+    Object.assign(counterWrapper.style, { color: "#fff", fontSize: "14px", fontWeight: "bold", padding: "0 8px", display: "flex", alignItems: "center", userSelect: "none" });
+    pageCounter = document.createElement("input");
+    pageCounter.type = "number";
+    pageCounter.min = 1;
+    Object.assign(pageCounter.style, {
+      width: "45px",
+      background: "transparent",
+      border: "1px solid transparent",
+      color: "#fff",
+      fontSize: "14px",
+      fontWeight: "bold",
+      textAlign: "right",
+      padding: "2px",
+      outline: "none",
+      appearance: "textfield",
+      margin: "0"
+    });
+    pageCounter.style.setProperty("-moz-appearance", "textfield");
+    pageCounter.addEventListener("focus", () => {
+      pageCounter.style.border = "1px solid #fff";
+      pageCounter.style.background = "rgba(255,255,255,0.1)";
+      pageCounter.select();
+    });
+    pageCounter.addEventListener("blur", () => {
+      pageCounter.style.border = "1px solid transparent";
+      pageCounter.style.background = "transparent";
+    });
+    pageCounter.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        jumpToPage(pageCounter.value);
+      }
+    });
+    const totalCounter = document.createElement("span");
+    totalCounter.id = "comic-total-counter";
+    totalCounter.textContent = " / 1";
+    counterWrapper.appendChild(pageCounter);
+    counterWrapper.appendChild(totalCounter);
+    container.appendChild(counterWrapper);
     const toggleLabel = document.createElement("label");
     Object.assign(toggleLabel.style, { display: "flex", alignItems: "center", color: "#fff", fontSize: "12px", cursor: "pointer", userSelect: "none", marginRight: "8px" });
     const toggleInput = document.createElement("input");
@@ -289,10 +348,10 @@
   }
   function onKeyDown(e) {
     if (isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (["ArrowDown", "PageDown", "ArrowRight", "j", " "].includes(e.key) && !e.shiftKey) {
+    if (["ArrowDown", "PageDown", "ArrowRight", "j"].includes(e.key) || e.key === " " && !e.shiftKey) {
       e.preventDefault();
       scrollToImage(1);
-    } else if (["ArrowUp", "PageUp", "ArrowLeft", "k", " "].includes(e.key) && e.shiftKey) {
+    } else if (["ArrowUp", "PageUp", "ArrowLeft", "k"].includes(e.key) || e.key === " " && e.shiftKey) {
       e.preventDefault();
       scrollToImage(-1);
     } else if (e.key === "d") {
