@@ -30,3 +30,11 @@ The system SHALL provide `j` and `k` keybindings for navigating between images, 
 #### Scenario: Previous page with 'k'
 - **WHEN** the user presses the `k` key
 - **THEN** the view scrolls to the previous image (equivalent to "ArrowUp")
+
+### Requirement: ページ番号入力フォームの統合
+ナビゲーションパネルのページカウンター部分は、直接ページ番号を入力可能なフォームとして機能しなければならない（SHALL）。
+
+#### Scenario: 入力フォームへのフォーカス
+- **WHEN** ユーザーがページ番号表示部分をクリックする
+- **THEN** ページ番号が編集可能な入力状態になる
+- **AND** この間、全体に設定されたキーボードショートカット（j/k等）は無効化される
