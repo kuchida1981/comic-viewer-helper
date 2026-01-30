@@ -52,6 +52,30 @@ You can use the panel at the bottom right of the screen. **The panel is draggabl
 *   Target Container Selector: `#post-comic`
 *   Target Image Selector: `#post-comic img`
 
+## Development
+
+### ⚠️ Important: Do Not Edit `.user.js` Directly
+The `comic-viewer-helper.user.js` file at the root is a **build artifact**. Do not edit it manually.
+Please modify files in the `src/` directory and run the build command.
+
+### Getting Started
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Build
+To generate the `comic-viewer-helper.user.js` file from source:
+```bash
+npm run build
+```
+
+### Test
+To run unit tests using Vitest:
+```bash
+npm test
+```
+
 ## Disclaimer
 
 This script was created for personal learning and convenience purposes.
