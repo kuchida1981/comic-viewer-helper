@@ -4,7 +4,7 @@
   "description": "A Tampermonkey/Greasemonkey user script for specific comic sites. It automatically fits images to the browser viewport and enables comfortable image-by-image scrolling.",
   "main": "comic-viewer-helper.user.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
     "lint": "eslint comic-viewer-helper.user.js"
   },
   "repository": {
@@ -21,6 +21,7 @@
   "homepage": "https://github.com/kuchida1981/comic-viewer-helper#readme",
   "devDependencies": {
     "eslint": "^9.39.2",
-    "globals": "^17.2.0"
+    "globals": "^17.2.0",
+    "vitest": "^4.0.18"
   }
 }

@@ -2,3 +2,4 @@
 .clinerules/
 .cline/
 .agent/
+.env
