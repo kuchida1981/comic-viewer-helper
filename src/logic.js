@@ -68,10 +68,6 @@ export function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled = fal
   const container = document.querySelector(CONTAINER_SELECTOR);
   if (!container) return;
 
-  const originalImages = Array.from(container.querySelectorAll('img:not(.comic-row-wrapper img)'));
-  // Note: This logic needs access to the cached originalImages if we want to avoid DOM re-querying complexity.
-  // For now, focusing on the core calculation and layout application.
-  
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 

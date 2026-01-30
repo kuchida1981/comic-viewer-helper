@@ -23,7 +23,6 @@
   function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled2 = false) {
     const container = document.querySelector(CONTAINER_SELECTOR$1);
     if (!container) return;
-    Array.from(container.querySelectorAll("img:not(.comic-row-wrapper img)"));
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     Object.assign(container.style, {
@@ -242,8 +241,8 @@
     toggleInput.type = "checkbox";
     toggleInput.checked = isDualViewEnabled;
     toggleInput.style.marginRight = "4px";
-    toggleInput.addEventListener("change", (e) => {
-      toggleDualView(e.target.checked);
+    toggleInput.addEventListener("change", () => {
+      toggleDualView(toggleInput.checked);
       toggleInput.blur();
     });
     toggleLabel.appendChild(toggleInput);
@@ -311,7 +310,7 @@
       const buffer = 50;
       if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) return null;
       return pos;
-    } catch (e) {
+    } catch {
       return null;
     }
   }

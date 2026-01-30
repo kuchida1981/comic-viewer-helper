@@ -152,15 +152,14 @@ function createNavigationUI() {
 
   const toggleLabel = document.createElement('label');
   Object.assign(toggleLabel.style, { display: 'flex', alignItems: 'center', color: '#fff', fontSize: '12px', cursor: 'pointer', userSelect: 'none', marginRight: '8px' });
-  const toggleInput = document.createElement('input');
-  toggleInput.type = 'checkbox';
-  toggleInput.checked = isDualViewEnabled;
-  toggleInput.style.marginRight = '4px';
-  toggleInput.addEventListener('change', (e) => {
-    toggleDualView(e.target.checked);
-    toggleInput.blur();
-  });
-  toggleLabel.appendChild(toggleInput);
+      const toggleInput = document.createElement('input');
+      toggleInput.type = 'checkbox';
+      toggleInput.checked = isDualViewEnabled;
+      toggleInput.style.marginRight = '4px';
+      toggleInput.addEventListener('change', () => {
+        toggleDualView(toggleInput.checked);
+        toggleInput.blur();
+      });  toggleLabel.appendChild(toggleInput);
   toggleLabel.appendChild(document.createTextNode('Spread'));
   container.appendChild(toggleLabel);
 
@@ -220,7 +219,7 @@ function loadGUIPosition() {
     const buffer = 50;
     if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) return null;
     return pos;
-  } catch (e) { return null; }
+  } catch { return null; }
 }
 
 function init() {

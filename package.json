@@ -6,7 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "build": "vite build",
-    "lint": "eslint src/*.js comic-viewer-helper.user.js"
+    "lint": "eslint src/*.js"
   },
   "repository": {
     "type": "git",
