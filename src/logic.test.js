@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex } from './logic';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal } from './logic';
 
 describe('logic.js', () => {
   describe('calculateVisibleHeight', () => {
+
     it('should return full height when image is fully in viewport', () => {
       const rect = { top: 100, bottom: 500 };
       const windowHeight = 1000;
@@ -86,4 +87,68 @@ describe('logic.js', () => {
       expect(getImageElementByIndex(imgs, -1)).toBe(null);
     });
   });
+
+  describe('revertToOriginal', () => {
+    let container;
+    let originalImages;
+    let wrappers;
+
+    beforeEach(() => {
+      // Mock DOM elements
+      container = {
+        style: { cssText: 'some-style' },
+        appendChild: vi.fn(),
+        querySelectorAll: vi.fn()
+      };
+      
+      originalImages = [
+        { style: { cssText: 'img-style' } },
+        { style: { cssText: 'img-style-2' } }
+      ];
+
+      wrappers = [
+        { remove: vi.fn() }
+      ];
+
+      container.querySelectorAll.mockReturnValue(wrappers);
+
+      // Mock global document
+      vi.stubGlobal('document', {
+        querySelector: vi.fn().mockReturnValue(container)
+      });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should reset container styles', () => {
+      revertToOriginal(originalImages, '#container');
+      expect(container.style.cssText).toBe('');
+    });
+
+    it('should reset image styles and append them to container', () => {
+      revertToOriginal(originalImages, '#container');
+      originalImages.forEach(img => {
+        expect(img.style.cssText).toBe('');
+        expect(container.appendChild).toHaveBeenCalledWith(img);
+      });
+    });
+
+    it('should remove wrappers', () => {
+      revertToOriginal(originalImages, '#container');
+      expect(container.querySelectorAll).toHaveBeenCalledWith('.comic-row-wrapper');
+      wrappers.forEach(w => {
+        expect(w.remove).toHaveBeenCalled();
+      });
+    });
+
+    it('should do nothing if container is not found', () => {
+      document.querySelector.mockReturnValue(null);
+      revertToOriginal(originalImages, '#container');
+      // No errors should occur
+      expect(container.appendChild).not.toHaveBeenCalled();
+    });
+  });
 });
+

@@ -132,3 +132,26 @@ export function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled = fal
     }
   }
 }
+
+/**
+ * Revert changes: clear styles and restore original DOM structure
+ * @param {Array<HTMLImageElement>} originalImages 
+ * @param {string} containerSelector 
+ */
+export function revertToOriginal(originalImages, containerSelector = CONTAINER_SELECTOR) {
+  const container = document.querySelector(containerSelector);
+  if (!container) return;
+
+  // Clear container styles
+  container.style.cssText = '';
+
+  // Remove wrappers and restore images
+  originalImages.forEach(img => {
+    img.style.cssText = '';
+    container.appendChild(img);
+  });
+
+  // Remove any remaining wrappers
+  const wrappers = container.querySelectorAll('.comic-row-wrapper');
+  wrappers.forEach(w => w.remove());
+}

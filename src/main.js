@@ -1,4 +1,4 @@
-import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex } from './logic.js';
+import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal } from './logic.js';
 
 console.log("Magazine Comic View Helper Loaded");
 
@@ -6,9 +6,11 @@ const IMG_SELECTOR = '#post-comic img';
 const CONTAINER_SELECTOR = '#post-comic';
 const STORAGE_KEY_DUAL_VIEW = 'comic-viewer-helper-dual-view';
 const STORAGE_KEY_GUI_POS = 'comic-viewer-helper-gui-pos';
+const STORAGE_KEY_ENABLED = 'comic-viewer-helper-enabled';
 
 let pageCounter = null;
 let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === 'true';
+let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== 'false';
 let originalImages = [];
 
 function isInputField(target) {
@@ -44,6 +46,7 @@ function getCurrentPageIndex() {
 }
 
   function updatePageCounter() {
+    if (!isEnabled) return;
     if (!pageCounter) return;
     const imgs = getImages();
     const totalEl = document.getElementById('comic-total-counter');
@@ -105,6 +108,24 @@ function getCurrentPageIndex() {
   }
 }
 
+function toggleActivation(enabled) {
+  const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
+  isEnabled = enabled;
+  localStorage.setItem(STORAGE_KEY_ENABLED, enabled);
+
+  if (enabled) {
+    fitImagesToViewport(currentIndex, isDualViewEnabled);
+    updatePageCounter();
+    if (currentIndex !== -1) {
+       const imgs = getImages();
+       if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: 'start' });
+    }
+  } else {
+    revertToOriginal(getImages());
+  }
+  createNavigationUI();
+}
+
 function scrollToEdge(position) {
   const imgs = getImages();
   if (imgs.length === 0) return;
@@ -113,63 +134,96 @@ function scrollToEdge(position) {
 }
 
 function createNavigationUI() {
-  const style = document.createElement('style');
-  style.textContent = `
-    input::-webkit-outer-spin-button,
-    input::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    input[type=number] {
-      -moz-appearance: textfield;
-    }
-  `;
-  document.head.appendChild(style);
+  const existingStyle = document.getElementById('comic-helper-style');
+  if (!existingStyle) {
+    const style = document.createElement('style');
+    style.id = 'comic-helper-style';
+    style.textContent = `
+      input::-webkit-outer-spin-button,
+      input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type=number] {
+        -moz-appearance: textfield;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
-  const container = document.createElement('div');
-  Object.assign(container.style, {
-    position: 'fixed', bottom: '20px', right: '20px', zIndex: '10000',
-    display: 'flex', gap: '8px', backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: '8px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-    cursor: 'move', userSelect: 'none', touchAction: 'none'
+  let container = document.getElementById('comic-helper-ui');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'comic-helper-ui';
+    Object.assign(container.style, {
+      position: 'fixed', bottom: '20px', right: '20px', zIndex: '10000',
+      display: 'flex', gap: '8px', backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      padding: '8px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+      cursor: 'move', userSelect: 'none', touchAction: 'none', alignItems: 'center'
+    });
+
+    const savedPos = loadGUIPosition();
+    if (savedPos) {
+      Object.assign(container.style, { top: `${savedPos.top}px`, left: `${savedPos.left}px`, bottom: 'auto', right: 'auto' });
+    }
+
+    let isDragging = false;
+    let dragStartX, dragStartY, initialTop, initialLeft;
+
+    container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || (e.target.tagName !== 'DIV' && e.target !== container)) return;
+      isDragging = true;
+      const rect = container.getBoundingClientRect();
+      initialTop = rect.top; initialLeft = rect.left;
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      Object.assign(container.style, { top: `${initialTop}px`, left: `${initialLeft}px`, bottom: 'auto', right: 'auto' });
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      e.preventDefault();
+    });
+
+    function onMouseMove(e) {
+      if (!isDragging) return;
+      const deltaX = e.clientX - dragStartX;
+      const deltaY = e.clientY - dragStartY;
+      container.style.top = `${initialTop + deltaY}px`;
+      container.style.left = `${initialLeft + deltaX}px`;
+    }
+
+    function onMouseUp() {
+      if (!isDragging) return;
+      isDragging = false;
+      const rect = container.getBoundingClientRect();
+      saveGUIPosition(rect.top, rect.left);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    }
+    document.body.appendChild(container);
+  }
+
+  container.innerHTML = '';
+
+  // Toggle Button
+  const powerBtn = document.createElement('button');
+  powerBtn.textContent = '⚡';
+  powerBtn.title = isEnabled ? 'Disable Comic Viewer Helper' : 'Enable Comic Viewer Helper';
+  Object.assign(powerBtn.style, {
+    cursor: 'pointer', border: 'none', background: 'transparent', 
+    color: isEnabled ? '#4CAF50' : '#888', fontSize: '16px', padding: '0 4px',
+    fontWeight: 'bold', marginRight: isEnabled ? '8px' : '0'
   });
+  powerBtn.addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    toggleActivation(!isEnabled);
+  });
+  container.appendChild(powerBtn);
 
-      const savedPos = loadGUIPosition();
-      if (savedPos) {
-        Object.assign(container.style, { top: `${savedPos.top}px`, left: `${savedPos.left}px`, bottom: 'auto', right: 'auto' });
-      }
+  if (!isEnabled) {
+    container.style.padding = '4px 8px';
+    return;
+  }
   
-      let isDragging = false;
-      let dragStartX, dragStartY, initialTop, initialLeft;
-  
-      container.addEventListener('mousedown', (e) => {
-        if (e.button !== 0 || e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
-        isDragging = true;
-        const rect = container.getBoundingClientRect();
-        initialTop = rect.top; initialLeft = rect.left;
-        dragStartX = e.clientX; dragStartY = e.clientY;
-        Object.assign(container.style, { top: `${initialTop}px`, left: `${initialLeft}px`, bottom: 'auto', right: 'auto' });
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-        e.preventDefault();
-      });
-  
-      function onMouseMove(e) {
-        if (!isDragging) return;
-        const deltaX = e.clientX - dragStartX;
-        const deltaY = e.clientY - dragStartY;
-        container.style.top = `${initialTop + deltaY}px`;
-        container.style.left = `${initialLeft + deltaX}px`;
-      }
-  
-      function onMouseUp() {
-        if (!isDragging) return;
-        isDragging = false;
-        const rect = container.getBoundingClientRect();
-        saveGUIPosition(rect.top, rect.left);
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
-      }
+  container.style.padding = '8px';
   
       const counterWrapper = document.createElement('span');
       Object.assign(counterWrapper.style, { color: '#fff', fontSize: '14px', fontWeight: 'bold', padding: '0 8px', display: 'flex', alignItems: 'center', userSelect: 'none' });
@@ -233,11 +287,12 @@ function createNavigationUI() {
     btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); btnDef.action(); btn.blur(); });
     container.appendChild(btn);
   });
-  document.body.appendChild(container);
 }
 
 function onKeyDown(e) {
   if (isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+
+  if (!isEnabled) return;
 
   // Next Image
   if (
@@ -300,19 +355,33 @@ function init() {
     if (!img.complete) {
       img.addEventListener('load', () => {
          if (resizeReq) cancelAnimationFrame(resizeReq);
-         resizeReq = requestAnimationFrame(() => { fitImagesToViewport(); updatePageCounter(); });
+         resizeReq = requestAnimationFrame(() => { 
+             if (isEnabled) {
+               fitImagesToViewport(); updatePageCounter(); 
+             }
+         });
       });
     }
   });
-  fitImagesToViewport(-1, isDualViewEnabled);
+  
+  if (isEnabled) {
+    fitImagesToViewport(-1, isDualViewEnabled);
+  }
+  
   createNavigationUI();
-  updatePageCounter();
+  
+  if (isEnabled) {
+    updatePageCounter();
+  }
+  
   window.addEventListener('resize', () => {
+    if (!isEnabled) return;
     if (resizeReq) cancelAnimationFrame(resizeReq);
     resizeReq = requestAnimationFrame(() => { fitImagesToViewport(); updatePageCounter(); });
   });
   let scrollReq;
   window.addEventListener('scroll', () => {
+    if (!isEnabled) return;
     if (scrollReq) cancelAnimationFrame(scrollReq);
     scrollReq = requestAnimationFrame(updatePageCounter);
   });
