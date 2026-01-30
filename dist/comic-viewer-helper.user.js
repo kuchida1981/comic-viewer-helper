@@ -16,11 +16,17 @@
  */
 (function() {
   "use strict";
-  const CONTAINER_SELECTOR$1 = "#post-comic";
   function calculateVisibleHeight(rect, windowHeight) {
     const visibleTop = Math.max(0, rect.top);
     const visibleBottom = Math.min(windowHeight, rect.bottom);
     return Math.max(0, visibleBottom - visibleTop);
+  }
+  function shouldPairWithNext(current, next, isDualViewEnabled2) {
+    if (!isDualViewEnabled2) return false;
+    if (current.isLandscape) return false;
+    if (!next) return false;
+    if (next.isLandscape) return false;
+    return true;
   }
   function getPrimaryVisibleImageIndex(imgs, windowHeight) {
     if (imgs.length === 0) return -1;
@@ -40,9 +46,19 @@
     if (index < 0 || index >= imgs.length) return null;
     return imgs[index];
   }
-  function fitImagesToViewport(alignmentIndex = -1, isDualViewEnabled2 = false) {
-    const container = document.querySelector(CONTAINER_SELECTOR$1);
+  function cleanupDOM(container) {
+    const allImages = Array.from(container.querySelectorAll("img"));
+    const wrappers = container.querySelectorAll(".comic-row-wrapper");
+    wrappers.forEach((w) => w.remove());
+    allImages.forEach((img) => {
+      img.style.cssText = "";
+      container.appendChild(img);
+    });
+  }
+  function fitImagesToViewport(containerSelector, spreadOffset2 = 0, isDualViewEnabled2 = false) {
+    const container = document.querySelector(containerSelector);
     if (!container) return;
+    cleanupDOM(container);
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     Object.assign(container.style, {
@@ -59,11 +75,12 @@
       const img = allImages[i];
       const isLandscape = img.naturalWidth > img.naturalHeight;
       let pairWithNext = false;
-      if (isDualViewEnabled2 && !isLandscape && i + 1 < allImages.length) {
+      const effectiveIndex = i - spreadOffset2;
+      const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
+      if (isDualViewEnabled2 && isPairingPosition && i + 1 < allImages.length) {
         const nextImg = allImages[i + 1];
         const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
-        const nextIsAlignmentTarget = i + 1 === alignmentIndex;
-        if (!nextIsLandscape && !nextIsAlignmentTarget) {
+        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled2)) {
           pairWithNext = true;
         }
       }
@@ -115,7 +132,7 @@
       }
     }
   }
-  function revertToOriginal(originalImages2, containerSelector = CONTAINER_SELECTOR$1) {
+  function revertToOriginal(originalImages2, containerSelector) {
     const container = document.querySelector(containerSelector);
     if (!container) return;
     container.style.cssText = "";
@@ -136,6 +153,7 @@
   let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === "true";
   let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== "false";
   let originalImages = [];
+  let spreadOffset = 0;
   function isInputField(target) {
     return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
   }
@@ -220,14 +238,17 @@
     isEnabled = enabled;
     localStorage.setItem(STORAGE_KEY_ENABLED, enabled);
     if (enabled) {
-      fitImagesToViewport(currentIndex, isDualViewEnabled);
+      if (currentIndex !== -1) {
+        spreadOffset = currentIndex % 2;
+      }
+      fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
       updatePageCounter();
       if (currentIndex !== -1) {
         const imgs = getImages();
         if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: "start" });
       }
     } else {
-      revertToOriginal(getImages());
+      revertToOriginal(getImages(), CONTAINER_SELECTOR);
     }
     createNavigationUI();
   }
@@ -387,6 +408,32 @@
     toggleLabel.appendChild(toggleInput);
     toggleLabel.appendChild(document.createTextNode("Spread"));
     container.appendChild(toggleLabel);
+    if (isDualViewEnabled) {
+      const adjustBtn = document.createElement("button");
+      adjustBtn.textContent = "Adjust";
+      adjustBtn.title = "Adjust Spread Alignment";
+      Object.assign(adjustBtn.style, {
+        cursor: "pointer",
+        padding: "2px 6px",
+        border: "1px solid #fff",
+        background: "transparent",
+        color: "#fff",
+        borderRadius: "4px",
+        fontSize: "10px",
+        marginLeft: "4px",
+        fontWeight: "normal"
+      });
+      adjustBtn.onmouseenter = () => adjustBtn.style.background = "rgba(255,255,255,0.2)";
+      adjustBtn.onmouseleave = () => adjustBtn.style.background = "transparent";
+      adjustBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        spreadOffset = spreadOffset === 0 ? 1 : 0;
+        fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
+        updatePageCounter();
+      });
+      container.appendChild(adjustBtn);
+    }
     const buttons = [
       { text: "<<", label: "Go to First", action: () => scrollToEdge("start") },
       { text: "<", label: "Go to Previous", action: () => scrollToImage(-1) },
@@ -430,8 +477,14 @@
     const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
     isDualViewEnabled = enabled;
     localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled);
-    fitImagesToViewport(enabled ? currentIndex : -1, isDualViewEnabled);
+    if (enabled) {
+      if (currentIndex !== -1) {
+        spreadOffset = currentIndex % 2;
+      }
+    }
+    fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
     updatePageCounter();
+    createNavigationUI();
     if (currentIndex !== -1) {
       const imgs = getImages();
       const targetImg = imgs[currentIndex];
@@ -465,7 +518,7 @@
           if (resizeReq) cancelAnimationFrame(resizeReq);
           resizeReq = requestAnimationFrame(() => {
             if (isEnabled) {
-              fitImagesToViewport();
+              fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
               updatePageCounter();
             }
           });
@@ -473,7 +526,7 @@
       }
     });
     if (isEnabled) {
-      fitImagesToViewport(-1, isDualViewEnabled);
+      fitImagesToViewport(CONTAINER_SELECTOR, -1, isDualViewEnabled);
     }
     createNavigationUI();
     if (isEnabled) {
@@ -483,7 +536,7 @@
       if (!isEnabled) return;
       if (resizeReq) cancelAnimationFrame(resizeReq);
       resizeReq = requestAnimationFrame(() => {
-        fitImagesToViewport();
+        fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
         updatePageCounter();
       });
     });
