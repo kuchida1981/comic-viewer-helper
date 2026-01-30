@@ -208,6 +208,18 @@
     target.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function createNavigationUI() {
+    const style = document.createElement("style");
+    style.textContent = `
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  `;
+    document.head.appendChild(style);
     const container = document.createElement("div");
     Object.assign(container.style, {
       position: "fixed",
