@@ -129,6 +129,7 @@
           flexShrink: "0",
           objectFit: "contain"
         });
+        container.appendChild(img);
       }
     }
   }

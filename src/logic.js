@@ -152,6 +152,7 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
         maxWidth: `${vw}px`, maxHeight: `${vh}px`, width: 'auto', height: 'auto',
         display: 'block', margin: '0 auto', flexShrink: '0', objectFit: 'contain'
       });
+      container.appendChild(img);
     }
   }
 }
