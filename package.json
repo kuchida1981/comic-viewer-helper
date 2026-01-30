@@ -5,7 +5,7 @@
   "main": "src/main.js",
   "scripts": {
     "test": "vitest run",
-    "build": "vite build",
+    "build": "vite build && cat src/header.js dist/comic-viewer-helper.user.js > comic-viewer-helper.user.js",
     "lint": "eslint src/*.js"
   },
   "repository": {
