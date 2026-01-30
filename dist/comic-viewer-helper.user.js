@@ -347,10 +347,10 @@
   }
   function onKeyDown(e) {
     if (isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (["ArrowDown", "PageDown", "ArrowRight", "j", " "].includes(e.key) && !e.shiftKey) {
+    if (["ArrowDown", "PageDown", "ArrowRight", "j"].includes(e.key) || e.key === " " && !e.shiftKey) {
       e.preventDefault();
       scrollToImage(1);
-    } else if (["ArrowUp", "PageUp", "ArrowLeft", "k", " "].includes(e.key) && e.shiftKey) {
+    } else if (["ArrowUp", "PageUp", "ArrowLeft", "k"].includes(e.key) || e.key === " " && e.shiftKey) {
       e.preventDefault();
       scrollToImage(-1);
     } else if (e.key === "d") {

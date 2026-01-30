@@ -234,11 +234,25 @@ function createNavigationUI() {
 
 function onKeyDown(e) {
   if (isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (['ArrowDown', 'PageDown', 'ArrowRight', 'j', ' '].includes(e.key) && !e.shiftKey) {
-    e.preventDefault(); scrollToImage(1);
-  } else if (['ArrowUp', 'PageUp', 'ArrowLeft', 'k', ' '].includes(e.key) && e.shiftKey) {
-    e.preventDefault(); scrollToImage(-1);
-  } else if (e.key === 'd') {
+
+  // Next Image
+  if (
+    ['ArrowDown', 'PageDown', 'ArrowRight', 'j'].includes(e.key) ||
+    (e.key === ' ' && !e.shiftKey)
+  ) {
+    e.preventDefault();
+    scrollToImage(1);
+  }
+  // Previous Image
+  else if (
+    ['ArrowUp', 'PageUp', 'ArrowLeft', 'k'].includes(e.key) ||
+    (e.key === ' ' && e.shiftKey)
+  ) {
+    e.preventDefault();
+    scrollToImage(-1);
+  }
+  // Toggle Dual View
+  else if (e.key === 'd') {
     e.preventDefault();
     const newState = !isDualViewEnabled;
     const checkbox = document.querySelector('input[type="checkbox"]');
