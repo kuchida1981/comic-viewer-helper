@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magazine Comic Viewer Helper
 // @namespace    https://github.com/kuchida1981/comic-viewer-helper
-// @version      1.0.0
+// @version      1.1.0
 // @description  A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @match        https://something/magazine/*
 // @match        https://something/fanzine/*
