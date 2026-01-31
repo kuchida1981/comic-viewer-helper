@@ -5,7 +5,7 @@
 ## What Changes
 
 - `.gitignore` に `dist/` を追加し、メインおよび作業ブランチから成果物を除外します。
-- GitHub Actions を導入し、`main` ブランチへのプッシュをトリガーに自動ビルドを実行します。
+- GitHub Actions を導入し、`master` ブランチへのプッシュをトリガーに自動ビルドを実行します。
 - ビルドされた成果物を、自動的に配布専用の `release` ブランチへプッシュする仕組みを構築します。
 - `README.md` 等のインストールリンクを、新しい `release` ブランチの Raw URL へ更新します。
 
