@@ -163,8 +163,8 @@ class App {
    * @param {WheelEvent} e 
    */
   handleWheel(e) {
-    const { enabled, isDualViewEnabled, currentVisibleIndex } = this.store.getState();
-    if (!enabled) return;
+    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
+    if (!enabled || isMetadataModalOpen) return;
 
     e.preventDefault();
     const now = Date.now();
@@ -198,7 +198,7 @@ class App {
       return;
     }
 
-    if (!enabled) return;
+    if (isMetadataModalOpen || !enabled) return;
 
     if (['ArrowDown', 'PageDown', 'ArrowRight', 'j'].includes(e.key) || (e.key === ' ' && !e.shiftKey)) {
       e.preventDefault();
