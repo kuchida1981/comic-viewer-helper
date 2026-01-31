@@ -3,8 +3,13 @@
  */
 
 /**
+ * @typedef {Object} ImageInfo
+ * @property {boolean} isLandscape
+ */
+
+/**
  * Calculate visible height of an image in the viewport
- * @param {DOMRect} rect 
+ * @param {DOMRect | {top: number, bottom: number}} rect 
  * @param {number} windowHeight 
  * @returns {number}
  */
@@ -16,8 +21,8 @@ export function calculateVisibleHeight(rect, windowHeight) {
 
 /**
  * Determine if two images can be paired based on their properties
- * @param {Object} current - { isLandscape }
- * @param {Object} next - { isLandscape }
+ * @param {ImageInfo} current
+ * @param {ImageInfo | null} next
  * @param {boolean} isDualViewEnabled
  * @returns {boolean}
  */
@@ -32,7 +37,7 @@ export function shouldPairWithNext(current, next, isDualViewEnabled) {
 
 /**
  * Get primary visible image index based on visible height
- * @param {Array<{getBoundingClientRect: Function}>} imgs 
+ * @param {Array<HTMLImageElement | {getBoundingClientRect: () => (DOMRect | {top: number, bottom: number})}>} imgs 
  * @param {number} windowHeight 
  * @returns {number}
  */
@@ -73,7 +78,7 @@ export function getImageElementByIndex(imgs, index) {
  * @returns {Array<HTMLImageElement>}
  */
 export function cleanupDOM(container) {
-  const allImages = Array.from(container.querySelectorAll('img'));
+  const allImages = /** @type {HTMLImageElement[]} */ (Array.from(container.querySelectorAll('img')));
   const wrappers = container.querySelectorAll('.comic-row-wrapper');
   
   wrappers.forEach(w => w.remove());
@@ -87,9 +92,12 @@ export function cleanupDOM(container) {
 
 /**
  * Fit images to viewport
+ * @param {string} containerSelector
+ * @param {number} spreadOffset
+ * @param {boolean} isDualViewEnabled
  */
 export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualViewEnabled = false) {
-  const container = document.querySelector(containerSelector);
+  const container = /** @type {HTMLElement | null} */ (document.querySelector(containerSelector));
   if (!container) return;
 
   // Cleanup first and get images
@@ -164,7 +172,7 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
  * @param {string} containerSelector 
  */
 export function revertToOriginal(originalImages, containerSelector) {
-  const container = document.querySelector(containerSelector);
+  const container = /** @type {HTMLElement | null} */ (document.querySelector(containerSelector));
   if (!container) return;
 
   // Clear container styles

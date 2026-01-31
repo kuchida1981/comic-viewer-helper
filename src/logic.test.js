@@ -47,6 +47,10 @@ describe('logic.js', () => {
       const next = { isLandscape: false };
       expect(shouldPairWithNext(current, next, true)).toBe(false);
     });
+    it('should return false if next is null', () => {
+      const current = { isLandscape: false };
+      expect(shouldPairWithNext(current, null, true)).toBe(false);
+    });
   });
 
   describe('getPrimaryVisibleImageIndex', () => {
@@ -57,6 +61,7 @@ describe('logic.js', () => {
         { getBoundingClientRect: () => ({ top: 500, bottom: 600 }) }   // visible: 100
       ];
       const windowHeight = 1000;
+      // @ts-ignore - mock objects
       expect(getPrimaryVisibleImageIndex(imgs, windowHeight)).toBe(1);
     });
 
@@ -68,19 +73,25 @@ describe('logic.js', () => {
   describe('getImageElementByIndex', () => {
     it('should return the element if index is within range', () => {
       const imgs = ['img0', 'img1', 'img2'];
+      // @ts-ignore - mock objects
       expect(getImageElementByIndex(imgs, 1)).toBe('img1');
     });
 
     it('should return null if index is out of range', () => {
       const imgs = ['img0', 'img1'];
+      // @ts-ignore - mock objects
       expect(getImageElementByIndex(imgs, 2)).toBe(null);
+      // @ts-ignore - mock objects
       expect(getImageElementByIndex(imgs, -1)).toBe(null);
     });
   });
 
   describe('revertToOriginal', () => {
+    /** @type {any} */
     let container;
+    /** @type {any} */
     let originalImages;
+    /** @type {any} */
     let wrappers;
 
     beforeEach(() => {
@@ -119,7 +130,7 @@ describe('logic.js', () => {
 
     it('should reset image styles and append them to container', () => {
       revertToOriginal(originalImages, '#container');
-      originalImages.forEach(img => {
+      originalImages.forEach((/** @type {any} */ img) => {
         expect(img.style.cssText).toBe('');
         expect(container.appendChild).toHaveBeenCalledWith(img);
       });
@@ -128,12 +139,13 @@ describe('logic.js', () => {
     it('should remove wrappers', () => {
       revertToOriginal(originalImages, '#container');
       expect(container.querySelectorAll).toHaveBeenCalledWith('.comic-row-wrapper');
-      wrappers.forEach(w => {
+      wrappers.forEach((/** @type {any} */ w) => {
         expect(w.remove).toHaveBeenCalled();
       });
     });
 
     it('should do nothing if container is not found', () => {
+      // @ts-ignore - mockReturnValue is from Vitest
       document.querySelector.mockReturnValue(null);
       revertToOriginal(originalImages, '#container');
       // No errors should occur
@@ -142,8 +154,11 @@ describe('logic.js', () => {
   });
 
   describe('fitImagesToViewport', () => {
+    /** @type {any} */
     let container;
+    /** @type {any} */
     let images;
+    /** @type {any[]} */
     let createdElements = [];
 
     beforeEach(() => {
@@ -210,10 +225,10 @@ describe('logic.js', () => {
       fitImagesToViewport('#container', 0, true);
 
       // Check the order of appendChild calls on container
-      const calls = container.appendChild.mock.calls.map(call => call[0]);
+      const calls = container.appendChild.mock.calls.map((/** @type {any[]} */ call) => call[0]);
       
       // Filter only images and wrappers
-      const relevantCalls = calls.filter(c => images.includes(c) || c.tagName === 'DIV');
+      const relevantCalls = calls.filter((/** @type {any} */ c) => images.includes(c) || c.tagName === 'DIV');
       
       // Since cleanupDOM no longer appends images, all calls are from fitImagesToViewport loop
       const finalCalls = relevantCalls;
@@ -238,7 +253,7 @@ describe('logic.js', () => {
     it('should pair correctly with offset 1 and odd number of images', () => {
       // Images: 0:P, 1:P, 2:P (total 3)
       const threeImages = images.slice(0, 3);
-      container.querySelectorAll.mockImplementation((selector) => {
+      container.querySelectorAll.mockImplementation((/** @type {string} */ selector) => {
         if (selector === 'img') return threeImages;
         return [];
       });
@@ -253,14 +268,34 @@ describe('logic.js', () => {
 
     it('should call cleanupDOM (remove wrappers)', () => {
       const existingWrapper = { remove: vi.fn() };
-      container.querySelectorAll.mockImplementation((selector) => {
+      container.querySelectorAll.mockImplementation((/** @type {string} */ selector) => {
         if (selector === '.comic-row-wrapper') return [existingWrapper];
         if (selector === 'img') return images;
         return [];
       });
 
-      fitImagesToViewport('#container', 0, true);
-      expect(existingWrapper.remove).toHaveBeenCalled();
-    });
-  });
-});
+            fitImagesToViewport('#container', 0, true);
+
+            expect(existingWrapper.remove).toHaveBeenCalled();
+
+          });
+
+      
+
+          it('should do nothing if container is not found', () => {
+
+            // @ts-ignore - mockReturnValue is from Vitest
+
+            document.querySelector.mockReturnValue(null);
+
+            fitImagesToViewport('#non-existent', 0, true);
+
+            expect(container.appendChild).not.toHaveBeenCalled();
+
+          });
+
+        });
+
+      });
+
+      
