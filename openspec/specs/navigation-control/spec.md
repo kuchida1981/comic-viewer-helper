@@ -20,15 +20,17 @@ The system SHALL persist the screen coordinates of the navigation panel and rest
 - **THEN** the panel appears at the same location as before the reload
 
 ### Requirement: Keyboard Navigation
-The system SHALL provide `j` and `k` keybindings for navigating between images, mimicking Vim-style navigation.
+The system SHALL provide keybindings for navigating between images. ナビゲーションは、アライメントに左右されず安定した挙動を保証するため、ビューポートの座標ではなく、現在の画像のインデックスに基づいて行われなければならない（SHALL）。
 
-#### Scenario: Next page with 'j'
-- **WHEN** the user presses the `j` key
-- **THEN** the view scrolls to the next image (equivalent to "ArrowDown")
+#### Scenario: 次のページへ
+- **WHEN** ユーザーが「次へ」のキー（`j`, `ArrowDown`, `PageDown`, `ArrowRight`, `Space`）を押す
+- **THEN** ビューポートが次の画像または見開き画像までスクロールする
+- **AND** 画像/見開き画像がビューポートの垂直方向中央に配置される
 
-#### Scenario: Previous page with 'k'
-- **WHEN** the user presses the `k` key
-- **THEN** the view scrolls to the previous image (equivalent to "ArrowUp")
+#### Scenario: 前のページへ
+- **WHEN** ユーザーが「前へ」のキー（`k`, `ArrowUp`, `PageUp`, `ArrowLeft`, `Shift+Space`）を押す
+- **THEN** ビューポートが前の画像または見開き画像までスクロールする
+- **AND** 画像/見開き画像がビューポートの垂直方向中央に配置される
 
 ### Requirement: ページ番号入力フォームの統合
 ナビゲーションパネルのページカウンター部分は、直接ページ番号を入力可能なフォームとして機能しなければならない（SHALL）。

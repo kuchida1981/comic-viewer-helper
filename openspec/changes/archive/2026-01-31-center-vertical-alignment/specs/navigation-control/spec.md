@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
-### Requirement: キーボードナビゲーション
-システムは画像間を移動するためのキーバインドを提供しなければならない（SHALL）。ナビゲーションは、アライメントに左右されず安定した挙動を保証するため、ビューポートの座標ではなく、現在の画像のインデックスに基づいて行われなければならない（SHALL）。
+### Requirement: Keyboard Navigation
+The system SHALL provide keybindings for navigating between images. ナビゲーションは、アライメントに左右されず安定した挙動を保証するため、ビューポートの座標ではなく、現在の画像のインデックスに基づいて行われなければならない（SHALL）。
 
 #### Scenario: 次のページへ
 - **WHEN** ユーザーが「次へ」のキー（`j`, `ArrowDown`, `PageDown`, `ArrowRight`, `Space`）を押す
