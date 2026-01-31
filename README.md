@@ -37,6 +37,7 @@ To generate the `dist/comic-viewer-helper.user.js` file from source:
 ```bash
 npm run build
 ```
+**Important**: After running the build, ensure you commit and push the updated `dist/comic-viewer-helper.user.js` as it is the primary distribution file.
 
 ### Test
 To run unit tests using Vitest (includes coverage report):
