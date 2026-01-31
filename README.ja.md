@@ -69,9 +69,22 @@ npm run build
 ```
 
 ### テスト
-Vitest を使用してユニットテストを実行します：
+Vitest を使用してユニットテストを実行します（カバレッジレポートも生成されます）：
 ```bash
 npm test
+```
+コアロジック (`src/logic.js`) は **カバレッジ 100%** を維持しています。
+
+### 型チェック
+JSDoc と TypeScript を使用した静的型解析を実行します：
+```bash
+npm run check-types
+```
+
+### リンティング
+ESLint を使用してコードスタイルと UserScript メタデータの検証を実行します：
+```bash
+npm run lint
 ```
 
 ## 免責事項

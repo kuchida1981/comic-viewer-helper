@@ -39,9 +39,22 @@ npm run build
 ```
 
 ### Test
-To run unit tests using Vitest:
+To run unit tests using Vitest (includes coverage report):
 ```bash
 npm test
+```
+Core logic (`src/logic.js`) is maintained with **100% code coverage**.
+
+### Type Check
+To run static type analysis using JSDoc and TypeScript:
+```bash
+npm run check-types
+```
+
+### Lint
+To run ESLint (includes UserScript metadata validation):
+```bash
+npm run lint
 ```
 
 ## Disclaimer

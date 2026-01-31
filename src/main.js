@@ -1,3 +1,13 @@
+// ==UserScript==
+// @name         Magazine Comic View Helper (Logic)
+// @namespace    http://tampermonkey.net/
+// @version      1.0.0
+// @description  Internal module for comic viewer helper
+// @author       You
+// @match        *://*/*
+// @grant        none
+// ==/UserScript==
+
 import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal } from './logic.js';
 
 console.log("Magazine Comic View Helper Loaded");
@@ -8,13 +18,20 @@ const STORAGE_KEY_DUAL_VIEW = 'comic-viewer-helper-dual-view';
 const STORAGE_KEY_GUI_POS = 'comic-viewer-helper-gui-pos';
 const STORAGE_KEY_ENABLED = 'comic-viewer-helper-enabled';
 
+/** @type {HTMLInputElement | null} */
 let pageCounter = null;
 let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === 'true';
 let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== 'false';
+/** @type {HTMLImageElement[]} */
 let originalImages = [];
 let spreadOffset = 0;
 
+/**
+ * @param {EventTarget | null} target 
+ * @returns {boolean}
+ */
 function isInputField(target) {
+  if (!(target instanceof HTMLElement)) return false;
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
@@ -23,11 +40,17 @@ function isInputField(target) {
   );
 }
 
+/**
+ * @returns {HTMLImageElement[]}
+ */
 function getImages() {
   if (originalImages.length > 0) return originalImages;
-  return Array.from(document.querySelectorAll(IMG_SELECTOR));
+  return /** @type {HTMLImageElement[]} */ (Array.from(document.querySelectorAll(IMG_SELECTOR)));
 }
 
+/**
+ * @returns {number}
+ */
 function getCurrentPageIndex() {
   const imgs = getImages();
   if (imgs.length === 0) return -1;
@@ -53,7 +76,7 @@ function getCurrentPageIndex() {
     const totalEl = document.getElementById('comic-total-counter');
     
     if (imgs.length === 0) {
-      pageCounter.value = 0;
+      pageCounter.value = "0";
       if (totalEl) totalEl.textContent = ' / 0';
       return;
     }
@@ -64,14 +87,18 @@ function getCurrentPageIndex() {
     
     // Don't update if input is focused to avoid cursor jumping
     if (document.activeElement !== pageCounter) {
-      pageCounter.value = current;
+      pageCounter.value = current.toString();
     }
     if (totalEl) totalEl.textContent = ` / ${total}`;
   }
 
+  /**
+   * @param {string | number} pageNumber 
+   */
   function jumpToPage(pageNumber) {
+    if (!pageCounter) return;
     const imgs = getImages();
-    const index = parseInt(pageNumber, 10) - 1;
+    const index = typeof pageNumber === 'string' ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
     const targetImg = getImageElementByIndex(imgs, index);
     
     if (targetImg) {
@@ -82,12 +109,15 @@ function getCurrentPageIndex() {
       updatePageCounter();
       pageCounter.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
       setTimeout(() => {
-        pageCounter.style.backgroundColor = 'transparent';
+        if (pageCounter) pageCounter.style.backgroundColor = 'transparent';
       }, 500);
       pageCounter.blur();
     }
   }
 
+  /**
+   * @param {number} direction 
+   */
   function scrollToImage(direction) {
     const imgs = getImages();
     if (imgs.length === 0) return;
@@ -104,7 +134,7 @@ function getCurrentPageIndex() {
     // In dual view, if the target is part of the same spread, advance to the next spread.
     if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
          const currentImg = imgs[currentIndex];
-         if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement.classList.contains('comic-row-wrapper')) {
+         if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains('comic-row-wrapper')) {
              // They are in the same spread. Move one more index.
              targetIndex += direction;
          }
@@ -118,10 +148,13 @@ function getCurrentPageIndex() {
     }
   }
 
+/**
+ * @param {boolean} enabled 
+ */
 function toggleActivation(enabled) {
   const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
   isEnabled = enabled;
-  localStorage.setItem(STORAGE_KEY_ENABLED, enabled);
+  localStorage.setItem(STORAGE_KEY_ENABLED, enabled.toString());
 
   if (enabled) {
     // Re-calculate offset if enabling for the first time or re-enabling
@@ -140,6 +173,9 @@ function toggleActivation(enabled) {
   createNavigationUI();
 }
 
+/**
+ * @param {'start' | 'end'} position 
+ */
 function scrollToEdge(position) {
   const imgs = getImages();
   if (imgs.length === 0) return;
@@ -165,7 +201,7 @@ function createNavigationUI() {
     document.head.appendChild(style);
   }
 
-  let container = document.getElementById('comic-helper-ui');
+  let container = /** @type {HTMLElement | null} */ (document.getElementById('comic-helper-ui'));
   if (!container) {
     container = document.createElement('div');
     container.id = 'comic-helper-ui';
@@ -183,10 +219,15 @@ function createNavigationUI() {
     }
 
     let isDragging = false;
-    let dragStartX, dragStartY, initialTop, initialLeft;
+    /** @type {number} */ let dragStartX;
+    /** @type {number} */ let dragStartY;
+    /** @type {number} */ let initialTop;
+    /** @type {number} */ let initialLeft;
 
     container.addEventListener('mousedown', (e) => {
-      if (e.button !== 0 || (e.target.tagName !== 'DIV' && e.target !== container)) return;
+      if (!container) return;
+      if (e.button !== 0 || (!(e.target instanceof HTMLElement))) return;
+      if (e.target.tagName !== 'DIV' && e.target !== container) return;
       isDragging = true;
       const rect = container.getBoundingClientRect();
       initialTop = rect.top; initialLeft = rect.left;
@@ -197,8 +238,9 @@ function createNavigationUI() {
       e.preventDefault();
     });
 
+    /** @param {MouseEvent} e */
     function onMouseMove(e) {
-      if (!isDragging) return;
+      if (!isDragging || !container) return;
       const deltaX = e.clientX - dragStartX;
       const deltaY = e.clientY - dragStartY;
       container.style.top = `${initialTop + deltaY}px`;
@@ -206,7 +248,7 @@ function createNavigationUI() {
     }
 
     function onMouseUp() {
-      if (!isDragging) return;
+      if (!isDragging || !container) return;
       isDragging = false;
       const rect = container.getBoundingClientRect();
       saveGUIPosition(rect.top, rect.left);
@@ -243,9 +285,9 @@ function createNavigationUI() {
       const counterWrapper = document.createElement('span');
       Object.assign(counterWrapper.style, { color: '#fff', fontSize: '14px', fontWeight: 'bold', padding: '0 8px', display: 'flex', alignItems: 'center', userSelect: 'none' });
   
-      pageCounter = document.createElement('input');
+      pageCounter = /** @type {HTMLInputElement} */ (document.createElement('input'));
       pageCounter.type = 'number';
-      pageCounter.min = 1;
+      pageCounter.min = "1";
       Object.assign(pageCounter.style, {
         width: '45px', background: 'transparent', border: '1px solid transparent', color: '#fff',
         fontSize: '14px', fontWeight: 'bold', textAlign: 'right', padding: '2px', outline: 'none',
@@ -255,13 +297,15 @@ function createNavigationUI() {
           pageCounter.style.setProperty('-moz-appearance', 'textfield');
           
           pageCounter.addEventListener('focus', () => {
-            pageCounter.style.border = '1px solid #fff';
-            pageCounter.style.background = 'rgba(255,255,255,0.1)';
-            pageCounter.select();
+            if (pageCounter) {
+                pageCounter.style.border = '1px solid #fff';
+                pageCounter.style.background = 'rgba(255,255,255,0.1)';
+                pageCounter.select();
+            }
           });
-          pageCounter.addEventListener('blur', () => { pageCounter.style.border = '1px solid transparent'; pageCounter.style.background = 'transparent'; });
+          pageCounter.addEventListener('blur', () => { if (pageCounter) { pageCounter.style.border = '1px solid transparent'; pageCounter.style.background = 'transparent'; } });
           pageCounter.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && pageCounter) {
               e.preventDefault();
               jumpToPage(pageCounter.value);
             }
@@ -326,6 +370,9 @@ function createNavigationUI() {
   });
 }
 
+/**
+ * @param {KeyboardEvent} e 
+ */
 function onKeyDown(e) {
   if (isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
 
@@ -351,16 +398,19 @@ function onKeyDown(e) {
   else if (e.key === 'd') {
     e.preventDefault();
     const newState = !isDualViewEnabled;
-    const checkbox = document.querySelector('input[type="checkbox"]');
+    const checkbox = /** @type {HTMLInputElement | null} */ (document.querySelector('input[type="checkbox"]'));
     if (checkbox) checkbox.checked = newState;
     toggleDualView(newState);
   }
 }
 
+/**
+ * @param {boolean} enabled 
+ */
 function toggleDualView(enabled) {
   const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
   isDualViewEnabled = enabled;
-  localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled);
+  localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled.toString());
   
   if (enabled) {
       if (currentIndex !== -1) {
@@ -379,7 +429,15 @@ function toggleDualView(enabled) {
   }
 }
 
+/**
+ * @param {number} top 
+ * @param {number} left 
+ */
 function saveGUIPosition(top, left) { localStorage.setItem(STORAGE_KEY_GUI_POS, JSON.stringify({ top, left })); }
+
+/**
+ * @returns {{top: number, left: number} | null}
+ */
 function loadGUIPosition() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_GUI_POS);
@@ -394,8 +452,9 @@ function loadGUIPosition() {
 function init() {
   const container = document.querySelector(CONTAINER_SELECTOR);
   if (!container) return;
-  originalImages = Array.from(document.querySelectorAll(IMG_SELECTOR));
-  const imgs = document.querySelectorAll(IMG_SELECTOR);
+  originalImages = /** @type {HTMLImageElement[]} */ (Array.from(document.querySelectorAll(IMG_SELECTOR)));
+  const imgs = /** @type {NodeListOf<HTMLImageElement>} */ (document.querySelectorAll(IMG_SELECTOR));
+  /** @type {number | undefined} */
   let resizeReq;
   imgs.forEach(img => {
     if (!img.complete) {
@@ -428,6 +487,7 @@ function init() {
         updatePageCounter(); 
     });
   });
+  /** @type {number | undefined} */
   let scrollReq;
   window.addEventListener('scroll', () => {
     if (!isEnabled) return;
