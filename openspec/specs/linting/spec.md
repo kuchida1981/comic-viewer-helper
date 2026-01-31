@@ -17,10 +17,10 @@ Lintルールは、Tampermonkey固有のグローバル変数（`GM_setValue`, `
 - **WHEN** コード内で `GM_setValue` などのTampermonkey関数を使用しているとき
 - **THEN** Lintツールはそれを「未定義変数」としてエラー報告しないこと
 
-### Requirement: Recommended Ruleset
-システムは、JavaScriptの標準的な推奨ルールセット（`eslint:recommended` 相当）を適用し、潜在的なエラーを防止しなければなりません（SHALL）。
+### Requirement: 静的解析によるコード品質の維持
+システムは、ESLint を使用してソースコードの構文およびスタイルを自動的に検証しなければならない。
 
-#### Scenario: Detect potential errors
-- **WHEN** `debugger` ステートメントの残留や、初期化前の変数使用などのコードが含まれているとき
-- **THEN** Lintツールはそれを警告またはエラーとして報告すること
+#### Scenario: 警告が存在する場合の失敗
+- **WHEN** ソースコードに Lint 警告（未使用変数など）が含まれている状態で `npm run lint` を実行する
+- **THEN** コマンドは終了コード 非 0 で終了し、エラーとして報告されること
 
