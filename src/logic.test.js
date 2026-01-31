@@ -65,6 +65,16 @@ describe('logic.js', () => {
       expect(getPrimaryVisibleImageIndex(imgs, windowHeight)).toBe(1);
     });
 
+    it('should prefer the one closer to center if visible heights are equal', () => {
+      const windowHeight = 1000;
+      const imgs = [
+        { getBoundingClientRect: () => ({ top: 0, bottom: 500 }) },   // height 500, center 250, dist 250
+        { getBoundingClientRect: () => ({ top: 250, bottom: 750 }) }  // height 500, center 500, dist 0
+      ];
+      // @ts-ignore
+      expect(getPrimaryVisibleImageIndex(imgs, windowHeight)).toBe(1);
+    });
+
     it('should return -1 for empty list', () => {
       expect(getPrimaryVisibleImageIndex([], 1000)).toBe(-1);
     });
@@ -212,6 +222,17 @@ describe('logic.js', () => {
       expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[3]);
     });
 
+    it('should correctly handle multiple landscape images', () => {
+      // 0:P, 1:L, 2:L, 3:P
+      images[1].naturalWidth = 500; images[1].naturalHeight = 100;
+      images[2].naturalWidth = 500; images[2].naturalHeight = 100;
+
+      fitImagesToViewport('#container', 0, true);
+      // Expected: 4 solo rows
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(4);
+    });
+
     it('should maintain global order even when some images are paired and some are solo', () => {
       // Image 1 is landscape
       images[1].naturalWidth = 500;
@@ -227,27 +248,11 @@ describe('logic.js', () => {
       // Check the order of appendChild calls on container
       const calls = container.appendChild.mock.calls.map((/** @type {any[]} */ call) => call[0]);
       
-      // Filter only images and wrappers
-      const relevantCalls = calls.filter((/** @type {any} */ c) => images.includes(c) || c.tagName === 'DIV');
-      
-      // Since cleanupDOM no longer appends images, all calls are from fitImagesToViewport loop
-      const finalCalls = relevantCalls;
-      
-      expect(finalCalls.length).toBe(3);
-      expect(finalCalls[0]).toBe(images[0]);
-      expect(finalCalls[1]).toBe(images[1]);
-      expect(finalCalls[2].tagName).toBe('DIV'); // The row containing 2 and 3
-    });
-
-    it('should correctly handle multiple landscape images', () => {
-      // 0:P, 1:L, 2:L, 3:P
-      images[1].naturalWidth = 500; images[1].naturalHeight = 100;
-      images[2].naturalWidth = 500; images[2].naturalHeight = 100;
-
-      fitImagesToViewport('#container', 0, true);
-      // Expected: 0(solo), 1(solo), 2(solo), 3(solo) - no pairs possible
-      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(0);
+      // All calls should be wrappers now
+      expect(calls.length).toBe(3);
+      expect(calls[0].tagName).toBe('DIV');
+      expect(calls[1].tagName).toBe('DIV');
+      expect(calls[2].tagName).toBe('DIV');
     });
 
     it('should pair correctly with offset 1 and odd number of images', () => {
@@ -259,11 +264,14 @@ describe('logic.js', () => {
       });
 
       fitImagesToViewport('#container', 1, true);
-      // Expected: 0 solo, 1-2 pair
+      // Expected: 0 solo, 1-2 pair -> 2 rows
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(1);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(threeImages[1]);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(threeImages[2]);
+      expect(wrappers.length).toBe(2);
+      // Wrapper 0 is for image 0
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(threeImages[0]);
+      // Wrapper 1 is for image 1 and 2
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(threeImages[1]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(threeImages[2]);
     });
 
     it('should call cleanupDOM (remove wrappers)', () => {

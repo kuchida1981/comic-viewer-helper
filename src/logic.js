@@ -36,7 +36,7 @@ export function shouldPairWithNext(current, next, isDualViewEnabled) {
 }
 
 /**
- * Get primary visible image index based on visible height
+ * Get primary visible image index based on visible height and proximity to center
  * @param {Array<HTMLImageElement | {getBoundingClientRect: () => (DOMRect | {top: number, bottom: number})}>} imgs 
  * @param {number} windowHeight 
  * @returns {number}
@@ -45,15 +45,25 @@ export function getPrimaryVisibleImageIndex(imgs, windowHeight) {
   if (imgs.length === 0) return -1;
 
   let maxVisibleHeight = 0;
+  let minDistanceToCenter = Infinity;
   let primaryIndex = -1;
+  const viewportCenter = windowHeight / 2;
 
   imgs.forEach((img, index) => {
     const rect = img.getBoundingClientRect();
     const visibleHeight = calculateVisibleHeight(rect, windowHeight);
 
-    if (visibleHeight > maxVisibleHeight) {
-      maxVisibleHeight = visibleHeight;
-      primaryIndex = index;
+    if (visibleHeight > 0) {
+      const elementCenter = (rect.top + rect.bottom) / 2;
+      const distanceToCenter = Math.abs(viewportCenter - elementCenter);
+
+      // Prefer element with more visible height, 
+      // or if height is same, the one closer to the center of the viewport
+      if (visibleHeight > maxVisibleHeight || (visibleHeight === maxVisibleHeight && distanceToCenter < minDistanceToCenter)) {
+        maxVisibleHeight = visibleHeight;
+        minDistanceToCenter = distanceToCenter;
+        primaryIndex = index;
+      }
     }
   });
 
@@ -118,11 +128,6 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
     let pairWithNext = false;
     
     // Deterministic pairing logic based on spreadOffset
-    // We pair (i, i+1) only if:
-    // 1. Dual View is enabled
-    // 2. Current position allows pairing: (i - spreadOffset) is even
-    // 3. Image properties allow pairing (both portrait)
-    
     const effectiveIndex = i - spreadOffset;
     const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
 
@@ -135,15 +140,17 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
       }
     }
 
+    const row = document.createElement('div');
+    row.className = 'comic-row-wrapper';
+    Object.assign(row.style, {
+      display: 'flex', justifyContent: 'center', alignItems: 'center',
+      width: '100vw', maxWidth: '100vw', marginLeft: 'calc(50% - 50vw)', marginRight: 'calc(50% - 50vw)',
+      height: '100vh', marginBottom: '0', position: 'relative', boxSizing: 'border-box'
+    });
+
     if (pairWithNext) {
       const nextImg = allImages[i+1];
-      const row = document.createElement('div');
-      row.className = 'comic-row-wrapper';
-      Object.assign(row.style, {
-        display: 'flex', flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center',
-        width: '100vw', maxWidth: '100vw', marginLeft: 'calc(50% - 50vw)', marginRight: 'calc(50% - 50vw)',
-        height: '100vh', marginBottom: '0', position: 'relative', boxSizing: 'border-box'
-      });
+      row.style.flexDirection = 'row-reverse';
 
       [img, nextImg].forEach(im => {
         Object.assign(im.style, {
@@ -156,12 +163,12 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
       container.appendChild(row);
       i++;
     } else {
-      img.style.cssText = ''; 
       Object.assign(img.style, {
         maxWidth: `${vw}px`, maxHeight: `${vh}px`, width: 'auto', height: 'auto',
         display: 'block', margin: '0 auto', flexShrink: '0', objectFit: 'contain'
       });
-      container.appendChild(img);
+      row.appendChild(img);
+      container.appendChild(row);
     }
   }
 }

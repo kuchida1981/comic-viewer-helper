@@ -21,8 +21,8 @@
     const visibleBottom = Math.min(windowHeight, rect.bottom);
     return Math.max(0, visibleBottom - visibleTop);
   }
-  function shouldPairWithNext(current, next, isDualViewEnabled2) {
-    if (!isDualViewEnabled2) return false;
+  function shouldPairWithNext(current, next, isDualViewEnabled) {
+    if (!isDualViewEnabled) return false;
     if (current.isLandscape) return false;
     if (!next) return false;
     if (next.isLandscape) return false;
@@ -31,13 +31,20 @@
   function getPrimaryVisibleImageIndex(imgs, windowHeight) {
     if (imgs.length === 0) return -1;
     let maxVisibleHeight = 0;
+    let minDistanceToCenter = Infinity;
     let primaryIndex = -1;
+    const viewportCenter = windowHeight / 2;
     imgs.forEach((img, index) => {
       const rect = img.getBoundingClientRect();
       const visibleHeight = calculateVisibleHeight(rect, windowHeight);
-      if (visibleHeight > maxVisibleHeight) {
-        maxVisibleHeight = visibleHeight;
-        primaryIndex = index;
+      if (visibleHeight > 0) {
+        const elementCenter = (rect.top + rect.bottom) / 2;
+        const distanceToCenter = Math.abs(viewportCenter - elementCenter);
+        if (visibleHeight > maxVisibleHeight || visibleHeight === maxVisibleHeight && distanceToCenter < minDistanceToCenter) {
+          maxVisibleHeight = visibleHeight;
+          minDistanceToCenter = distanceToCenter;
+          primaryIndex = index;
+        }
       }
     });
     return primaryIndex;
@@ -58,7 +65,7 @@
     });
     return allImages;
   }
-  function fitImagesToViewport(containerSelector, spreadOffset2 = 0, isDualViewEnabled2 = false) {
+  function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualViewEnabled = false) {
     const container = (
       /** @type {HTMLElement | null} */
       document.querySelector(containerSelector)
@@ -80,33 +87,33 @@
       const img = allImages[i];
       const isLandscape = img.naturalWidth > img.naturalHeight;
       let pairWithNext = false;
-      const effectiveIndex = i - spreadOffset2;
+      const effectiveIndex = i - spreadOffset;
       const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
-      if (isDualViewEnabled2 && isPairingPosition && i + 1 < allImages.length) {
+      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length) {
         const nextImg = allImages[i + 1];
         const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
-        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled2)) {
+        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
           pairWithNext = true;
         }
       }
+      const row = document.createElement("div");
+      row.className = "comic-row-wrapper";
+      Object.assign(row.style, {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100vw",
+        maxWidth: "100vw",
+        marginLeft: "calc(50% - 50vw)",
+        marginRight: "calc(50% - 50vw)",
+        height: "100vh",
+        marginBottom: "0",
+        position: "relative",
+        boxSizing: "border-box"
+      });
       if (pairWithNext) {
         const nextImg = allImages[i + 1];
-        const row = document.createElement("div");
-        row.className = "comic-row-wrapper";
-        Object.assign(row.style, {
-          display: "flex",
-          flexDirection: "row-reverse",
-          justifyContent: "center",
-          alignItems: "center",
-          width: "100vw",
-          maxWidth: "100vw",
-          marginLeft: "calc(50% - 50vw)",
-          marginRight: "calc(50% - 50vw)",
-          height: "100vh",
-          marginBottom: "0",
-          position: "relative",
-          boxSizing: "border-box"
-        });
+        row.style.flexDirection = "row-reverse";
         [img, nextImg].forEach((im) => {
           Object.assign(im.style, {
             maxWidth: "50%",
@@ -123,7 +130,6 @@
         container.appendChild(row);
         i++;
       } else {
-        img.style.cssText = "";
         Object.assign(img.style, {
           maxWidth: `${vw}px`,
           maxHeight: `${vh}px`,
@@ -134,18 +140,19 @@
           flexShrink: "0",
           objectFit: "contain"
         });
-        container.appendChild(img);
+        row.appendChild(img);
+        container.appendChild(row);
       }
     }
   }
-  function revertToOriginal(originalImages2, containerSelector) {
+  function revertToOriginal(originalImages, containerSelector) {
     const container = (
       /** @type {HTMLElement | null} */
       document.querySelector(containerSelector)
     );
     if (!container) return;
     container.style.cssText = "";
-    originalImages2.forEach((img) => {
+    originalImages.forEach((img) => {
       img.style.cssText = "";
       container.appendChild(img);
     });
@@ -158,441 +165,742 @@
     }
     return event.deltaY > 0 ? "next" : "prev";
   }
-  console.log("Magazine Comic View Helper Loaded");
-  const IMG_SELECTOR = "#post-comic img";
-  const CONTAINER_SELECTOR = "#post-comic";
-  const STORAGE_KEY_DUAL_VIEW = "comic-viewer-helper-dual-view";
-  const STORAGE_KEY_GUI_POS = "comic-viewer-helper-gui-pos";
-  const STORAGE_KEY_ENABLED = "comic-viewer-helper-enabled";
-  let pageCounter = null;
-  let isDualViewEnabled = localStorage.getItem(STORAGE_KEY_DUAL_VIEW) === "true";
-  let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== "false";
-  let originalImages = [];
-  let spreadOffset = 0;
-  let currentVisibleIndex = 0;
-  let lastWheelTime = 0;
-  const WHEEL_THROTTLE_MS = 500;
-  const WHEEL_THRESHOLD = 1;
-  function isInputField(target) {
-    if (!(target instanceof HTMLElement)) return false;
-    return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
-  }
-  function getImages() {
-    if (originalImages.length > 0) return originalImages;
-    return (
-      /** @type {HTMLImageElement[]} */
-      Array.from(document.querySelectorAll(IMG_SELECTOR))
-    );
-  }
-  function updatePageCounter() {
-    if (!isEnabled) return;
-    if (!pageCounter) return;
-    const imgs = getImages();
-    const totalEl = document.getElementById("comic-total-counter");
-    if (imgs.length === 0) {
-      pageCounter.value = "0";
-      if (totalEl) totalEl.textContent = " / 0";
-      return;
-    }
-    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-    if (currentIndex !== -1) {
-      currentVisibleIndex = currentIndex;
-    }
-    const current = currentIndex !== -1 ? currentIndex + 1 : 1;
-    const total = imgs.length;
-    if (document.activeElement !== pageCounter) {
-      pageCounter.value = current.toString();
-    }
-    if (totalEl) totalEl.textContent = ` / ${total}`;
-  }
-  function handleWheel(e) {
-    if (!isEnabled) return;
-    e.preventDefault();
-    const now = Date.now();
-    if (now - lastWheelTime < WHEEL_THROTTLE_MS) return;
-    const direction = getNavigationDirection(e, WHEEL_THRESHOLD);
-    if (direction === "none") return;
-    const imgs = getImages();
-    if (imgs.length === 0) return;
-    lastWheelTime = now;
-    const step = isDualViewEnabled ? 2 : 1;
-    const nextIndex = direction === "next" ? Math.min(currentVisibleIndex + step, imgs.length - 1) : Math.max(currentVisibleIndex - step, 0);
-    jumpToPage(nextIndex + 1);
-  }
-  function jumpToPage(pageNumber) {
-    if (!pageCounter) return;
-    const imgs = getImages();
-    const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
-    const targetImg = getImageElementByIndex(imgs, index);
-    if (targetImg) {
-      targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
-      pageCounter.blur();
-    } else {
-      updatePageCounter();
-      pageCounter.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
-      setTimeout(() => {
-        if (pageCounter) pageCounter.style.backgroundColor = "transparent";
-      }, 500);
-      pageCounter.blur();
-    }
-  }
-  function scrollToImage(direction) {
-    const imgs = getImages();
-    if (imgs.length === 0) return;
-    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-    let targetIndex = currentIndex + direction;
-    if (targetIndex < 0) targetIndex = 0;
-    if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
-    const prospectiveTargetImg = imgs[targetIndex];
-    if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-      const currentImg = imgs[currentIndex];
-      if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
-        targetIndex += direction;
-      }
-    }
-    const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
-    const finalTarget = imgs[finalIndex];
-    if (finalTarget) {
-      finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }
-  function toggleActivation(enabled) {
-    const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
-    isEnabled = enabled;
-    localStorage.setItem(STORAGE_KEY_ENABLED, enabled.toString());
-    if (enabled) {
-      if (currentIndex !== -1) {
-        spreadOffset = currentIndex % 2;
-      }
-      fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-      updatePageCounter();
-      if (currentIndex !== -1) {
-        const imgs = getImages();
-        if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: "center" });
-      }
-    } else {
-      revertToOriginal(getImages(), CONTAINER_SELECTOR);
-    }
-    createNavigationUI();
-  }
-  function scrollToEdge(position) {
-    const imgs = getImages();
-    if (imgs.length === 0) return;
-    const target = position === "start" ? imgs[0] : imgs[imgs.length - 1];
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-  function createNavigationUI() {
-    const existingStyle = document.getElementById("comic-helper-style");
-    if (!existingStyle) {
-      const style = document.createElement("style");
-      style.id = "comic-helper-style";
-      style.textContent = `
-      input::-webkit-outer-spin-button,
-      input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-      input[type=number] {
-        -moz-appearance: textfield;
-      }
-    `;
-      document.head.appendChild(style);
-    }
-    let container = (
-      /** @type {HTMLElement | null} */
-      document.getElementById("comic-helper-ui")
-    );
-    if (!container) {
-      let onMouseMove = function(e) {
-        if (!isDragging || !container) return;
-        const deltaX = e.clientX - dragStartX;
-        const deltaY = e.clientY - dragStartY;
-        container.style.top = `${initialTop + deltaY}px`;
-        container.style.left = `${initialLeft + deltaX}px`;
-      }, onMouseUp = function() {
-        if (!isDragging || !container) return;
-        isDragging = false;
-        const rect = container.getBoundingClientRect();
-        saveGUIPosition(rect.top, rect.left);
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
+  const STORAGE_KEYS = {
+    DUAL_VIEW: "comic-viewer-helper-dual-view",
+    GUI_POS: "comic-viewer-helper-gui-pos",
+    ENABLED: "comic-viewer-helper-enabled"
+  };
+  class Store {
+    constructor() {
+      this.state = {
+        enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== "false",
+        isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === "true",
+        spreadOffset: 0,
+        currentVisibleIndex: 0,
+        guiPos: this._loadGuiPos()
       };
-      container = document.createElement("div");
-      container.id = "comic-helper-ui";
-      Object.assign(container.style, {
-        position: "fixed",
-        bottom: "20px",
-        right: "20px",
-        zIndex: "10000",
-        display: "flex",
-        gap: "8px",
-        backgroundColor: "rgba(0, 0, 0, 0.7)",
-        padding: "8px",
-        borderRadius: "8px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
-        cursor: "move",
-        userSelect: "none",
-        touchAction: "none",
-        alignItems: "center",
-        whiteSpace: "nowrap",
-        width: "max-content"
-      });
-      const savedPos = loadGUIPosition();
-      if (savedPos) {
-        Object.assign(container.style, { top: `${savedPos.top}px`, left: `${savedPos.left}px`, bottom: "auto", right: "auto" });
-      }
-      let isDragging = false;
-      let dragStartX;
-      let dragStartY;
-      let initialTop;
-      let initialLeft;
-      container.addEventListener("mousedown", (e) => {
-        if (!container) return;
-        if (e.button !== 0 || !(e.target instanceof HTMLElement)) return;
-        if (e.target.tagName !== "DIV" && e.target !== container) return;
-        isDragging = true;
-        const rect = container.getBoundingClientRect();
-        initialTop = rect.top;
-        initialLeft = rect.left;
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
-        Object.assign(container.style, { top: `${initialTop}px`, left: `${initialLeft}px`, bottom: "auto", right: "auto" });
-        document.addEventListener("mousemove", onMouseMove);
-        document.addEventListener("mouseup", onMouseUp);
-        e.preventDefault();
-      });
-      document.body.appendChild(container);
+      this.listeners = [];
     }
-    container.innerHTML = "";
-    const powerBtn = document.createElement("button");
-    powerBtn.textContent = "⚡";
-    powerBtn.title = isEnabled ? "Disable Comic Viewer Helper" : "Enable Comic Viewer Helper";
-    Object.assign(powerBtn.style, {
-      cursor: "pointer",
-      border: "none",
-      background: "transparent",
-      color: isEnabled ? "#4CAF50" : "#888",
-      fontSize: "16px",
-      padding: "0 4px",
-      fontWeight: "bold",
-      marginRight: isEnabled ? "8px" : "0"
-    });
-    powerBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleActivation(!isEnabled);
-    });
-    container.appendChild(powerBtn);
-    if (!isEnabled) {
-      container.style.padding = "4px 8px";
-      return;
+    /**
+     * @returns {StoreState}
+     */
+    getState() {
+      return { ...this.state };
     }
-    container.style.padding = "8px";
-    const counterWrapper = document.createElement("span");
-    Object.assign(counterWrapper.style, { color: "#fff", fontSize: "14px", fontWeight: "bold", padding: "0 8px", display: "flex", alignItems: "center", userSelect: "none" });
-    pageCounter = /** @type {HTMLInputElement} */
-    document.createElement("input");
-    pageCounter.type = "number";
-    pageCounter.min = "1";
-    Object.assign(pageCounter.style, {
-      width: "45px",
-      background: "transparent",
-      border: "1px solid transparent",
-      color: "#fff",
-      fontSize: "14px",
-      fontWeight: "bold",
-      textAlign: "right",
-      padding: "2px",
-      outline: "none",
-      appearance: "textfield",
-      margin: "0"
-    });
-    pageCounter.style.setProperty("-moz-appearance", "textfield");
-    pageCounter.addEventListener("focus", () => {
-      if (pageCounter) {
-        pageCounter.style.border = "1px solid #fff";
-        pageCounter.style.background = "rgba(255,255,255,0.1)";
-        pageCounter.select();
+    /**
+     * @param {Partial<StoreState>} patch 
+     */
+    setState(patch) {
+      let changed = false;
+      for (const key in patch) {
+        const k = (
+          /** @type {keyof StoreState} */
+          key
+        );
+        if (this.state[k] !== patch[k]) {
+          this.state[k] = patch[k];
+          changed = true;
+        }
       }
-    });
-    pageCounter.addEventListener("blur", () => {
-      if (pageCounter) {
-        pageCounter.style.border = "1px solid transparent";
-        pageCounter.style.background = "transparent";
+      if (!changed) return;
+      if ("enabled" in patch) {
+        localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
       }
-    });
-    pageCounter.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && pageCounter) {
-        e.preventDefault();
-        jumpToPage(pageCounter.value);
+      if ("isDualViewEnabled" in patch) {
+        localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
       }
-    });
-    const totalCounter = document.createElement("span");
-    totalCounter.id = "comic-total-counter";
-    totalCounter.textContent = " / 1";
-    counterWrapper.appendChild(pageCounter);
-    counterWrapper.appendChild(totalCounter);
-    container.appendChild(counterWrapper);
-    const toggleLabel = document.createElement("label");
-    Object.assign(toggleLabel.style, { display: "flex", alignItems: "center", color: "#fff", fontSize: "12px", cursor: "pointer", userSelect: "none", marginRight: "8px" });
-    const toggleInput = document.createElement("input");
-    toggleInput.type = "checkbox";
-    toggleInput.checked = isDualViewEnabled;
-    toggleInput.style.marginRight = "4px";
-    toggleInput.addEventListener("change", () => {
-      toggleDualView(toggleInput.checked);
-      toggleInput.blur();
-    });
-    toggleLabel.appendChild(toggleInput);
-    toggleLabel.appendChild(document.createTextNode("Spread"));
-    container.appendChild(toggleLabel);
-    if (isDualViewEnabled) {
-      const adjustBtn = document.createElement("button");
-      adjustBtn.textContent = "Adjust";
-      adjustBtn.title = "Adjust Spread Alignment";
-      Object.assign(adjustBtn.style, {
-        cursor: "pointer",
-        padding: "2px 6px",
-        border: "1px solid #fff",
-        background: "transparent",
-        color: "#fff",
-        borderRadius: "4px",
-        fontSize: "10px",
-        marginLeft: "4px",
-        fontWeight: "normal"
-      });
-      adjustBtn.onmouseenter = () => adjustBtn.style.background = "rgba(255,255,255,0.2)";
-      adjustBtn.onmouseleave = () => adjustBtn.style.background = "transparent";
-      adjustBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        spreadOffset = spreadOffset === 0 ? 1 : 0;
-        fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-        updatePageCounter();
-      });
-      container.appendChild(adjustBtn);
+      if ("guiPos" in patch) {
+        localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      }
+      this._notify();
     }
-    const buttons = [
-      { text: "<<", label: "Go to First", action: () => scrollToEdge("start") },
-      { text: "<", label: "Go to Previous", action: () => scrollToImage(-1) },
-      { text: ">", label: "Go to Next", action: () => scrollToImage(1) },
-      { text: ">>", label: "Go to Last", action: () => scrollToEdge("end") }
-    ];
-    buttons.forEach((btnDef) => {
-      const btn = document.createElement("button");
-      btn.textContent = btnDef.text;
-      btn.title = btnDef.label;
-      Object.assign(btn.style, { cursor: "pointer", padding: "6px 12px", border: "none", background: "#fff", color: "#333", borderRadius: "4px", fontSize: "12px", fontWeight: "bold", minWidth: "50px" });
-      btn.onmouseenter = () => btn.style.background = "#eee";
-      btn.onmouseleave = () => btn.style.background = "#fff";
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        btnDef.action();
-        btn.blur();
-      });
-      container.appendChild(btn);
-    });
-  }
-  function onKeyDown(e) {
-    if (isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (!isEnabled) return;
-    if (["ArrowDown", "PageDown", "ArrowRight", "j"].includes(e.key) || e.key === " " && !e.shiftKey) {
-      e.preventDefault();
-      scrollToImage(1);
-    } else if (["ArrowUp", "PageUp", "ArrowLeft", "k"].includes(e.key) || e.key === " " && e.shiftKey) {
-      e.preventDefault();
-      scrollToImage(-1);
-    } else if (e.key === "d") {
-      e.preventDefault();
-      const newState = !isDualViewEnabled;
-      const checkbox = (
-        /** @type {HTMLInputElement | null} */
-        document.querySelector('input[type="checkbox"]')
-      );
-      if (checkbox) checkbox.checked = newState;
-      toggleDualView(newState);
+    /**
+     * @param {Function} callback 
+     */
+    subscribe(callback) {
+      this.listeners.push(callback);
+      return () => {
+        this.listeners = this.listeners.filter((l) => l !== callback);
+      };
     }
-  }
-  function applyLayout(forcedIndex) {
-    if (!isEnabled) return;
-    const currentImgs = getImages();
-    const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
-    fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-    updatePageCounter();
-    if (currentIndex !== -1) {
-      const targetImg = currentImgs[currentIndex];
-      if (targetImg) {
-        targetImg.scrollIntoView({ block: "center" });
+    _notify() {
+      this.listeners.forEach((callback) => callback(this.getState()));
+    }
+    _loadGuiPos() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
+        if (!saved) return null;
+        const pos = JSON.parse(saved);
+        const buffer = 50;
+        if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
+          return null;
+        }
+        return pos;
+      } catch {
+        return null;
       }
     }
   }
-  function toggleDualView(enabled) {
-    const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
-    isDualViewEnabled = enabled;
-    localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled.toString());
-    if (enabled) {
-      if (currentIndex !== -1) {
-        spreadOffset = currentIndex % 2;
+  const styles = `
+  #comic-helper-ui {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    gap: 8px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+    align-items: center;
+    white-space: nowrap;
+    width: max-content;
+  }
+
+  .comic-helper-button {
+    cursor: pointer;
+    padding: 6px 12px;
+    border: none;
+    background: #fff;
+    color: #333;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 50px;
+    transition: background 0.2s;
+  }
+  .comic-helper-button:hover {
+    background: #eee;
+  }
+
+  .comic-helper-power-btn {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-size: 16px;
+    padding: 0 4px;
+    font-weight: bold;
+    transition: color 0.2s;
+  }
+  .comic-helper-power-btn.enabled { color: #4CAF50; }
+  .comic-helper-power-btn.disabled { color: #888; }
+
+  .comic-helper-counter-wrapper {
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    user-select: none;
+  }
+
+  .comic-helper-page-input {
+    width: 45px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: right;
+    padding: 2px;
+    outline: none;
+    margin: 0;
+    transition: border 0.2s, background 0.2s;
+  }
+  .comic-helper-page-input:focus {
+    border: 1px solid #fff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  /* Hide spin buttons */
+  .comic-helper-page-input::-webkit-outer-spin-button,
+  .comic-helper-page-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .comic-helper-page-input[type=number] {
+    -moz-appearance: textfield;
+  }
+
+  .comic-helper-label {
+    display: flex;
+    align-items: center;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+    margin-right: 8px;
+  }
+  .comic-helper-label input {
+    margin-right: 4px;
+  }
+
+  .comic-helper-adjust-btn {
+    cursor: pointer;
+    padding: 2px 6px;
+    border: 1px solid #fff;
+    background: transparent;
+    color: #fff;
+    border-radius: 4px;
+    font-size: 10px;
+    margin-left: 4px;
+    font-weight: normal;
+    transition: background 0.2s;
+  }
+  .comic-helper-adjust-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+`;
+  function injectStyles() {
+    const id = "comic-helper-style";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = styles;
+    document.head.appendChild(style);
+  }
+  function createElement(tag, options = {}, children = []) {
+    const el = document.createElement(tag);
+    if (options.id) el.id = options.id;
+    if (options.className) el.className = options.className;
+    if (options.textContent) el.textContent = options.textContent;
+    if (options.title) el.title = options.title;
+    if (el instanceof HTMLInputElement) {
+      if (options.type) el.type = options.type;
+      if (options.checked !== void 0) el.checked = options.checked;
+    }
+    if (options.style) {
+      Object.assign(el.style, options.style);
+    }
+    if (options.attributes) {
+      for (const [key, value] of Object.entries(options.attributes)) {
+        el.setAttribute(key, String(value));
       }
     }
-    applyLayout(currentIndex);
-    createNavigationUI();
-  }
-  function saveGUIPosition(top, left) {
-    localStorage.setItem(STORAGE_KEY_GUI_POS, JSON.stringify({ top, left }));
-  }
-  function loadGUIPosition() {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_GUI_POS);
-      if (!saved) return null;
-      const pos = JSON.parse(saved);
-      const buffer = 50;
-      if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) return null;
-      return pos;
-    } catch {
-      return null;
+    if (options.events) {
+      for (const [type, listener] of Object.entries(options.events)) {
+        el.addEventListener(type, listener);
+      }
     }
+    children.forEach((child) => {
+      if (typeof child === "string") {
+        el.appendChild(document.createTextNode(child));
+      } else if (child instanceof HTMLElement) {
+        el.appendChild(child);
+      }
+    });
+    return el;
   }
-  function init() {
-    const container = document.querySelector(CONTAINER_SELECTOR);
-    if (!container) return;
-    originalImages = /** @type {HTMLImageElement[]} */
-    Array.from(document.querySelectorAll(IMG_SELECTOR));
-    const imgs = (
-      /** @type {NodeListOf<HTMLImageElement>} */
-      document.querySelectorAll(IMG_SELECTOR)
+  function createPowerButton({ isEnabled, onClick }) {
+    const el = createElement("button", {
+      className: `comic-helper-power-btn ${isEnabled ? "enabled" : "disabled"}`,
+      title: isEnabled ? "Disable Comic Viewer Helper" : "Enable Comic Viewer Helper",
+      textContent: "⚡",
+      style: {
+        marginRight: isEnabled ? "8px" : "0"
+      },
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick();
+        }
+      }
+    });
+    return {
+      el,
+      /** @param {boolean} enabled */
+      update: (enabled) => {
+        el.className = `comic-helper-power-btn ${enabled ? "enabled" : "disabled"}`;
+        el.title = enabled ? "Disable Comic Viewer Helper" : "Enable Comic Viewer Helper";
+        el.style.marginRight = enabled ? "8px" : "0";
+      }
+    };
+  }
+  function createPageCounter({ current, total, onJump }) {
+    const input = (
+      /** @type {HTMLInputElement} */
+      createElement("input", {
+        type: "number",
+        className: "comic-helper-page-input",
+        attributes: { min: 1 },
+        events: {
+          keydown: (e) => {
+            if (e instanceof KeyboardEvent && e.key === "Enter") {
+              e.preventDefault();
+              onJump(input.value);
+            }
+          },
+          focus: () => {
+            input.select();
+          }
+        }
+      })
     );
-    let resizeReq;
-    imgs.forEach((img) => {
-      if (!img.complete) {
-        img.addEventListener("load", () => {
-          if (resizeReq) cancelAnimationFrame(resizeReq);
-          resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
-        });
+    input.value = String(current);
+    const totalLabel = createElement("span", {
+      id: "comic-total-counter",
+      textContent: ` / ${total}`
+    });
+    const el = createElement("span", {
+      className: "comic-helper-counter-wrapper"
+    }, [input, totalLabel]);
+    return {
+      el,
+      input,
+      /** 
+       * @param {number} current 
+       * @param {number} total 
+       */
+      update: (current2, total2) => {
+        if (document.activeElement !== input) {
+          input.value = String(current2);
+        }
+        totalLabel.textContent = ` / ${total2}`;
+      }
+    };
+  }
+  function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) {
+    const checkbox = (
+      /** @type {HTMLInputElement} */
+      createElement("input", {
+        type: "checkbox",
+        checked: isDualViewEnabled,
+        events: {
+          change: (e) => {
+            if (e.target instanceof HTMLInputElement) {
+              onToggle(e.target.checked);
+              e.target.blur();
+            }
+          }
+        }
+      })
+    );
+    const label = createElement("label", {
+      className: "comic-helper-label"
+    }, [checkbox, "Spread"]);
+    const createAdjustBtn = () => createElement("button", {
+      className: "comic-helper-adjust-btn",
+      textContent: "Adjust",
+      title: "Adjust Spread Alignment",
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onAdjust();
+        }
       }
     });
-    if (isEnabled) {
-      fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-    }
-    createNavigationUI();
-    if (isEnabled) {
-      updatePageCounter();
-    }
-    window.addEventListener("resize", () => {
-      if (!isEnabled) return;
-      if (resizeReq) cancelAnimationFrame(resizeReq);
-      resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
-    });
-    let scrollReq;
-    window.addEventListener("scroll", () => {
-      if (!isEnabled) return;
-      if (scrollReq) cancelAnimationFrame(scrollReq);
-      scrollReq = requestAnimationFrame(updatePageCounter);
-    });
-    window.addEventListener("wheel", handleWheel, { passive: false });
-    document.addEventListener("keydown", onKeyDown, true);
+    let adjustBtn = isDualViewEnabled ? createAdjustBtn() : null;
+    const el = createElement("div", {
+      style: { display: "flex", alignItems: "center" }
+    }, [label]);
+    if (adjustBtn) el.appendChild(adjustBtn);
+    return {
+      el,
+      /** @param {boolean} enabled */
+      update: (enabled) => {
+        checkbox.checked = enabled;
+        if (enabled) {
+          if (!adjustBtn) {
+            adjustBtn = createAdjustBtn();
+            el.appendChild(adjustBtn);
+          }
+        } else {
+          if (adjustBtn) {
+            adjustBtn.remove();
+            adjustBtn = null;
+          }
+        }
+      }
+    };
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
+  function createNavigationButtons({ onFirst, onPrev, onNext, onLast }) {
+    const configs = [
+      { text: "<<", title: "Go to First", action: onFirst },
+      { text: "<", title: "Go to Previous", action: onPrev },
+      { text: ">", title: "Go to Next", action: onNext },
+      { text: ">>", title: "Go to Last", action: onLast }
+    ];
+    const elements = configs.map((cfg) => createElement("button", {
+      className: "comic-helper-button",
+      textContent: cfg.text,
+      title: cfg.title,
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          cfg.action();
+          if (e.target instanceof HTMLElement) e.target.blur();
+        }
+      }
+    }));
+    return {
+      elements,
+      update: () => {
+      }
+      // No dynamic state for these buttons yet
+    };
+  }
+  class Draggable {
+    /**
+     * @param {HTMLElement} element 
+     * @param {Object} options
+     * @param {Function} [options.onDragEnd]
+     */
+    constructor(element, options = {}) {
+      this.element = element;
+      this.onDragEnd = options.onDragEnd;
+      this.isDragging = false;
+      this.dragStartX = 0;
+      this.dragStartY = 0;
+      this.initialTop = 0;
+      this.initialLeft = 0;
+      this._onMouseDown = this._onMouseDown.bind(this);
+      this._onMouseMove = this._onMouseMove.bind(this);
+      this._onMouseUp = this._onMouseUp.bind(this);
+      this.element.addEventListener("mousedown", this._onMouseDown);
+    }
+    /**
+     * @param {MouseEvent} e 
+     */
+    _onMouseDown(e) {
+      if (e.button !== 0 || !(e.target instanceof HTMLElement)) return;
+      if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
+      this.isDragging = true;
+      const rect = this.element.getBoundingClientRect();
+      this.initialTop = rect.top;
+      this.initialLeft = rect.left;
+      this.dragStartX = e.clientX;
+      this.dragStartY = e.clientY;
+      Object.assign(this.element.style, {
+        top: `${this.initialTop}px`,
+        left: `${this.initialLeft}px`,
+        bottom: "auto",
+        right: "auto"
+      });
+      document.addEventListener("mousemove", this._onMouseMove);
+      document.addEventListener("mouseup", this._onMouseUp);
+      e.preventDefault();
+    }
+    /**
+     * @param {MouseEvent} e 
+     */
+    _onMouseMove(e) {
+      if (!this.isDragging) return;
+      const deltaX = e.clientX - this.dragStartX;
+      const deltaY = e.clientY - this.dragStartY;
+      this.element.style.top = `${this.initialTop + deltaY}px`;
+      this.element.style.left = `${this.initialLeft + deltaX}px`;
+    }
+    _onMouseUp() {
+      if (!this.isDragging) return;
+      this.isDragging = false;
+      document.removeEventListener("mousemove", this._onMouseMove);
+      document.removeEventListener("mouseup", this._onMouseUp);
+      if (this.onDragEnd) {
+        const rect = this.element.getBoundingClientRect();
+        this.onDragEnd(rect.top, rect.left);
+      }
+    }
+    destroy() {
+      this.element.removeEventListener("mousedown", this._onMouseDown);
+      document.removeEventListener("mousemove", this._onMouseMove);
+      document.removeEventListener("mouseup", this._onMouseUp);
+    }
+  }
+  const CONTAINER_SELECTOR = "#post-comic";
+  const IMG_SELECTOR = "#post-comic img";
+  class App {
+    constructor() {
+      this.store = new Store();
+      this.originalImages = [];
+      this.lastWheelTime = 0;
+      this.WHEEL_THROTTLE_MS = 500;
+      this.WHEEL_THRESHOLD = 1;
+      this.pageCounterInput = null;
+      this.totalCounterEl = null;
+      this.resizeReq = void 0;
+      this.scrollReq = void 0;
+      this._lastEnabled = void 0;
+      this._lastDualView = void 0;
+      this._lastSpreadOffset = void 0;
+      this.powerComp = null;
+      this.counterComp = null;
+      this.spreadComp = null;
+      this.init = this.init.bind(this);
+      this.handleWheel = this.handleWheel.bind(this);
+      this.onKeyDown = this.onKeyDown.bind(this);
+      this.updateUI = this.updateUI.bind(this);
+      this.applyLayout = this.applyLayout.bind(this);
+    }
+    getImages() {
+      if (this.originalImages.length > 0) return this.originalImages;
+      return (
+        /** @type {HTMLImageElement[]} */
+        Array.from(document.querySelectorAll(IMG_SELECTOR))
+      );
+    }
+    /**
+     * @param {EventTarget | null} target 
+     * @returns {boolean}
+     */
+    isInputField(target) {
+      if (!(target instanceof HTMLElement)) return false;
+      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
+    }
+    updatePageCounter() {
+      const state = this.store.getState();
+      const { enabled } = state;
+      if (!enabled) return;
+      const imgs = this.getImages();
+      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      if (currentIndex !== -1) {
+        this.store.setState({ currentVisibleIndex: currentIndex });
+      }
+    }
+    /**
+     * @param {string | number} pageNumber 
+     */
+    jumpToPage(pageNumber) {
+      const imgs = this.getImages();
+      const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
+      const targetImg = getImageElementByIndex(imgs, index);
+      if (targetImg) {
+        targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (this.pageCounterInput) this.pageCounterInput.blur();
+      } else {
+        this.updatePageCounter();
+        if (this.pageCounterInput) {
+          this.pageCounterInput.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
+          setTimeout(() => {
+            if (this.pageCounterInput) this.pageCounterInput.style.backgroundColor = "transparent";
+          }, 500);
+          this.pageCounterInput.blur();
+        }
+      }
+    }
+    /**
+     * @param {number} direction 
+     */
+    scrollToImage(direction) {
+      const imgs = this.getImages();
+      if (imgs.length === 0) return;
+      const { isDualViewEnabled } = this.store.getState();
+      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      let targetIndex = currentIndex + direction;
+      if (targetIndex < 0) targetIndex = 0;
+      if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+      const prospectiveTargetImg = imgs[targetIndex];
+      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+        const currentImg = imgs[currentIndex];
+        if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
+          targetIndex += direction;
+        }
+      }
+      const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
+      const finalTarget = imgs[finalIndex];
+      if (finalTarget) {
+        finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+    /**
+     * @param {'start' | 'end'} position 
+     */
+    scrollToEdge(position) {
+      const imgs = this.getImages();
+      if (imgs.length === 0) return;
+      const target = position === "start" ? imgs[0] : imgs[imgs.length - 1];
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    /**
+     * @param {WheelEvent} e 
+     */
+    handleWheel(e) {
+      const { enabled, isDualViewEnabled, currentVisibleIndex } = this.store.getState();
+      if (!enabled) return;
+      e.preventDefault();
+      const now = Date.now();
+      if (now - this.lastWheelTime < this.WHEEL_THROTTLE_MS) return;
+      const direction = getNavigationDirection(e, this.WHEEL_THRESHOLD);
+      if (direction === "none") return;
+      const imgs = this.getImages();
+      if (imgs.length === 0) return;
+      this.lastWheelTime = now;
+      const step = isDualViewEnabled ? 2 : 1;
+      const nextIndex = direction === "next" ? Math.min(currentVisibleIndex + step, imgs.length - 1) : Math.max(currentVisibleIndex - step, 0);
+      this.jumpToPage(nextIndex + 1);
+    }
+    /**
+     * @param {KeyboardEvent} e 
+     */
+    onKeyDown(e) {
+      if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const { enabled, isDualViewEnabled } = this.store.getState();
+      if (!enabled) return;
+      if (["ArrowDown", "PageDown", "ArrowRight", "j"].includes(e.key) || e.key === " " && !e.shiftKey) {
+        e.preventDefault();
+        this.scrollToImage(1);
+      } else if (["ArrowUp", "PageUp", "ArrowLeft", "k"].includes(e.key) || e.key === " " && e.shiftKey) {
+        e.preventDefault();
+        this.scrollToImage(-1);
+      } else if (e.key === "d") {
+        e.preventDefault();
+        this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
+      }
+    }
+    /**
+     * @param {number} [forcedIndex] 
+     */
+    applyLayout(forcedIndex) {
+      const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
+      if (!enabled) return;
+      const imgs = this.getImages();
+      const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
+      this.updatePageCounter();
+      if (currentIndex !== -1) {
+        const targetImg = imgs[currentIndex];
+        if (targetImg) targetImg.scrollIntoView({ block: "center" });
+      }
+    }
+    updateUI() {
+      const state = this.store.getState();
+      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = state;
+      let container = document.getElementById("comic-helper-ui");
+      if (!container) {
+        container = createElement("div", { id: "comic-helper-ui" });
+        if (guiPos) {
+          Object.assign(container.style, {
+            top: `${guiPos.top}px`,
+            left: `${guiPos.left}px`,
+            bottom: "auto",
+            right: "auto"
+          });
+        }
+        new Draggable(container, {
+          onDragEnd: (top, left) => this.store.setState({ guiPos: { top, left } })
+        });
+        document.body.appendChild(container);
+      }
+      if (!this.powerComp) {
+        this.powerComp = createPowerButton({
+          isEnabled: enabled,
+          onClick: () => {
+            const newState = !this.store.getState().enabled;
+            if (!newState) {
+              revertToOriginal(this.getImages(), CONTAINER_SELECTOR);
+            }
+            this.store.setState({ enabled: newState });
+          }
+        });
+        container.appendChild(this.powerComp.el);
+      }
+      const imgs = this.getImages();
+      if (!this.counterComp) {
+        this.counterComp = createPageCounter({
+          current: currentVisibleIndex + 1,
+          total: imgs.length,
+          onJump: (val) => this.jumpToPage(val)
+        });
+        this.pageCounterInput = this.counterComp.input;
+        container.appendChild(this.counterComp.el);
+      }
+      if (!this.spreadComp) {
+        this.spreadComp = createSpreadControls({
+          isDualViewEnabled,
+          onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
+          onAdjust: () => {
+            const { spreadOffset } = this.store.getState();
+            this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+          }
+        });
+        container.appendChild(this.spreadComp.el);
+      }
+      if (container.querySelectorAll(".comic-helper-button").length === 0) {
+        const navBtns = createNavigationButtons({
+          onFirst: () => this.scrollToEdge("start"),
+          onPrev: () => this.scrollToImage(-1),
+          onNext: () => this.scrollToImage(1),
+          onLast: () => this.scrollToEdge("end")
+        });
+        navBtns.elements.forEach((btn) => container.appendChild(btn));
+      }
+      this.powerComp.update(enabled);
+      if (!enabled) {
+        container.style.padding = "4px 8px";
+        this.counterComp.el.style.display = "none";
+        this.spreadComp.el.style.display = "none";
+        container.querySelectorAll(".comic-helper-button").forEach((btn) => {
+          btn.style.display = "none";
+        });
+        return;
+      }
+      container.style.padding = "8px";
+      this.counterComp.el.style.display = "flex";
+      this.spreadComp.el.style.display = "flex";
+      container.querySelectorAll(".comic-helper-button").forEach((btn) => {
+        btn.style.display = "inline-block";
+      });
+      this.counterComp.update(currentVisibleIndex + 1, imgs.length);
+      this.spreadComp.update(isDualViewEnabled);
+    }
+    init() {
+      const container = document.querySelector(CONTAINER_SELECTOR);
+      if (!container) return;
+      injectStyles();
+      this.originalImages = /** @type {HTMLImageElement[]} */
+      Array.from(document.querySelectorAll(IMG_SELECTOR));
+      this.originalImages.forEach((img) => {
+        if (!img.complete) {
+          img.addEventListener("load", () => {
+            if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
+            const { currentVisibleIndex } = this.store.getState();
+            this.resizeReq = requestAnimationFrame(() => this.applyLayout(currentVisibleIndex));
+          });
+        }
+      });
+      this.store.subscribe((state) => {
+        const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
+        if (layoutChanged) {
+          this.applyLayout();
+          this._lastEnabled = state.enabled;
+          this._lastDualView = state.isDualViewEnabled;
+          this._lastSpreadOffset = state.spreadOffset;
+        }
+        this.updateUI();
+      });
+      const initialState = this.store.getState();
+      this._lastEnabled = initialState.enabled;
+      this._lastDualView = initialState.isDualViewEnabled;
+      this._lastSpreadOffset = initialState.spreadOffset;
+      if (initialState.enabled) {
+        this.applyLayout();
+      }
+      this.updateUI();
+      window.addEventListener("resize", () => {
+        if (!this.store.getState().enabled) return;
+        if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
+        const { currentVisibleIndex } = this.store.getState();
+        this.resizeReq = requestAnimationFrame(() => this.applyLayout(currentVisibleIndex));
+      });
+      window.addEventListener("scroll", () => {
+        if (!this.store.getState().enabled) return;
+        if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
+        this.scrollReq = requestAnimationFrame(() => this.updatePageCounter());
+      });
+      window.addEventListener("wheel", this.handleWheel, { passive: false });
+      document.addEventListener("keydown", this.onKeyDown, true);
+    }
+  }
+  const app = new App();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", app.init);
+  } else {
+    app.init();
+  }
 })();
