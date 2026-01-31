@@ -20,7 +20,13 @@ describe('Store', () => {
       isDualViewEnabled: false,
       spreadOffset: 0,
       currentVisibleIndex: 0,
-      guiPos: null
+      guiPos: null,
+      metadata: {
+        title: '',
+        tags: [],
+        relatedWorks: []
+      },
+      isMetadataModalOpen: false
     });
   });
 

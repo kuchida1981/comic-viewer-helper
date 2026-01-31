@@ -9,13 +9,14 @@
 // @grant        none
 // ==/UserScript==
 
-import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, getNavigationDirection } from './logic.js';
+import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, getNavigationDirection, extractMetadata } from './logic.js';
 import { Store } from './store.js';
 import { injectStyles } from './ui/styles.js';
 import { createPowerButton } from './ui/components/PowerButton.js';
 import { createPageCounter } from './ui/components/PageCounter.js';
 import { createSpreadControls } from './ui/components/SpreadControls.js';
 import { createNavigationButtons } from './ui/components/NavigationButtons.js';
+import { createMetadataModal } from './ui/components/MetadataModal.js';
 import { Draggable } from './ui/Draggable.js';
 import { createElement } from './ui/utils.js';
 
@@ -54,6 +55,8 @@ class App {
     this.spreadComp = null;
     /** @type {Draggable | null} */
     this.draggable = null;
+    /** @type {HTMLElement | null} */
+    this.modalEl = null;
 
     this.init = this.init.bind(this);
     this.handleWheel = this.handleWheel.bind(this);
@@ -160,8 +163,8 @@ class App {
    * @param {WheelEvent} e 
    */
   handleWheel(e) {
-    const { enabled, isDualViewEnabled, currentVisibleIndex } = this.store.getState();
-    if (!enabled) return;
+    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
+    if (!enabled || isMetadataModalOpen) return;
 
     e.preventDefault();
     const now = Date.now();
@@ -187,8 +190,15 @@ class App {
    */
   onKeyDown(e) {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const { enabled, isDualViewEnabled } = this.store.getState();
-    if (!enabled) return;
+    const { enabled, isDualViewEnabled, isMetadataModalOpen } = this.store.getState();
+    
+    if (e.key === 'Escape' && isMetadataModalOpen) {
+      e.preventDefault();
+      this.store.setState({ isMetadataModalOpen: false });
+      return;
+    }
+
+    if (isMetadataModalOpen || !enabled) return;
 
     if (['ArrowDown', 'PageDown', 'ArrowRight', 'j'].includes(e.key) || (e.key === ' ' && !e.shiftKey)) {
       e.preventDefault();
@@ -286,9 +296,28 @@ class App {
         onFirst: () => this.scrollToEdge('start'),
         onPrev: () => this.scrollToImage(-1),
         onNext: () => this.scrollToImage(1),
-        onLast: () => this.scrollToEdge('end')
+        onLast: () => this.scrollToEdge('end'),
+        onInfo: () => this.store.setState({ isMetadataModalOpen: true })
       });
       navBtns.elements.forEach(btn => container.appendChild(btn));
+    }
+
+    // Handle Metadata Modal
+    const { isMetadataModalOpen, metadata } = state;
+    if (isMetadataModalOpen) {
+      if (!this.modalEl) {
+        const modal = createMetadataModal({
+          metadata,
+          onClose: () => this.store.setState({ isMetadataModalOpen: false })
+        });
+        this.modalEl = modal.el;
+        document.body.appendChild(this.modalEl);
+      }
+    } else {
+      if (this.modalEl) {
+        this.modalEl.remove();
+        this.modalEl = null;
+      }
     }
 
     // Update visibility and state
@@ -322,6 +351,10 @@ class App {
     injectStyles();
     this.originalImages = /** @type {HTMLImageElement[]} */ (Array.from(document.querySelectorAll(IMG_SELECTOR)));
     
+    // Extract metadata
+    const metadata = extractMetadata();
+    this.store.setState({ metadata });
+
     this.originalImages.forEach(img => {
       if (!img.complete) {
         img.addEventListener('load', () => {
