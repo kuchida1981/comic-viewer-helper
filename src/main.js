@@ -58,7 +58,7 @@ function getCurrentPageIndex() {
       return;
     }
     
-    const currentIndex = getCurrentPageIndex();
+    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
     
@@ -75,7 +75,7 @@ function getCurrentPageIndex() {
     const targetImg = getImageElementByIndex(imgs, index);
     
     if (targetImg) {
-      targetImg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      targetImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
       pageCounter.blur();
     } else {
       // Validation failure: revert to current page and show feedback
@@ -88,26 +88,58 @@ function getCurrentPageIndex() {
     }
   }
 
-  function scrollToImage(direction) {  const imgs = getImages();
-  if (imgs.length === 0) return;
-  const THRESHOLD = 5;
-  let targetImg = null;
-  if (direction > 0) {
-    targetImg = imgs.find(img => {
-      const rect = img.getBoundingClientRect();
-      return rect.top > THRESHOLD;
-    });
-  } else {
-    const prevImgs = [...imgs].reverse();
-    targetImg = prevImgs.find(img => {
-      const rect = img.getBoundingClientRect();
-      return rect.top < -THRESHOLD;
-    });
+  function scrollToImage(direction) {
+    const imgs = getImages();
+    if (imgs.length === 0) return;
+    
+    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    let targetIndex = currentIndex + direction;
+
+    // Boundary checks
+    if (targetIndex < 0) targetIndex = 0;
+    if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+
+    // Skip hidden images in dual view (if the target is part of a spread but not the primary one, adjust)
+    // However, fitImagesToViewport handles display, so we just need to target the correct image element.
+    // If we are in dual view, sometimes we might want to skip by 2? 
+    // The previous implementation scrolled by image element. 
+    // In dual view, two images are side-by-side. 
+    // If we just go index + 1, and index+1 is the second image of the spread, it might not move the view if they are in the same row container.
+    // Let's rely on scrollIntoView on the specific image. If it's already visible, browser might not scroll much, but we want to center it.
+    
+    // Actually, for dual view (spread), we usually want to move by "view" (spread), not just single image index if they are paired.
+    // But let's stick to the simple index logic first as per design. 
+    // If index 0 and 1 are paired. Current is 0. Next is 1. 1 is on the same screen. 
+    // If we center 1, it will center the spread (because 1 is in the spread). 
+    // But if we want to go to the NEXT page (spread), we should probably target the first image of the NEXT spread?
+    // The requirement says "Next page". If I'm reading page 1 (left) & 2 (right), "next" usually means page 3 & 4.
+    // The previous implementation used coordinates, so it would scroll until a new image hits the threshold.
+    // To replicate "page turn" behavior in dual view, we might need to jump by 2 if paired?
+    // Let's keep it simple: targetIndex. If targetIndex is currently visible, scrollIntoView({block: 'center'}) might re-center it but not change spread if both fit.
+    // But users expect "Next" to mean "Next Content".
+    // If we are at index 0 (paired with 1), pressing next -> index 1. Index 1 is displayed right next to 0. 
+    // Centering index 1 results in the same view as centering index 0 (they are in the same row).
+    // So we effectively didn't move.
+    // We need to detect if we are in dual view and if the move is within the same spread.
+    
+    const targetImg = imgs[targetIndex];
+    if (targetImg) {
+        // Simple check: if target is in the same row as current, move one more step
+        if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+             const currentImg = imgs[currentIndex];
+             if (currentImg && targetImg.parentElement === currentImg.parentElement && targetImg.parentElement.classList.contains('comic-row-wrapper')) {
+                 // They are in the same spread. Move one more index.
+                 targetIndex += direction;
+                 if (targetIndex < 0) targetIndex = 0;
+                 if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+             }
+        }
+        const finalTarget = imgs[targetIndex];
+        if (finalTarget) {
+            finalTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
   }
-  if (targetImg) {
-    targetImg.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-}
 
 function toggleActivation(enabled) {
   const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
@@ -123,7 +155,7 @@ function toggleActivation(enabled) {
     updatePageCounter();
     if (currentIndex !== -1) {
        const imgs = getImages();
-       if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: 'start' });
+       if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: 'center' });
     }
   } else {
     revertToOriginal(getImages(), CONTAINER_SELECTOR);
@@ -135,7 +167,7 @@ function scrollToEdge(position) {
   const imgs = getImages();
   if (imgs.length === 0) return;
   const target = position === 'start' ? imgs[0] : imgs[imgs.length - 1];
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function createNavigationUI() {
@@ -366,7 +398,7 @@ function toggleDualView(enabled) {
   if (currentIndex !== -1) {
     const imgs = getImages();
     const targetImg = imgs[currentIndex];
-    if (targetImg) targetImg.scrollIntoView({ block: 'start' });
+    if (targetImg) targetImg.scrollIntoView({ block: 'center' });
   }
 }
 
