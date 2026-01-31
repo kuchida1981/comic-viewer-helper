@@ -1,9 +1,8 @@
 # navigation-control
 
+## Purpose
 このスペックは、コミックビューアのナビゲーション制御（キーボード操作、GUIインタラクション、UIの位置管理など）に関する要件を定義します。
-
 ## Requirements
-
 ### Requirement: Draggable Navigation Panel
 The navigation GUI panel SHALL be draggable by the user using mouse interactions. This allows users to move the panel if it obstructs content.
 
@@ -38,3 +37,15 @@ The system SHALL provide `j` and `k` keybindings for navigating between images, 
 - **WHEN** ユーザーがページ番号表示部分をクリックする
 - **THEN** ページ番号が編集可能な入力状態になる
 - **AND** この間、全体に設定されたキーボードショートカット（j/k等）は無効化される
+
+### Requirement: Layout Stability on Screen Edge
+GUIパネルは、画面の右端や下端に配置された場合でも、その内部レイアウト（ボタンの並び、サイズ、テキストの折り返し）を維持しなければならない（SHALL）。
+
+#### Scenario: Dragging to Right Edge
+- **WHEN** ユーザーがGUIパネルを画面の右端ギリギリにドラッグしたとき
+- **THEN** パネル内のボタンやテキストが折り返されたり、圧縮されたりせず、元の形状を維持して表示される（一部が画面外に出ることは許容される）。
+
+#### Scenario: Window Resize
+- **WHEN** ブラウザのウィンドウサイズを変更し、GUIパネルが相対的に画面端に位置するようになったとき
+- **THEN** パネルの幅が勝手に縮小されず、最大コンテンツ幅を維持する。
+

@@ -164,7 +164,8 @@ function createNavigationUI() {
       position: 'fixed', bottom: '20px', right: '20px', zIndex: '10000',
       display: 'flex', gap: '8px', backgroundColor: 'rgba(0, 0, 0, 0.7)',
       padding: '8px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-      cursor: 'move', userSelect: 'none', touchAction: 'none', alignItems: 'center'
+      cursor: 'move', userSelect: 'none', touchAction: 'none', alignItems: 'center',
+      whiteSpace: 'nowrap', width: 'max-content'
     });
 
     const savedPos = loadGUIPosition();
