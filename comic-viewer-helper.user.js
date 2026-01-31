@@ -165,6 +165,27 @@
     }
     return event.deltaY > 0 ? "next" : "prev";
   }
+  function extractMetadata() {
+    const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
+    const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => ({
+      text: a.textContent?.trim() || "",
+      href: (
+        /** @type {HTMLAnchorElement} */
+        a.href
+      )
+    }));
+    const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
+      const anchor = el.closest("a");
+      const img = el.querySelector("img");
+      const titleEl = el.querySelector("span") || anchor?.querySelector("span");
+      return {
+        title: titleEl?.textContent?.trim() || "Untitled",
+        href: anchor?.href || "",
+        thumb: img?.src || ""
+      };
+    });
+    return { title, tags, relatedWorks };
+  }
   const STORAGE_KEYS = {
     DUAL_VIEW: "comic-viewer-helper-dual-view",
     GUI_POS: "comic-viewer-helper-gui-pos",
@@ -177,7 +198,13 @@
         isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === "true",
         spreadOffset: 0,
         currentVisibleIndex: 0,
-        guiPos: this._loadGuiPos()
+        guiPos: this._loadGuiPos(),
+        metadata: {
+          title: "",
+          tags: [],
+          relatedWorks: []
+        },
+        isMetadataModalOpen: false
       };
       this.listeners = [];
     }
@@ -360,6 +387,120 @@
   .comic-helper-adjust-btn:hover {
     background: rgba(255, 255, 255, 0.2);
   }
+
+  /* Metadata Modal Styles */
+  .comic-helper-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 20000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .comic-helper-modal-content {
+    background: #1a1a1a;
+    color: #eee;
+    width: 80%;
+    max-width: 800px;
+    max-height: 80%;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    position: relative;
+    border: 1px solid #333;
+  }
+
+  .comic-helper-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .comic-helper-modal-close:hover {
+    color: #fff;
+  }
+
+  .comic-helper-modal-title {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 20px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+  }
+
+  .comic-helper-section-title {
+    font-size: 14px;
+    color: #888;
+    margin: 20px 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .comic-helper-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .comic-helper-tag-chip {
+    background: #333;
+    color: #ccc;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  .comic-helper-tag-chip:hover {
+    background: #444;
+    color: #fff;
+  }
+
+  .comic-helper-related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .comic-helper-related-item {
+    text-decoration: none;
+    color: #ccc;
+    font-size: 11px;
+    transition: transform 0.2s;
+  }
+  .comic-helper-related-item:hover {
+    transform: translateY(-4px);
+  }
+
+  .comic-helper-related-thumb {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 4px;
+    background: #222;
+    margin-bottom: 6px;
+  }
+
+  .comic-helper-related-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
 `;
   function injectStyles() {
     const id = "comic-helper-style";
@@ -525,12 +666,13 @@
       }
     };
   }
-  function createNavigationButtons({ onFirst, onPrev, onNext, onLast }) {
+  function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo }) {
     const configs = [
       { text: "<<", title: "Go to First", action: onFirst },
       { text: "<", title: "Go to Previous", action: onPrev },
       { text: ">", title: "Go to Next", action: onNext },
-      { text: ">>", title: "Go to Last", action: onLast }
+      { text: ">>", title: "Go to Last", action: onLast },
+      { text: "Info", title: "Show Metadata", action: onInfo }
     ];
     const elements = configs.map((cfg) => createElement("button", {
       className: "comic-helper-button",
@@ -550,6 +692,78 @@
       update: () => {
       }
       // No dynamic state for these buttons yet
+    };
+  }
+  function createMetadataModal({ metadata, onClose }) {
+    const { title, tags, relatedWorks } = metadata;
+    const closeBtn = createElement("button", {
+      className: "comic-helper-modal-close",
+      textContent: "×",
+      title: "Close",
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onClose();
+        }
+      }
+    });
+    const titleEl = createElement("h2", {
+      className: "comic-helper-modal-title",
+      textContent: title
+    });
+    const tagChips = tags.map((tag) => createElement("a", {
+      className: "comic-helper-tag-chip",
+      textContent: tag.text,
+      attributes: { href: tag.href, target: "_blank" },
+      events: {
+        click: (e) => e.stopPropagation()
+      }
+    }));
+    const tagSection = createElement("div", {}, [
+      createElement("div", { className: "comic-helper-section-title", textContent: "Tags" }),
+      createElement("div", { className: "comic-helper-tag-list" }, tagChips)
+    ]);
+    const relatedItems = relatedWorks.map((work) => {
+      const thumb = createElement("img", {
+        className: "comic-helper-related-thumb",
+        attributes: { src: work.thumb, loading: "lazy" }
+      });
+      const workTitle = createElement("div", {
+        className: "comic-helper-related-title",
+        textContent: work.title
+      });
+      return createElement("a", {
+        className: "comic-helper-related-item",
+        attributes: { href: work.href, target: "_blank" },
+        events: {
+          click: (e) => e.stopPropagation()
+        }
+      }, [thumb, workTitle]);
+    });
+    const relatedSection = createElement("div", {}, [
+      createElement("div", { className: "comic-helper-section-title", textContent: "Related Works" }),
+      createElement("div", { className: "comic-helper-related-grid" }, relatedItems)
+    ]);
+    const content = createElement("div", {
+      className: "comic-helper-modal-content",
+      events: {
+        click: (e) => e.stopPropagation()
+      }
+    }, [closeBtn, titleEl, tagSection, relatedSection]);
+    const overlay = createElement("div", {
+      className: "comic-helper-modal-overlay",
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onClose();
+        }
+      }
+    }, [content]);
+    return {
+      el: overlay,
+      update: () => {
+      }
+      // No dynamic update needed once opened
     };
   }
   class Draggable {
@@ -662,6 +876,7 @@
       this.counterComp = null;
       this.spreadComp = null;
       this.draggable = null;
+      this.modalEl = null;
       this.init = this.init.bind(this);
       this.handleWheel = this.handleWheel.bind(this);
       this.onKeyDown = this.onKeyDown.bind(this);
@@ -751,8 +966,8 @@
      * @param {WheelEvent} e 
      */
     handleWheel(e) {
-      const { enabled, isDualViewEnabled, currentVisibleIndex } = this.store.getState();
-      if (!enabled) return;
+      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
+      if (!enabled || isMetadataModalOpen) return;
       e.preventDefault();
       const now = Date.now();
       if (now - this.lastWheelTime < this.WHEEL_THROTTLE_MS) return;
@@ -770,8 +985,13 @@
      */
     onKeyDown(e) {
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const { enabled, isDualViewEnabled } = this.store.getState();
-      if (!enabled) return;
+      const { enabled, isDualViewEnabled, isMetadataModalOpen } = this.store.getState();
+      if (e.key === "Escape" && isMetadataModalOpen) {
+        e.preventDefault();
+        this.store.setState({ isMetadataModalOpen: false });
+        return;
+      }
+      if (isMetadataModalOpen || !enabled) return;
       if (["ArrowDown", "PageDown", "ArrowRight", "j"].includes(e.key) || e.key === " " && !e.shiftKey) {
         e.preventDefault();
         this.scrollToImage(1);
@@ -856,9 +1076,26 @@
           onFirst: () => this.scrollToEdge("start"),
           onPrev: () => this.scrollToImage(-1),
           onNext: () => this.scrollToImage(1),
-          onLast: () => this.scrollToEdge("end")
+          onLast: () => this.scrollToEdge("end"),
+          onInfo: () => this.store.setState({ isMetadataModalOpen: true })
         });
         navBtns.elements.forEach((btn) => container.appendChild(btn));
+      }
+      const { isMetadataModalOpen, metadata } = state;
+      if (isMetadataModalOpen) {
+        if (!this.modalEl) {
+          const modal = createMetadataModal({
+            metadata,
+            onClose: () => this.store.setState({ isMetadataModalOpen: false })
+          });
+          this.modalEl = modal.el;
+          document.body.appendChild(this.modalEl);
+        }
+      } else {
+        if (this.modalEl) {
+          this.modalEl.remove();
+          this.modalEl = null;
+        }
       }
       this.powerComp.update(enabled);
       if (!enabled) {
@@ -885,6 +1122,8 @@
       injectStyles();
       this.originalImages = /** @type {HTMLImageElement[]} */
       Array.from(document.querySelectorAll(IMG_SELECTOR));
+      const metadata = extractMetadata();
+      this.store.setState({ metadata });
       this.originalImages.forEach((img) => {
         if (!img.complete) {
           img.addEventListener("load", () => {
