@@ -40,6 +40,19 @@ class App {
     /** @type {number | undefined} */
     this.scrollReq = undefined;
 
+    // Track last state to avoid redundant layout calculations
+    this._lastEnabled = undefined;
+    this._lastDualView = undefined;
+    this._lastSpreadOffset = undefined;
+
+    // Component references
+    /** @type {ReturnType<typeof createPowerButton> | null} */
+    this.powerComp = null;
+    /** @type {ReturnType<typeof createPageCounter> | null} */
+    this.counterComp = null;
+    /** @type {ReturnType<typeof createSpreadControls> | null} */
+    this.spreadComp = null;
+
     this.init = this.init.bind(this);
     this.handleWheel = this.handleWheel.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
@@ -69,30 +82,12 @@ class App {
   updatePageCounter() {
     const state = this.store.getState();
     const { enabled } = state;
-    if (!enabled || !this.pageCounterInput) return;
+    if (!enabled) return;
 
     const imgs = this.getImages();
-    if (imgs.length === 0) {
-      this.pageCounterInput.value = "0";
-      if (this.totalCounterEl) this.totalCounterEl.textContent = ' / 0';
-      return;
-    }
-
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
     if (currentIndex !== -1) {
       this.store.setState({ currentVisibleIndex: currentIndex });
-    }
-    
-    const currentState = this.store.getState();
-    const { currentVisibleIndex } = currentState;
-    const current = currentVisibleIndex !== -1 ? currentVisibleIndex + 1 : 1;
-    const total = imgs.length;
-
-    if (document.activeElement !== this.pageCounterInput) {
-      this.pageCounterInput.value = String(current);
-    }
-    if (this.totalCounterEl) {
-      this.totalCounterEl.textContent = ` / ${total}`;
     }
   }
 
@@ -225,7 +220,8 @@ class App {
   }
 
   updateUI() {
-    const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = this.store.getState();
+    const state = this.store.getState();
+    const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = state;
     let container = document.getElementById('comic-helper-ui');
 
     if (!container) {
@@ -244,58 +240,77 @@ class App {
       document.body.appendChild(container);
     }
 
-    container.innerHTML = '';
-
-    // Power Button
-    container.appendChild(createPowerButton({
-      isEnabled: enabled,
-      onClick: () => {
-        const newState = !enabled;
-        if (!newState) {
-          revertToOriginal(this.getImages(), CONTAINER_SELECTOR);
+    // Initialize components if they don't exist
+    if (!this.powerComp) {
+      this.powerComp = createPowerButton({
+        isEnabled: enabled,
+        onClick: () => {
+          const newState = !this.store.getState().enabled;
+          if (!newState) {
+            revertToOriginal(this.getImages(), CONTAINER_SELECTOR);
+          }
+          this.store.setState({ enabled: newState });
         }
-        this.store.setState({ enabled: newState });
-      }
-    }));
+      });
+      container.appendChild(this.powerComp.el);
+    }
 
+    const imgs = this.getImages();
+
+    if (!this.counterComp) {
+      this.counterComp = createPageCounter({
+        current: currentVisibleIndex + 1,
+        total: imgs.length,
+        onJump: (/** @type {string} */ val) => this.jumpToPage(val)
+      });
+      this.pageCounterInput = this.counterComp.input;
+      container.appendChild(this.counterComp.el);
+    }
+
+    if (!this.spreadComp) {
+      this.spreadComp = createSpreadControls({
+        isDualViewEnabled,
+        onToggle: (/** @type {boolean} */ val) => this.store.setState({ isDualViewEnabled: val }),
+        onAdjust: () => {
+          const { spreadOffset } = this.store.getState();
+          this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+        }
+      });
+      container.appendChild(this.spreadComp.el);
+    }
+
+    if (container.querySelectorAll('.comic-helper-button').length === 0) {
+      const navBtns = createNavigationButtons({
+        onFirst: () => this.scrollToEdge('start'),
+        onPrev: () => this.scrollToImage(-1),
+        onNext: () => this.scrollToImage(1),
+        onLast: () => this.scrollToEdge('end')
+      });
+      navBtns.elements.forEach(btn => container.appendChild(btn));
+    }
+
+    // Update visibility and state
+    this.powerComp.update(enabled);
+    
     if (!enabled) {
       container.style.padding = '4px 8px';
+      this.counterComp.el.style.display = 'none';
+      this.spreadComp.el.style.display = 'none';
+      container.querySelectorAll('.comic-helper-button').forEach(btn => {
+         /** @type {HTMLElement} */ (btn).style.display = 'none';
+      });
       return;
     }
 
     container.style.padding = '8px';
-
-    // Page Counter
-    const imgs = this.getImages();
-    const { wrapper, input, totalLabel } = createPageCounter({
-      current: currentVisibleIndex + 1,
-      total: imgs.length,
-      onJump: (/** @type {string} */ val) => this.jumpToPage(val)
+    this.counterComp.el.style.display = 'flex';
+    this.spreadComp.el.style.display = 'flex';
+    container.querySelectorAll('.comic-helper-button').forEach(btn => {
+       /** @type {HTMLElement} */ (btn).style.display = 'inline-block';
     });
-    this.pageCounterInput = input;
-    this.totalCounterEl = totalLabel;
-    container.appendChild(wrapper);
 
-    // Spread Controls
-    const { label, adjustBtn } = createSpreadControls({
-      isDualViewEnabled,
-      onToggle: (/** @type {boolean} */ val) => this.store.setState({ isDualViewEnabled: val }),
-      onAdjust: () => {
-        const { spreadOffset } = this.store.getState();
-        this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-      }
-    });
-    container.appendChild(label);
-    if (adjustBtn) container.appendChild(adjustBtn);
-
-    // Navigation Buttons
-    const navBtns = createNavigationButtons({
-      onFirst: () => this.scrollToEdge('start'),
-      onPrev: () => this.scrollToImage(-1),
-      onNext: () => this.scrollToImage(1),
-      onLast: () => this.scrollToEdge('end')
-    });
-    navBtns.forEach(btn => container.appendChild(btn));
+    this.counterComp.update(currentVisibleIndex + 1, imgs.length);
+    this.spreadComp.update(isDualViewEnabled);
   }
 
   init() {

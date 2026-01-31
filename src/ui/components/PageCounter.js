@@ -31,9 +31,22 @@ export function createPageCounter({ current, total, onJump }) {
     textContent: ` / ${total}`
   });
 
-  const wrapper = createElement('span', {
+  const el = createElement('span', {
     className: 'comic-helper-counter-wrapper'
   }, [input, totalLabel]);
 
-  return { wrapper, input, totalLabel };
+  return {
+    el,
+    input,
+    /** 
+     * @param {number} current 
+     * @param {number} total 
+     */
+    update: (current, total) => {
+      if (document.activeElement !== input) {
+        input.value = String(current);
+      }
+      totalLabel.textContent = ` / ${total}`;
+    }
+  };
 }

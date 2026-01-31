@@ -6,7 +6,7 @@ import { createElement } from '../utils.js';
  * @param {Function} props.onClick
  */
 export function createPowerButton({ isEnabled, onClick }) {
-  return createElement('button', {
+  const el = createElement('button', {
     className: `comic-helper-power-btn ${isEnabled ? 'enabled' : 'disabled'}`,
     title: isEnabled ? 'Disable Comic Viewer Helper' : 'Enable Comic Viewer Helper',
     textContent: '⚡',
@@ -21,4 +21,14 @@ export function createPowerButton({ isEnabled, onClick }) {
       }
     }
   });
+
+  return {
+    el,
+    /** @param {boolean} enabled */
+    update: (enabled) => {
+      el.className = `comic-helper-power-btn ${enabled ? 'enabled' : 'disabled'}`;
+      el.title = enabled ? 'Disable Comic Viewer Helper' : 'Enable Comic Viewer Helper';
+      el.style.marginRight = enabled ? '8px' : '0';
+    }
+  };
 }

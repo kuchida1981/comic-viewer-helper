@@ -7,7 +7,7 @@ import { createElement } from '../utils.js';
  * @param {Function} props.onAdjust
  */
 export function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) {
-  const checkbox = createElement('input', {
+  const checkbox = /** @type {HTMLInputElement} */ (createElement('input', {
     type: 'checkbox',
     checked: isDualViewEnabled,
     events: {
@@ -18,13 +18,13 @@ export function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) 
         }
       }
     }
-  });
+  }));
 
   const label = createElement('label', {
     className: 'comic-helper-label'
   }, [checkbox, 'Spread']);
 
-  const adjustBtn = isDualViewEnabled ? createElement('button', {
+  const createAdjustBtn = () => createElement('button', {
     className: 'comic-helper-adjust-btn',
     textContent: 'Adjust',
     title: 'Adjust Spread Alignment',
@@ -35,7 +35,33 @@ export function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) 
         onAdjust();
       }
     }
-  }) : null;
+  });
 
-  return { label, adjustBtn };
+  /** @type {HTMLElement | null} */
+  let adjustBtn = isDualViewEnabled ? createAdjustBtn() : null;
+
+  const el = createElement('div', {
+    style: { display: 'flex', alignItems: 'center' }
+  }, [label]);
+
+  if (adjustBtn) el.appendChild(adjustBtn);
+
+  return {
+    el,
+    /** @param {boolean} enabled */
+    update: (enabled) => {
+      checkbox.checked = enabled;
+      if (enabled) {
+        if (!adjustBtn) {
+          adjustBtn = createAdjustBtn();
+          el.appendChild(adjustBtn);
+        }
+      } else {
+        if (adjustBtn) {
+          adjustBtn.remove();
+          adjustBtn = null;
+        }
+      }
+    }
+  };
 }

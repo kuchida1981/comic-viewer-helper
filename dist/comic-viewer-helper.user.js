@@ -174,15 +174,28 @@
       };
       this.listeners = [];
     }
+    /**
+     * @returns {StoreState}
+     */
     getState() {
       return { ...this.state };
     }
     /**
-     * @param {Partial<import('./store.js').Store['state']>} patch 
+     * @param {Partial<StoreState>} patch 
      */
     setState(patch) {
-      const prevState = { ...this.state };
-      this.state = { ...this.state, ...patch };
+      let changed = false;
+      for (const key in patch) {
+        const k = (
+          /** @type {keyof StoreState} */
+          key
+        );
+        if (this.state[k] !== patch[k]) {
+          this.state[k] = patch[k];
+          changed = true;
+        }
+      }
+      if (!changed) return;
       if ("enabled" in patch) {
         localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
       }
@@ -192,9 +205,7 @@
       if ("guiPos" in patch) {
         localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
       }
-      if (JSON.stringify(prevState) !== JSON.stringify(this.state)) {
-        this._notify();
-      }
+      this._notify();
     }
     /**
      * @param {Function} callback 
@@ -378,7 +389,7 @@
     return el;
   }
   function createPowerButton({ isEnabled, onClick }) {
-    return createElement("button", {
+    const el = createElement("button", {
       className: `comic-helper-power-btn ${isEnabled ? "enabled" : "disabled"}`,
       title: isEnabled ? "Disable Comic Viewer Helper" : "Enable Comic Viewer Helper",
       textContent: "⚡",
@@ -393,6 +404,15 @@
         }
       }
     });
+    return {
+      el,
+      /** @param {boolean} enabled */
+      update: (enabled) => {
+        el.className = `comic-helper-power-btn ${enabled ? "enabled" : "disabled"}`;
+        el.title = enabled ? "Disable Comic Viewer Helper" : "Enable Comic Viewer Helper";
+        el.style.marginRight = enabled ? "8px" : "0";
+      }
+    };
   }
   function createPageCounter({ current, total, onJump }) {
     const input = (
@@ -419,28 +439,44 @@
       id: "comic-total-counter",
       textContent: ` / ${total}`
     });
-    const wrapper = createElement("span", {
+    const el = createElement("span", {
       className: "comic-helper-counter-wrapper"
     }, [input, totalLabel]);
-    return { wrapper, input, totalLabel };
+    return {
+      el,
+      input,
+      /** 
+       * @param {number} current 
+       * @param {number} total 
+       */
+      update: (current2, total2) => {
+        if (document.activeElement !== input) {
+          input.value = String(current2);
+        }
+        totalLabel.textContent = ` / ${total2}`;
+      }
+    };
   }
   function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) {
-    const checkbox = createElement("input", {
-      type: "checkbox",
-      checked: isDualViewEnabled,
-      events: {
-        change: (e) => {
-          if (e.target instanceof HTMLInputElement) {
-            onToggle(e.target.checked);
-            e.target.blur();
+    const checkbox = (
+      /** @type {HTMLInputElement} */
+      createElement("input", {
+        type: "checkbox",
+        checked: isDualViewEnabled,
+        events: {
+          change: (e) => {
+            if (e.target instanceof HTMLInputElement) {
+              onToggle(e.target.checked);
+              e.target.blur();
+            }
           }
         }
-      }
-    });
+      })
+    );
     const label = createElement("label", {
       className: "comic-helper-label"
     }, [checkbox, "Spread"]);
-    const adjustBtn = isDualViewEnabled ? createElement("button", {
+    const createAdjustBtn = () => createElement("button", {
       className: "comic-helper-adjust-btn",
       textContent: "Adjust",
       title: "Adjust Spread Alignment",
@@ -451,8 +487,30 @@
           onAdjust();
         }
       }
-    }) : null;
-    return { label, adjustBtn };
+    });
+    let adjustBtn = isDualViewEnabled ? createAdjustBtn() : null;
+    const el = createElement("div", {
+      style: { display: "flex", alignItems: "center" }
+    }, [label]);
+    if (adjustBtn) el.appendChild(adjustBtn);
+    return {
+      el,
+      /** @param {boolean} enabled */
+      update: (enabled) => {
+        checkbox.checked = enabled;
+        if (enabled) {
+          if (!adjustBtn) {
+            adjustBtn = createAdjustBtn();
+            el.appendChild(adjustBtn);
+          }
+        } else {
+          if (adjustBtn) {
+            adjustBtn.remove();
+            adjustBtn = null;
+          }
+        }
+      }
+    };
   }
   function createNavigationButtons({ onFirst, onPrev, onNext, onLast }) {
     const configs = [
@@ -461,7 +519,7 @@
       { text: ">", title: "Go to Next", action: onNext },
       { text: ">>", title: "Go to Last", action: onLast }
     ];
-    return configs.map((cfg) => createElement("button", {
+    const elements = configs.map((cfg) => createElement("button", {
       className: "comic-helper-button",
       textContent: cfg.text,
       title: cfg.title,
@@ -474,6 +532,12 @@
         }
       }
     }));
+    return {
+      elements,
+      update: () => {
+      }
+      // No dynamic state for these buttons yet
+    };
   }
   class Draggable {
     /**
@@ -555,6 +619,12 @@
       this.totalCounterEl = null;
       this.resizeReq = void 0;
       this.scrollReq = void 0;
+      this._lastEnabled = void 0;
+      this._lastDualView = void 0;
+      this._lastSpreadOffset = void 0;
+      this.powerComp = null;
+      this.counterComp = null;
+      this.spreadComp = null;
       this.init = this.init.bind(this);
       this.handleWheel = this.handleWheel.bind(this);
       this.onKeyDown = this.onKeyDown.bind(this);
@@ -568,33 +638,27 @@
         Array.from(document.querySelectorAll(IMG_SELECTOR))
       );
     }
+    /**
+     * @param {EventTarget | null} target 
+     * @returns {boolean}
+     */
     isInputField(target) {
       if (!(target instanceof HTMLElement)) return false;
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
     }
     updatePageCounter() {
-      const { enabled } = this.store.getState();
-      if (!enabled || !this.pageCounterInput) return;
+      const state = this.store.getState();
+      const { enabled } = state;
+      if (!enabled) return;
       const imgs = this.getImages();
-      if (imgs.length === 0) {
-        this.pageCounterInput.value = "0";
-        if (this.totalCounterEl) this.totalCounterEl.textContent = " / 0";
-        return;
-      }
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       if (currentIndex !== -1) {
         this.store.setState({ currentVisibleIndex: currentIndex });
       }
-      const { currentVisibleIndex } = this.store.getState();
-      const current = currentVisibleIndex !== -1 ? currentVisibleIndex + 1 : 1;
-      const total = imgs.length;
-      if (document.activeElement !== this.pageCounterInput) {
-        this.pageCounterInput.value = String(current);
-      }
-      if (this.totalCounterEl) {
-        this.totalCounterEl.textContent = ` / ${total}`;
-      }
     }
+    /**
+     * @param {string | number} pageNumber 
+     */
     jumpToPage(pageNumber) {
       const imgs = this.getImages();
       const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
@@ -613,6 +677,9 @@
         }
       }
     }
+    /**
+     * @param {number} direction 
+     */
     scrollToImage(direction) {
       const imgs = this.getImages();
       if (imgs.length === 0) return;
@@ -634,12 +701,18 @@
         finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
+    /**
+     * @param {'start' | 'end'} position 
+     */
     scrollToEdge(position) {
       const imgs = this.getImages();
       if (imgs.length === 0) return;
       const target = position === "start" ? imgs[0] : imgs[imgs.length - 1];
       target.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+    /**
+     * @param {WheelEvent} e 
+     */
     handleWheel(e) {
       const { enabled, isDualViewEnabled, currentVisibleIndex } = this.store.getState();
       if (!enabled) return;
@@ -655,6 +728,9 @@
       const nextIndex = direction === "next" ? Math.min(currentVisibleIndex + step, imgs.length - 1) : Math.max(currentVisibleIndex - step, 0);
       this.jumpToPage(nextIndex + 1);
     }
+    /**
+     * @param {KeyboardEvent} e 
+     */
     onKeyDown(e) {
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
       const { enabled, isDualViewEnabled } = this.store.getState();
@@ -670,8 +746,11 @@
         this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
       }
     }
+    /**
+     * @param {number} [forcedIndex] 
+     */
     applyLayout(forcedIndex) {
-      const { enabled, isDualViewEnabled, spreadOffset, currentVisibleIndex } = this.store.getState();
+      const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
       if (!enabled) return;
       const imgs = this.getImages();
       const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(imgs, window.innerHeight);
@@ -683,7 +762,8 @@
       }
     }
     updateUI() {
-      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = this.store.getState();
+      const state = this.store.getState();
+      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = state;
       let container = document.getElementById("comic-helper-ui");
       if (!container) {
         container = createElement("div", { id: "comic-helper-ui" });
@@ -700,48 +780,67 @@
         });
         document.body.appendChild(container);
       }
-      container.innerHTML = "";
-      container.appendChild(createPowerButton({
-        isEnabled: enabled,
-        onClick: () => {
-          const newState = !enabled;
-          if (!newState) {
-            revertToOriginal(this.getImages(), CONTAINER_SELECTOR);
+      if (!this.powerComp) {
+        this.powerComp = createPowerButton({
+          isEnabled: enabled,
+          onClick: () => {
+            const newState = !this.store.getState().enabled;
+            if (!newState) {
+              revertToOriginal(this.getImages(), CONTAINER_SELECTOR);
+            }
+            this.store.setState({ enabled: newState });
           }
-          this.store.setState({ enabled: newState });
-        }
-      }));
+        });
+        container.appendChild(this.powerComp.el);
+      }
+      const imgs = this.getImages();
+      if (!this.counterComp) {
+        this.counterComp = createPageCounter({
+          current: currentVisibleIndex + 1,
+          total: imgs.length,
+          onJump: (val) => this.jumpToPage(val)
+        });
+        this.pageCounterInput = this.counterComp.input;
+        container.appendChild(this.counterComp.el);
+      }
+      if (!this.spreadComp) {
+        this.spreadComp = createSpreadControls({
+          isDualViewEnabled,
+          onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
+          onAdjust: () => {
+            const { spreadOffset } = this.store.getState();
+            this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+          }
+        });
+        container.appendChild(this.spreadComp.el);
+      }
+      if (container.querySelectorAll(".comic-helper-button").length === 0) {
+        const navBtns = createNavigationButtons({
+          onFirst: () => this.scrollToEdge("start"),
+          onPrev: () => this.scrollToImage(-1),
+          onNext: () => this.scrollToImage(1),
+          onLast: () => this.scrollToEdge("end")
+        });
+        navBtns.elements.forEach((btn) => container.appendChild(btn));
+      }
+      this.powerComp.update(enabled);
       if (!enabled) {
         container.style.padding = "4px 8px";
+        this.counterComp.el.style.display = "none";
+        this.spreadComp.el.style.display = "none";
+        container.querySelectorAll(".comic-helper-button").forEach((btn) => {
+          btn.style.display = "none";
+        });
         return;
       }
       container.style.padding = "8px";
-      const imgs = this.getImages();
-      const { wrapper, input, totalLabel } = createPageCounter({
-        current: currentVisibleIndex + 1,
-        total: imgs.length,
-        onJump: (val) => this.jumpToPage(val)
+      this.counterComp.el.style.display = "flex";
+      this.spreadComp.el.style.display = "flex";
+      container.querySelectorAll(".comic-helper-button").forEach((btn) => {
+        btn.style.display = "inline-block";
       });
-      this.pageCounterInput = input;
-      this.totalCounterEl = totalLabel;
-      container.appendChild(wrapper);
-      const { label, adjustBtn } = createSpreadControls({
-        isDualViewEnabled,
-        onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
-        onAdjust: () => {
-          const { spreadOffset } = this.store.getState();
-          this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-        }
-      });
-      container.appendChild(label);
-      if (adjustBtn) container.appendChild(adjustBtn);
-      const navBtns = createNavigationButtons({
-        onFirst: () => this.scrollToEdge("start"),
-        onPrev: () => this.scrollToImage(-1),
-        onNext: () => this.scrollToImage(1),
-        onLast: () => this.scrollToEdge("end")
-      });
-      navBtns.forEach((btn) => container.appendChild(btn));
+      this.counterComp.update(currentVisibleIndex + 1, imgs.length);
+      this.spreadComp.update(isDualViewEnabled);
     }
     init() {
       const container = document.querySelector(CONTAINER_SELECTOR);

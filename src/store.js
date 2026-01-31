@@ -4,8 +4,18 @@ export const STORAGE_KEYS = {
   ENABLED: 'comic-viewer-helper-enabled'
 };
 
+/**
+ * @typedef {Object} StoreState
+ * @property {boolean} enabled
+ * @property {boolean} isDualViewEnabled
+ * @property {number} spreadOffset
+ * @property {number} currentVisibleIndex
+ * @property {{top: number, left: number} | null} guiPos
+ */
+
 export class Store {
   constructor() {
+    /** @type {StoreState} */
     this.state = {
       enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== 'false',
       isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === 'true',
@@ -17,16 +27,28 @@ export class Store {
     this.listeners = [];
   }
 
+  /**
+   * @returns {StoreState}
+   */
   getState() {
     return { ...this.state };
   }
 
   /**
-   * @param {Partial<import('./store.js').Store['state']>} patch 
+   * @param {Partial<StoreState>} patch 
    */
   setState(patch) {
-    const prevState = { ...this.state };
-    this.state = { ...this.state, ...patch };
+    let changed = false;
+    for (const key in patch) {
+      const k = /** @type {keyof StoreState} */ (key);
+      if (this.state[k] !== patch[k]) {
+        // @ts-ignore - dynamic key access
+        this.state[k] = patch[k];
+        changed = true;
+      }
+    }
+
+    if (!changed) return;
 
     // Persistence
     if ('enabled' in patch) {
@@ -39,10 +61,7 @@ export class Store {
       localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
     }
 
-    // Only notify if something actually changed
-    if (JSON.stringify(prevState) !== JSON.stringify(this.state)) {
-      this._notify();
-    }
+    this._notify();
   }
 
   /**

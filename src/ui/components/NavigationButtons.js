@@ -15,7 +15,7 @@ export function createNavigationButtons({ onFirst, onPrev, onNext, onLast }) {
     { text: '>>', title: 'Go to Last', action: onLast }
   ];
 
-  return configs.map(cfg => createElement('button', {
+  const elements = configs.map(cfg => createElement('button', {
     className: 'comic-helper-button',
     textContent: cfg.text,
     title: cfg.title,
@@ -28,4 +28,9 @@ export function createNavigationButtons({ onFirst, onPrev, onNext, onLast }) {
       }
     }
   }));
+
+  return {
+    elements,
+    update: () => {} // No dynamic state for these buttons yet
+  };
 }
