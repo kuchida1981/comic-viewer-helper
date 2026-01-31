@@ -1,7 +1,117 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, extractMetadata } from './logic';
 
 describe('logic.js', () => {
+  describe('extractMetadata', () => {
+    beforeEach(() => {
+      vi.stubGlobal('document', {
+        querySelector: vi.fn(),
+        querySelectorAll: vi.fn()
+      });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should extract title from h1', () => {
+      // @ts-ignore
+      document.querySelector.mockImplementation(sel => {
+        if (sel === 'h1') return { textContent: ' My Manga Title ' };
+        return null;
+      });
+      // @ts-ignore
+      document.querySelectorAll.mockReturnValue([]);
+
+      const result = extractMetadata();
+      expect(result.title).toBe('My Manga Title');
+    });
+
+    it('should extract tags from #post-tag a', () => {
+      // @ts-ignore
+      document.querySelector.mockReturnValue(null);
+      // @ts-ignore
+      document.querySelectorAll.mockImplementation(sel => {
+        if (sel === '#post-tag a') return [
+          { textContent: 'Action', href: 'http://tags/action' },
+          { textContent: 'Fantasy', href: 'http://tags/fantasy' }
+        ];
+        return [];
+      });
+
+      const result = extractMetadata();
+      expect(result.tags).toEqual([
+        { text: 'Action', href: 'http://tags/action' },
+        { text: 'Fantasy', href: 'http://tags/fantasy' }
+      ]);
+    });
+
+    it('should extract related works from .post-list-image', () => {
+      // @ts-ignore
+      document.querySelector.mockReturnValue(null);
+      // @ts-ignore
+      document.querySelectorAll.mockImplementation(sel => {
+        if (sel === '.post-list-image') {
+          const mockEl = {
+            closest: vi.fn().mockReturnValue({ href: 'http://work/1' }),
+            querySelector: vi.fn().mockImplementation(s => {
+              if (s === 'img') return { src: 'thumb1.jpg' };
+              if (s === 'span') return { textContent: 'Related Work 1' };
+              return null;
+            })
+          };
+          return [mockEl];
+        }
+        return [];
+      });
+
+      const result = extractMetadata();
+      expect(result.relatedWorks).toEqual([
+        { title: 'Related Work 1', href: 'http://work/1', thumb: 'thumb1.jpg' }
+      ]);
+    });
+
+    it('should extract title from anchor span if not found in .post-list-image span', () => {
+      // @ts-ignore
+      document.querySelector.mockReturnValue(null);
+      // @ts-ignore
+      document.querySelectorAll.mockImplementation(sel => {
+        if (sel === '.post-list-image') {
+          const mockAnchor = { 
+            href: 'http://work/2',
+            querySelector: vi.fn().mockImplementation(s => {
+              if (s === 'span') return { textContent: 'Title from Anchor' };
+              return null;
+            })
+          };
+          const mockEl = {
+            closest: vi.fn().mockReturnValue(mockAnchor),
+            querySelector: vi.fn().mockReturnValue(null) // No span inside .post-list-image
+          };
+          return [mockEl];
+        }
+        return [];
+      });
+
+      const result = extractMetadata();
+      expect(result.relatedWorks[0].title).toBe('Title from Anchor');
+    });
+
+    it('should provide default values if elements not found', () => {
+      // @ts-ignore
+      document.querySelector.mockReturnValue(null);
+      // @ts-ignore
+      document.querySelectorAll.mockReturnValue([]);
+
+      const result = extractMetadata();
+      expect(result).toEqual({
+        title: 'Unknown Title',
+        tags: [],
+        relatedWorks: []
+      });
+    });
+  });
+
   describe('calculateVisibleHeight', () => {
 
     it('should return full height when image is fully in viewport', () => {

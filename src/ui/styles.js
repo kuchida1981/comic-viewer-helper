@@ -117,6 +117,120 @@ export const styles = `
   .comic-helper-adjust-btn:hover {
     background: rgba(255, 255, 255, 0.2);
   }
+
+  /* Metadata Modal Styles */
+  .comic-helper-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 20000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .comic-helper-modal-content {
+    background: #1a1a1a;
+    color: #eee;
+    width: 80%;
+    max-width: 800px;
+    max-height: 80%;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    position: relative;
+    border: 1px solid #333;
+  }
+
+  .comic-helper-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .comic-helper-modal-close:hover {
+    color: #fff;
+  }
+
+  .comic-helper-modal-title {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 20px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+  }
+
+  .comic-helper-section-title {
+    font-size: 14px;
+    color: #888;
+    margin: 20px 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .comic-helper-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .comic-helper-tag-chip {
+    background: #333;
+    color: #ccc;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  .comic-helper-tag-chip:hover {
+    background: #444;
+    color: #fff;
+  }
+
+  .comic-helper-related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .comic-helper-related-item {
+    text-decoration: none;
+    color: #ccc;
+    font-size: 11px;
+    transition: transform 0.2s;
+  }
+  .comic-helper-related-item:hover {
+    transform: translateY(-4px);
+  }
+
+  .comic-helper-related-thumb {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 4px;
+    background: #222;
+    margin-bottom: 6px;
+  }
+
+  .comic-helper-related-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
 `;
 
 /**

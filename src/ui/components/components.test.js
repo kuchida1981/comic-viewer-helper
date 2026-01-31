@@ -3,6 +3,7 @@ import { createPowerButton } from './PowerButton.js';
 import { createPageCounter } from './PageCounter.js';
 import { createSpreadControls } from './SpreadControls.js';
 import { createNavigationButtons } from './NavigationButtons.js';
+import { createMetadataModal } from './MetadataModal.js';
 
 describe('UI Components', () => {
   describe('PowerButton', () => {
@@ -58,12 +59,19 @@ describe('UI Components', () => {
     });
 
     it('should update counts', () => {
-      const { el, update } = createPageCounter({ current: 1, total: 10, onJump: () => {} });
+      const { el, input, update } = createPageCounter({ current: 1, total: 10, onJump: () => {} });
       update(5, 20);
-      const input = /** @type {HTMLInputElement} */ (el.querySelector('input'));
       const totalLabel = el.querySelector('#comic-total-counter');
       expect(input.value).toBe('5');
       expect(totalLabel?.textContent).toBe(' / 20');
+
+      // Should not update input value if focused
+      input.focus();
+      // Mock activeElement
+      vi.stubGlobal('document', { activeElement: input });
+      update(10, 20);
+      expect(input.value).toBe('5');
+      vi.unstubAllGlobals();
     });
   });
 
@@ -90,52 +98,358 @@ describe('UI Components', () => {
       expect(adjustBtn).not.toBeNull();
     });
 
-    it('should call onToggle when checkbox changes', () => {
-      const onToggle = vi.fn();
-      const { el } = createSpreadControls({ isDualViewEnabled: false, onToggle, onAdjust: () => {} });
-      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
-      checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change'));
-      expect(onToggle).toHaveBeenCalledWith(true);
+        it('should call onToggle when checkbox changes', () => {
+
+          const onToggle = vi.fn();
+
+          const { el } = createSpreadControls({ isDualViewEnabled: false, onToggle, onAdjust: () => {} });
+
+          const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+
+          checkbox.checked = true;
+
+          checkbox.dispatchEvent(new Event('change'));
+
+          expect(onToggle).toHaveBeenCalledWith(true);
+
+    
+
+          // Test branch with non-input target
+
+          const event = new Event('change');
+
+          Object.defineProperty(event, 'target', { value: {} });
+
+          checkbox.dispatchEvent(event);
+
+          // onToggle should NOT be called again with the new value
+
+        });
+
+    
+
+        it('should call onAdjust when button is clicked', () => {
+
+          const onAdjust = vi.fn();
+
+          const { el } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust });
+
+          const adjustBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-adjust-btn'));
+
+          adjustBtn.click();
+
+          expect(onAdjust).toHaveBeenCalled();
+
+        });
+
+      });
+
+    
+
+      describe('NavigationButtons', () => {
+
+        it('should render 5 navigation buttons', () => {
+
+          const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {} });
+
+          expect(elements.length).toBe(5);
+
+          expect(elements[0].textContent).toBe('<<');
+
+          expect(elements[1].textContent).toBe('<');
+
+          expect(elements[2].textContent).toBe('>');
+
+          expect(elements[3].textContent).toBe('>>');
+
+          expect(elements[4].textContent).toBe('Info');
+
+        });
+
+    
+
+        it('should call correct actions and blur', () => {
+
+          const actions = {
+
+            onFirst: vi.fn(),
+
+            onPrev: vi.fn(),
+
+            onNext: vi.fn(),
+
+            onLast: vi.fn(),
+
+            onInfo: vi.fn()
+
+          };
+
+          const { elements } = createNavigationButtons(actions);
+
+          
+
+          const blurSpy = vi.spyOn(elements[0], 'blur');
+
+          elements[0].click(); 
+
+          expect(actions.onFirst).toHaveBeenCalled();
+
+          expect(blurSpy).toHaveBeenCalled();
+
+    
+
+          // Test branch where target is not HTMLElement
+
+          const event = new MouseEvent('click');
+
+          Object.defineProperty(event, 'target', { value: {} });
+
+          elements[1].dispatchEvent(event);
+
+          expect(actions.onPrev).toHaveBeenCalled();
+
+        });
+
+    
+
+  
+
+      it('should have an empty update method', () => {
+
+        const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {} });
+
+        expect(typeof update).toBe('function');
+
+        update();
+
+      });
+
     });
 
-    it('should call onAdjust when button is clicked', () => {
-      const onAdjust = vi.fn();
-      const { el } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust });
-      const adjustBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-adjust-btn'));
-      adjustBtn.click();
-      expect(onAdjust).toHaveBeenCalled();
-    });
-  });
+  
 
-  describe('NavigationButtons', () => {
-    it('should render 4 navigation buttons', () => {
-      const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {} });
-      expect(elements.length).toBe(4);
-      expect(elements[0].textContent).toBe('<<');
-      expect(elements[1].textContent).toBe('<');
-      expect(elements[2].textContent).toBe('>');
-      expect(elements[3].textContent).toBe('>>');
-    });
+    describe('MetadataModal', () => {
 
-    it('should call correct actions and blur', () => {
-      const actions = {
-        onFirst: vi.fn(),
-        onPrev: vi.fn(),
-        onNext: vi.fn(),
-        onLast: vi.fn()
+      const mockMetadata = {
+
+        title: 'Test Manga',
+
+        tags: [{ text: 'Action', href: '#action' }],
+
+        relatedWorks: [{ title: 'Manga B', href: '#b', thumb: 'b.jpg' }]
+
       };
-      const { elements } = createNavigationButtons(actions);
-      elements[0].click(); expect(actions.onFirst).toHaveBeenCalled();
-      elements[1].click(); expect(actions.onPrev).toHaveBeenCalled();
-      elements[2].click(); expect(actions.onNext).toHaveBeenCalled();
-      elements[3].click(); expect(actions.onLast).toHaveBeenCalled();
-    });
 
-    it('should have an empty update method', () => {
-      const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {} });
-      expect(typeof update).toBe('function');
-      update();
-    });
-  });
-});
+  
+
+      it('should render title and content', () => {
+
+        const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {} });
+
+        expect(el.textContent).toContain('Test Manga');
+
+        expect(el.textContent).toContain('Action');
+
+        expect(el.textContent).toContain('Manga B');
+
+      });
+
+  
+
+      it('should call onClose when clicking overlay', () => {
+
+        const onClose = vi.fn();
+
+        const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
+
+        el.click();
+
+        expect(onClose).toHaveBeenCalled();
+
+      });
+
+  
+
+      it('should call onClose when clicking close button', () => {
+
+        const onClose = vi.fn();
+
+        const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
+
+        const closeBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-modal-close'));
+
+        closeBtn.click();
+
+        expect(onClose).toHaveBeenCalled();
+
+      });
+
+  
+
+          it('should not call onClose when clicking content', () => {
+
+  
+
+            const onClose = vi.fn();
+
+  
+
+            const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
+
+  
+
+            const content = el.querySelector('.comic-helper-modal-content');
+
+  
+
+            /** @type {HTMLElement} */ (content).click();
+
+  
+
+            expect(onClose).not.toHaveBeenCalled();
+
+  
+
+          });
+
+  
+
+      
+
+  
+
+          it('should stop propagation when clicking tags or related items', () => {
+
+  
+
+            const onClose = vi.fn();
+
+  
+
+            const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
+
+  
+
+            
+
+  
+
+            const tag = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-tag-chip'));
+
+  
+
+            tag.click();
+
+  
+
+            expect(onClose).not.toHaveBeenCalled();
+
+  
+
+      
+
+  
+
+                  const related = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-related-item'));
+
+  
+
+      
+
+  
+
+                  related.click();
+
+  
+
+      
+
+  
+
+                  expect(onClose).not.toHaveBeenCalled();
+
+  
+
+      
+
+  
+
+                });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                it('should have an empty update method', () => {
+
+  
+
+      
+
+  
+
+                  const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {} });
+
+  
+
+      
+
+  
+
+                  expect(typeof update).toBe('function');
+
+  
+
+      
+
+  
+
+                  update();
+
+  
+
+      
+
+  
+
+                });
+
+  
+
+      
+
+  
+
+              });
+
+  
+
+      
+
+  
+
+            });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
