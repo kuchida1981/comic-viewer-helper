@@ -58,7 +58,7 @@ function getCurrentPageIndex() {
       return;
     }
     
-    const currentIndex = getCurrentPageIndex();
+    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
     
@@ -75,7 +75,7 @@ function getCurrentPageIndex() {
     const targetImg = getImageElementByIndex(imgs, index);
     
     if (targetImg) {
-      targetImg.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      targetImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
       pageCounter.blur();
     } else {
       // Validation failure: revert to current page and show feedback
@@ -88,26 +88,35 @@ function getCurrentPageIndex() {
     }
   }
 
-  function scrollToImage(direction) {  const imgs = getImages();
-  if (imgs.length === 0) return;
-  const THRESHOLD = 5;
-  let targetImg = null;
-  if (direction > 0) {
-    targetImg = imgs.find(img => {
-      const rect = img.getBoundingClientRect();
-      return rect.top > THRESHOLD;
-    });
-  } else {
-    const prevImgs = [...imgs].reverse();
-    targetImg = prevImgs.find(img => {
-      const rect = img.getBoundingClientRect();
-      return rect.top < -THRESHOLD;
-    });
+  function scrollToImage(direction) {
+    const imgs = getImages();
+    if (imgs.length === 0) return;
+    
+    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    let targetIndex = currentIndex + direction;
+
+    // Boundary checks
+    if (targetIndex < 0) targetIndex = 0;
+    if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+
+    const prospectiveTargetImg = imgs[targetIndex];
+
+    // In dual view, if the target is part of the same spread, advance to the next spread.
+    if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+         const currentImg = imgs[currentIndex];
+         if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement.classList.contains('comic-row-wrapper')) {
+             // They are in the same spread. Move one more index.
+             targetIndex += direction;
+         }
+    }
+    
+    // Clamp the final index and scroll to the target.
+    const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
+    const finalTarget = imgs[finalIndex];
+    if (finalTarget) {
+        finalTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   }
-  if (targetImg) {
-    targetImg.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-}
 
 function toggleActivation(enabled) {
   const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
@@ -123,7 +132,7 @@ function toggleActivation(enabled) {
     updatePageCounter();
     if (currentIndex !== -1) {
        const imgs = getImages();
-       if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: 'start' });
+       if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: 'center' });
     }
   } else {
     revertToOriginal(getImages(), CONTAINER_SELECTOR);
@@ -135,7 +144,7 @@ function scrollToEdge(position) {
   const imgs = getImages();
   if (imgs.length === 0) return;
   const target = position === 'start' ? imgs[0] : imgs[imgs.length - 1];
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function createNavigationUI() {
@@ -366,7 +375,7 @@ function toggleDualView(enabled) {
   if (currentIndex !== -1) {
     const imgs = getImages();
     const targetImg = imgs[currentIndex];
-    if (targetImg) targetImg.scrollIntoView({ block: 'start' });
+    if (targetImg) targetImg.scrollIntoView({ block: 'center' });
   }
 }
 
