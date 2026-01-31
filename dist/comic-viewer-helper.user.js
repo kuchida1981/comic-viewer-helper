@@ -163,6 +163,7 @@
   let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== "false";
   let originalImages = [];
   let spreadOffset = 0;
+  let currentVisibleIndex = 0;
   function isInputField(target) {
     if (!(target instanceof HTMLElement)) return false;
     return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
@@ -185,6 +186,9 @@
       return;
     }
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    if (currentIndex !== -1) {
+      currentVisibleIndex = currentIndex;
+    }
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
     if (document.activeElement !== pageCounter) {
@@ -487,6 +491,19 @@
       toggleDualView(newState);
     }
   }
+  function applyLayout(forcedIndex) {
+    if (!isEnabled) return;
+    const currentImgs = getImages();
+    const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+    fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
+    updatePageCounter();
+    if (currentIndex !== -1) {
+      const targetImg = currentImgs[currentIndex];
+      if (targetImg) {
+        targetImg.scrollIntoView({ block: "center" });
+      }
+    }
+  }
   function toggleDualView(enabled) {
     const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
     isDualViewEnabled = enabled;
@@ -496,14 +513,8 @@
         spreadOffset = currentIndex % 2;
       }
     }
-    fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-    updatePageCounter();
+    applyLayout(currentIndex);
     createNavigationUI();
-    if (currentIndex !== -1) {
-      const imgs = getImages();
-      const targetImg = imgs[currentIndex];
-      if (targetImg) targetImg.scrollIntoView({ block: "center" });
-    }
   }
   function saveGUIPosition(top, left) {
     localStorage.setItem(STORAGE_KEY_GUI_POS, JSON.stringify({ top, left }));
@@ -534,12 +545,7 @@
       if (!img.complete) {
         img.addEventListener("load", () => {
           if (resizeReq) cancelAnimationFrame(resizeReq);
-          resizeReq = requestAnimationFrame(() => {
-            if (isEnabled) {
-              fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-              updatePageCounter();
-            }
-          });
+          resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
         });
       }
     });
@@ -553,10 +559,7 @@
     window.addEventListener("resize", () => {
       if (!isEnabled) return;
       if (resizeReq) cancelAnimationFrame(resizeReq);
-      resizeReq = requestAnimationFrame(() => {
-        fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-        updatePageCounter();
-      });
+      resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
     });
     let scrollReq;
     window.addEventListener("scroll", () => {

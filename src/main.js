@@ -25,6 +25,7 @@ let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== 'false';
 /** @type {HTMLImageElement[]} */
 let originalImages = [];
 let spreadOffset = 0;
+let currentVisibleIndex = 0;
 
 /**
  * @param {EventTarget | null} target 
@@ -61,6 +62,9 @@ function updatePageCounter() {
     }
     
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    if (currentIndex !== -1) {
+      currentVisibleIndex = currentIndex;
+    }
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
     
@@ -384,6 +388,28 @@ function onKeyDown(e) {
 }
 
 /**
+ * Applies the layout (fitting images to viewport) and restores the scroll position.
+ * @param {number} [forcedIndex] - Optional index to scroll to.
+ */
+function applyLayout(forcedIndex) {
+  if (!isEnabled) return;
+  const currentImgs = getImages();
+  // Use forcedIndex if provided, otherwise calculate current visible index before cleanup
+  const currentIndex = forcedIndex !== undefined ? forcedIndex : getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+  
+  fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
+  updatePageCounter();
+  
+  if (currentIndex !== -1) {
+    const targetImg = currentImgs[currentIndex];
+    if (targetImg) {
+        // Use 'center' for better visibility, but ensure it's stable
+        targetImg.scrollIntoView({ block: 'center' });
+    }
+  }
+}
+
+/**
  * @param {boolean} enabled 
  */
 function toggleDualView(enabled) {
@@ -397,15 +423,8 @@ function toggleDualView(enabled) {
       }
   }
 
-  fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-  updatePageCounter();
+  applyLayout(currentIndex);
   createNavigationUI(); // Re-render UI to show/hide Adjust button
-
-  if (currentIndex !== -1) {
-    const imgs = getImages();
-    const targetImg = imgs[currentIndex];
-    if (targetImg) targetImg.scrollIntoView({ block: 'center' });
-  }
 }
 
 /**
@@ -439,11 +458,8 @@ function init() {
     if (!img.complete) {
       img.addEventListener('load', () => {
          if (resizeReq) cancelAnimationFrame(resizeReq);
-         resizeReq = requestAnimationFrame(() => { 
-             if (isEnabled) {
-               fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled); updatePageCounter(); 
-             }
-         });
+         // Use the last known stable index
+         resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
       });
     }
   });
@@ -460,11 +476,12 @@ function init() {
   
   window.addEventListener('resize', () => {
     if (!isEnabled) return;
+    
+    // Do NOT recalculate index here, as the browser has already shifted layout.
+    // Use the last known stable index from scrolling.
+
     if (resizeReq) cancelAnimationFrame(resizeReq);
-    resizeReq = requestAnimationFrame(() => { 
-        fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled); 
-        updatePageCounter(); 
-    });
+    resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
   });
   /** @type {number | undefined} */
   let scrollReq;
