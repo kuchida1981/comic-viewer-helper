@@ -31,13 +31,20 @@
   function getPrimaryVisibleImageIndex(imgs, windowHeight) {
     if (imgs.length === 0) return -1;
     let maxVisibleHeight = 0;
+    let minDistanceToCenter = Infinity;
     let primaryIndex = -1;
+    const viewportCenter = windowHeight / 2;
     imgs.forEach((img, index) => {
       const rect = img.getBoundingClientRect();
       const visibleHeight = calculateVisibleHeight(rect, windowHeight);
-      if (visibleHeight > maxVisibleHeight) {
-        maxVisibleHeight = visibleHeight;
-        primaryIndex = index;
+      if (visibleHeight > 0) {
+        const elementCenter = (rect.top + rect.bottom) / 2;
+        const distanceToCenter = Math.abs(viewportCenter - elementCenter);
+        if (visibleHeight > maxVisibleHeight || visibleHeight === maxVisibleHeight && distanceToCenter < minDistanceToCenter) {
+          maxVisibleHeight = visibleHeight;
+          minDistanceToCenter = distanceToCenter;
+          primaryIndex = index;
+        }
       }
     });
     return primaryIndex;
@@ -89,24 +96,24 @@
           pairWithNext = true;
         }
       }
+      const row = document.createElement("div");
+      row.className = "comic-row-wrapper";
+      Object.assign(row.style, {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100vw",
+        maxWidth: "100vw",
+        marginLeft: "calc(50% - 50vw)",
+        marginRight: "calc(50% - 50vw)",
+        height: "100vh",
+        marginBottom: "0",
+        position: "relative",
+        boxSizing: "border-box"
+      });
       if (pairWithNext) {
         const nextImg = allImages[i + 1];
-        const row = document.createElement("div");
-        row.className = "comic-row-wrapper";
-        Object.assign(row.style, {
-          display: "flex",
-          flexDirection: "row-reverse",
-          justifyContent: "center",
-          alignItems: "center",
-          width: "100vw",
-          maxWidth: "100vw",
-          marginLeft: "calc(50% - 50vw)",
-          marginRight: "calc(50% - 50vw)",
-          height: "100vh",
-          marginBottom: "0",
-          position: "relative",
-          boxSizing: "border-box"
-        });
+        row.style.flexDirection = "row-reverse";
         [img, nextImg].forEach((im) => {
           Object.assign(im.style, {
             maxWidth: "50%",
@@ -123,7 +130,6 @@
         container.appendChild(row);
         i++;
       } else {
-        img.style.cssText = "";
         Object.assign(img.style, {
           maxWidth: `${vw}px`,
           maxHeight: `${vh}px`,
@@ -134,7 +140,8 @@
           flexShrink: "0",
           objectFit: "contain"
         });
-        container.appendChild(img);
+        row.appendChild(img);
+        container.appendChild(row);
       }
     }
   }
