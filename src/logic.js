@@ -188,3 +188,16 @@ export function revertToOriginal(originalImages, containerSelector) {
   const wrappers = container.querySelectorAll('.comic-row-wrapper');
   wrappers.forEach(w => w.remove());
 }
+
+/**
+ * Determine navigation direction from wheel event
+ * @param {WheelEvent} event 
+ * @param {number} threshold 
+ * @returns {'next' | 'prev' | 'none'}
+ */
+export function getNavigationDirection(event, threshold = 50) {
+  if (Math.abs(event.deltaY) < threshold) {
+    return 'none';
+  }
+  return event.deltaY > 0 ? 'next' : 'prev';
+}

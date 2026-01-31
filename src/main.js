@@ -8,7 +8,7 @@
 // @grant        none
 // ==/UserScript==
 
-import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal } from './logic.js';
+import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, getNavigationDirection } from './logic.js';
 
 console.log("Magazine Comic View Helper Loaded");
 
@@ -26,6 +26,9 @@ let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== 'false';
 let originalImages = [];
 let spreadOffset = 0;
 let currentVisibleIndex = 0;
+let lastWheelTime = 0;
+const WHEEL_THROTTLE_MS = 500;
+const WHEEL_THRESHOLD = 50;
 
 /**
  * @param {EventTarget | null} target 
@@ -73,6 +76,27 @@ function updatePageCounter() {
       pageCounter.value = current.toString();
     }
     if (totalEl) totalEl.textContent = ` / ${total}`;
+  }
+
+  /**
+   * @param {WheelEvent} e
+   */
+  function handleWheel(e) {
+    if (!isEnabled) return;
+    
+    const now = Date.now();
+    if (now - lastWheelTime < WHEEL_THROTTLE_MS) return;
+
+    const direction = getNavigationDirection(e, WHEEL_THRESHOLD);
+    if (direction === 'none') return;
+
+    e.preventDefault();
+    lastWheelTime = now;
+
+    const step = isDualViewEnabled ? 2 : 1;
+    const nextIndex = direction === 'next' ? currentVisibleIndex + step : currentVisibleIndex - step;
+    
+    jumpToPage(nextIndex + 1); // jumpToPage takes 1-based page number
   }
 
   /**
@@ -490,6 +514,7 @@ function init() {
     if (scrollReq) cancelAnimationFrame(scrollReq);
     scrollReq = requestAnimationFrame(updatePageCounter);
   });
+  window.addEventListener('wheel', handleWheel, { passive: false });
   document.addEventListener('keydown', onKeyDown, true);
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection } from './logic';
 
 describe('logic.js', () => {
   describe('calculateVisibleHeight', () => {
@@ -283,6 +283,35 @@ describe('logic.js', () => {
       document.querySelector.mockReturnValue(null);
       fitImagesToViewport('#non-existent', 0, true);
       expect(container.appendChild).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getNavigationDirection', () => {
+    it('should return "next" for positive deltaY above threshold', () => {
+      const event = { deltaY: 60 };
+      // @ts-ignore
+      expect(getNavigationDirection(event, 50)).toBe('next');
+    });
+
+    it('should return "prev" for negative deltaY below -threshold', () => {
+      const event = { deltaY: -60 };
+      // @ts-ignore
+      expect(getNavigationDirection(event, 50)).toBe('prev');
+    });
+
+    it('should return "none" for deltaY within threshold', () => {
+      const event = { deltaY: 30 };
+      // @ts-ignore
+      expect(getNavigationDirection(event, 50)).toBe('none');
+      const event2 = { deltaY: -30 };
+      // @ts-ignore
+      expect(getNavigationDirection(event2, 50)).toBe('none');
+    });
+
+    it('should use default threshold if not provided', () => {
+      const event = { deltaY: 55 };
+      // @ts-ignore
+      expect(getNavigationDirection(event)).toBe('next');
     });
   });
 });
