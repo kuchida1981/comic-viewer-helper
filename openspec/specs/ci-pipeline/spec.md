@@ -11,10 +11,10 @@ TBD - created by archiving change add-lint-and-ci. Update Purpose after archive.
 - **THEN** テスト、リンティング、ビルド成功の検証、**および型チェックとカバレッジ計測**が並列に実行されること
 
 ### Requirement: CI Failure on Lint Error
-Lint チェックでエラーが検出された場合、CI パイプラインは失敗ステータスを返さなければなりません（SHALL）。これにより、品質基準を満たさないコードのマージを防ぎます。
+Lint チェックでエラー**または警告**が検出された場合、CI パイプラインは失敗ステータスを返さなければなりません（SHALL）。これにより、品質基準を満たさないコードのマージを防ぎます。
 
-#### Scenario: Lint error detected in PR
-- **WHEN** Pull Request のコードに Lint エラーが含まれているとき
+#### Scenario: Lint error or warning detected in PR
+- **WHEN** Pull Request のコードに Lint エラーまたは警告が含まれているとき
 - **THEN** GitHub Actions のジョブが失敗（Failure）としてマークされること
 
 #### Scenario: Clean code in PR
