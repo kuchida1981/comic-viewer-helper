@@ -1,3 +1,14 @@
+// ==UserScript==
+// @name         Magazine Comic Viewer Helper
+// @namespace    https://github.com/kuchida1981/comic-viewer-helper
+// @version      1.1.0
+// @description  A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
+// @match        https://something/magazine/*
+// @match        https://something/fanzine/*
+// @run-at       document-idle
+// @grant        none
+// ==/UserScript==
+
 import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, getNavigationDirection } from './logic.js';
 import { Store } from './store.js';
 import { injectStyles } from './ui/styles.js';
@@ -174,7 +185,7 @@ class App {
   }
 
   applyLayout(forcedIndex) {
-    const { enabled, isDualViewEnabled, spreadOffset, currentVisibleIndex } = this.store.getState();
+    const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
     if (!enabled) return;
 
     const imgs = this.getImages();
