@@ -37,7 +37,7 @@ isMetadataModalOpen: boolean
   - `fixed` 配置の全画面オーバーレイ（`background: rgba(0,0,0,0.5)`）。
   - 中央に配置されるコンテンツカード（`max-width: 80%`, `max-height: 80%`, `overflow-y: auto`）。
   - **Tags**: `display: flex; flex-wrap: wrap;` でチップ状に表示。
-  - **Related Works**: `display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));` でサムネイル付きで表示。
+  - **Related Works**: `display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));` でサムネイル付きで表示。
 
 ### 4. Interactions
 - Infoボタンクリック: `isMetadataModalOpen: true` に更新。
