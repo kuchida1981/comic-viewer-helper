@@ -309,7 +309,6 @@
         touchAction: "none",
         alignItems: "center",
         whiteSpace: "nowrap",
-        flexWrap: "nowrap",
         width: "max-content"
       });
       const savedPos = loadGUIPosition();
