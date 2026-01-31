@@ -163,6 +163,7 @@
   let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== "false";
   let originalImages = [];
   let spreadOffset = 0;
+  let currentVisibleIndex = 0;
   function isInputField(target) {
     if (!(target instanceof HTMLElement)) return false;
     return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
@@ -185,6 +186,9 @@
       return;
     }
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    if (currentIndex !== -1) {
+      currentVisibleIndex = currentIndex;
+    }
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
     if (document.activeElement !== pageCounter) {
@@ -541,9 +545,7 @@
       if (!img.complete) {
         img.addEventListener("load", () => {
           if (resizeReq) cancelAnimationFrame(resizeReq);
-          const currentImgs = getImages();
-          const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
-          resizeReq = requestAnimationFrame(() => applyLayout(currentIndex));
+          resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
         });
       }
     });
@@ -556,10 +558,8 @@
     }
     window.addEventListener("resize", () => {
       if (!isEnabled) return;
-      const currentImgs = getImages();
-      const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
       if (resizeReq) cancelAnimationFrame(resizeReq);
-      resizeReq = requestAnimationFrame(() => applyLayout(currentIndex));
+      resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
     });
     let scrollReq;
     window.addEventListener("scroll", () => {

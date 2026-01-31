@@ -25,6 +25,7 @@ let isEnabled = localStorage.getItem(STORAGE_KEY_ENABLED) !== 'false';
 /** @type {HTMLImageElement[]} */
 let originalImages = [];
 let spreadOffset = 0;
+let currentVisibleIndex = 0;
 
 /**
  * @param {EventTarget | null} target 
@@ -61,6 +62,9 @@ function updatePageCounter() {
     }
     
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    if (currentIndex !== -1) {
+      currentVisibleIndex = currentIndex;
+    }
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
     
@@ -454,9 +458,8 @@ function init() {
     if (!img.complete) {
       img.addEventListener('load', () => {
          if (resizeReq) cancelAnimationFrame(resizeReq);
-         const currentImgs = getImages();
-         const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
-         resizeReq = requestAnimationFrame(() => applyLayout(currentIndex));
+         // Use the last known stable index
+         resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
       });
     }
   });
@@ -474,12 +477,11 @@ function init() {
   window.addEventListener('resize', () => {
     if (!isEnabled) return;
     
-    // Capture index IMMEDIATELY when resize starts, before any layout shifts
-    const currentImgs = getImages();
-    const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+    // Do NOT recalculate index here, as the browser has already shifted layout.
+    // Use the last known stable index from scrolling.
 
     if (resizeReq) cancelAnimationFrame(resizeReq);
-    resizeReq = requestAnimationFrame(() => applyLayout(currentIndex));
+    resizeReq = requestAnimationFrame(() => applyLayout(currentVisibleIndex));
   });
   /** @type {number | undefined} */
   let scrollReq;
