@@ -259,6 +259,12 @@
     align-items: center;
     white-space: nowrap;
     width: max-content;
+    opacity: 0.3;
+    transition: opacity 0.3s;
+  }
+
+  #comic-helper-ui:hover {
+    opacity: 1.0;
   }
 
   .comic-helper-button {
@@ -554,7 +560,8 @@
      */
     constructor(element, options = {}) {
       this.element = element;
-      this.onDragEnd = options.onDragEnd;
+      this.onDragEnd = options.onDragEnd || (() => {
+      });
       this.isDragging = false;
       this.dragStartX = 0;
       this.dragStartY = 0;
@@ -588,6 +595,29 @@
       e.preventDefault();
     }
     /**
+     * Clamp the element's position to keep it within the viewport
+     * @returns {{top: number, left: number}} The clamped position
+     */
+    clampToViewport() {
+      const rect = this.element.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const padding = 10;
+      let top = rect.top;
+      let left = rect.left;
+      const maxTop = vh - rect.height - padding;
+      const maxLeft = vw - rect.width - padding;
+      top = Math.max(padding, Math.min(top, maxTop));
+      left = Math.max(padding, Math.min(left, maxLeft));
+      Object.assign(this.element.style, {
+        top: `${top}px`,
+        left: `${left}px`,
+        bottom: "auto",
+        right: "auto"
+      });
+      return { top, left };
+    }
+    /**
      * @param {MouseEvent} e 
      */
     _onMouseMove(e) {
@@ -596,16 +626,15 @@
       const deltaY = e.clientY - this.dragStartY;
       this.element.style.top = `${this.initialTop + deltaY}px`;
       this.element.style.left = `${this.initialLeft + deltaX}px`;
+      this.clampToViewport();
     }
     _onMouseUp() {
       if (!this.isDragging) return;
       this.isDragging = false;
       document.removeEventListener("mousemove", this._onMouseMove);
       document.removeEventListener("mouseup", this._onMouseUp);
-      if (this.onDragEnd) {
-        const rect = this.element.getBoundingClientRect();
-        this.onDragEnd(rect.top, rect.left);
-      }
+      const { top, left } = this.clampToViewport();
+      this.onDragEnd(top, left);
     }
     destroy() {
       this.element.removeEventListener("mousedown", this._onMouseDown);
@@ -632,6 +661,7 @@
       this.powerComp = null;
       this.counterComp = null;
       this.spreadComp = null;
+      this.draggable = null;
       this.init = this.init.bind(this);
       this.handleWheel = this.handleWheel.bind(this);
       this.onKeyDown = this.onKeyDown.bind(this);
@@ -782,7 +812,7 @@
             right: "auto"
           });
         }
-        new Draggable(container, {
+        this.draggable = new Draggable(container, {
           onDragEnd: (top, left) => this.store.setState({ guiPos: { top, left } })
         });
         document.body.appendChild(container);
@@ -883,9 +913,13 @@
       }
       this.updateUI();
       window.addEventListener("resize", () => {
-        if (!this.store.getState().enabled) return;
+        const { enabled, currentVisibleIndex } = this.store.getState();
+        if (this.draggable) {
+          const { top, left } = this.draggable.clampToViewport();
+          this.store.setState({ guiPos: { top, left } });
+        }
+        if (!enabled) return;
         if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
-        const { currentVisibleIndex } = this.store.getState();
         this.resizeReq = requestAnimationFrame(() => this.applyLayout(currentVisibleIndex));
       });
       window.addEventListener("scroll", () => {
