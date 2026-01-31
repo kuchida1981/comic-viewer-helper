@@ -11,8 +11,7 @@ export default defineConfig({
       exclude: [
         'src/header.js',
         'src/main.js',
-        'src/ui/styles.js',
-        'src/ui/Draggable.js'
+        'src/ui/styles.js'
       ],
       thresholds: {
         lines: 100,

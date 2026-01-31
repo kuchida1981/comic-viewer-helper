@@ -9,7 +9,7 @@ export class Draggable {
    */
   constructor(element, options = {}) {
     this.element = element;
-    this.onDragEnd = options.onDragEnd;
+    this.onDragEnd = options.onDragEnd || (() => {});
     
     this.isDragging = false;
     this.dragStartX = 0;
@@ -53,6 +53,39 @@ export class Draggable {
   }
 
   /**
+   * Clamp the element's position to keep it within the viewport
+   * @returns {{top: number, left: number}} The clamped position
+   */
+  clampToViewport() {
+    const rect = this.element.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const padding = 10;
+
+    let top = rect.top;
+    let left = rect.left;
+
+    // Boundary checks
+    if (left < padding) left = padding;
+    if (top < padding) top = padding;
+    if (left + rect.width > vw - padding) left = vw - rect.width - padding;
+    if (top + rect.height > vh - padding) top = vh - rect.height - padding;
+
+    // Ensure it doesn't get pushed off the top/left if the window is smaller than the element
+    if (left < padding) left = padding;
+    if (top < padding) top = padding;
+
+    Object.assign(this.element.style, {
+      top: `${top}px`,
+      left: `${left}px`,
+      bottom: 'auto',
+      right: 'auto'
+    });
+
+    return { top, left };
+  }
+
+  /**
    * @param {MouseEvent} e 
    */
   _onMouseMove(e) {
@@ -61,6 +94,7 @@ export class Draggable {
     const deltaY = e.clientY - this.dragStartY;
     this.element.style.top = `${this.initialTop + deltaY}px`;
     this.element.style.left = `${this.initialLeft + deltaX}px`;
+    this.clampToViewport();
   }
 
   _onMouseUp() {
@@ -69,10 +103,8 @@ export class Draggable {
     document.removeEventListener('mousemove', this._onMouseMove);
     document.removeEventListener('mouseup', this._onMouseUp);
 
-    if (this.onDragEnd) {
-      const rect = this.element.getBoundingClientRect();
-      this.onDragEnd(rect.top, rect.left);
-    }
+    const { top, left } = this.clampToViewport();
+    this.onDragEnd(top, left);
   }
 
   destroy() {
