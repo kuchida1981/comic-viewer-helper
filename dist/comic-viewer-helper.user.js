@@ -47,7 +47,10 @@
     return imgs[index];
   }
   function cleanupDOM(container) {
-    const allImages = Array.from(container.querySelectorAll("img"));
+    const allImages = (
+      /** @type {HTMLImageElement[]} */
+      Array.from(container.querySelectorAll("img"))
+    );
     const wrappers = container.querySelectorAll(".comic-row-wrapper");
     wrappers.forEach((w) => w.remove());
     allImages.forEach((img) => {
@@ -56,7 +59,10 @@
     return allImages;
   }
   function fitImagesToViewport(containerSelector, spreadOffset2 = 0, isDualViewEnabled2 = false) {
-    const container = document.querySelector(containerSelector);
+    const container = (
+      /** @type {HTMLElement | null} */
+      document.querySelector(containerSelector)
+    );
     if (!container) return;
     const allImages = cleanupDOM(container);
     const vw = window.innerWidth;
@@ -133,7 +139,10 @@
     }
   }
   function revertToOriginal(originalImages2, containerSelector) {
-    const container = document.querySelector(containerSelector);
+    const container = (
+      /** @type {HTMLElement | null} */
+      document.querySelector(containerSelector)
+    );
     if (!container) return;
     container.style.cssText = "";
     originalImages2.forEach((img) => {
@@ -155,11 +164,15 @@
   let originalImages = [];
   let spreadOffset = 0;
   function isInputField(target) {
+    if (!(target instanceof HTMLElement)) return false;
     return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
   }
   function getImages() {
     if (originalImages.length > 0) return originalImages;
-    return Array.from(document.querySelectorAll(IMG_SELECTOR));
+    return (
+      /** @type {HTMLImageElement[]} */
+      Array.from(document.querySelectorAll(IMG_SELECTOR))
+    );
   }
   function updatePageCounter() {
     if (!isEnabled) return;
@@ -167,7 +180,7 @@
     const imgs = getImages();
     const totalEl = document.getElementById("comic-total-counter");
     if (imgs.length === 0) {
-      pageCounter.value = 0;
+      pageCounter.value = "0";
       if (totalEl) totalEl.textContent = " / 0";
       return;
     }
@@ -175,13 +188,14 @@
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
     if (document.activeElement !== pageCounter) {
-      pageCounter.value = current;
+      pageCounter.value = current.toString();
     }
     if (totalEl) totalEl.textContent = ` / ${total}`;
   }
   function jumpToPage(pageNumber) {
+    if (!pageCounter) return;
     const imgs = getImages();
-    const index = parseInt(pageNumber, 10) - 1;
+    const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
     const targetImg = getImageElementByIndex(imgs, index);
     if (targetImg) {
       targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -190,7 +204,7 @@
       updatePageCounter();
       pageCounter.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
       setTimeout(() => {
-        pageCounter.style.backgroundColor = "transparent";
+        if (pageCounter) pageCounter.style.backgroundColor = "transparent";
       }, 500);
       pageCounter.blur();
     }
@@ -205,7 +219,7 @@
     const prospectiveTargetImg = imgs[targetIndex];
     if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
       const currentImg = imgs[currentIndex];
-      if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement.classList.contains("comic-row-wrapper")) {
+      if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
         targetIndex += direction;
       }
     }
@@ -218,7 +232,7 @@
   function toggleActivation(enabled) {
     const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
     isEnabled = enabled;
-    localStorage.setItem(STORAGE_KEY_ENABLED, enabled);
+    localStorage.setItem(STORAGE_KEY_ENABLED, enabled.toString());
     if (enabled) {
       if (currentIndex !== -1) {
         spreadOffset = currentIndex % 2;
@@ -257,16 +271,19 @@
     `;
       document.head.appendChild(style);
     }
-    let container = document.getElementById("comic-helper-ui");
+    let container = (
+      /** @type {HTMLElement | null} */
+      document.getElementById("comic-helper-ui")
+    );
     if (!container) {
       let onMouseMove = function(e) {
-        if (!isDragging) return;
+        if (!isDragging || !container) return;
         const deltaX = e.clientX - dragStartX;
         const deltaY = e.clientY - dragStartY;
         container.style.top = `${initialTop + deltaY}px`;
         container.style.left = `${initialLeft + deltaX}px`;
       }, onMouseUp = function() {
-        if (!isDragging) return;
+        if (!isDragging || !container) return;
         isDragging = false;
         const rect = container.getBoundingClientRect();
         saveGUIPosition(rect.top, rect.left);
@@ -298,9 +315,14 @@
         Object.assign(container.style, { top: `${savedPos.top}px`, left: `${savedPos.left}px`, bottom: "auto", right: "auto" });
       }
       let isDragging = false;
-      let dragStartX, dragStartY, initialTop, initialLeft;
+      let dragStartX;
+      let dragStartY;
+      let initialTop;
+      let initialLeft;
       container.addEventListener("mousedown", (e) => {
-        if (e.button !== 0 || e.target.tagName !== "DIV" && e.target !== container) return;
+        if (!container) return;
+        if (e.button !== 0 || !(e.target instanceof HTMLElement)) return;
+        if (e.target.tagName !== "DIV" && e.target !== container) return;
         isDragging = true;
         const rect = container.getBoundingClientRect();
         initialTop = rect.top;
@@ -341,9 +363,10 @@
     container.style.padding = "8px";
     const counterWrapper = document.createElement("span");
     Object.assign(counterWrapper.style, { color: "#fff", fontSize: "14px", fontWeight: "bold", padding: "0 8px", display: "flex", alignItems: "center", userSelect: "none" });
-    pageCounter = document.createElement("input");
+    pageCounter = /** @type {HTMLInputElement} */
+    document.createElement("input");
     pageCounter.type = "number";
-    pageCounter.min = 1;
+    pageCounter.min = "1";
     Object.assign(pageCounter.style, {
       width: "45px",
       background: "transparent",
@@ -359,16 +382,20 @@
     });
     pageCounter.style.setProperty("-moz-appearance", "textfield");
     pageCounter.addEventListener("focus", () => {
-      pageCounter.style.border = "1px solid #fff";
-      pageCounter.style.background = "rgba(255,255,255,0.1)";
-      pageCounter.select();
+      if (pageCounter) {
+        pageCounter.style.border = "1px solid #fff";
+        pageCounter.style.background = "rgba(255,255,255,0.1)";
+        pageCounter.select();
+      }
     });
     pageCounter.addEventListener("blur", () => {
-      pageCounter.style.border = "1px solid transparent";
-      pageCounter.style.background = "transparent";
+      if (pageCounter) {
+        pageCounter.style.border = "1px solid transparent";
+        pageCounter.style.background = "transparent";
+      }
     });
     pageCounter.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
+      if (e.key === "Enter" && pageCounter) {
         e.preventDefault();
         jumpToPage(pageCounter.value);
       }
@@ -452,7 +479,10 @@
     } else if (e.key === "d") {
       e.preventDefault();
       const newState = !isDualViewEnabled;
-      const checkbox = document.querySelector('input[type="checkbox"]');
+      const checkbox = (
+        /** @type {HTMLInputElement | null} */
+        document.querySelector('input[type="checkbox"]')
+      );
       if (checkbox) checkbox.checked = newState;
       toggleDualView(newState);
     }
@@ -460,7 +490,7 @@
   function toggleDualView(enabled) {
     const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
     isDualViewEnabled = enabled;
-    localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled);
+    localStorage.setItem(STORAGE_KEY_DUAL_VIEW, enabled.toString());
     if (enabled) {
       if (currentIndex !== -1) {
         spreadOffset = currentIndex % 2;
@@ -493,8 +523,12 @@
   function init() {
     const container = document.querySelector(CONTAINER_SELECTOR);
     if (!container) return;
-    originalImages = Array.from(document.querySelectorAll(IMG_SELECTOR));
-    const imgs = document.querySelectorAll(IMG_SELECTOR);
+    originalImages = /** @type {HTMLImageElement[]} */
+    Array.from(document.querySelectorAll(IMG_SELECTOR));
+    const imgs = (
+      /** @type {NodeListOf<HTMLImageElement>} */
+      document.querySelectorAll(IMG_SELECTOR)
+    );
     let resizeReq;
     imgs.forEach((img) => {
       if (!img.complete) {
