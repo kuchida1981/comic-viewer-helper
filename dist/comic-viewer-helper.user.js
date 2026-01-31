@@ -161,23 +161,6 @@
     if (originalImages.length > 0) return originalImages;
     return Array.from(document.querySelectorAll(IMG_SELECTOR));
   }
-  function getCurrentPageIndex() {
-    const imgs = getImages();
-    if (imgs.length === 0) return -1;
-    const windowHeight = window.innerHeight;
-    const centerLine = windowHeight / 2;
-    let currentIndex = imgs.findIndex((img) => {
-      const rect = img.getBoundingClientRect();
-      return rect.top <= centerLine && rect.bottom >= centerLine;
-    });
-    if (currentIndex === -1) {
-      currentIndex = imgs.findIndex((img) => {
-        const rect = img.getBoundingClientRect();
-        return rect.bottom > 0 && rect.top < windowHeight;
-      });
-    }
-    return currentIndex;
-  }
   function updatePageCounter() {
     if (!isEnabled) return;
     if (!pageCounter) return;
@@ -188,7 +171,7 @@
       if (totalEl) totalEl.textContent = " / 0";
       return;
     }
-    const currentIndex = getCurrentPageIndex();
+    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
     const current = currentIndex !== -1 ? currentIndex + 1 : 1;
     const total = imgs.length;
     if (document.activeElement !== pageCounter) {
@@ -201,7 +184,7 @@
     const index = parseInt(pageNumber, 10) - 1;
     const targetImg = getImageElementByIndex(imgs, index);
     if (targetImg) {
-      targetImg.scrollIntoView({ behavior: "smooth", block: "start" });
+      targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
       pageCounter.blur();
     } else {
       updatePageCounter();
@@ -215,22 +198,24 @@
   function scrollToImage(direction) {
     const imgs = getImages();
     if (imgs.length === 0) return;
-    const THRESHOLD = 5;
-    let targetImg = null;
-    if (direction > 0) {
-      targetImg = imgs.find((img) => {
-        const rect = img.getBoundingClientRect();
-        return rect.top > THRESHOLD;
-      });
-    } else {
-      const prevImgs = [...imgs].reverse();
-      targetImg = prevImgs.find((img) => {
-        const rect = img.getBoundingClientRect();
-        return rect.top < -THRESHOLD;
-      });
-    }
+    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    let targetIndex = currentIndex + direction;
+    if (targetIndex < 0) targetIndex = 0;
+    if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+    const targetImg = imgs[targetIndex];
     if (targetImg) {
-      targetImg.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+        const currentImg = imgs[currentIndex];
+        if (currentImg && targetImg.parentElement === currentImg.parentElement && targetImg.parentElement.classList.contains("comic-row-wrapper")) {
+          targetIndex += direction;
+          if (targetIndex < 0) targetIndex = 0;
+          if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+        }
+      }
+      const finalTarget = imgs[targetIndex];
+      if (finalTarget) {
+        finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
     }
   }
   function toggleActivation(enabled) {
@@ -245,7 +230,7 @@
       updatePageCounter();
       if (currentIndex !== -1) {
         const imgs = getImages();
-        if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: "start" });
+        if (imgs[currentIndex]) imgs[currentIndex].scrollIntoView({ block: "center" });
       }
     } else {
       revertToOriginal(getImages(), CONTAINER_SELECTOR);
@@ -256,7 +241,7 @@
     const imgs = getImages();
     if (imgs.length === 0) return;
     const target = position === "start" ? imgs[0] : imgs[imgs.length - 1];
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   function createNavigationUI() {
     const existingStyle = document.getElementById("comic-helper-style");
@@ -490,7 +475,7 @@
     if (currentIndex !== -1) {
       const imgs = getImages();
       const targetImg = imgs[currentIndex];
-      if (targetImg) targetImg.scrollIntoView({ block: "start" });
+      if (targetImg) targetImg.scrollIntoView({ block: "center" });
     }
   }
   function saveGUIPosition(top, left) {
