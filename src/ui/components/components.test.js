@@ -52,14 +52,14 @@ describe('UI Components', () => {
   describe('SpreadControls', () => {
     it('should render checkbox and label', () => {
       const { label } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust: () => {} });
-      const checkbox = label.querySelector('input[type="checkbox"]');
+      const checkbox = /** @type {HTMLInputElement} */ (label.querySelector('input[type="checkbox"]'));
       expect(checkbox.checked).toBe(true);
       expect(label.textContent).toContain('Spread');
     });
 
     it('should render adjust button when dual view is enabled', () => {
       const { adjustBtn } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust: () => {} });
-      expect(adjustBtn).not.toBeNull();
+      if (!adjustBtn) throw new Error('adjustBtn should exist');
       expect(adjustBtn.textContent).toBe('Adjust');
     });
 
@@ -71,7 +71,7 @@ describe('UI Components', () => {
     it('should call onToggle when checkbox changes', () => {
       const onToggle = vi.fn();
       const { label } = createSpreadControls({ isDualViewEnabled: false, onToggle, onAdjust: () => {} });
-      const checkbox = label.querySelector('input[type="checkbox"]');
+      const checkbox = /** @type {HTMLInputElement} */ (label.querySelector('input[type="checkbox"]'));
       checkbox.checked = true;
       checkbox.dispatchEvent(new Event('change'));
       expect(onToggle).toHaveBeenCalledWith(true);
@@ -80,6 +80,7 @@ describe('UI Components', () => {
     it('should call onAdjust when button is clicked', () => {
       const onAdjust = vi.fn();
       const { adjustBtn } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust });
+      if (!adjustBtn) throw new Error('adjustBtn should exist');
       adjustBtn.click();
       expect(onAdjust).toHaveBeenCalled();
     });

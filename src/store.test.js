@@ -100,6 +100,7 @@ describe('Store', () => {
     const store = new Store();
     const pos = { top: 50, left: 50 };
     store.setState({ guiPos: pos });
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.GUI_POS))).toEqual(pos);
+    const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
+    expect(JSON.parse(saved || '{}')).toEqual(pos);
   });
 });

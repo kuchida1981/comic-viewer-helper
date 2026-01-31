@@ -28,6 +28,7 @@ describe('ui/utils.js', () => {
     const el = createElement('div', {}, [child, 'text node']);
     expect(el.childNodes.length).toBe(2);
     expect(el.firstChild).toBe(child);
+    if (!el.lastChild) throw new Error('lastChild should exist');
     expect(el.lastChild.textContent).toBe('text node');
   });
 

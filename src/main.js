@@ -52,6 +52,10 @@ class App {
     return /** @type {HTMLImageElement[]} */ (Array.from(document.querySelectorAll(IMG_SELECTOR)));
   }
 
+  /**
+   * @param {EventTarget | null} target 
+   * @returns {boolean}
+   */
   isInputField(target) {
     if (!(target instanceof HTMLElement)) return false;
     return (
@@ -63,7 +67,8 @@ class App {
   }
 
   updatePageCounter() {
-    const { enabled } = this.store.getState();
+    const state = this.store.getState();
+    const { enabled } = state;
     if (!enabled || !this.pageCounterInput) return;
 
     const imgs = this.getImages();
@@ -78,7 +83,8 @@ class App {
       this.store.setState({ currentVisibleIndex: currentIndex });
     }
     
-    const { currentVisibleIndex } = this.store.getState();
+    const currentState = this.store.getState();
+    const { currentVisibleIndex } = currentState;
     const current = currentVisibleIndex !== -1 ? currentVisibleIndex + 1 : 1;
     const total = imgs.length;
 
@@ -90,6 +96,9 @@ class App {
     }
   }
 
+  /**
+   * @param {string | number} pageNumber 
+   */
   jumpToPage(pageNumber) {
     const imgs = this.getImages();
     const index = typeof pageNumber === 'string' ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
@@ -110,6 +119,9 @@ class App {
     }
   }
 
+  /**
+   * @param {number} direction 
+   */
   scrollToImage(direction) {
     const imgs = this.getImages();
     if (imgs.length === 0) return;
@@ -137,6 +149,9 @@ class App {
     }
   }
 
+  /**
+   * @param {'start' | 'end'} position 
+   */
   scrollToEdge(position) {
     const imgs = this.getImages();
     if (imgs.length === 0) return;
@@ -144,6 +159,9 @@ class App {
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
+  /**
+   * @param {WheelEvent} e 
+   */
   handleWheel(e) {
     const { enabled, isDualViewEnabled, currentVisibleIndex } = this.store.getState();
     if (!enabled) return;
@@ -167,6 +185,9 @@ class App {
     this.jumpToPage(nextIndex + 1);
   }
 
+  /**
+   * @param {KeyboardEvent} e 
+   */
   onKeyDown(e) {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
     const { enabled, isDualViewEnabled } = this.store.getState();
@@ -184,6 +205,9 @@ class App {
     }
   }
 
+  /**
+   * @param {number} [forcedIndex] 
+   */
   applyLayout(forcedIndex) {
     const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
     if (!enabled) return;
@@ -215,7 +239,7 @@ class App {
         });
       }
       new Draggable(container, {
-        onDragEnd: (top, left) => this.store.setState({ guiPos: { top, left } })
+        onDragEnd: (/** @type {number} */ top, /** @type {number} */ left) => this.store.setState({ guiPos: { top, left } })
       });
       document.body.appendChild(container);
     }
@@ -246,7 +270,7 @@ class App {
     const { wrapper, input, totalLabel } = createPageCounter({
       current: currentVisibleIndex + 1,
       total: imgs.length,
-      onJump: (val) => this.jumpToPage(val)
+      onJump: (/** @type {string} */ val) => this.jumpToPage(val)
     });
     this.pageCounterInput = input;
     this.totalCounterEl = totalLabel;
@@ -255,7 +279,7 @@ class App {
     // Spread Controls
     const { label, adjustBtn } = createSpreadControls({
       isDualViewEnabled,
-      onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
+      onToggle: (/** @type {boolean} */ val) => this.store.setState({ isDualViewEnabled: val }),
       onAdjust: () => {
         const { spreadOffset } = this.store.getState();
         this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
@@ -291,7 +315,7 @@ class App {
       }
     });
 
-    this.store.subscribe((state) => {
+    this.store.subscribe((/** @type {any} */ state) => {
       // Check if layout-affecting state changed
       const layoutChanged = 
         state.enabled !== this._lastEnabled ||
