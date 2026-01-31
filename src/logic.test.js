@@ -274,28 +274,17 @@ describe('logic.js', () => {
         return [];
       });
 
-            fitImagesToViewport('#container', 0, true);
+      fitImagesToViewport('#container', 0, true);
+      expect(existingWrapper.remove).toHaveBeenCalled();
+    });
 
-            expect(existingWrapper.remove).toHaveBeenCalled();
-
-          });
-
-      
-
-          it('should do nothing if container is not found', () => {
-
-            // @ts-ignore - mockReturnValue is from Vitest
-
-            document.querySelector.mockReturnValue(null);
-
-            fitImagesToViewport('#non-existent', 0, true);
-
-            expect(container.appendChild).not.toHaveBeenCalled();
-
-          });
-
-        });
-
-      });
+    it('should do nothing if container is not found', () => {
+      // @ts-ignore - mockReturnValue is from Vitest
+      document.querySelector.mockReturnValue(null);
+      fitImagesToViewport('#non-existent', 0, true);
+      expect(container.appendChild).not.toHaveBeenCalled();
+    });
+  });
+});
 
       
