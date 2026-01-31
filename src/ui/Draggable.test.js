@@ -80,38 +80,41 @@ describe('Draggable', () => {
   });
 
   it('should not start dragging if right clicked', () => {
-    new Draggable(element);
+    const draggable = new Draggable(element);
     const event = new MouseEvent('mousedown', { button: 2 });
     element.dispatchEvent(event);
-    // Note: isDragging is internal, but we can check if it starts
+    expect(draggable.isDragging).toBe(false);
   });
 
   it('should not start dragging if clicking a button', () => {
     const button = document.createElement('button');
     element.appendChild(button);
-    new Draggable(element);
+    const draggable = new Draggable(element);
     const event = new MouseEvent('mousedown', { button: 0 });
     Object.defineProperty(event, 'target', { value: button });
     
     element.dispatchEvent(event);
+    expect(draggable.isDragging).toBe(false);
   });
 
   it('should not start dragging if clicking an input element', () => {
     const input = document.createElement('input');
     element.appendChild(input);
-    new Draggable(element);
+    const draggable = new Draggable(element);
     const event = new MouseEvent('mousedown', { button: 0 });
     Object.defineProperty(event, 'target', { value: input });
     
     element.dispatchEvent(event);
+    expect(draggable.isDragging).toBe(false);
   });
 
   it('should not start dragging if clicking a non-HTMLElement target', () => {
-    new Draggable(element);
+    const draggable = new Draggable(element);
     const event = new MouseEvent('mousedown', { button: 0 });
     // Simulate SVG or other non-HTMLElement if needed, or just null target
     Object.defineProperty(event, 'target', { value: document.createTextNode('text') });
     element.dispatchEvent(event);
+    expect(draggable.isDragging).toBe(false);
   });
 
   it('should update position during mouse move', () => {
@@ -147,15 +150,16 @@ describe('Draggable', () => {
   it('should return early in onMouseMove if not dragging', () => {
     const draggable = new Draggable(element);
     draggable.isDragging = false;
+    const initialTop = element.style.top;
     const event = new MouseEvent('mousemove');
     draggable._onMouseMove(event);
-    // Should do nothing
+    expect(element.style.top).toBe(initialTop);
   });
 
   it('should return early in onMouseUp if not dragging', () => {
     const draggable = new Draggable(element);
     draggable.isDragging = false;
-    draggable._onMouseUp();
-    // Should do nothing
+    const result = draggable._onMouseUp();
+    expect(result).toBeUndefined();
   });
 });

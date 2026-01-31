@@ -66,14 +66,11 @@ export class Draggable {
     let left = rect.left;
 
     // Boundary checks
-    if (left < padding) left = padding;
-    if (top < padding) top = padding;
-    if (left + rect.width > vw - padding) left = vw - rect.width - padding;
-    if (top + rect.height > vh - padding) top = vh - rect.height - padding;
+    const maxTop = vh - rect.height - padding;
+    const maxLeft = vw - rect.width - padding;
 
-    // Ensure it doesn't get pushed off the top/left if the window is smaller than the element
-    if (left < padding) left = padding;
-    if (top < padding) top = padding;
+    top = Math.max(padding, Math.min(top, maxTop));
+    left = Math.max(padding, Math.min(left, maxLeft));
 
     Object.assign(this.element.style, {
       top: `${top}px`,
