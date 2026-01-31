@@ -207,11 +207,11 @@
   }
   function handleWheel(e) {
     if (!isEnabled) return;
+    e.preventDefault();
     const now = Date.now();
     if (now - lastWheelTime < WHEEL_THROTTLE_MS) return;
     const direction = getNavigationDirection(e, WHEEL_THRESHOLD);
     if (direction === "none") return;
-    e.preventDefault();
     lastWheelTime = now;
     const step = isDualViewEnabled ? 2 : 1;
     const nextIndex = direction === "next" ? currentVisibleIndex + step : currentVisibleIndex - step;
