@@ -13,7 +13,7 @@
 ## インストール方法
 
 1.  ブラウザに [Tampermonkey](https://www.tampermonkey.net/) などのユーザースクリプトマネージャー拡張機能をインストールします。
-2.  このリポジトリの `dist/comic-viewer-helper.user.js` の内容をコピーするか、Rawファイルへのリンクを開いてインストールします。
+2.  以下のリンクを開いて、スクリプトをインストールします：[Rawファイルからインストール](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/release/dist/comic-viewer-helper.user.js)
 3.  対応するサイトにアクセスすると自動的に有効になります。
 
 ## 使い方
@@ -67,7 +67,7 @@
 ```bash
 npm run build
 ```
-**重要**: ビルド実行後は、生成された `dist/comic-viewer-helper.user.js` を必ずコミットしてプッシュしてください。これが配布用のメインファイルとなります。
+※ `dist/` ディレクトリは Git の管理から除外されています。ビルド成果物は、masterブランチへのマージ時に GitHub Actions によって `release` ブランチへ自動的にデプロイされます。
 
 ### テスト
 Vitest を使用してユニットテストを実行します（カバレッジレポートも生成されます）：

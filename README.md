@@ -15,7 +15,7 @@ It automatically fits images to the browser viewport and enables comfortable ima
 ## Installation
 
 1.  Install a user script manager extension like [Tampermonkey](https://www.tampermonkey.net/) in your browser.
-2.  Install the script by copying the content of `dist/comic-viewer-helper.user.js` in this repository or by opening the Raw file link.
+2.  Install the script by opening the following link: [Install via Raw URL](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/release/dist/comic-viewer-helper.user.js).
 3.  The script will be automatically enabled when you visit supported sites.
 
 ...
@@ -37,7 +37,7 @@ To generate the `dist/comic-viewer-helper.user.js` file from source:
 ```bash
 npm run build
 ```
-**Important**: After running the build, ensure you commit and push the updated `dist/comic-viewer-helper.user.js` as it is the primary distribution file.
+Note: The `dist/` directory is excluded from the repository. The build artifacts are automatically deployed to the `release` branch by GitHub Actions upon merging to the master branch.
 
 ### Test
 To run unit tests using Vitest (includes coverage report):

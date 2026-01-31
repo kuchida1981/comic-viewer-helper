@@ -16,5 +16,4 @@ coverage/
 .vitest/
 
 # Build artifacts
-dist/*
-!dist/*.user.js
+dist/
