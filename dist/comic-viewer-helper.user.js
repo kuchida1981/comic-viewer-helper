@@ -487,16 +487,17 @@
       toggleDualView(newState);
     }
   }
-  function applyLayout() {
+  function applyLayout(forcedIndex) {
     if (!isEnabled) return;
     const currentImgs = getImages();
-    const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+    const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
     fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
     updatePageCounter();
     if (currentIndex !== -1) {
-      const newImgs = getImages();
-      const targetImg = newImgs[currentIndex];
-      if (targetImg) targetImg.scrollIntoView({ block: "center" });
+      const targetImg = currentImgs[currentIndex];
+      if (targetImg) {
+        targetImg.scrollIntoView({ block: "center" });
+      }
     }
   }
   function toggleDualView(enabled) {
@@ -508,7 +509,7 @@
         spreadOffset = currentIndex % 2;
       }
     }
-    applyLayout();
+    applyLayout(currentIndex);
     createNavigationUI();
   }
   function saveGUIPosition(top, left) {
@@ -540,7 +541,9 @@
       if (!img.complete) {
         img.addEventListener("load", () => {
           if (resizeReq) cancelAnimationFrame(resizeReq);
-          resizeReq = requestAnimationFrame(applyLayout);
+          const currentImgs = getImages();
+          const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+          resizeReq = requestAnimationFrame(() => applyLayout(currentIndex));
         });
       }
     });
@@ -553,8 +556,10 @@
     }
     window.addEventListener("resize", () => {
       if (!isEnabled) return;
+      const currentImgs = getImages();
+      const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
       if (resizeReq) cancelAnimationFrame(resizeReq);
-      resizeReq = requestAnimationFrame(applyLayout);
+      resizeReq = requestAnimationFrame(() => applyLayout(currentIndex));
     });
     let scrollReq;
     window.addEventListener("scroll", () => {

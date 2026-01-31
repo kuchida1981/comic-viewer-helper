@@ -385,19 +385,23 @@ function onKeyDown(e) {
 
 /**
  * Applies the layout (fitting images to viewport) and restores the scroll position.
+ * @param {number} [forcedIndex] - Optional index to scroll to.
  */
-function applyLayout() {
+function applyLayout(forcedIndex) {
   if (!isEnabled) return;
   const currentImgs = getImages();
-  const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+  // Use forcedIndex if provided, otherwise calculate current visible index before cleanup
+  const currentIndex = forcedIndex !== undefined ? forcedIndex : getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
   
   fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
   updatePageCounter();
   
   if (currentIndex !== -1) {
-    const newImgs = getImages();
-    const targetImg = newImgs[currentIndex];
-    if (targetImg) targetImg.scrollIntoView({ block: 'center' });
+    const targetImg = currentImgs[currentIndex];
+    if (targetImg) {
+        // Use 'center' for better visibility, but ensure it's stable
+        targetImg.scrollIntoView({ block: 'center' });
+    }
   }
 }
 
@@ -415,7 +419,7 @@ function toggleDualView(enabled) {
       }
   }
 
-  applyLayout();
+  applyLayout(currentIndex);
   createNavigationUI(); // Re-render UI to show/hide Adjust button
 }
 
@@ -450,7 +454,9 @@ function init() {
     if (!img.complete) {
       img.addEventListener('load', () => {
          if (resizeReq) cancelAnimationFrame(resizeReq);
-         resizeReq = requestAnimationFrame(applyLayout);
+         const currentImgs = getImages();
+         const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+         resizeReq = requestAnimationFrame(() => applyLayout(currentIndex));
       });
     }
   });
@@ -467,8 +473,13 @@ function init() {
   
   window.addEventListener('resize', () => {
     if (!isEnabled) return;
+    
+    // Capture index IMMEDIATELY when resize starts, before any layout shifts
+    const currentImgs = getImages();
+    const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+
     if (resizeReq) cancelAnimationFrame(resizeReq);
-    resizeReq = requestAnimationFrame(applyLayout);
+    resizeReq = requestAnimationFrame(() => applyLayout(currentIndex));
   });
   /** @type {number | undefined} */
   let scrollReq;
