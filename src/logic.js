@@ -67,8 +67,10 @@ export function getImageElementByIndex(imgs, index) {
 }
 
 /**
- * Cleanup DOM: remove wrappers and reset image styles
+ * Cleanup DOM: remove wrappers and reset image styles.
+ * Returns the list of images in their current DOM order.
  * @param {HTMLElement} container
+ * @returns {Array<HTMLImageElement>}
  */
 export function cleanupDOM(container) {
   const allImages = Array.from(container.querySelectorAll('img'));
@@ -78,8 +80,9 @@ export function cleanupDOM(container) {
   
   allImages.forEach(img => {
     img.style.cssText = '';
-    container.appendChild(img);
   });
+  
+  return allImages;
 }
 
 /**
@@ -89,8 +92,8 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
   const container = document.querySelector(containerSelector);
   if (!container) return;
 
-  // Cleanup first to avoid DOM pollution
-  cleanupDOM(container);
+  // Cleanup first and get images
+  const allImages = cleanupDOM(container);
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -99,8 +102,6 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
     display: 'flex', flexDirection: 'column', alignItems: 'center',
     padding: '0', margin: '0', width: '100%', maxWidth: 'none'
   });
-
-  const allImages = Array.from(container.querySelectorAll('img'));
 
   for (let i = 0; i < allImages.length; i++) {
     const img = allImages[i];

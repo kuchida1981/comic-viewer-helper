@@ -215,9 +215,8 @@ describe('logic.js', () => {
       // Filter only images and wrappers
       const relevantCalls = calls.filter(c => images.includes(c) || c.tagName === 'DIV');
       
-      // The first 4 calls are from cleanupDOM (img0, img1, img2, img3)
-      // The subsequent calls are from fitImagesToViewport (img0, img1, row)
-      const finalCalls = relevantCalls.slice(images.length);
+      // Since cleanupDOM no longer appends images, all calls are from fitImagesToViewport loop
+      const finalCalls = relevantCalls;
       
       expect(finalCalls.length).toBe(3);
       expect(finalCalls[0]).toBe(images[0]);

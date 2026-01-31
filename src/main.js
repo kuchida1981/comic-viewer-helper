@@ -401,7 +401,7 @@ function init() {
   });
   
   if (isEnabled) {
-    fitImagesToViewport(CONTAINER_SELECTOR, -1, isDualViewEnabled);
+    fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
   }
   
   createNavigationUI();

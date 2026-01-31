@@ -52,13 +52,13 @@
     wrappers.forEach((w) => w.remove());
     allImages.forEach((img) => {
       img.style.cssText = "";
-      container.appendChild(img);
     });
+    return allImages;
   }
   function fitImagesToViewport(containerSelector, spreadOffset2 = 0, isDualViewEnabled2 = false) {
     const container = document.querySelector(containerSelector);
     if (!container) return;
-    cleanupDOM(container);
+    const allImages = cleanupDOM(container);
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     Object.assign(container.style, {
@@ -70,7 +70,6 @@
       width: "100%",
       maxWidth: "none"
     });
-    const allImages = Array.from(container.querySelectorAll("img"));
     for (let i = 0; i < allImages.length; i++) {
       const img = allImages[i];
       const isLandscape = img.naturalWidth > img.naturalHeight;
@@ -527,7 +526,7 @@
       }
     });
     if (isEnabled) {
-      fitImagesToViewport(CONTAINER_SELECTOR, -1, isDualViewEnabled);
+      fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
     }
     createNavigationUI();
     if (isEnabled) {
