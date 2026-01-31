@@ -202,20 +202,17 @@
     let targetIndex = currentIndex + direction;
     if (targetIndex < 0) targetIndex = 0;
     if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
-    const targetImg = imgs[targetIndex];
-    if (targetImg) {
-      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-        const currentImg = imgs[currentIndex];
-        if (currentImg && targetImg.parentElement === currentImg.parentElement && targetImg.parentElement.classList.contains("comic-row-wrapper")) {
-          targetIndex += direction;
-          if (targetIndex < 0) targetIndex = 0;
-          if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
-        }
+    const prospectiveTargetImg = imgs[targetIndex];
+    if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+      const currentImg = imgs[currentIndex];
+      if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement.classList.contains("comic-row-wrapper")) {
+        targetIndex += direction;
       }
-      const finalTarget = imgs[targetIndex];
-      if (finalTarget) {
-        finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+    }
+    const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
+    const finalTarget = imgs[finalIndex];
+    if (finalTarget) {
+      finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }
   function toggleActivation(enabled) {
