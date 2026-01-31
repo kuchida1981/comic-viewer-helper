@@ -152,6 +152,12 @@
     const wrappers = container.querySelectorAll(".comic-row-wrapper");
     wrappers.forEach((w) => w.remove());
   }
+  function getNavigationDirection(event, threshold = 50) {
+    if (Math.abs(event.deltaY) < threshold) {
+      return "none";
+    }
+    return event.deltaY > 0 ? "next" : "prev";
+  }
   console.log("Magazine Comic View Helper Loaded");
   const IMG_SELECTOR = "#post-comic img";
   const CONTAINER_SELECTOR = "#post-comic";
@@ -164,6 +170,9 @@
   let originalImages = [];
   let spreadOffset = 0;
   let currentVisibleIndex = 0;
+  let lastWheelTime = 0;
+  const WHEEL_THROTTLE_MS = 500;
+  const WHEEL_THRESHOLD = 50;
   function isInputField(target) {
     if (!(target instanceof HTMLElement)) return false;
     return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
@@ -195,6 +204,18 @@
       pageCounter.value = current.toString();
     }
     if (totalEl) totalEl.textContent = ` / ${total}`;
+  }
+  function handleWheel(e) {
+    if (!isEnabled) return;
+    const now = Date.now();
+    if (now - lastWheelTime < WHEEL_THROTTLE_MS) return;
+    const direction = getNavigationDirection(e, WHEEL_THRESHOLD);
+    if (direction === "none") return;
+    e.preventDefault();
+    lastWheelTime = now;
+    const step = isDualViewEnabled ? 2 : 1;
+    const nextIndex = direction === "next" ? currentVisibleIndex + step : currentVisibleIndex - step;
+    jumpToPage(nextIndex + 1);
   }
   function jumpToPage(pageNumber) {
     if (!pageCounter) return;
@@ -567,6 +588,7 @@
       if (scrollReq) cancelAnimationFrame(scrollReq);
       scrollReq = requestAnimationFrame(updatePageCounter);
     });
+    window.addEventListener("wheel", handleWheel, { passive: false });
     document.addEventListener("keydown", onKeyDown, true);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
