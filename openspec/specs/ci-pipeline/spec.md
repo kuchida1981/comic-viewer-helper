@@ -1,23 +1,20 @@
-# ci-pipeline Specification
+# ci-pipeline
 
 ## Purpose
-TBD - created by archiving change add-lint-and-ci. Update Purpose after archive.
+GitHub Actions を使用して、プルリクエストごとに自動的に品質チェック（テスト、Lint、型チェック、ビルド）を実行し、マージ前のコード品質を担保します。
+
 ## Requirements
+
 ### Requirement: 継続的インテグレーションによる品質保証
-システムは、プルリクエストの作成時または更新時に自動的に品質チェックを実行しなければならない。
+システムは、プルリクエストの作成時または更新時に、定義されたすべての品質チェックを自動的に実行しなければならない（SHALL）。
 
-#### Scenario: 全ての品質チェックの並列実行
-- **WHEN** `master` または `main` ブランチに対してプルリクエストが作成・更新される
-- **THEN** テスト、リンティング、ビルド成功の検証、**および型チェックとカバレッジ計測**が並列に実行されること
+#### Scenario: 全ての品質チェックの実行
+- **WHEN** ブランチに対してプルリクエストが作成・更新される
+- **THEN** ユニットテスト、リンティング、ビルド検証、型チェック、およびカバレッジ計測が実行されること
 
-### Requirement: CI Failure on Lint Error
-Lint チェックでエラー**または警告**が検出された場合、CI パイプラインは失敗ステータスを返さなければなりません（SHALL）。これにより、品質基準を満たさないコードのマージを防ぎます。
+### Requirement: チェック失敗時のマージブロック
+Lint エラー、警告、またはテストの失敗が検出された場合、CI パイプラインは失敗ステータスを返し、品質基準を満たさないコードのマージを阻止しなければならない（SHALL）。
 
-#### Scenario: Lint error or warning detected in PR
-- **WHEN** Pull Request のコードに Lint エラーまたは警告が含まれているとき
+#### Scenario: Lint エラーまたは警告の検出
+- **WHEN** コードに Lint エラーまたは警告が含まれている
 - **THEN** GitHub Actions のジョブが失敗（Failure）としてマークされること
-
-#### Scenario: Clean code in PR
-- **WHEN** Pull Request のコードに Lint エラーがないとき
-- **THEN** GitHub Actions のジョブが成功（Success）としてマークされること
-
