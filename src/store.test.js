@@ -82,4 +82,24 @@ describe('Store', () => {
 
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it('should return null if guiPos JSON is invalid', () => {
+    localStorage.setItem(STORAGE_KEYS.GUI_POS, 'invalid-json');
+    const store = new Store();
+    expect(store.getState().guiPos).toBeNull();
+  });
+
+  it('should handle partial state updates correctly', () => {
+    const store = new Store();
+    store.setState({ enabled: false });
+    expect(store.getState().enabled).toBe(false);
+    expect(store.getState().isDualViewEnabled).toBe(false); // remained default
+  });
+
+  it('should persist guiPos when updated', () => {
+    const store = new Store();
+    const pos = { top: 50, left: 50 };
+    store.setState({ guiPos: pos });
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.GUI_POS))).toEqual(pos);
+  });
 });

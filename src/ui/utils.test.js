@@ -33,7 +33,14 @@ describe('ui/utils.js', () => {
 
   it('should handle input specific options', () => {
     const input = /** @type {HTMLInputElement} */ (createElement('input', { type: 'checkbox', checked: true }));
-    expect(input.type).toBe('checkbox');
-    expect(input.checked).toBe(true);
-  });
-});
+        expect(input.type).toBe('checkbox');
+        expect(input.checked).toBe(true);
+      });
+    
+      it('should set attributes', () => {
+        const el = createElement('div', { attributes: { 'data-test': 'value', 'aria-label': 'test' } });
+        expect(el.getAttribute('data-test')).toBe('value');
+        expect(el.getAttribute('aria-label')).toBe('test');
+      });
+    });
+    
