@@ -7,7 +7,7 @@
     "test": "vitest run --coverage",
     "check-types": "tsc",
     "build": "vite build && cat src/header.js dist/comic-viewer-helper.user.js > dist/comic-viewer-helper.user.js.tmp && mv dist/comic-viewer-helper.user.js.tmp dist/comic-viewer-helper.user.js",
-    "lint": "eslint src/*.js --max-warnings 0"
+    "lint": "eslint src --max-warnings 0"
   },
   "repository": {
     "type": "git",
