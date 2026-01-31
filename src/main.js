@@ -384,6 +384,24 @@ function onKeyDown(e) {
 }
 
 /**
+ * Applies the layout (fitting images to viewport) and restores the scroll position.
+ */
+function applyLayout() {
+  if (!isEnabled) return;
+  const currentImgs = getImages();
+  const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+  
+  fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
+  updatePageCounter();
+  
+  if (currentIndex !== -1) {
+    const newImgs = getImages();
+    const targetImg = newImgs[currentIndex];
+    if (targetImg) targetImg.scrollIntoView({ block: 'center' });
+  }
+}
+
+/**
  * @param {boolean} enabled 
  */
 function toggleDualView(enabled) {
@@ -397,15 +415,8 @@ function toggleDualView(enabled) {
       }
   }
 
-  fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-  updatePageCounter();
+  applyLayout();
   createNavigationUI(); // Re-render UI to show/hide Adjust button
-
-  if (currentIndex !== -1) {
-    const imgs = getImages();
-    const targetImg = imgs[currentIndex];
-    if (targetImg) targetImg.scrollIntoView({ block: 'center' });
-  }
 }
 
 /**
@@ -439,11 +450,7 @@ function init() {
     if (!img.complete) {
       img.addEventListener('load', () => {
          if (resizeReq) cancelAnimationFrame(resizeReq);
-         resizeReq = requestAnimationFrame(() => { 
-             if (isEnabled) {
-               fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled); updatePageCounter(); 
-             }
-         });
+         resizeReq = requestAnimationFrame(applyLayout);
       });
     }
   });
@@ -461,10 +468,7 @@ function init() {
   window.addEventListener('resize', () => {
     if (!isEnabled) return;
     if (resizeReq) cancelAnimationFrame(resizeReq);
-    resizeReq = requestAnimationFrame(() => { 
-        fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled); 
-        updatePageCounter(); 
-    });
+    resizeReq = requestAnimationFrame(applyLayout);
   });
   /** @type {number | undefined} */
   let scrollReq;

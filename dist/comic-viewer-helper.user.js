@@ -487,6 +487,18 @@
       toggleDualView(newState);
     }
   }
+  function applyLayout() {
+    if (!isEnabled) return;
+    const currentImgs = getImages();
+    const currentIndex = getPrimaryVisibleImageIndex(currentImgs, window.innerHeight);
+    fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
+    updatePageCounter();
+    if (currentIndex !== -1) {
+      const newImgs = getImages();
+      const targetImg = newImgs[currentIndex];
+      if (targetImg) targetImg.scrollIntoView({ block: "center" });
+    }
+  }
   function toggleDualView(enabled) {
     const currentIndex = getPrimaryVisibleImageIndex(getImages(), window.innerHeight);
     isDualViewEnabled = enabled;
@@ -496,14 +508,8 @@
         spreadOffset = currentIndex % 2;
       }
     }
-    fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-    updatePageCounter();
+    applyLayout();
     createNavigationUI();
-    if (currentIndex !== -1) {
-      const imgs = getImages();
-      const targetImg = imgs[currentIndex];
-      if (targetImg) targetImg.scrollIntoView({ block: "center" });
-    }
   }
   function saveGUIPosition(top, left) {
     localStorage.setItem(STORAGE_KEY_GUI_POS, JSON.stringify({ top, left }));
@@ -534,12 +540,7 @@
       if (!img.complete) {
         img.addEventListener("load", () => {
           if (resizeReq) cancelAnimationFrame(resizeReq);
-          resizeReq = requestAnimationFrame(() => {
-            if (isEnabled) {
-              fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-              updatePageCounter();
-            }
-          });
+          resizeReq = requestAnimationFrame(applyLayout);
         });
       }
     });
@@ -553,10 +554,7 @@
     window.addEventListener("resize", () => {
       if (!isEnabled) return;
       if (resizeReq) cancelAnimationFrame(resizeReq);
-      resizeReq = requestAnimationFrame(() => {
-        fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-        updatePageCounter();
-      });
+      resizeReq = requestAnimationFrame(applyLayout);
     });
     let scrollReq;
     window.addEventListener("scroll", () => {
