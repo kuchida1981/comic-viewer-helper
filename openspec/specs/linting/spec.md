@@ -1,26 +1,27 @@
-# linting Specification
+# linting
 
 ## Purpose
-TBD - created by archiving change add-lint-and-ci. Update Purpose after archive.
-## Requirements
-### Requirement: Static Code Analysis
-システムは、開発者が書いたコードに対して静的解析（Linting）を実行できる環境を提供しなければなりません（SHALL）。
+ソースコードの静的解析（ESLint）を通じて、構文エラーの防止とコードスタイルの統一を自動化します。
 
-#### Scenario: Verify syntax and basic rules
+## Requirements
+
+### Requirement: 静的解析の実施
+システムは、開発者が書いたコードに対して静的解析（Linting）を実行できる環境を提供しなければならない（SHALL）。
+
+#### Scenario: 構文および基本ルールの検証
 - **WHEN** 開発者が `npm run lint` コマンドを実行したとき
 - **THEN** 構文エラーや未定義変数の使用などの問題が検出され、コンソールに報告されること
 
-### Requirement: UserScript Global Variables
-Lintルールは、Tampermonkey固有のグローバル変数（`GM_setValue`, `GM_xmlhttpRequest` など）およびブラウザ標準のグローバル変数（`window`, `document` など）を正当なものとして認識しなければなりません（SHALL）。
+### Requirement: UserScript グローバル変数の許容
+Lintルールは、Tampermonkey 固有のグローバル変数およびブラウザ標準のグローバル変数を正当なものとして認識しなければならない（SHALL）。
 
-#### Scenario: Use of GM functions
-- **WHEN** コード内で `GM_setValue` などのTampermonkey関数を使用しているとき
-- **THEN** Lintツールはそれを「未定義変数」としてエラー報告しないこと
+#### Scenario: GM関数の使用
+- **WHEN** コード内で `GM_setValue` などの関数を使用しているとき
+- **THEN** Lintツールはエラーを報告しないこと
 
-### Requirement: 静的解析によるコード品質の維持
-システムは、ESLint を使用してソースコードの構文およびスタイルを自動的に検証しなければならない。
+### Requirement: 警告の厳格な処理
+システムは、Lint の警告（Warning）もエラーとして扱い、ビルドや CI を失敗させなければならない（SHALL）。
 
 #### Scenario: 警告が存在する場合の失敗
-- **WHEN** ソースコードに Lint 警告（未使用変数など）が含まれている状態で `npm run lint` を実行する
-- **THEN** コマンドは終了コード 非 0 で終了し、エラーとして報告されること
-
+- **WHEN** ソースコードに Lint 警告が含まれている状態で `npm run lint` を実行する
+- **THEN** コマンドは終了コード 非 0 で終了すること
