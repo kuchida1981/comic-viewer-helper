@@ -212,9 +212,11 @@
     if (now - lastWheelTime < WHEEL_THROTTLE_MS) return;
     const direction = getNavigationDirection(e, WHEEL_THRESHOLD);
     if (direction === "none") return;
+    const imgs = getImages();
+    if (imgs.length === 0) return;
     lastWheelTime = now;
     const step = isDualViewEnabled ? 2 : 1;
-    const nextIndex = direction === "next" ? currentVisibleIndex + step : currentVisibleIndex - step;
+    const nextIndex = direction === "next" ? Math.min(currentVisibleIndex + step, imgs.length - 1) : Math.max(currentVisibleIndex - step, 0);
     jumpToPage(nextIndex + 1);
   }
   function jumpToPage(pageNumber) {
