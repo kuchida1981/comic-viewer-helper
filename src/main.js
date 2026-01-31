@@ -52,6 +52,8 @@ class App {
     this.counterComp = null;
     /** @type {ReturnType<typeof createSpreadControls> | null} */
     this.spreadComp = null;
+    /** @type {Draggable | null} */
+    this.draggable = null;
 
     this.init = this.init.bind(this);
     this.handleWheel = this.handleWheel.bind(this);
@@ -234,7 +236,7 @@ class App {
           right: 'auto' 
         });
       }
-      new Draggable(container, {
+      this.draggable = new Draggable(container, {
         onDragEnd: (/** @type {number} */ top, /** @type {number} */ left) => this.store.setState({ guiPos: { top, left } })
       });
       document.body.appendChild(container);
@@ -359,9 +361,15 @@ class App {
     this.updateUI();
 
     window.addEventListener('resize', () => {
-      if (!this.store.getState().enabled) return;
+      const { enabled, currentVisibleIndex } = this.store.getState();
+      
+      if (this.draggable) {
+        const { top, left } = this.draggable.clampToViewport();
+        this.store.setState({ guiPos: { top, left } });
+      }
+
+      if (!enabled) return;
       if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
-      const { currentVisibleIndex } = this.store.getState();
       this.resizeReq = requestAnimationFrame(() => this.applyLayout(currentVisibleIndex));
     });
 

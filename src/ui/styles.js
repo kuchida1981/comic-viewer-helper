@@ -16,6 +16,12 @@ export const styles = `
     align-items: center;
     white-space: nowrap;
     width: max-content;
+    opacity: 0.3;
+    transition: opacity 0.3s;
+  }
+
+  #comic-helper-ui:hover {
+    opacity: 1.0;
   }
 
   .comic-helper-button {

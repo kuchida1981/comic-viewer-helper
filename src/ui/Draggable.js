@@ -9,7 +9,7 @@ export class Draggable {
    */
   constructor(element, options = {}) {
     this.element = element;
-    this.onDragEnd = options.onDragEnd;
+    this.onDragEnd = options.onDragEnd || (() => {});
     
     this.isDragging = false;
     this.dragStartX = 0;
@@ -53,6 +53,36 @@ export class Draggable {
   }
 
   /**
+   * Clamp the element's position to keep it within the viewport
+   * @returns {{top: number, left: number}} The clamped position
+   */
+  clampToViewport() {
+    const rect = this.element.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const padding = 10;
+
+    let top = rect.top;
+    let left = rect.left;
+
+    // Boundary checks
+    const maxTop = vh - rect.height - padding;
+    const maxLeft = vw - rect.width - padding;
+
+    top = Math.max(padding, Math.min(top, maxTop));
+    left = Math.max(padding, Math.min(left, maxLeft));
+
+    Object.assign(this.element.style, {
+      top: `${top}px`,
+      left: `${left}px`,
+      bottom: 'auto',
+      right: 'auto'
+    });
+
+    return { top, left };
+  }
+
+  /**
    * @param {MouseEvent} e 
    */
   _onMouseMove(e) {
@@ -61,6 +91,7 @@ export class Draggable {
     const deltaY = e.clientY - this.dragStartY;
     this.element.style.top = `${this.initialTop + deltaY}px`;
     this.element.style.left = `${this.initialLeft + deltaX}px`;
+    this.clampToViewport();
   }
 
   _onMouseUp() {
@@ -69,10 +100,8 @@ export class Draggable {
     document.removeEventListener('mousemove', this._onMouseMove);
     document.removeEventListener('mouseup', this._onMouseUp);
 
-    if (this.onDragEnd) {
-      const rect = this.element.getBoundingClientRect();
-      this.onDragEnd(rect.top, rect.left);
-    }
+    const { top, left } = this.clampToViewport();
+    this.onDragEnd(top, left);
   }
 
   destroy() {
