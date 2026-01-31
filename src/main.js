@@ -48,28 +48,7 @@ function getImages() {
   return /** @type {HTMLImageElement[]} */ (Array.from(document.querySelectorAll(IMG_SELECTOR)));
 }
 
-/**
- * @returns {number}
- */
-function getCurrentPageIndex() {
-  const imgs = getImages();
-  if (imgs.length === 0) return -1;
-  const windowHeight = window.innerHeight;
-  const centerLine = windowHeight / 2;
-  let currentIndex = imgs.findIndex(img => {
-    const rect = img.getBoundingClientRect();
-    return rect.top <= centerLine && rect.bottom >= centerLine;
-  });
-  if (currentIndex === -1) {
-     currentIndex = imgs.findIndex(img => {
-       const rect = img.getBoundingClientRect();
-       return rect.bottom > 0 && rect.top < windowHeight;
-     });
-  }
-  return currentIndex;
-}
-
-  function updatePageCounter() {
+function updatePageCounter() {
     if (!isEnabled) return;
     if (!pageCounter) return;
     const imgs = getImages();
