@@ -307,7 +307,10 @@
         cursor: "move",
         userSelect: "none",
         touchAction: "none",
-        alignItems: "center"
+        alignItems: "center",
+        whiteSpace: "nowrap",
+        flexWrap: "nowrap",
+        width: "max-content"
       });
       const savedPos = loadGUIPosition();
       if (savedPos) {
