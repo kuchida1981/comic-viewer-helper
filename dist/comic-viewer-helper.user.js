@@ -172,7 +172,7 @@
   let currentVisibleIndex = 0;
   let lastWheelTime = 0;
   const WHEEL_THROTTLE_MS = 500;
-  const WHEEL_THRESHOLD = 50;
+  const WHEEL_THRESHOLD = 1;
   function isInputField(target) {
     if (!(target instanceof HTMLElement)) return false;
     return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;

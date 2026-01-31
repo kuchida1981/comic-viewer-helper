@@ -28,7 +28,7 @@ let spreadOffset = 0;
 let currentVisibleIndex = 0;
 let lastWheelTime = 0;
 const WHEEL_THROTTLE_MS = 500;
-const WHEEL_THRESHOLD = 50;
+const WHEEL_THRESHOLD = 1;
 
 /**
  * @param {EventTarget | null} target 
