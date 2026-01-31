@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport } from './logic';
 
 describe('logic.js', () => {
   describe('calculateVisibleHeight', () => {
@@ -31,31 +31,21 @@ describe('logic.js', () => {
 
   describe('shouldPairWithNext', () => {
     it('should return true for normal dual view pairing', () => {
-      const current = { isLandscape: false, index: 0 };
-      const next = { isLandscape: false, index: 1 };
-      const options = { isDualViewEnabled: true, alignmentIndex: -1 };
-      expect(shouldPairWithNext(current, next, options)).toBe(true);
+      const current = { isLandscape: false };
+      const next = { isLandscape: false };
+      expect(shouldPairWithNext(current, next, true)).toBe(true);
     });
 
     it('should return false if dual view is disabled', () => {
-      const current = { isLandscape: false, index: 0 };
-      const next = { isLandscape: false, index: 1 };
-      const options = { isDualViewEnabled: false, alignmentIndex: -1 };
-      expect(shouldPairWithNext(current, next, options)).toBe(false);
+      const current = { isLandscape: false };
+      const next = { isLandscape: false };
+      expect(shouldPairWithNext(current, next, false)).toBe(false);
     });
 
     it('should return false if current is landscape', () => {
-      const current = { isLandscape: true, index: 0 };
-      const next = { isLandscape: false, index: 1 };
-      const options = { isDualViewEnabled: true, alignmentIndex: -1 };
-      expect(shouldPairWithNext(current, next, options)).toBe(false);
-    });
-
-    it('should return false if next is alignment target', () => {
-      const current = { isLandscape: false, index: 0 };
-      const next = { isLandscape: false, index: 1 };
-      const options = { isDualViewEnabled: true, alignmentIndex: 1 };
-      expect(shouldPairWithNext(current, next, options)).toBe(false);
+      const current = { isLandscape: true };
+      const next = { isLandscape: false };
+      expect(shouldPairWithNext(current, next, true)).toBe(false);
     });
   });
 
@@ -150,5 +140,127 @@ describe('logic.js', () => {
       expect(container.appendChild).not.toHaveBeenCalled();
     });
   });
-});
 
+  describe('fitImagesToViewport', () => {
+    let container;
+    let images;
+    let createdElements = [];
+
+    beforeEach(() => {
+      createdElements = [];
+      images = Array.from({ length: 4 }, (_, i) => ({
+        id: `img${i}`,
+        naturalWidth: 100,
+        naturalHeight: 200,
+        style: {},
+        remove: vi.fn()
+      }));
+
+      container = {
+        style: {},
+        appendChild: vi.fn(),
+        querySelectorAll: vi.fn().mockImplementation((selector) => {
+          if (selector === 'img') return images;
+          if (selector === '.comic-row-wrapper') return [];
+          return [];
+        })
+      };
+
+      vi.stubGlobal('document', {
+        querySelector: vi.fn().mockReturnValue(container),
+        createElement: vi.fn().mockImplementation((tag) => {
+          const el = { 
+            tagName: tag.toUpperCase(), 
+            style: {}, 
+            appendChild: vi.fn(), 
+            className: '' 
+          };
+          createdElements.push(el);
+          return el;
+        })
+      });
+      vi.stubGlobal('window', { innerWidth: 1000, innerHeight: 1000 });
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('should pair 0-1 and 2-3 when offset is 0', () => {
+      fitImagesToViewport('#container', 0, true);
+      
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(2);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[1]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[2]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[3]);
+    });
+
+    it('should maintain global order even when some images are paired and some are solo', () => {
+      // Image 1 is landscape
+      images[1].naturalWidth = 500;
+      images[1].naturalHeight = 100;
+
+      // Logic with offset 0:
+      // i=0: [0] solo (since next is landscape)
+      // i=1: [1] solo (landscape)
+      // i=2: [2-3] pair
+      
+      fitImagesToViewport('#container', 0, true);
+
+      // Check the order of appendChild calls on container
+      const calls = container.appendChild.mock.calls.map(call => call[0]);
+      
+      // Filter only images and wrappers
+      const relevantCalls = calls.filter(c => images.includes(c) || c.tagName === 'DIV');
+      
+      // Since cleanupDOM no longer appends images, all calls are from fitImagesToViewport loop
+      const finalCalls = relevantCalls;
+      
+      expect(finalCalls.length).toBe(3);
+      expect(finalCalls[0]).toBe(images[0]);
+      expect(finalCalls[1]).toBe(images[1]);
+      expect(finalCalls[2].tagName).toBe('DIV'); // The row containing 2 and 3
+    });
+
+    it('should correctly handle multiple landscape images', () => {
+      // 0:P, 1:L, 2:L, 3:P
+      images[1].naturalWidth = 500; images[1].naturalHeight = 100;
+      images[2].naturalWidth = 500; images[2].naturalHeight = 100;
+
+      fitImagesToViewport('#container', 0, true);
+      // Expected: 0(solo), 1(solo), 2(solo), 3(solo) - no pairs possible
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(0);
+    });
+
+    it('should pair correctly with offset 1 and odd number of images', () => {
+      // Images: 0:P, 1:P, 2:P (total 3)
+      const threeImages = images.slice(0, 3);
+      container.querySelectorAll.mockImplementation((selector) => {
+        if (selector === 'img') return threeImages;
+        return [];
+      });
+
+      fitImagesToViewport('#container', 1, true);
+      // Expected: 0 solo, 1-2 pair
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(1);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(threeImages[1]);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(threeImages[2]);
+    });
+
+    it('should call cleanupDOM (remove wrappers)', () => {
+      const existingWrapper = { remove: vi.fn() };
+      container.querySelectorAll.mockImplementation((selector) => {
+        if (selector === '.comic-row-wrapper') return [existingWrapper];
+        if (selector === 'img') return images;
+        return [];
+      });
+
+      fitImagesToViewport('#container', 0, true);
+      expect(existingWrapper.remove).toHaveBeenCalled();
+    });
+  });
+});
