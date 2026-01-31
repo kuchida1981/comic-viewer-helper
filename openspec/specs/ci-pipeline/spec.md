@@ -3,12 +3,12 @@
 ## Purpose
 TBD - created by archiving change add-lint-and-ci. Update Purpose after archive.
 ## Requirements
-### Requirement: Automated Lint Check on Pull Request
-システムは、Pull Request が作成・更新されたときに、自動的に Lint チェックを実行しなければなりません（SHALL）。
+### Requirement: 継続的インテグレーションによる品質保証
+システムは、プルリクエストの作成時または更新時に自動的に品質チェックを実行しなければならない。
 
-#### Scenario: Pull Request creation or update
-- **WHEN** 開発者が Pull Request を作成、または既存の PR に対してコミットをプッシュしたとき
-- **THEN** GitHub Actions ワークフローが起動し、その PR の変更に対して Lint ジョブを実行すること
+#### Scenario: 全ての品質チェックの並列実行
+- **WHEN** `master` または `main` ブランチに対してプルリクエストが作成・更新される
+- **THEN** テスト、リンティング、および**ビルド成功の検証**が並列に実行されること
 
 ### Requirement: CI Failure on Lint Error
 Lint チェックでエラーが検出された場合、CI パイプラインは失敗ステータスを返さなければなりません（SHALL）。これにより、品質基準を満たさないコードのマージを防ぎます。
