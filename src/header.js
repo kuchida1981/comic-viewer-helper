@@ -5,6 +5,8 @@
 // @description  A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @match        https://something/magazine/*
 // @match        https://something/fanzine/*
+// @updateURL    https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
+// @downloadURL  https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==

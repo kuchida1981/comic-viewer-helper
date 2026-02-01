@@ -1,22 +1,17 @@
 # Magazine Comic Viewer Helper
 
-A Tampermonkey/Greasemonkey user script for specific comic sites.
-It automatically fits images to the browser viewport and enables comfortable image-by-image scrolling.
+[![Stable Build](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml/badge.svg?branch=stable)](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml)
+[![Unstable Build](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml/badge.svg?branch=unstable)](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml)
 
-[日本語のREADMEはこちら](./README.ja.md)
-
-## Features
-
-*   **Fit Images to Viewport**: Automatically resizes images to fit the window width and height.
-*   **Image-by-Image Scrolling**: Smoothly scroll through images one by one using the keyboard or on-screen buttons.
-*   **Navigation UI**: Displays the current page number (image index) and navigation buttons at the bottom right of the screen.
-*   **Keyboard Shortcuts**: Easy operation using arrow keys or the space bar.
+A browser extension (UserScript) that enhances the reading experience on specific magazine/fanzine comic sites.
 
 ## Installation
 
-1.  Install a user script manager extension like [Tampermonkey](https://www.tampermonkey.net/) in your browser.
-2.  Install the script by opening the following link: [Install via Raw URL](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/release/dist/comic-viewer-helper.user.js).
-3.  The script will be automatically enabled when you visit supported sites.
+1. Install a UserScript manager like [Tampermonkey](https://www.tampermonkey.net/).
+2. Click the link below to install the script:
+   - **[Stable Version (Recommended)](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js)**
+   - **[Unstable Version (Latest Development)](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js)**
+
 
 ...
 
