@@ -3,6 +3,15 @@ import { Store, STORAGE_KEYS } from './store.js';
 
 describe('Store', () => {
   beforeEach(() => {
+    // Simple localStorage mock if not available in environment
+    const storage = {};
+    vi.stubGlobal('localStorage', {
+      getItem: (key) => storage[key] || null,
+      setItem: (key, value) => { storage[key] = String(value); },
+      clear: () => { Object.keys(storage).forEach(k => delete storage[k]); },
+      removeItem: (key) => { delete storage[key]; }
+    });
+
     localStorage.clear();
     // jsdom provides window and localStorage
     vi.stubGlobal('innerWidth', 1024);

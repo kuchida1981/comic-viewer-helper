@@ -1,4 +1,5 @@
 import { createElement } from '../utils.js';
+import { t } from '../../i18n.js';
 
 /**
  * @param {Object} props
@@ -11,7 +12,7 @@ export function createMetadataModal({ metadata, onClose }) {
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
     textContent: '×',
-    title: 'Close',
+    title: t('ui.close'),
     events: {
       click: (e) => {
         e.preventDefault();
@@ -35,7 +36,7 @@ export function createMetadataModal({ metadata, onClose }) {
   }));
 
   const tagSection = createElement('div', {}, [
-    createElement('div', { className: 'comic-helper-section-title', textContent: 'Tags' }),
+    createElement('div', { className: 'comic-helper-section-title', textContent: t('ui.tags') }),
     createElement('div', { className: 'comic-helper-tag-list' }, tagChips)
   ]);
 
@@ -60,7 +61,7 @@ export function createMetadataModal({ metadata, onClose }) {
   });
 
   const relatedSection = createElement('div', {}, [
-    createElement('div', { className: 'comic-helper-section-title', textContent: 'Related Works' }),
+    createElement('div', { className: 'comic-helper-section-title', textContent: t('ui.related') }),
     createElement('div', { className: 'comic-helper-related-grid' }, relatedItems)
   ]);
 

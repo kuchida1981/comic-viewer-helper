@@ -1,4 +1,5 @@
 import { createElement } from '../utils.js';
+import { t } from '../../i18n.js';
 
 /**
  * @param {Object} props
@@ -22,12 +23,12 @@ export function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) 
 
   const label = createElement('label', {
     className: 'comic-helper-label'
-  }, [checkbox, 'Spread']);
+  }, [checkbox, t('ui.spread')]);
 
   const createAdjustBtn = () => createElement('button', {
     className: 'comic-helper-adjust-btn',
-    textContent: 'Offset',
-    title: 'Shift spread pairing by 1 page (Offset)',
+    textContent: t('ui.offset'),
+    title: t('ui.shiftOffset'),
     events: {
       click: (e) => {
         e.preventDefault();
