@@ -1,9 +1,4 @@
-# ci-build-verification
-
-## Purpose
-CI環境上でビルドプロセスがエラーなく完了することを検証し、ユーザーに提供される成果物の整合性を自動的に保証します。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: CI環境でのビルド成功
 システムは、GitHub Actions などの CI パイプラインにおいて、プロジェクトのビルドプロセス（Vite によるビルドおよび UserScript ヘッダーの結合）がエラーなく完了することを保証しなければならない（SHALL）。生成された成果物において、UserScript ヘッダブロック（`// ==UserScript==` 〜 `// ==/UserScript==`）はファイルの先頭に唯一存在し、重複してはならない（SHALL）。
