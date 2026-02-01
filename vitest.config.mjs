@@ -1,6 +1,10 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify('1.2.0-test'),
+    __IS_UNSTABLE__: true,
+  },
   test: {
     environment: 'jsdom',
     globals: true,

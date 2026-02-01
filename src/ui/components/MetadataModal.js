@@ -65,12 +65,18 @@ export function createMetadataModal({ metadata, onClose }) {
     createElement('div', { className: 'comic-helper-related-grid' }, relatedItems)
   ]);
 
+  const versionTag = createElement('div', {
+    className: 'comic-helper-modal-version',
+    style: 'font-size: 11px; color: #888; margin-top: 15px; text-align: right; border-top: 1px solid #eee; padding-top: 5px;',
+    textContent: `${t('ui.version')}: v${__APP_VERSION__} (${__IS_UNSTABLE__ ? t('ui.unstable') : t('ui.stable')})`
+  });
+
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
     events: {
       click: (e) => e.stopPropagation()
     }
-  }, [closeBtn, titleEl, tagSection, relatedSection]);
+  }, [closeBtn, titleEl, tagSection, relatedSection, versionTag]);
 
   const overlay = createElement('div', {
     className: 'comic-helper-modal-overlay',

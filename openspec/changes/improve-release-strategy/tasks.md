@@ -1,14 +1,14 @@
 ## 1. ビルドプロセスの刷新
 
-- [ ] 1.1 `scripts/build.mjs` を作成し、`package.json` からのバージョン取得と `header.js` の動的置換ロジックを実装する
-- [ ] 1.2 `package.json` の `build` スクリプトを `node scripts/build.mjs` に更新する
-- [ ] 1.3 `vite.config.mjs` に `define` 設定を追加し、`__APP_VERSION__` と `__IS_UNSTABLE__` を注入可能にする
+- [x] 1.1 `scripts/build.mjs` を作成し、`package.json` からのバージョン取得と `header.js` の動的置換ロジックを実装する
+- [x] 1.2 `package.json` の `build` スクリプトを `node scripts/build.mjs` に更新する
+- [x] 1.3 `vite.config.mjs` に `define` 設定を追加し、`__APP_VERSION__` と `__IS_UNSTABLE__` を注入可能にする
 
 ## 2. UI 表示の改善
 
-- [ ] 2.1 `src/ui/components/MetadataModal.js` （または適切な場所）を修正し、バージョンとリリースタイプを表示するロジックを追加する
-- [ ] 2.2 多言語辞書 (`src/i18n.js`) にリリースタイプ表示用の文言（Stable/Unstable）を追加する
-- [ ] 2.3 `npm test` を実行し、UIコンポーネントのテストが正常にパスすることを確認する
+- [x] 2.1 `src/ui/components/MetadataModal.js` （または適切な場所）を修正し、バージョンとリリースタイプを表示するロジックを追加する
+- [x] 2.2 多言語辞書 (`src/i18n.js`) にリリースタイプ表示用の文言（Stable/Unstable）を追加する
+- [x] 2.3 `npm test` を実行し、UIコンポーネントのテストが正常にパスすることを確認する
 
 ## 3. GitHub Actions (CI/CD) の修正
 
