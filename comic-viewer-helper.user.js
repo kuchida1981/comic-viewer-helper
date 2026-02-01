@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         Magazine Comic Viewer Helper
 // @namespace    https://github.com/kuchida1981/comic-viewer-helper
-// @version      1.2.0-unstable.3371f70
+// @version      1.2.0-unstable.df2193e
 // @description  A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @match        https://something/magazine/*
 // @match        https://something/fanzine/*
-// @updateURL    https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
-// @downloadURL  https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
+// @updateURL    https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js
+// @downloadURL  https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js
 // @run-at       document-idle
 // @grant        none
 // ==/UserScript==
@@ -894,7 +894,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.2.0-unstable.3371f70"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.2.0-unstable.df2193e"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
