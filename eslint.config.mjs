@@ -26,6 +26,7 @@ export default [
     rules: {
       ...pluginUserscripts.configs.recommended.rules,
       "userscripts/filename-user": "off", // main.js という名前を許容
+      "userscripts/no-invalid-metadata": "off", // メタデータはビルド時に結合するため不要
     }
   },
   {
