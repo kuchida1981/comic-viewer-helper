@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/kuchida1981/comic-viewer-helper#readme",
   "devDependencies": {
+    "@fission-ai/openspec": "^1.1.1",
     "@types/greasemonkey": "^4.0.7",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
