@@ -9,12 +9,11 @@ vi.mock('../logic.js', () => ({
 vi.mock('../shortcuts.js', () => ({
   SHORTCUTS: [
     { id: 'nextPage', keys: ['ArrowRight'] },
-    { id: 'prevPage', keys: ['ArrowLeft'] },
+    { id: 'prevPage', keys: ['ArrowLeft', 'Shift+Space'] },
     { id: 'dualView', keys: ['d'] },
     { id: 'spreadOffset', keys: ['s'] },
     { id: 'metadata', keys: ['i'] },
-    { id: 'help', keys: ['?'] },
-    { id: 'shiftTest', keys: ['Shift+Space'] }
+    { id: 'help', keys: ['?'] }
   ]
 }));
 
@@ -134,12 +133,11 @@ describe('InputManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: false });
   });
 
-  it('onKeyDown should handle shift shortcuts', () => {
+  it('onKeyDown should handle shift shortcut for prevPage', () => {
     const event = { key: ' ', shiftKey: true, preventDefault: vi.fn(), target: document.body };
     inputManager.onKeyDown(/** @type {any} */ (event));
-    
-    const event2 = { key: 'Enter', shiftKey: true, preventDefault: vi.fn(), target: document.body };
-    inputManager.onKeyDown(/** @type {any} */ (event2));
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(navigator.scrollToImage).toHaveBeenCalledWith(-1);
   });
 
   it('onKeyDown should handle other metadata/help triggers', () => {
