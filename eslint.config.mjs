@@ -18,15 +18,14 @@ export default [
     }
   },
   {
-    // UserScript 固有のルールは main.js (エントリポイント) にのみ適用
-    files: ["src/main.js"],
+    // UserScript 固有のルールは header.js に適用
+    files: ["src/header.js"],
     plugins: {
       userscripts: pluginUserscripts,
     },
     rules: {
       ...pluginUserscripts.configs.recommended.rules,
-      "userscripts/filename-user": "off", // main.js という名前を許容
-      "userscripts/no-invalid-metadata": "off", // メタデータはビルド時に結合するため不要
+      "userscripts/filename-user": "off", // header.js という名前を許容
     }
   },
   {
