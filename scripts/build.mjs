@@ -8,7 +8,13 @@ let version = pkg.version;
 // 2. Append -unstable if requested
 const isUnstable = process.env.IS_UNSTABLE === 'true';
 if (isUnstable) {
-  version += '-unstable';
+  try {
+    const commitHash = execSync('git rev-parse --short HEAD').toString().trim();
+    version += `-unstable.${commitHash}`;
+  } catch (e) {
+    console.warn('Failed to get git commit hash, falling back to timestamp');
+    version += `-unstable.${Date.now()}`;
+  }
 }
 
 console.log(`Building version: ${version} (${isUnstable ? 'unstable' : 'stable'})`);
