@@ -7,6 +7,7 @@
 
 - [x] 2.1 `src/main.js` の `onKeyDown` ハンドラに `o` キーの処理を追加する
 - [x] 2.2 `o` キー押下時に `isDualViewEnabled` が true の場合のみ、`spreadOffset` をトグル（0 ↔ 1）する処理を実装する
+- [x] 2.3 `App` クラスに `toggleSpreadOffset` メソッドを追加し、既存のトグルロジックを統合する
 
 ## 3. 動作確認とテスト
 

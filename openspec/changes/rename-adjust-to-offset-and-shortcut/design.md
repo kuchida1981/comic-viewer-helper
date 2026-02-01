@@ -23,16 +23,19 @@
 ### 2. キーボードショートカット 'o' の追加
 - **Decision**: `src/main.js` の `onKeyDown` ハンドラに `o` キーの処理を追加する。
 - **Rationale**: 既存の `d` キー（Dual view toggle）と同様のパターンで実装することで、一貫性を保つ。
+
+### 3. ロジックの共通化
+- **Decision**: `App` クラスに `toggleSpreadOffset` メソッドを導入し、GUIボタンとショートカットキーの両方から呼び出すようにリファクタリングする。
+- **Rationale**: ロジックの重複を排除し、保守性を高めるため。
 - **Implementation**:
   ```javascript
-  } else if (e.key === 'o' && isDualViewEnabled) {
-    e.preventDefault();
+  toggleSpreadOffset() {
     const { spreadOffset } = this.store.getState();
     this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
   }
   ```
 
-### 3. Shortcut Activation Condition
+### 4. Shortcut Activation Condition
 - **Decision**: `o` キーのショートカットは `isDualViewEnabled: true` かつ `enabled: true` の時のみ有効とする。
 - **Rationale**: 単一ページ表示モードではオフセットの概念が存在しないため、誤操作を防ぐ。
 

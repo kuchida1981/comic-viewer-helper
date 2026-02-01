@@ -61,6 +61,7 @@ class App {
     this.init = this.init.bind(this);
     this.handleWheel = this.handleWheel.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
+    this.toggleSpreadOffset = this.toggleSpreadOffset.bind(this);
     this.updateUI = this.updateUI.bind(this);
     this.applyLayout = this.applyLayout.bind(this);
   }
@@ -82,6 +83,11 @@ class App {
       target instanceof HTMLSelectElement ||
       target.isContentEditable
     );
+  }
+
+  toggleSpreadOffset() {
+    const { spreadOffset } = this.store.getState();
+    this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
   }
 
   updatePageCounter() {
@@ -211,8 +217,7 @@ class App {
       this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
     } else if (e.key === 'o' && isDualViewEnabled) {
       e.preventDefault();
-      const { spreadOffset } = this.store.getState();
-      this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+      this.toggleSpreadOffset();
     }
   }
 
@@ -287,10 +292,7 @@ class App {
       this.spreadComp = createSpreadControls({
         isDualViewEnabled,
         onToggle: (/** @type {boolean} */ val) => this.store.setState({ isDualViewEnabled: val }),
-        onAdjust: () => {
-          const { spreadOffset } = this.store.getState();
-          this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-        }
+        onAdjust: this.toggleSpreadOffset
       });
       container.appendChild(this.spreadComp.el);
     }
