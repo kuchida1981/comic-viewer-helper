@@ -231,6 +231,57 @@ export const styles = `
     overflow: hidden;
     line-height: 1.4;
   }
+
+  /* Help Modal Styles */
+  .comic-helper-shortcut-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .comic-helper-shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #222;
+  }
+
+  .comic-helper-shortcut-keys {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    max-width: 40%;
+  }
+
+  .comic-helper-kbd {
+    background: #444;
+    border: 1px solid #555;
+    border-radius: 4px;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.2), 0 0 0 2px #333 inset;
+    color: #eee;
+    display: inline-block;
+    font-size: 11px;
+    font-family: monospace;
+    line-height: 1.4;
+    margin: 0 2px;
+    padding: 2px 6px;
+    white-space: nowrap;
+  }
+
+  .comic-helper-shortcut-label {
+    color: #eee;
+    font-size: 13px;
+    font-weight: bold;
+    flex: 1;
+    margin: 0 12px;
+  }
+
+  .comic-helper-shortcut-desc {
+    color: #bbb;
+    font-size: 13px;
+    flex: 1;
+  }
 `;
 
 /**

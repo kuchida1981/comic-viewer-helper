@@ -7,14 +7,16 @@ import { createElement } from '../utils.js';
  * @param {Function} props.onNext
  * @param {Function} props.onLast
  * @param {Function} props.onInfo
+ * @param {Function} props.onHelp
  */
-export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo }) {
+export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp }) {
   const configs = [
     { text: '<<', title: 'Go to First', action: onFirst },
     { text: '<', title: 'Go to Previous', action: onPrev },
     { text: '>', title: 'Go to Next', action: onNext },
     { text: '>>', title: 'Go to Last', action: onLast },
-    { text: 'Info', title: 'Show Metadata', action: onInfo }
+    { text: 'Info', title: 'Show Metadata', action: onInfo },
+    { text: '?', title: 'Show Help', action: onHelp }
   ];
 
   const elements = configs.map(cfg => createElement('button', {

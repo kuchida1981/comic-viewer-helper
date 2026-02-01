@@ -17,8 +17,10 @@ import { createPageCounter } from './ui/components/PageCounter.js';
 import { createSpreadControls } from './ui/components/SpreadControls.js';
 import { createNavigationButtons } from './ui/components/NavigationButtons.js';
 import { createMetadataModal } from './ui/components/MetadataModal.js';
+import { createHelpModal } from './ui/components/HelpModal.js';
 import { Draggable } from './ui/Draggable.js';
 import { createElement } from './ui/utils.js';
+import { SHORTCUTS } from './shortcuts.js';
 
 const CONTAINER_SELECTOR = '#post-comic';
 const IMG_SELECTOR = '#post-comic img';
@@ -57,6 +59,8 @@ class App {
     this.draggable = null;
     /** @type {HTMLElement | null} */
     this.modalEl = null;
+    /** @type {HTMLElement | null} */
+    this.helpModalEl = null;
 
     this.init = this.init.bind(this);
     this.handleWheel = this.handleWheel.bind(this);
@@ -169,8 +173,8 @@ class App {
    * @param {WheelEvent} e 
    */
   handleWheel(e) {
-    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
-    if (!enabled || isMetadataModalOpen) return;
+    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+    if (!enabled || isMetadataModalOpen || isHelpModalOpen) return;
 
     e.preventDefault();
     const now = Date.now();
@@ -196,28 +200,44 @@ class App {
    */
   onKeyDown(e) {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const { enabled, isDualViewEnabled, isMetadataModalOpen } = this.store.getState();
+    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
     
-    if (e.key === 'Escape' && isMetadataModalOpen) {
-      e.preventDefault();
-      this.store.setState({ isMetadataModalOpen: false });
-      return;
+    // Handle Escape for all modals
+    if (e.key === 'Escape') {
+      if (isMetadataModalOpen || isHelpModalOpen) {
+        e.preventDefault();
+        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
+        return;
+      }
     }
 
-    if (isMetadataModalOpen || !enabled) return;
+    if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
 
-    if (['ArrowDown', 'PageDown', 'ArrowRight', 'j'].includes(e.key) || (e.key === ' ' && !e.shiftKey)) {
+    // Helper function to check if a key matches a shortcut
+    /** @param {string} label */
+    const isKey = (label) => {
+      const sc = SHORTCUTS.find(s => s.label === label);
+      return sc ? sc.keys.includes(e.key) : false;
+    };
+
+    if (isKey('Next Page')) {
       e.preventDefault();
       this.scrollToImage(1);
-    } else if (['ArrowUp', 'PageUp', 'ArrowLeft', 'k'].includes(e.key) || (e.key === ' ' && e.shiftKey)) {
+    } else if (isKey('Prev Page')) {
       e.preventDefault();
       this.scrollToImage(-1);
-    } else if (e.key === 'd') {
+    } else if (isKey('Dual View')) {
       e.preventDefault();
       this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
-    } else if (e.key === 'o' && isDualViewEnabled) {
+    } else if (isKey('Spread Offset') && isDualViewEnabled) {
       e.preventDefault();
       this.toggleSpreadOffset();
+    } else if (isKey('Metadata')) {
+      e.preventDefault();
+      this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
+    } else if (isKey('Help')) {
+      e.preventDefault();
+      this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
     }
   }
 
@@ -303,13 +323,30 @@ class App {
         onPrev: () => this.scrollToImage(-1),
         onNext: () => this.scrollToImage(1),
         onLast: () => this.scrollToEdge('end'),
-        onInfo: () => this.store.setState({ isMetadataModalOpen: true })
+        onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
+        onHelp: () => this.store.setState({ isHelpModalOpen: true })
       });
       navBtns.elements.forEach(btn => container.appendChild(btn));
     }
 
+    // Handle Help Modal
+    const { isMetadataModalOpen, isHelpModalOpen, metadata } = state;
+    if (isHelpModalOpen) {
+      if (!this.helpModalEl) {
+        const modal = createHelpModal({
+          onClose: () => this.store.setState({ isHelpModalOpen: false })
+        });
+        this.helpModalEl = modal.el;
+        document.body.appendChild(this.helpModalEl);
+      }
+    } else {
+      if (this.helpModalEl) {
+        this.helpModalEl.remove();
+        this.helpModalEl = null;
+      }
+    }
+
     // Handle Metadata Modal
-    const { isMetadataModalOpen, metadata } = state;
     if (isMetadataModalOpen) {
       if (!this.modalEl) {
         const modal = createMetadataModal({

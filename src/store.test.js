@@ -26,7 +26,8 @@ describe('Store', () => {
         tags: [],
         relatedWorks: []
       },
-      isMetadataModalOpen: false
+      isMetadataModalOpen: false,
+      isHelpModalOpen: false
     });
   });
 
