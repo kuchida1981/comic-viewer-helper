@@ -1,7 +1,7 @@
 # ci-testing
 
 ## Purpose
-GitHub Actions を利用して、コードの品質管理および開発プロセスの検証を自動化します。
+GitHub Actions を利用して、コードの品質管理（ユニットテスト、リンティング）および開発プロセスの検証を自動化します。これにより、バグの早期発見と修正コストの削減を実現し、安定したリリースサイクルを維持することを目的とします。
 
 ## Requirements
 
@@ -17,4 +17,5 @@ GitHub Actions でのテスト（コードテストおよびプロセス検証�
 
 #### Scenario: テスト失敗の検知
 - **WHEN** コードの変更によりテストが失敗する、またはTODOが未完了である
-- **THEN** GitHub Actions のジョブが失敗し、GitHub 上で「Failed」ステータスが表示される
+- **THEN** GitHub Actions のジョブが失敗ステータスで終了する
+- **AND** GitHub 上でプルリクエストのマージがブロックされる

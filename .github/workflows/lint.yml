@@ -22,3 +22,6 @@ jobs:
 
       - name: Run lint
         run: npm run lint
+
+      - name: Validate OpenSpec documentation
+        run: npx openspec validate --strict --all
