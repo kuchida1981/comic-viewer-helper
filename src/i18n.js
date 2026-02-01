@@ -84,10 +84,18 @@ export function t(path) {
   let result = MESSAGES[currentLang];
   let fallback = MESSAGES['en'];
 
-  for (const key of keys) {
-    result = result ? result[key] : undefined;
-    fallback = fallback ? fallback[key] : undefined;
+    for (const key of keys) {
+
+      result = result ? result[key] : undefined;
+
+      fallback = fallback ? fallback[key] : undefined;
+
+    }
+
+  
+
+    return result ?? fallback ?? path;
+
   }
 
-  return result || fallback || path;
-}
+  

@@ -220,7 +220,14 @@ class App {
     /** @param {string} id */
     const isKey = (id) => {
       const sc = SHORTCUTS.find(s => s.id === id);
-      return sc ? sc.keys.includes(e.key) : false;
+      if (!sc) return false;
+      return sc.keys.some(k => {
+        if (k.startsWith('Shift+')) {
+          const baseKey = k.replace('Shift+', '');
+          return e.shiftKey && e.key === (baseKey === 'Space' ? ' ' : baseKey);
+        }
+        return !e.shiftKey && e.key === (k === 'Space' ? ' ' : k);
+      });
     };
 
     // Allow toggling help even if already open

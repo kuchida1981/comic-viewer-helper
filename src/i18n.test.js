@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { t } from './i18n.js';
 
 describe('i18n', () => {
   beforeEach(() => {
