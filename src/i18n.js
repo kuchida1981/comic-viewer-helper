@@ -1,3 +1,10 @@
+/**
+ * @typedef {Object} Dictionary
+ * @property {Record<string, string>} ui
+ * @property {Record<string, { label: string, desc: string, cond?: string }>} shortcuts
+ */
+
+/** @type {Record<string, Dictionary>} */
 export const MESSAGES = {
   en: {
     ui: {
@@ -81,21 +88,18 @@ const currentLang = getLanguage();
  */
 export function t(path) {
   const keys = path.split('.');
+  /** @type {any} */
   let result = MESSAGES[currentLang];
+  /** @type {any} */
   let fallback = MESSAGES['en'];
 
-    for (const key of keys) {
-
-      result = result ? result[key] : undefined;
-
-      fallback = fallback ? fallback[key] : undefined;
-
-    }
-
-  
-
-    return result ?? fallback ?? path;
-
+  for (const key of keys) {
+    result = result ? result[key] : undefined;
+    fallback = fallback ? fallback[key] : undefined;
   }
+
+  return result ?? fallback ?? path;
+}
+
 
   

@@ -38,8 +38,8 @@ describe('i18n', () => {
 
     // Check nested keys
     for (const topKey of enKeys) {
-      const enSubKeys = Object.keys(MESSAGES.en[topKey]);
-      const jaSubKeys = Object.keys(MESSAGES.ja[topKey]);
+      const enSubKeys = Object.keys((/** @type {any} */ (MESSAGES.en))[topKey]);
+      const jaSubKeys = Object.keys((/** @type {any} */ (MESSAGES.ja))[topKey]);
       expect(jaSubKeys).toEqual(expect.arrayContaining(enSubKeys));
       expect(enSubKeys).toEqual(expect.arrayContaining(jaSubKeys));
     }
