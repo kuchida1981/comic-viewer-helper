@@ -174,7 +174,12 @@ class App {
    */
   handleWheel(e) {
     const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-    if (!enabled || isMetadataModalOpen || isHelpModalOpen) return;
+    if (!enabled) return;
+    
+    if (isMetadataModalOpen || isHelpModalOpen) {
+      e.preventDefault();
+      return;
+    }
 
     e.preventDefault();
     const now = Date.now();
@@ -211,14 +216,21 @@ class App {
       }
     }
 
-    if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
-
     // Helper function to check if a key matches a shortcut
     /** @param {string} label */
     const isKey = (label) => {
       const sc = SHORTCUTS.find(s => s.label === label);
       return sc ? sc.keys.includes(e.key) : false;
     };
+
+    // Allow toggling help even if already open
+    if (isKey('Help') && isHelpModalOpen) {
+      e.preventDefault();
+      this.store.setState({ isHelpModalOpen: false });
+      return;
+    }
+
+    if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
 
     if (isKey('Next Page')) {
       e.preventDefault();
