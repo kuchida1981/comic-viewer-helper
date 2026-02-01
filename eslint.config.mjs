@@ -14,6 +14,8 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.greasemonkey,
+        __APP_VERSION__: "readonly",
+        __IS_UNSTABLE__: "readonly",
       }
     }
   },

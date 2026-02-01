@@ -1,8 +1,5 @@
-# ci-deployment Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change improve-build-artifact-management. Update Purpose after archive.
-## Requirements
 ### Requirement: 配布用ブランチへの自動デプロイ
 システムは、開発状況に応じた適切な配布用ブランチへ、ビルド成果物を自動的にデプロイしなければならない（SHALL）。
 
@@ -25,4 +22,3 @@ TBD - created by archiving change improve-build-artifact-management. Update Purp
 #### Scenario: 開発版のインストール
 - **WHEN** ユーザーが `unstable` ブランチの成果物の Raw URL にアクセスする
 - **THEN** 最新の開発版（`master` ブランチの最新状態）のスクリプトがインストールできる
-
