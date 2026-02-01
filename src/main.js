@@ -209,6 +209,10 @@ class App {
     } else if (e.key === 'd') {
       e.preventDefault();
       this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
+    } else if (e.key === 'o' && isDualViewEnabled) {
+      e.preventDefault();
+      const { spreadOffset } = this.store.getState();
+      this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
     }
   }
 

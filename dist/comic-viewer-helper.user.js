@@ -632,8 +632,8 @@
     }, [checkbox, "Spread"]);
     const createAdjustBtn = () => createElement("button", {
       className: "comic-helper-adjust-btn",
-      textContent: "Adjust",
-      title: "Adjust Spread Alignment",
+      textContent: "Offset",
+      title: "Shift spread pairing by 1 page (Offset)",
       events: {
         click: (e) => {
           e.preventDefault();
@@ -1001,6 +1001,10 @@
       } else if (e.key === "d") {
         e.preventDefault();
         this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
+      } else if (e.key === "o" && isDualViewEnabled) {
+        e.preventDefault();
+        const { spreadOffset } = this.store.getState();
+        this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
       }
     }
     /**

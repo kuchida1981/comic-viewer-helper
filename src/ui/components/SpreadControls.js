@@ -26,8 +26,8 @@ export function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) 
 
   const createAdjustBtn = () => createElement('button', {
     className: 'comic-helper-adjust-btn',
-    textContent: 'Adjust',
-    title: 'Adjust Spread Alignment',
+    textContent: 'Offset',
+    title: 'Shift spread pairing by 1 page (Offset)',
     events: {
       click: (e) => {
         e.preventDefault();
