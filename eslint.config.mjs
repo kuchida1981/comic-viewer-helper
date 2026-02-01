@@ -5,7 +5,7 @@ import pluginUserscripts from "eslint-plugin-userscripts";
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    ignores: ["comic-viewer-helper.user.js", "dist/*"],
+    ignores: ["comic-viewer-helper.user.js", "dist/*", "src/global.d.ts"],
   },
   {
     files: ["src/**/*.js"],
