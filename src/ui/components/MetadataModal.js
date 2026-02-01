@@ -67,7 +67,14 @@ export function createMetadataModal({ metadata, onClose }) {
 
   const versionTag = createElement('div', {
     className: 'comic-helper-modal-version',
-    style: 'font-size: 11px; color: #888; margin-top: 15px; text-align: right; border-top: 1px solid #eee; padding-top: 5px;',
+    style: {
+      fontSize: '11px',
+      color: '#888',
+      marginTop: '15px',
+      textAlign: 'right',
+      borderTop: '1px solid #eee',
+      paddingTop: '5px'
+    },
     textContent: `${t('ui.version')}: v${__APP_VERSION__} (${__IS_UNSTABLE__ ? t('ui.unstable') : t('ui.stable')})`
   });
 
