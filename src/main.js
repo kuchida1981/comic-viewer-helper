@@ -177,6 +177,10 @@ class App {
     if (!enabled) return;
     
     if (isMetadataModalOpen || isHelpModalOpen) {
+      const modalContent = document.querySelector('.comic-helper-modal-content');
+      if (modalContent && modalContent.contains(/** @type {Node} */ (e.target))) {
+        return;
+      }
       e.preventDefault();
       return;
     }

@@ -16,7 +16,7 @@ export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInf
     { text: '<', title: t('ui.goPrev'), action: onPrev },
     { text: '>', title: t('ui.goNext'), action: onNext },
     { text: '>>', title: t('ui.goLast'), action: onLast },
-    { text: t('ui.info'), title: t('ui.showMetadata'), action: onInfo },
+    { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
     { text: '?', title: t('ui.showHelp'), action: onHelp }
   ];
 

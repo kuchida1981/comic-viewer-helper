@@ -23,11 +23,11 @@ export function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) 
 
   const label = createElement('label', {
     className: 'comic-helper-label'
-  }, [checkbox, t('ui.spread')]);
+  }, [checkbox, 'Spread']);
 
   const createAdjustBtn = () => createElement('button', {
     className: 'comic-helper-adjust-btn',
-    textContent: t('ui.offset'),
+    textContent: 'Offset',
     title: t('ui.shiftOffset'),
     events: {
       click: (e) => {
