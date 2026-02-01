@@ -36,7 +36,8 @@ header = header.replace(/@version\s+.*/, `@version      ${version}`);
 
 if (isUnstable) {
   // Replace URLs pointing to stable branch with unstable branch
-  header = header.replace(/\/stable\//g, '/unstable/');
+  // Only target lines starting with @updateURL or @downloadURL
+  header = header.replace(/(\/\/\s*@(?:update|download)URL\s+.*\/)stable(\/.*)/g, '$1unstable$2');
 }
 
 // Warning message for the generated file
