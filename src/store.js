@@ -5,12 +5,22 @@ export const STORAGE_KEYS = {
 };
 
 /**
+ * @typedef {Object} Metadata
+ * @property {string} title
+ * @property {Array<{text: string, href: string}>} tags
+ * @property {Array<{title: string, href: string, thumb: string}>} relatedWorks
+ */
+
+/**
  * @typedef {Object} StoreState
  * @property {boolean} enabled
  * @property {boolean} isDualViewEnabled
  * @property {number} spreadOffset
  * @property {number} currentVisibleIndex
  * @property {{top: number, left: number} | null} guiPos
+ * @property {Metadata} metadata
+ * @property {boolean} isMetadataModalOpen
+ * @property {boolean} isHelpModalOpen
  */
 
 export class Store {
@@ -21,7 +31,14 @@ export class Store {
       isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === 'true',
       spreadOffset: 0,
       currentVisibleIndex: 0,
-      guiPos: this._loadGuiPos()
+      guiPos: this._loadGuiPos(),
+      metadata: {
+        title: '',
+        tags: [],
+        relatedWorks: []
+      },
+      isMetadataModalOpen: false,
+      isHelpModalOpen: false
     };
     /** @type {Function[]} */
     this.listeners = [];

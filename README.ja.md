@@ -1,19 +1,19 @@
 # Magazine Comic Viewer Helper
 
+[![Build Status](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml/badge.svg?branch=master)](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml)
+
 特定の漫画閲覧サイト向けのTampermonkey/Greasemonkey用ユーザースクリプトです。
 画像をブラウザのビューポートサイズに合わせて自動調整し、画像単位での快適なスクロール移動を可能にします。
 
 ## 主な機能
-
-*   **画像のビューポート適合**: 画像のサイズをウィンドウの幅・高さに合わせて自動的にリサイズします。
-*   **画像単位のスクロール**: キーボードや画面上のボタンで、画像ごとにスムーズにスクロール移動できます。
-*   **ナビゲーションUI**: 画面右下に現在のページ数（画像番号）と移動ボタンを表示します。
-*   **キーボードショートカット**: 矢印キーやスペースキーで手軽に操作可能です。
+... (省略) ...
 
 ## インストール方法
 
 1.  ブラウザに [Tampermonkey](https://www.tampermonkey.net/) などのユーザースクリプトマネージャー拡張機能をインストールします。
-2.  以下のリンクを開いて、スクリプトをインストールします：[Rawファイルからインストール](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/release/dist/comic-viewer-helper.user.js)
+2.  以下のいずれかのリンクを開いて、スクリプトをインストールします：
+    - **[安定版 (推奨)](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js)**
+    - **[開発版 (最新)](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js)**
 3.  対応するサイトにアクセスすると自動的に有効になります。
 
 ## 使い方
@@ -67,7 +67,7 @@
 ```bash
 npm run build
 ```
-※ `dist/` ディレクトリは Git の管理から除外されています。ビルド成果物は、masterブランチへのマージ時に GitHub Actions によって `release` ブランチへ自動的にデプロイされます。
+※ `dist/` ディレクトリは Git の管理から除外されています。ビルド成果物は、masterブランチへのプッシュ時に `unstable` ブランチへ、またバージョンタグのプッシュ時に `stable` ブランチへ GitHub Actions によって自動的にデプロイされます。
 
 ### テスト
 Vitest を使用してユニットテストを実行します（カバレッジレポートも生成されます）：

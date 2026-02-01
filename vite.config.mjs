@@ -16,6 +16,10 @@ export default defineConfig({
     emptyOutDir: true,
     minify: false,
   },
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.VITE_APP_VERSION || 'unknown'),
+    __IS_UNSTABLE__: process.env.VITE_IS_UNSTABLE === 'true',
+  },
   test: {
     environment: 'node',
     globals: true,

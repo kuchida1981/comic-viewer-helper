@@ -1,8 +1,14 @@
-.gemini/
-.clinerules/
-.cline/
-.agent/
+# AI Agent settings (Managed)
+!.gemini/
+.gemini/history/
+.gemini/tmp/
+!.agent/
+.agent/history/
+.agent/tmp/
+
+# Sensitive & Private
 .env
+out.md
 
 # Dependencies
 node_modules/

@@ -1,4 +1,5 @@
 import { createElement } from '../utils.js';
+import { t } from '../../i18n.js';
 
 /**
  * @param {Object} props
@@ -6,13 +7,17 @@ import { createElement } from '../utils.js';
  * @param {Function} props.onPrev
  * @param {Function} props.onNext
  * @param {Function} props.onLast
+ * @param {Function} props.onInfo
+ * @param {Function} props.onHelp
  */
-export function createNavigationButtons({ onFirst, onPrev, onNext, onLast }) {
+export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp }) {
   const configs = [
-    { text: '<<', title: 'Go to First', action: onFirst },
-    { text: '<', title: 'Go to Previous', action: onPrev },
-    { text: '>', title: 'Go to Next', action: onNext },
-    { text: '>>', title: 'Go to Last', action: onLast }
+    { text: '<<', title: t('ui.goFirst'), action: onFirst },
+    { text: '<', title: t('ui.goPrev'), action: onPrev },
+    { text: '>', title: t('ui.goNext'), action: onNext },
+    { text: '>>', title: t('ui.goLast'), action: onLast },
+    { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
+    { text: '?', title: t('ui.showHelp'), action: onHelp }
   ];
 
   const elements = configs.map(cfg => createElement('button', {

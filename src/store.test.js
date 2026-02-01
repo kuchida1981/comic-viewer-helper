@@ -3,6 +3,19 @@ import { Store, STORAGE_KEYS } from './store.js';
 
 describe('Store', () => {
   beforeEach(() => {
+    // Simple localStorage mock if not available in environment
+    /** @type {Record<string, string>} */
+    const storage = {};
+    vi.stubGlobal('localStorage', {
+      /** @param {string} key */
+      getItem: (key) => storage[key] || null,
+      /** @param {string} key @param {any} value */
+      setItem: (key, value) => { storage[key] = String(value); },
+      clear: () => { Object.keys(storage).forEach(k => delete storage[k]); },
+      /** @param {string} key */
+      removeItem: (key) => { delete storage[key]; }
+    });
+
     localStorage.clear();
     // jsdom provides window and localStorage
     vi.stubGlobal('innerWidth', 1024);
@@ -20,7 +33,14 @@ describe('Store', () => {
       isDualViewEnabled: false,
       spreadOffset: 0,
       currentVisibleIndex: 0,
-      guiPos: null
+      guiPos: null,
+      metadata: {
+        title: '',
+        tags: [],
+        relatedWorks: []
+      },
+      isMetadataModalOpen: false,
+      isHelpModalOpen: false
     });
   });
 

@@ -1,4 +1,5 @@
 import { createElement } from '../utils.js';
+import { t } from '../../i18n.js';
 
 /**
  * @param {Object} props
@@ -26,8 +27,8 @@ export function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) 
 
   const createAdjustBtn = () => createElement('button', {
     className: 'comic-helper-adjust-btn',
-    textContent: 'Adjust',
-    title: 'Adjust Spread Alignment',
+    textContent: 'Offset',
+    title: t('ui.shiftOffset'),
     events: {
       click: (e) => {
         e.preventDefault();

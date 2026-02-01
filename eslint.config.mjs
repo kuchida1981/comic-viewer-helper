@@ -5,7 +5,7 @@ import pluginUserscripts from "eslint-plugin-userscripts";
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    ignores: ["comic-viewer-helper.user.js", "dist/*"],
+    ignores: ["comic-viewer-helper.user.js", "dist/*", "src/global.d.ts"],
   },
   {
     files: ["src/**/*.js"],
@@ -14,18 +14,20 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.greasemonkey,
+        __APP_VERSION__: "readonly",
+        __IS_UNSTABLE__: "readonly",
       }
     }
   },
   {
-    // UserScript 固有のルールは main.js (エントリポイント) にのみ適用
-    files: ["src/main.js"],
+    // UserScript 固有のルールは header.js に適用
+    files: ["src/header.js"],
     plugins: {
       userscripts: pluginUserscripts,
     },
     rules: {
       ...pluginUserscripts.configs.recommended.rules,
-      "userscripts/filename-user": "off", // main.js という名前を許容
+      "userscripts/filename-user": "off", // header.js という名前を許容
     }
   },
   {

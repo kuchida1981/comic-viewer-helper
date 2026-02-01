@@ -1,23 +1,15 @@
-// ==UserScript==
-// @name         Magazine Comic Viewer Helper
-// @namespace    https://github.com/kuchida1981/comic-viewer-helper
-// @version      1.1.0
-// @description  A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
-// @match        https://something/magazine/*
-// @match        https://something/fanzine/*
-// @run-at       document-idle
-// @grant        none
-// ==/UserScript==
-
-import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, getNavigationDirection } from './logic.js';
+import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, getNavigationDirection, extractMetadata } from './logic.js';
 import { Store } from './store.js';
 import { injectStyles } from './ui/styles.js';
 import { createPowerButton } from './ui/components/PowerButton.js';
 import { createPageCounter } from './ui/components/PageCounter.js';
 import { createSpreadControls } from './ui/components/SpreadControls.js';
 import { createNavigationButtons } from './ui/components/NavigationButtons.js';
+import { createMetadataModal } from './ui/components/MetadataModal.js';
+import { createHelpModal } from './ui/components/HelpModal.js';
 import { Draggable } from './ui/Draggable.js';
 import { createElement } from './ui/utils.js';
+import { SHORTCUTS } from './shortcuts.js';
 
 const CONTAINER_SELECTOR = '#post-comic';
 const IMG_SELECTOR = '#post-comic img';
@@ -54,10 +46,15 @@ class App {
     this.spreadComp = null;
     /** @type {Draggable | null} */
     this.draggable = null;
+    /** @type {HTMLElement | null} */
+    this.modalEl = null;
+    /** @type {HTMLElement | null} */
+    this.helpModalEl = null;
 
     this.init = this.init.bind(this);
     this.handleWheel = this.handleWheel.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
+    this.toggleSpreadOffset = this.toggleSpreadOffset.bind(this);
     this.updateUI = this.updateUI.bind(this);
     this.applyLayout = this.applyLayout.bind(this);
   }
@@ -79,6 +76,11 @@ class App {
       target instanceof HTMLSelectElement ||
       target.isContentEditable
     );
+  }
+
+  toggleSpreadOffset() {
+    const { spreadOffset } = this.store.getState();
+    this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
   }
 
   updatePageCounter() {
@@ -160,8 +162,17 @@ class App {
    * @param {WheelEvent} e 
    */
   handleWheel(e) {
-    const { enabled, isDualViewEnabled, currentVisibleIndex } = this.store.getState();
+    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
     if (!enabled) return;
+    
+    if (isMetadataModalOpen || isHelpModalOpen) {
+      const modalContent = document.querySelector('.comic-helper-modal-content');
+      if (modalContent && modalContent.contains(/** @type {Node} */ (e.target))) {
+        return;
+      }
+      e.preventDefault();
+      return;
+    }
 
     e.preventDefault();
     const now = Date.now();
@@ -187,18 +198,58 @@ class App {
    */
   onKeyDown(e) {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const { enabled, isDualViewEnabled } = this.store.getState();
-    if (!enabled) return;
+    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+    
+    // Handle Escape for all modals
+    if (e.key === 'Escape') {
+      if (isMetadataModalOpen || isHelpModalOpen) {
+        e.preventDefault();
+        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
+        return;
+      }
+    }
 
-    if (['ArrowDown', 'PageDown', 'ArrowRight', 'j'].includes(e.key) || (e.key === ' ' && !e.shiftKey)) {
+    // Helper function to check if a key matches a shortcut
+    /** @param {string} id */
+    const isKey = (id) => {
+      const sc = SHORTCUTS.find(s => s.id === id);
+      if (!sc) return false;
+      return sc.keys.some(k => {
+        if (k.startsWith('Shift+')) {
+          const baseKey = k.replace('Shift+', '');
+          return e.shiftKey && e.key === (baseKey === 'Space' ? ' ' : baseKey);
+        }
+        return !e.shiftKey && e.key === (k === 'Space' ? ' ' : k);
+      });
+    };
+
+    // Allow toggling help even if already open
+    if (isKey('help') && isHelpModalOpen) {
+      e.preventDefault();
+      this.store.setState({ isHelpModalOpen: false });
+      return;
+    }
+
+    if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
+
+    if (isKey('nextPage')) {
       e.preventDefault();
       this.scrollToImage(1);
-    } else if (['ArrowUp', 'PageUp', 'ArrowLeft', 'k'].includes(e.key) || (e.key === ' ' && e.shiftKey)) {
+    } else if (isKey('prevPage')) {
       e.preventDefault();
       this.scrollToImage(-1);
-    } else if (e.key === 'd') {
+    } else if (isKey('dualView')) {
       e.preventDefault();
       this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
+    } else if (isKey('spreadOffset') && isDualViewEnabled) {
+      e.preventDefault();
+      this.toggleSpreadOffset();
+    } else if (isKey('metadata')) {
+      e.preventDefault();
+      this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
+    } else if (isKey('help')) {
+      e.preventDefault();
+      this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
     }
   }
 
@@ -273,10 +324,7 @@ class App {
       this.spreadComp = createSpreadControls({
         isDualViewEnabled,
         onToggle: (/** @type {boolean} */ val) => this.store.setState({ isDualViewEnabled: val }),
-        onAdjust: () => {
-          const { spreadOffset } = this.store.getState();
-          this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-        }
+        onAdjust: this.toggleSpreadOffset
       });
       container.appendChild(this.spreadComp.el);
     }
@@ -286,9 +334,45 @@ class App {
         onFirst: () => this.scrollToEdge('start'),
         onPrev: () => this.scrollToImage(-1),
         onNext: () => this.scrollToImage(1),
-        onLast: () => this.scrollToEdge('end')
+        onLast: () => this.scrollToEdge('end'),
+        onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
+        onHelp: () => this.store.setState({ isHelpModalOpen: true })
       });
       navBtns.elements.forEach(btn => container.appendChild(btn));
+    }
+
+    // Handle Help Modal
+    const { isMetadataModalOpen, isHelpModalOpen, metadata } = state;
+    if (isHelpModalOpen) {
+      if (!this.helpModalEl) {
+        const modal = createHelpModal({
+          onClose: () => this.store.setState({ isHelpModalOpen: false })
+        });
+        this.helpModalEl = modal.el;
+        document.body.appendChild(this.helpModalEl);
+      }
+    } else {
+      if (this.helpModalEl) {
+        this.helpModalEl.remove();
+        this.helpModalEl = null;
+      }
+    }
+
+    // Handle Metadata Modal
+    if (isMetadataModalOpen) {
+      if (!this.modalEl) {
+        const modal = createMetadataModal({
+          metadata,
+          onClose: () => this.store.setState({ isMetadataModalOpen: false })
+        });
+        this.modalEl = modal.el;
+        document.body.appendChild(this.modalEl);
+      }
+    } else {
+      if (this.modalEl) {
+        this.modalEl.remove();
+        this.modalEl = null;
+      }
     }
 
     // Update visibility and state
@@ -322,6 +406,10 @@ class App {
     injectStyles();
     this.originalImages = /** @type {HTMLImageElement[]} */ (Array.from(document.querySelectorAll(IMG_SELECTOR)));
     
+    // Extract metadata
+    const metadata = extractMetadata();
+    this.store.setState({ metadata });
+
     this.originalImages.forEach(img => {
       if (!img.complete) {
         img.addEventListener('load', () => {

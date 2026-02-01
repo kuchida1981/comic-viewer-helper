@@ -1,12 +1,12 @@
 {
   "name": "comic-viewer-helper",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "A Tampermonkey/Greasemonkey user script for specific comic sites. It automatically fits images to the browser viewport and enables comfortable image-by-image scrolling.",
   "main": "src/main.js",
   "scripts": {
     "test": "vitest run --coverage",
     "check-types": "tsc",
-    "build": "vite build && cat src/header.js dist/comic-viewer-helper.user.js > dist/comic-viewer-helper.user.js.tmp && mv dist/comic-viewer-helper.user.js.tmp dist/comic-viewer-helper.user.js",
+    "build": "node scripts/build.mjs",
     "lint": "eslint src --max-warnings 0"
   },
   "repository": {
@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/kuchida1981/comic-viewer-helper#readme",
   "devDependencies": {
+    "@fission-ai/openspec": "^1.1.1",
     "@types/greasemonkey": "^4.0.7",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
