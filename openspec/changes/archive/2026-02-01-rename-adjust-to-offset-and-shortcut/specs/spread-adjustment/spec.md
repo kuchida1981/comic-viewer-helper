@@ -1,8 +1,5 @@
-# spread-adjustment Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change fix-dual-view-stability. Update Purpose after archive.
-## Requirements
 ### Requirement: Manual Offset Adjustment
 システムは、「見開きモード」が有効な場合のみ表示されるユーザーインターフェース（ラベル：`Offset`）を提供し、ユーザーが手動で見開きオフセット（0/1）を切り替えられるようにしなければならない（SHALL）。
 このUIには、機能の内容を説明するツールチップ（`Shift spread pairing by 1 page (Offset)`）を設定しなければならない（SHALL）。
@@ -20,16 +17,3 @@ TBD - created by archiving change fix-dual-view-stability. Update Purpose after 
 - **AND** 現在のペアリングが [画像N-1, 画像N] (Offset 0) である
 - **THEN** システムは `spreadOffset` を 1 に更新する
 - **AND** ビューが再描画される
-
-#### Scenario: Adjustment availability
-- **WHEN** 見開きモードが無効（単一ページモード）である
-- **THEN** `Offset` ボタンは非表示または無効化される
-
-### Requirement: Offset Consistency
-見開きモードが有効である間、`spreadOffset` の状態はブラウジングセッション中のメモリ内で維持されなければならない（SHALL）。ページ移動（次へ/前へ）を行っても、手動調整されたオフセットがリセットされたり変更されたりしてはならない（MUST）。
-
-#### Scenario: Navigating after adjustment
-- **WHEN** ユーザーがオフセットを 1 に調整する
-- **AND** ユーザーが次のページペアへ移動する
-- **THEN** 新しいページも同じオフセット (1) を使用して描画される
-

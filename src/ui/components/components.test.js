@@ -87,7 +87,7 @@ describe('UI Components', () => {
       const { el, update } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust: () => {} });
       let adjustBtn = el.querySelector('.comic-helper-adjust-btn');
       expect(adjustBtn).not.toBeNull();
-      expect(adjustBtn?.textContent).toBe('Adjust');
+      expect(adjustBtn?.textContent).toBe('Offset');
       
       update(false);
       adjustBtn = el.querySelector('.comic-helper-adjust-btn');
