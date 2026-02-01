@@ -177,6 +177,10 @@ class App {
     if (!enabled) return;
     
     if (isMetadataModalOpen || isHelpModalOpen) {
+      const modalContent = document.querySelector('.comic-helper-modal-content');
+      if (modalContent && modalContent.contains(/** @type {Node} */ (e.target))) {
+        return;
+      }
       e.preventDefault();
       return;
     }
@@ -217,14 +221,21 @@ class App {
     }
 
     // Helper function to check if a key matches a shortcut
-    /** @param {string} label */
-    const isKey = (label) => {
-      const sc = SHORTCUTS.find(s => s.label === label);
-      return sc ? sc.keys.includes(e.key) : false;
+    /** @param {string} id */
+    const isKey = (id) => {
+      const sc = SHORTCUTS.find(s => s.id === id);
+      if (!sc) return false;
+      return sc.keys.some(k => {
+        if (k.startsWith('Shift+')) {
+          const baseKey = k.replace('Shift+', '');
+          return e.shiftKey && e.key === (baseKey === 'Space' ? ' ' : baseKey);
+        }
+        return !e.shiftKey && e.key === (k === 'Space' ? ' ' : k);
+      });
     };
 
     // Allow toggling help even if already open
-    if (isKey('Help') && isHelpModalOpen) {
+    if (isKey('help') && isHelpModalOpen) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: false });
       return;
@@ -232,22 +243,22 @@ class App {
 
     if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
 
-    if (isKey('Next Page')) {
+    if (isKey('nextPage')) {
       e.preventDefault();
       this.scrollToImage(1);
-    } else if (isKey('Prev Page')) {
+    } else if (isKey('prevPage')) {
       e.preventDefault();
       this.scrollToImage(-1);
-    } else if (isKey('Dual View')) {
+    } else if (isKey('dualView')) {
       e.preventDefault();
       this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
-    } else if (isKey('Spread Offset') && isDualViewEnabled) {
+    } else if (isKey('spreadOffset') && isDualViewEnabled) {
       e.preventDefault();
       this.toggleSpreadOffset();
-    } else if (isKey('Metadata')) {
+    } else if (isKey('metadata')) {
       e.preventDefault();
       this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
-    } else if (isKey('Help')) {
+    } else if (isKey('help')) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
     }

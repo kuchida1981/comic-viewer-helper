@@ -1,5 +1,8 @@
+import { t } from './i18n.js';
+
 /**
  * @typedef {Object} Shortcut
+ * @property {string} id - 一意識別子
  * @property {string} label - 表示用のラベル
  * @property {string[]} keys - キーのリスト
  * @property {string} description - 機能の説明
@@ -10,39 +13,46 @@
 /** @type {Shortcut[]} */
 export const SHORTCUTS = [
   {
-    label: 'Next Page',
+    id: 'nextPage',
+    label: t('shortcuts.nextPage.label'),
     keys: ['j', 'ArrowDown', 'PageDown', 'ArrowRight', 'Space'],
-    description: '次のページへ移動'
+    description: t('shortcuts.nextPage.desc')
   },
   {
-    label: 'Prev Page',
+    id: 'prevPage',
+    label: t('shortcuts.prevPage.label'),
     keys: ['k', 'ArrowUp', 'PageUp', 'ArrowLeft', 'Shift+Space'],
-    description: '前のページへ移動'
+    description: t('shortcuts.prevPage.desc')
   },
   {
-    label: 'Dual View',
+    id: 'dualView',
+    label: t('shortcuts.dualView.label'),
     keys: ['d'],
-    description: '見開きモードのON/OFF'
+    description: t('shortcuts.dualView.desc')
   },
   {
-    label: 'Spread Offset',
+    id: 'spreadOffset',
+    label: t('shortcuts.spreadOffset.label'),
     keys: ['o'],
-    description: '見開きオフセットの切替 (0 ↔ 1)',
-    condition: '見開きモード中のみ'
+    description: t('shortcuts.spreadOffset.desc'),
+    condition: t('shortcuts.spreadOffset.cond')
   },
   {
-    label: 'Metadata',
+    id: 'metadata',
+    label: t('shortcuts.metadata.label'),
     keys: ['i'],
-    description: '作品情報（メタデータ）の表示'
+    description: t('shortcuts.metadata.desc')
   },
   {
-    label: 'Help',
+    id: 'help',
+    label: t('shortcuts.help.label'),
     keys: ['?'],
-    description: 'このヘルプの表示'
+    description: t('shortcuts.help.desc')
   },
   {
-    label: 'Close Modal',
+    id: 'closeModal',
+    label: t('shortcuts.closeModal.label'),
     keys: ['Escape'],
-    description: 'モーダルを閉じる'
+    description: t('shortcuts.closeModal.desc')
   }
 ];

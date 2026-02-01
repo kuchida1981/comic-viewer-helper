@@ -1,5 +1,6 @@
 import { createElement } from '../utils.js';
 import { SHORTCUTS } from '../../shortcuts.js';
+import { t } from '../../i18n.js';
 
 /**
  * @param {Object} props
@@ -9,7 +10,7 @@ export function createHelpModal({ onClose }) {
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
     textContent: '×',
-    title: 'Close',
+    title: t('ui.close'),
     events: {
       click: (e) => {
         e.preventDefault();
@@ -20,12 +21,12 @@ export function createHelpModal({ onClose }) {
 
   const titleEl = createElement('h2', {
     className: 'comic-helper-modal-title',
-    textContent: 'Keyboard Shortcuts'
+    textContent: t('ui.keyboardShortcuts')
   });
 
   const shortcutRows = SHORTCUTS.map(sc => {
     const keyLabels = sc.keys.map(k => {
-        const label = k === ' ' ? 'Space' : k;
+        const label = k === ' ' ? t('ui.space') : k;
         return createElement('kbd', { className: 'comic-helper-kbd', textContent: label });
     });
 
