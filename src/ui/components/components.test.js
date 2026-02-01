@@ -4,6 +4,7 @@ import { createPageCounter } from './PageCounter.js';
 import { createSpreadControls } from './SpreadControls.js';
 import { createNavigationButtons } from './NavigationButtons.js';
 import { createMetadataModal } from './MetadataModal.js';
+import { createHelpModal } from './HelpModal.js';
 
 describe('UI Components', () => {
   describe('PowerButton', () => {
@@ -148,11 +149,11 @@ describe('UI Components', () => {
 
       describe('NavigationButtons', () => {
 
-        it('should render 5 navigation buttons', () => {
+        it('should render 6 navigation buttons', () => {
 
-          const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {} });
+          const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {} });
 
-          expect(elements.length).toBe(5);
+          expect(elements.length).toBe(6);
 
           expect(elements[0].textContent).toBe('<<');
 
@@ -163,6 +164,8 @@ describe('UI Components', () => {
           expect(elements[3].textContent).toBe('>>');
 
           expect(elements[4].textContent).toBe('Info');
+
+          expect(elements[5].textContent).toBe('?');
 
         });
 
@@ -180,7 +183,9 @@ describe('UI Components', () => {
 
             onLast: vi.fn(),
 
-            onInfo: vi.fn()
+            onInfo: vi.fn(),
+
+            onHelp: vi.fn()
 
           };
 
@@ -216,7 +221,7 @@ describe('UI Components', () => {
 
       it('should have an empty update method', () => {
 
-        const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {} });
+        const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {} });
 
         expect(typeof update).toBe('function');
 
@@ -390,7 +395,7 @@ describe('UI Components', () => {
 
   
 
-                it('should have an empty update method', () => {
+                      it('should have an empty update method', () => {
 
   
 
@@ -398,7 +403,7 @@ describe('UI Components', () => {
 
   
 
-                  const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {} });
+            
 
   
 
@@ -406,7 +411,7 @@ describe('UI Components', () => {
 
   
 
-                  expect(typeof update).toBe('function');
+                
 
   
 
@@ -414,7 +419,7 @@ describe('UI Components', () => {
 
   
 
-                  update();
+            
 
   
 
@@ -422,7 +427,7 @@ describe('UI Components', () => {
 
   
 
-                });
+                        const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {} });
 
   
 
@@ -430,7 +435,7 @@ describe('UI Components', () => {
 
   
 
-              });
+            
 
   
 
@@ -438,7 +443,1015 @@ describe('UI Components', () => {
 
   
 
-            });
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        expect(typeof update).toBe('function');
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        update();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                      });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                    });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        describe('HelpModal', () => {
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                          it('should render shortcut list and handle Space label', () => {
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                            const { el } = createHelpModal({ onClose: () => {} });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                            expect(el.textContent).toContain('Keyboard Shortcuts');
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                            expect(el.textContent).toContain('Next Page');
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                            expect(el.textContent).toContain('j');
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                            expect(el.textContent).toContain('Space');
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                          });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                    
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                          it('should have an empty update method', () => {
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                            const { update } = createHelpModal({ onClose: () => {} });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                            expect(typeof update).toBe('function');
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                            update();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                          });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                    
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                          it('should call onClose when clicking overlay', () => {
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        const onClose = vi.fn();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        const { el } = createHelpModal({ onClose });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        el.click();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        expect(onClose).toHaveBeenCalled();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                      });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                      it('should call onClose when clicking close button', () => {
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        const onClose = vi.fn();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        const { el } = createHelpModal({ onClose });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        const closeBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-modal-close'));
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        closeBtn.click();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        expect(onClose).toHaveBeenCalled();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                      });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                      it('should not call onClose when clicking content', () => {
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        const onClose = vi.fn();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        const { el } = createHelpModal({ onClose });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        const content = el.querySelector('.comic-helper-modal-content');
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        /** @type {HTMLElement} */ (content).click();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                        expect(onClose).not.toHaveBeenCalled();
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                      });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                    });
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                
+
+  
+
+      
+
+  
+
+            
+
+  
+
+      
+
+  
+
+                  });
 
   
 
