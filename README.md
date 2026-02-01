@@ -1,7 +1,6 @@
 # Magazine Comic Viewer Helper
 
-[![Stable Build](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml/badge.svg?branch=stable)](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml)
-[![Unstable Build](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml/badge.svg?branch=unstable)](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml)
+[![Build Status](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml/badge.svg?branch=master)](https://github.com/kuchida1981/comic-viewer-helper/actions/workflows/deploy.yml)
 
 A browser extension (UserScript) that enhances the reading experience on specific magazine/fanzine comic sites.
 
