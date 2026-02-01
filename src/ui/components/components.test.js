@@ -183,7 +183,9 @@ describe('UI Components', () => {
 
             onLast: vi.fn(),
 
-            onInfo: vi.fn()
+            onInfo: vi.fn(),
+
+            onHelp: vi.fn()
 
           };
 
@@ -219,7 +221,7 @@ describe('UI Components', () => {
 
       it('should have an empty update method', () => {
 
-        const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {} });
+        const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {} });
 
         expect(typeof update).toBe('function');
 

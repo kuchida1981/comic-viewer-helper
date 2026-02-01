@@ -28,3 +28,7 @@
 #### Scenario: Close via clicking overlay
 - **WHEN** ヘルプモーダルが表示されており、ユーザーがモーダル外の背景部分をクリックする
 - **THEN** ヘルプモーダルが閉じられる
+
+#### Scenario: Close via close button
+- **WHEN** ヘルプモーダルが表示されており、ユーザーがモーダル内の「閉じる」ボタンをクリックする
+- **THEN** ヘルプモーダルが閉じられる

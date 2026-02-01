@@ -31,7 +31,9 @@ export function createHelpModal({ onClose }) {
 
     const keyContainer = createElement('div', { className: 'comic-helper-shortcut-keys' }, keyLabels);
     const labelEl = createElement('div', { className: 'comic-helper-shortcut-label', textContent: sc.label });
-    const descEl = createElement('div', { className: 'comic-helper-shortcut-desc', textContent: sc.description });
+    
+    const descText = sc.condition ? `${sc.description} (${sc.condition})` : sc.description;
+    const descEl = createElement('div', { className: 'comic-helper-shortcut-desc', textContent: descText });
 
     return createElement('div', { className: 'comic-helper-shortcut-row' }, [keyContainer, labelEl, descEl]);
   });

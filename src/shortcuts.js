@@ -3,6 +3,7 @@
  * @property {string} label - 表示用のラベル
  * @property {string[]} keys - キーのリスト
  * @property {string} description - 機能の説明
+ * @property {string} [condition] - ショートカットが有効になる条件の説明
  * @property {boolean} [shift] - Shiftキーが必要か
  */
 
@@ -26,7 +27,8 @@ export const SHORTCUTS = [
   {
     label: 'Spread Offset',
     keys: ['o'],
-    description: '見開きオフセットの切替 (0 ↔ 1)'
+    description: '見開きオフセットの切替 (0 ↔ 1)',
+    condition: '見開きモード中のみ'
   },
   {
     label: 'Metadata',
