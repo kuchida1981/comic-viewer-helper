@@ -38,11 +38,11 @@ export class InputManager {
    */
   isInputField(target) {
     if (!(target instanceof HTMLElement)) return false;
-    return !!(
+    return (
       target instanceof HTMLInputElement ||
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement ||
-      target.isContentEditable
+      !!target.isContentEditable
     );
   }
 

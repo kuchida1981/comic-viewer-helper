@@ -100,13 +100,15 @@ describe('Navigator', () => {
   });
 
   it('should jump to page', () => {
-    navigator.jumpToPage(1);
+    const success = navigator.jumpToPage(1);
+    expect(success).toBe(true);
     expect(mockImages[0].scrollIntoView).toHaveBeenCalled();
   });
 
   it('should handle invalid page jump', () => {
     vi.mocked(logic.getImageElementByIndex).mockReturnValue(null);
-    navigator.jumpToPage(999);
+    const success = navigator.jumpToPage(999);
+    expect(success).toBe(false);
     expect(logic.getPrimaryVisibleImageIndex).toHaveBeenCalled();
   });
 

@@ -88,11 +88,19 @@ export class UIManager {
       this.counterComp = createPageCounter({
         current: currentVisibleIndex + 1,
         total: imgs.length,
-        onJump: (/** @type {string} */ val) => this.navigator.jumpToPage(val)
+        onJump: (/** @type {string} */ val) => {
+          const success = this.navigator.jumpToPage(val);
+          if (this.counterComp) {
+            this.counterComp.input.blur();
+            if (!success) {
+              this.counterComp.input.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
+              setTimeout(() => {
+                if (this.counterComp) this.counterComp.input.style.backgroundColor = '';
+              }, 500);
+            }
+          }
+        }
       });
-      // Expose input for focus handling if needed, or handle it here?
-      // App.js accessed this.pageCounterInput.
-      // Ideally InputManager handles keydown and checks activeElement.
       container.appendChild(this.counterComp.el);
     }
 

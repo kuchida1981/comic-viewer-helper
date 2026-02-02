@@ -89,6 +89,7 @@ export class Navigator {
 
   /**
    * @param {string | number} pageNumber 
+   * @returns {boolean}
    */
   jumpToPage(pageNumber) {
     const imgs = this.getImages();
@@ -97,16 +98,10 @@ export class Navigator {
 
     if (targetImg) {
       targetImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Note: pageCounterInput blur logic is UI concern, maybe handled via event or strict separation?
-      // For now, Navigator focuses on navigation. UI updates via Store or direct UI manager calls?
-      // The original App accessed pageCounterInput directly. 
-      // We can leave the input blurring to the UIManager by having it subscribe to currentVisibleIndex or similar?
-      // Or we accept that Navigator changes state, and UI reacts.
-      // But blurring input is specific interaction.
-      // Let's omit direct UI manipulation here for now.
+      return true;
     } else {
       this.updatePageCounter();
-      // Error indication (red flash) is also UI concern.
+      return false;
     }
   }
 

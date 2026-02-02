@@ -26,7 +26,11 @@ vi.mock('../ui/components/PowerButton.js', () => ({
   createPowerButton: vi.fn(() => ({ el: { style: {}, appendChild: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/PageCounter.js', () => ({
-  createPageCounter: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn(), input: {} }))
+  createPageCounter: vi.fn(() => ({ 
+    el: { style: {}, display: '' }, 
+    update: vi.fn(), 
+    input: { blur: vi.fn(), style: {} } 
+  }))
 }));
 vi.mock('../ui/components/SpreadControls.js', () => ({
   createSpreadControls: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
