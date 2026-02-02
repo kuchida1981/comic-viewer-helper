@@ -26,10 +26,6 @@
 - **WHEN** ユーザーが47ページ目を閲覧中にページから離脱した
 - **THEN** システムは localStorage に `{ "url": { pageIndex: 46 } }` を保存する（0-based index）
 
-#### Scenario: 機能が無効の場合は保存しない
-- **WHEN** resumeEnabled が false の状態でユーザーがページから離脱した
-- **THEN** システムは localStorage への保存を行わない
-
 #### Scenario: 既存の保存データに追加する
 - **WHEN** localStorage に既に他の作品データが存在し、ユーザーが新しい作品から離脱した
 - **THEN** システムは既存データを保持したまま新しいエントリを追加する
@@ -47,10 +43,6 @@
 
 #### Scenario: 保存データが存在しない場合
 - **WHEN** localStorage にそのURLのデータが存在しない
-- **THEN** システムは null を返す
-
-#### Scenario: 機能が無効の場合は読み込まない
-- **WHEN** resumeEnabled が false の状態で読み込みを試行した
 - **THEN** システムは null を返す
 
 #### Scenario: localStorage が破損している場合

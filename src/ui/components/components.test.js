@@ -5,7 +5,6 @@ import { createSpreadControls } from './SpreadControls.js';
 import { createNavigationButtons } from './NavigationButtons.js';
 import { createMetadataModal } from './MetadataModal.js';
 import { createHelpModal } from './HelpModal.js';
-import { createResumeToggle } from './ResumeToggle.js';
 import { createResumeNotification } from './ResumeNotification.js';
 
 describe('UI Components', () => {
@@ -1421,7 +1420,7 @@ describe('UI Components', () => {
 
   
 
-                    });
+                        });
 
   
 
@@ -1437,7 +1436,7 @@ describe('UI Components', () => {
 
   
 
-                
+                      });
 
   
 
@@ -1453,7 +1452,7 @@ describe('UI Components', () => {
 
   
 
-                  });
+                    
 
   
 
@@ -1468,69 +1467,24 @@ describe('UI Components', () => {
       
 
   
-  describe('ResumeToggle', () => {
-    it('should render checkbox and label', () => {
-      const { el } = createResumeToggle({ resumeEnabled: true, onToggle: () => {} });
-      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
-      expect(checkbox.checked).toBe(true);
-      expect(el.textContent).toContain('Resume');
-    });
 
-    it('should render unchecked when resumeEnabled is false', () => {
-      const { el } = createResumeToggle({ resumeEnabled: false, onToggle: () => {} });
-      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
-      expect(checkbox.checked).toBe(false);
-    });
+                      describe('ResumeNotification', () => {
 
-    it('should call onToggle when checkbox changes', () => {
-      const onToggle = vi.fn();
-      const { el } = createResumeToggle({ resumeEnabled: false, onToggle });
-      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+  
 
-      checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change'));
+      
 
-      expect(onToggle).toHaveBeenCalledWith(true);
-    });
+  
 
-    it('should blur checkbox after change', () => {
-      const { el } = createResumeToggle({ resumeEnabled: false, onToggle: () => {} });
-      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
-      const blurSpy = vi.spyOn(checkbox, 'blur');
+            
 
-      checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change'));
+  
 
-      expect(blurSpy).toHaveBeenCalled();
-    });
+      
 
-    it('should update checkbox state', () => {
-      const { el, update } = createResumeToggle({ resumeEnabled: false, onToggle: () => {} });
-      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+  
 
-      expect(checkbox.checked).toBe(false);
-
-      update(true);
-      expect(checkbox.checked).toBe(true);
-
-      update(false);
-      expect(checkbox.checked).toBe(false);
-    });
-
-    it('should not call onToggle when event target is not input', () => {
-      const onToggle = vi.fn();
-      const { el } = createResumeToggle({ resumeEnabled: false, onToggle });
-      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
-
-      const event = new Event('change');
-      Object.defineProperty(event, 'target', { value: {} });
-      checkbox.dispatchEvent(event);
-
-      expect(onToggle).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('ResumeNotification', () => {
+                    
     beforeEach(() => {
       vi.useFakeTimers();
       // Mock console.log to suppress output during tests

@@ -19,14 +19,15 @@
 - [x] 2.4 Store.setState() の永続化ロジックに resumeEnabled 処理を追加
 - [x] 2.5 store.test.js に resumeEnabled のテストを追加
 
-## 3. ResumeToggle コンポーネントの実装
+## 3. ResumeToggle コンポーネントの実装 (REMOVED)
 
-- [x] 3.1 `src/ui/components/ResumeToggle.js` ファイルを作成
-- [x] 3.2 createResumeToggle() 関数を実装（checkbox、label、div 要素の構築）
-- [x] 3.3 onToggle イベントハンドラを実装（checked 状態を callback に渡す）
-- [x] 3.4 update() メソッドを実装（Store の変更に応じて checkbox.checked を更新）
-- [x] 3.5 blur() 処理を追加（操作後にフォーカス解除）
-- [x] 3.6 components.test.js に ResumeToggle のテストを追加
+- [x] 3.1 `src/ui/components/ResumeToggle.js` ファイルを作成 (DELETED)
+- [x] 3.2 createResumeToggle() 関数を実装 (DELETED)
+- [x] 3.3 onToggle イベントハンドラを実装 (DELETED)
+- [x] 3.4 update() メソッドを実装 (DELETED)
+- [x] 3.5 blur() 処理を追加 (DELETED)
+- [x] 3.6 components.test.js に ResumeToggle のテストを追加 (DELETED)
+
 
 ## 4. ResumeNotification コンポーネントの実装
 
@@ -58,11 +59,11 @@
 
 ## 7. UIManager の拡張
 
-- [x] 7.1 `src/managers/UIManager.js` に createResumeToggle のインポートを追加
-- [x] 7.2 UIManager.resumeToggleComp プロパティを追加
-- [x] 7.3 updateUI() 内で ResumeToggle を初期化（SpreadControls の直後に配置）
-- [x] 7.4 ResumeToggle の onToggle callback を実装（Store.setState({ resumeEnabled }) 呼び出し）
-- [x] 7.5 Store の変更に応じて resumeToggleComp.update() を呼び出す
+- [x] 7.1 `src/managers/UIManager.js` に createResumeToggle のインポートを追加 (REMOVED)
+- [x] 7.2 UIManager.resumeToggleComp プロパティを追加 (REMOVED)
+- [x] 7.3 updateUI() 内で ResumeToggle を初期化 (REMOVED)
+- [x] 7.4 ResumeToggle の onToggle callback を実装 (REMOVED)
+- [x] 7.5 Store の変更に応じて resumeToggleComp.update() を呼び出す (REMOVED)
 - [x] 7.6 showResumeNotification(savedIndex) メソッドを実装
 - [x] 7.7 showResumeNotification() 内で createResumeNotification() を呼び出し
 - [x] 7.8 onResume callback で navigator.jumpToPage(savedIndex + 1) を呼び出す
@@ -74,7 +75,7 @@
 - [x] 8.1 `src/main.js` に ResumeManager のインポートを追加
 - [x] 8.2 App.constructor() で this.resumeManager を初期化
 - [x] 8.3 App.init() 内で復元ロジックを実装（workKey 生成）
-- [x] 8.4 resumeManager.isEnabled() をチェック
+- [x] 8.4 resumeManager.isEnabled() は常に true を返す
 - [x] 8.5 resumeManager.loadPosition(workKey) を呼び出し
 - [x] 8.6 savedIndex が null でない場合、uiManager.showResumeNotification() を呼び出す
 - [x] 8.7 beforeunload イベントリスナーを追加
@@ -83,7 +84,7 @@
 ## 9. 統合テスト
 
 - [x] 9.1 エンドツーエンドのテストシナリオを作成（保存→離脱→復元）
-- [x] 9.2 resumeEnabled が false の場合の動作をテスト（保存・復元しない）
+- [x] 9.2 resumeEnabled のテスト (REMOVED)
 - [x] 9.3 localStorage が空の場合の動作をテスト（通知表示なし）
 - [x] 9.4 localStorage が破損している場合の動作をテスト（エラーハンドリング）
 - [x] 9.5 トースト通知のボタン操作をテスト（続きから、最初から、×）

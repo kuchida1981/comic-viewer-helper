@@ -1,8 +1,7 @@
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
   GUI_POS: 'comic-viewer-helper-gui-pos',
-  ENABLED: 'comic-viewer-helper-enabled',
-  RESUME_ENABLED: 'comic-viewer-helper-resume-enabled'
+  ENABLED: 'comic-viewer-helper-enabled'
 };
 
 /**
@@ -22,7 +21,6 @@ export const STORAGE_KEYS = {
  * @property {Metadata} metadata
  * @property {boolean} isMetadataModalOpen
  * @property {boolean} isHelpModalOpen
- * @property {boolean} resumeEnabled
  */
 
 export class Store {
@@ -40,8 +38,7 @@ export class Store {
         relatedWorks: []
       },
       isMetadataModalOpen: false,
-      isHelpModalOpen: false,
-      resumeEnabled: localStorage.getItem(STORAGE_KEYS.RESUME_ENABLED) !== 'false'
+      isHelpModalOpen: false
     };
     /** @type {Function[]} */
     this.listeners = [];
@@ -79,9 +76,6 @@ export class Store {
     }
     if ('guiPos' in patch) {
       localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
-    }
-    if ('resumeEnabled' in patch) {
-      localStorage.setItem(STORAGE_KEYS.RESUME_ENABLED, String(patch.resumeEnabled));
     }
 
     this._notify();

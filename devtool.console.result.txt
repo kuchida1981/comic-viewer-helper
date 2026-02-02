@@ -1,0 +1,6 @@
+jquery-migrate.min.js?ver=3.4.1:2 JQMIGRATE: Migrate is installed, version 3.4.1
+re2072385/:157 {id: '219162', title: 'コミックアンリアル 2021年12月号 Vol.94', url: 'https://nyahentai.one/magazine/re2072385/', thumb: 'https://cdn5.nyahentai.one/galleries/2072385/1.webp', likes: undefined}
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=4e5ce2c7-a813-4428-80a7-359bc66abc2c:1883 [Resume] Checking resume...
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=4e5ce2c7-a813-4428-80a7-359bc66abc2c:1884 [Resume] isEnabled: true
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=4e5ce2c7-a813-4428-80a7-359bc66abc2c:1887 [Resume] workKey: https://nyahentai.one/magazine/re2072385/
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=4e5ce2c7-a813-4428-80a7-359bc66abc2c:1889 [Resume] savedIndex: null

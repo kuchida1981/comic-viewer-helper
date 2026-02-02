@@ -32,17 +32,7 @@ describe('ResumeManager', () => {
   });
 
   describe('isEnabled', () => {
-    it('should return true when resumeEnabled is true', () => {
-      store.setState({ resumeEnabled: true });
-      expect(resumeManager.isEnabled()).toBe(true);
-    });
-
-    it('should return false when resumeEnabled is false', () => {
-      store.setState({ resumeEnabled: false });
-      expect(resumeManager.isEnabled()).toBe(false);
-    });
-
-    it('should return true by default', () => {
+    it('should always return true', () => {
       expect(resumeManager.isEnabled()).toBe(true);
     });
   });
@@ -56,16 +46,6 @@ describe('ResumeManager', () => {
 
       const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}');
       expect(saved[url]).toEqual({ pageIndex: 42 });
-    });
-
-    it('should not save position when disabled', () => {
-      store.setState({ resumeEnabled: false });
-      const url = 'https://example.com/page';
-
-      resumeManager.savePosition(url, 42);
-
-      const saved = localStorage.getItem('comic-viewer-helper-resume-data');
-      expect(saved).toBeNull();
     });
 
     it('should overwrite existing position for the same URL', () => {
@@ -95,15 +75,6 @@ describe('ResumeManager', () => {
 
       const loaded = resumeManager.loadPosition(url);
       expect(loaded).toBe(42);
-    });
-
-    it('should return null when disabled', () => {
-      const url = 'https://example.com/page';
-      resumeManager.savePosition(url, 42);
-      store.setState({ resumeEnabled: false });
-
-      const loaded = resumeManager.loadPosition(url);
-      expect(loaded).toBeNull();
     });
 
     it('should return null for non-existent URL', () => {

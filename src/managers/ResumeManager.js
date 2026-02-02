@@ -11,7 +11,7 @@ export class ResumeManager {
    * @returns {boolean}
    */
   isEnabled() {
-    return this.store.getState().resumeEnabled;
+    return true;
   }
 
   /**
@@ -19,7 +19,6 @@ export class ResumeManager {
    * @param {number} pageIndex 
    */
   savePosition(url, pageIndex) {
-    if (!this.isEnabled()) return;
     const data = this._loadData();
     data[url] = { pageIndex };
     localStorage.setItem(this.storageKey, JSON.stringify(data));
@@ -30,7 +29,6 @@ export class ResumeManager {
    * @returns {number|null}
    */
   loadPosition(url) {
-    if (!this.isEnabled()) return null;
     const data = this._loadData();
     return data[url]?.pageIndex ?? null;
   }

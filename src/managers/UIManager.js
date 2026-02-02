@@ -6,7 +6,6 @@ import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createProgressBar } from '../ui/components/ProgressBar.js';
-import { createResumeToggle } from '../ui/components/ResumeToggle.js';
 import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
@@ -26,7 +25,6 @@ export class UIManager {
     this.powerComp = null;
     this.counterComp = null;
     this.spreadComp = null;
-    this.resumeToggleComp = null;
     this.progressComp = null;
     this.draggable = null;
     this.modalEl = null;
@@ -121,15 +119,6 @@ export class UIManager {
       container.appendChild(this.spreadComp.el);
     }
 
-    if (!this.resumeToggleComp) {
-      const { resumeEnabled } = state;
-      this.resumeToggleComp = createResumeToggle({
-        resumeEnabled,
-        onToggle: (/** @type {boolean} */ val) => this.store.setState({ resumeEnabled: val })
-      });
-      container.appendChild(this.resumeToggleComp.el);
-    }
-
     if (!this.progressComp) {
       this.progressComp = createProgressBar();
       document.body.appendChild(this.progressComp.el);
@@ -212,7 +201,6 @@ export class UIManager {
 
     this.counterComp.update(currentVisibleIndex + 1, imgs.length);
     this.spreadComp.update(isDualViewEnabled);
-    // this.resumeToggleComp.update(state.resumeEnabled);
   }
 
   /**
