@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.52023b7
+// @version         1.3.0-unstable.dcf6d04
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -802,6 +802,62 @@
     box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
   }
 
+  /* Resume Notification Styles */
+  #comic-helper-resume-notification {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10002;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 14px;
+  }
+
+  .comic-helper-resume-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+  }
+
+  .comic-helper-resume-continue {
+    background: #4CAF50;
+    color: white;
+  }
+
+  .comic-helper-resume-continue:hover {
+    background: #45a049;
+  }
+
+  .comic-helper-resume-skip {
+    background: #666;
+    color: white;
+  }
+
+  .comic-helper-resume-skip:hover {
+    background: #555;
+  }
+
+  .comic-helper-resume-close {
+    background: transparent;
+    color: white;
+    padding: 2px 8px;
+    font-size: 18px;
+  }
+
+  .comic-helper-resume-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
   /* Global states */
   html.comic-helper-enabled {
     overflow: hidden !important;
@@ -870,7 +926,11 @@
         shiftOffset: "Shift spread pairing by 1 page (Offset)",
         space: "Space",
         enable: "Enable Comic Viewer Helper",
-        disable: "Disable Comic Viewer Helper"
+        disable: "Disable Comic Viewer Helper",
+        resume: "Resume",
+        resumeNotification: "Resume from page {page}?",
+        continueReading: "Continue",
+        startFromBeginning: "Start Over"
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
@@ -904,7 +964,11 @@
         shiftOffset: "見開きペアを1ページ分ずらす（オフセット）",
         space: "スペース",
         enable: "スクリプトを有効にする",
-        disable: "スクリプトを無効にする"
+        disable: "スクリプトを無効にする",
+        resume: "レジューム",
+        resumeNotification: "{page}ページから再開しますか？",
+        continueReading: "続きから",
+        startFromBeginning: "最初から"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
@@ -1148,7 +1212,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.52023b7"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.dcf6d04"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1275,6 +1339,57 @@
       bar.style.width = `${percentage}%`;
     };
     return { el, update };
+  }
+  function createResumeNotification({ savedIndex, onResume, onSkip }) {
+    let timeoutId = null;
+    let scrollHandler = null;
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (scrollHandler) window.removeEventListener("scroll", scrollHandler);
+      el.remove();
+    };
+    const message = t("ui.resumeNotification").replace("{page}", String(savedIndex + 1));
+    const continueBtn = createElement("button", {
+      className: "comic-helper-resume-btn comic-helper-resume-continue",
+      textContent: t("ui.continueReading"),
+      events: {
+        click: () => {
+          onResume();
+          cleanup();
+        }
+      }
+    });
+    const skipBtn = createElement("button", {
+      className: "comic-helper-resume-btn comic-helper-resume-skip",
+      textContent: t("ui.startFromBeginning"),
+      events: {
+        click: () => {
+          cleanup();
+        }
+      }
+    });
+    const closeBtn = createElement("button", {
+      className: "comic-helper-resume-btn comic-helper-resume-close",
+      textContent: "×",
+      events: {
+        click: cleanup
+      }
+    });
+    const el = createElement("div", {
+      id: "comic-helper-resume-notification",
+      className: "comic-helper-resume-notification"
+    }, [
+      createElement("span", { textContent: message }),
+      continueBtn,
+      skipBtn,
+      closeBtn
+    ]);
+    timeoutId = setTimeout(cleanup, 15e3);
+    setTimeout(() => {
+      scrollHandler = () => cleanup();
+      window.addEventListener("scroll", scrollHandler, { once: true });
+    }, 1e3);
+    return { el };
   }
   class Draggable {
     /**
@@ -1527,6 +1642,21 @@
       this.counterComp.update(currentVisibleIndex + 1, imgs.length);
       this.spreadComp.update(isDualViewEnabled);
     }
+    /**
+     * Show resume notification
+     * @param {number} savedIndex
+     */
+    showResumeNotification(savedIndex) {
+      const notification = createResumeNotification({
+        savedIndex,
+        onResume: () => {
+          this.navigator.jumpToPage(savedIndex + 1);
+        },
+        onSkip: () => {
+        }
+      });
+      document.body.appendChild(notification.el);
+    }
   }
   class InputManager {
     /**
@@ -1652,6 +1782,54 @@
       this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
     }
   }
+  class ResumeManager {
+    /**
+     * @param {import('../store.js').Store} store 
+     */
+    constructor(store) {
+      this.store = store;
+      this.storageKey = "comic-viewer-helper-resume-data";
+    }
+    /**
+     * @returns {boolean}
+     */
+    isEnabled() {
+      return true;
+    }
+    /**
+     * @param {string} url 
+     * @param {number} pageIndex 
+     */
+    savePosition(url, pageIndex) {
+      const data = this._loadData();
+      data[url] = { pageIndex };
+      localStorage.setItem(this.storageKey, JSON.stringify(data));
+    }
+    /**
+     * @param {string} url 
+     * @returns {number|null}
+     */
+    loadPosition(url) {
+      const data = this._loadData();
+      return data[url]?.pageIndex ?? null;
+    }
+    /**
+     * @returns {Object.<string, any>}
+     */
+    _loadData() {
+      try {
+        return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+      } catch {
+        return {};
+      }
+    }
+    /**
+     * Clear all saved positions
+     */
+    clearAll() {
+      localStorage.removeItem(this.storageKey);
+    }
+  }
   class App {
     constructor() {
       this.store = new Store();
@@ -1660,6 +1838,7 @@
       this.navigator = new Navigator(this.adapter, this.store);
       this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
       this.inputManager = new InputManager(this.store, this.navigator);
+      this.resumeManager = new ResumeManager(this.store);
       this.init = this.init.bind(this);
     }
     init() {
@@ -1670,6 +1849,20 @@
       this.navigator.init();
       this.uiManager.init();
       this.inputManager.init();
+      if (this.resumeManager.isEnabled()) {
+        const workKey = window.location.origin + window.location.pathname;
+        const savedIndex = this.resumeManager.loadPosition(workKey);
+        if (savedIndex !== null && savedIndex > 0) {
+          this.uiManager.showResumeNotification(savedIndex);
+        }
+      }
+      window.addEventListener("beforeunload", () => {
+        if (this.resumeManager.isEnabled()) {
+          const workKey = window.location.origin + window.location.pathname;
+          const currentIndex = this.store.getState().currentVisibleIndex;
+          this.resumeManager.savePosition(workKey, currentIndex);
+        }
+      });
     }
   }
   const app = new App();
