@@ -64,14 +64,7 @@ export class Navigator {
    */
   getImages() {
     if (this.originalImages.length > 0) return this.originalImages;
-
-    if (this.adapter.getImages) {
-      this.originalImages = this.adapter.getImages();
-    } else {
-      this.originalImages = /** @type {HTMLImageElement[]} */ (
-        Array.from(document.querySelectorAll(this.adapter.selectors.images))
-      );
-    }
+    this.originalImages = this.adapter.getImages();
     return this.originalImages;
   }
 
@@ -150,17 +143,19 @@ export class Navigator {
    */
   applyLayout(forcedIndex) {
     const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
+    const container = this.adapter.getContainer();
+    if (!container) return;
     
     // If disabled, we might want to revert.
     if (!enabled) {
-      revertToOriginal(this.getImages(), this.adapter.selectors.container);
+      revertToOriginal(this.getImages(), container);
       return;
     }
 
     const imgs = this.getImages();
     const currentIndex = forcedIndex !== undefined ? forcedIndex : getPrimaryVisibleImageIndex(imgs, window.innerHeight);
 
-    fitImagesToViewport(this.adapter.selectors.container, spreadOffset, isDualViewEnabled);
+    fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
     this.updatePageCounter();
 
     if (currentIndex !== -1) {

@@ -8,10 +8,8 @@
 /**
  * @typedef {Object} SiteAdapter
  * @property {function(string): boolean} match - URLが適合するか
- * @property {Object} selectors
- * @property {string} selectors.container - コンテナのセレクタ
- * @property {string} selectors.images - 画像のセレクタ
- * @property {function(): HTMLImageElement[]} [getImages] - 独自取得ロジック（任意）
+ * @property {function(): HTMLElement | null} getContainer - コンテナ要素の取得
+ * @property {function(): HTMLImageElement[]} getImages - 画像要素リストの取得
  * @property {function(): Metadata} [getMetadata] - メタデータ抽出ロジック（任意）
  */
 
@@ -22,10 +20,10 @@
 export const DefaultAdapter = {
   // Always match as a fallback (should be checked last)
   match: () => true,
-  selectors: {
-    container: '#post-comic',
-    images: '#post-comic img'
-  },
+  getContainer: () => /** @type {HTMLElement | null} */ (document.querySelector('#post-comic')),
+  getImages: () => /** @type {HTMLImageElement[]} */ (
+    Array.from(document.querySelectorAll('#post-comic img'))
+  ),
   getMetadata: () => {
     const title = document.querySelector('h1')?.textContent?.trim() || 'Unknown Title';
     

@@ -31,7 +31,8 @@ describe('Navigator', () => {
     ];
 
     adapter = {
-      selectors: { container: '#c', images: 'img' },
+      match: vi.fn().mockReturnValue(true),
+      getContainer: vi.fn().mockReturnValue({ id: 'mock-container', style: {}, appendChild: vi.fn(), querySelectorAll: vi.fn().mockReturnValue([]) }),
       getImages: vi.fn().mockReturnValue(mockImages)
     };
     
@@ -70,21 +71,6 @@ describe('Navigator', () => {
     adapter.getImages.mockClear();
     navigator.getImages();
     expect(adapter.getImages).not.toHaveBeenCalled();
-  });
-
-  it('should use selectors if getImages is not provided', () => {
-    const noImagesAdapter = { selectors: { images: '.test-img' } };
-    const localNavigator = new Navigator(/** @type {any} */ (noImagesAdapter), store);
-    
-    const img = document.createElement('img');
-    img.className = 'test-img';
-    document.body.appendChild(img);
-    
-    const imgs = localNavigator.getImages();
-    expect(imgs.length).toBe(1);
-    expect(imgs[0]).toBe(img);
-    
-    img.remove();
   });
 
   it('should update page counter', () => {

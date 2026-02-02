@@ -6,9 +6,18 @@ describe('DefaultAdapter', () => {
     expect(DefaultAdapter.match('http://any.url')).toBe(true);
   });
 
-  it('should have correct selectors', () => {
-    expect(DefaultAdapter.selectors.container).toBe('#post-comic');
-    expect(DefaultAdapter.selectors.images).toBe('#post-comic img');
+  it('should return container and images via methods', () => {
+    const mockContainer = { id: 'post-comic' };
+    const mockImg = { src: 'test.jpg' };
+    vi.stubGlobal('document', {
+      querySelector: vi.fn().mockReturnValue(mockContainer),
+      querySelectorAll: vi.fn().mockReturnValue([mockImg])
+    });
+
+    expect(DefaultAdapter.getContainer()).toBe(mockContainer);
+    expect(DefaultAdapter.getImages()).toEqual([mockImg]);
+    expect(document.querySelector).toHaveBeenCalledWith('#post-comic');
+    expect(document.querySelectorAll).toHaveBeenCalledWith('#post-comic img');
   });
 
   describe('getMetadata', () => {

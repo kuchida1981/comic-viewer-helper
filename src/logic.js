@@ -102,12 +102,11 @@ export function cleanupDOM(container) {
 
 /**
  * Fit images to viewport
- * @param {string} containerSelector
+ * @param {HTMLElement} container
  * @param {number} spreadOffset
  * @param {boolean} isDualViewEnabled
  */
-export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualViewEnabled = false) {
-  const container = /** @type {HTMLElement | null} */ (document.querySelector(containerSelector));
+export function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
   if (!container) return;
 
   // Cleanup first and get images
@@ -176,10 +175,9 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
 /**
  * Revert changes: clear styles and restore original DOM structure
  * @param {Array<HTMLImageElement>} originalImages 
- * @param {string} containerSelector 
+ * @param {HTMLElement} container 
  */
-export function revertToOriginal(originalImages, containerSelector) {
-  const container = /** @type {HTMLElement | null} */ (document.querySelector(containerSelector));
+export function revertToOriginal(originalImages, container) {
   if (!container) return;
 
   // Clear container styles

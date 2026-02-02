@@ -21,7 +21,7 @@ class App {
   }
 
   init() {
-    const container = document.querySelector(this.adapter.selectors.container);
+    const container = this.adapter.getContainer();
     if (!container) return;
 
     // Extract and set metadata

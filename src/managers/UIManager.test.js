@@ -56,7 +56,11 @@ describe('UIManager', () => {
   let uiManager;
 
   beforeEach(() => {
-    adapter = { selectors: { container: '#c', images: 'img' } };
+    adapter = { 
+      match: vi.fn().mockReturnValue(true),
+      getContainer: vi.fn().mockReturnValue(null), // Default to null for container check
+      getImages: vi.fn().mockReturnValue([])
+    };
     
     store = {
       getState: vi.fn().mockReturnValue({ 

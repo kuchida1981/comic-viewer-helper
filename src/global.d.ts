@@ -8,11 +8,8 @@ declare global {
 
 export interface SiteAdapter {
   match: (url: string) => boolean;
-  selectors: {
-    container: string;
-    images: string;
-  };
-  getImages?: () => HTMLImageElement[];
+  getContainer: () => HTMLElement | null;
+  getImages: () => HTMLImageElement[];
   getMetadata?: () => {
     title: string;
     tags: Array<{ text: string, href: string }>;
