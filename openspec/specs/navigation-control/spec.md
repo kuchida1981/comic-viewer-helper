@@ -20,7 +20,7 @@ The system SHALL persist the screen coordinates of the navigation panel and rest
 - **THEN** the panel appears at the same location as before the reload
 
 ### Requirement: Keyboard Navigation
-The system SHALL provide keybindings for navigating between images. ナビゲーションは、アライメントに左右されず安定した挙動を保証するため、ビューポートの座標ではなく、現在の画像のインデックスに基づいて行われなければならない（SHALL）。
+The system SHALL provide keybindings for navigating between images. ナビゲーションは、アライメントに左右されず安定した挙動を保証するため、ビューポートの座標ではなく、現在の画像のインデックスに基づいて行われなければならない（SHALL）。また、ブラウザの標準スクロールバーが非表示の場合であっても、これらの操作は完全に機能し続けなければならない。
 
 #### Scenario: 次のページへ
 - **WHEN** ユーザーが「次へ」のキー（`j`, `ArrowDown`, `PageDown`, `ArrowRight`, `Space`）を押す
