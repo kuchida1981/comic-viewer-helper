@@ -26,14 +26,19 @@ export function createMetadataModal({ metadata, onClose }) {
     textContent: title
   });
 
-  const tagChips = tags.map(tag => createElement('a', {
-    className: 'comic-helper-tag-chip',
-    textContent: tag.text,
-    attributes: { href: tag.href, target: '_blank' },
-    events: {
-      click: (e) => e.stopPropagation()
-    }
-  }));
+  const tagChips = tags.map(tag => {
+    const className = tag.type
+      ? `comic-helper-tag-chip comic-helper-tag-chip--${tag.type}`
+      : 'comic-helper-tag-chip';
+    return createElement('a', {
+      className,
+      textContent: tag.text,
+      attributes: { href: tag.href, target: '_blank' },
+      events: {
+        click: (e) => e.stopPropagation()
+      }
+    });
+  });
 
   const tagSection = createElement('div', {}, [
     createElement('div', { className: 'comic-helper-section-title', textContent: t('ui.tags') }),

@@ -239,7 +239,7 @@ describe('UI Components', () => {
 
         title: 'Test Manga',
 
-        tags: [{ text: 'Action', href: '#action' }],
+        tags: [{ text: 'Action', href: '#action', type: null }],
 
         relatedWorks: [{ title: 'Manga B', href: '#b', thumb: 'b.jpg' }]
 

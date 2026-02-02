@@ -46,7 +46,7 @@ describe('DefaultAdapter', () => {
       expect(result.title).toBe('My Manga Title');
     });
 
-    it('should extract tags from #post-tag a', () => {
+    it('should extract tags from #post-tag a with type null for unknown paths', () => {
       // @ts-ignore
       document.querySelector.mockReturnValue(null);
       // @ts-ignore
@@ -61,8 +61,40 @@ describe('DefaultAdapter', () => {
       // @ts-ignore
       const result = DefaultAdapter.getMetadata();
       expect(result.tags).toEqual([
-        { text: 'Action', href: 'http://tags/action' },
-        { text: 'Fantasy', href: 'http://tags/fantasy' }
+        { text: 'Action', href: 'http://tags/action', type: null },
+        { text: 'Fantasy', href: 'http://tags/fantasy', type: null }
+      ]);
+    });
+
+    it('should detect tag type from URL path', () => {
+      // @ts-ignore
+      document.querySelector.mockReturnValue(null);
+      // @ts-ignore
+      document.querySelectorAll.mockImplementation(sel => {
+        if (sel === '#post-tag a') return [
+          { textContent: 'Artist A', href: 'http://example.com/artist/a' },
+          { textContent: 'Character B', href: 'http://example.com/character/b' },
+          { textContent: 'Circle C', href: 'http://example.com/circle/c' },
+          { textContent: 'Fanzine D', href: 'http://example.com/fanzine/d' },
+          { textContent: 'Genre E', href: 'http://example.com/genre/e' },
+          { textContent: 'Magazine F', href: 'http://example.com/magazine/f' },
+          { textContent: 'Parody G', href: 'http://example.com/parody/g' },
+          { textContent: 'Unknown', href: 'http://example.com/unknown/x' }
+        ];
+        return [];
+      });
+
+      // @ts-ignore
+      const result = DefaultAdapter.getMetadata();
+      expect(result.tags).toEqual([
+        { text: 'Artist A', href: 'http://example.com/artist/a', type: 'artist' },
+        { text: 'Character B', href: 'http://example.com/character/b', type: 'character' },
+        { text: 'Circle C', href: 'http://example.com/circle/c', type: 'circle' },
+        { text: 'Fanzine D', href: 'http://example.com/fanzine/d', type: 'fanzine' },
+        { text: 'Genre E', href: 'http://example.com/genre/e', type: 'genre' },
+        { text: 'Magazine F', href: 'http://example.com/magazine/f', type: 'magazine' },
+        { text: 'Parody G', href: 'http://example.com/parody/g', type: 'parody' },
+        { text: 'Unknown', href: 'http://example.com/unknown/x', type: null }
       ]);
     });
 

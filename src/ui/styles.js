@@ -198,6 +198,70 @@ export const styles = `
     color: #fff;
   }
 
+  /* Tag type color variants */
+  .comic-helper-tag-chip--artist {
+    background: #5c3d4a;
+    color: #f0d0dc;
+  }
+  .comic-helper-tag-chip--artist:hover {
+    background: #7a5060;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--character {
+    background: #3d5c4a;
+    color: #d0f0dc;
+  }
+  .comic-helper-tag-chip--character:hover {
+    background: #507a60;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--circle {
+    background: #3d4a5c;
+    color: #d0dcf0;
+  }
+  .comic-helper-tag-chip--circle:hover {
+    background: #50607a;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--fanzine {
+    background: #5c4a3d;
+    color: #f0dcd0;
+  }
+  .comic-helper-tag-chip--fanzine:hover {
+    background: #7a6050;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--genre {
+    background: #4a4a4a;
+    color: #d0d0d0;
+  }
+  .comic-helper-tag-chip--genre:hover {
+    background: #606060;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--magazine {
+    background: #4a3d5c;
+    color: #dcd0f0;
+  }
+  .comic-helper-tag-chip--magazine:hover {
+    background: #60507a;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--parody {
+    background: #3d5c5c;
+    color: #d0f0f0;
+  }
+  .comic-helper-tag-chip--parody:hover {
+    background: #507a7a;
+    color: #fff;
+  }
+
   .comic-helper-related-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
