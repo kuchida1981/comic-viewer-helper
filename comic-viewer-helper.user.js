@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.b326b58
+// @version         1.3.0-unstable.52023b7
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -781,6 +781,31 @@
     font-size: 13px;
     flex: 1;
   }
+
+  /* Progress Bar Styles */
+  #comic-helper-progress-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+    pointer-events: none;
+  }
+
+  .comic-helper-progress-fill {
+    height: 100%;
+    background: #4CAF50;
+    width: 0;
+    transition: width 0.2s ease-out;
+    box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
+  }
+
+  /* Global states */
+  html.comic-helper-enabled {
+    overflow: hidden !important;
+  }
 `;
   function injectStyles() {
     const id = "comic-helper-style";
@@ -1123,7 +1148,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.b326b58"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.52023b7"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1241,6 +1266,16 @@
       }
     };
   }
+  function createProgressBar() {
+    const bar = createElement("div", { className: "comic-helper-progress-fill" });
+    const el = createElement("div", { id: "comic-helper-progress-bar" }, [bar]);
+    const update = (current, total) => {
+      if (total <= 0) return;
+      const percentage = Math.min((current + 1) / total * 100, 100);
+      bar.style.width = `${percentage}%`;
+    };
+    return { el, update };
+  }
   class Draggable {
     /**
      * @param {HTMLElement} element 
@@ -1344,6 +1379,7 @@
       this.powerComp = null;
       this.counterComp = null;
       this.spreadComp = null;
+      this.progressComp = null;
       this.draggable = null;
       this.modalEl = null;
       this.helpModalEl = null;
@@ -1421,6 +1457,10 @@
         });
         container.appendChild(this.spreadComp.el);
       }
+      if (!this.progressComp) {
+        this.progressComp = createProgressBar();
+        document.body.appendChild(this.progressComp.el);
+      }
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
         const navBtns = createNavigationButtons({
           onFirst: () => this.navigator.scrollToEdge("start"),
@@ -1463,10 +1503,12 @@
         }
       }
       this.powerComp.update(enabled);
+      document.documentElement.classList.toggle("comic-helper-enabled", enabled);
       if (!enabled) {
         container.style.padding = "4px 8px";
         this.counterComp.el.style.display = "none";
         this.spreadComp.el.style.display = "none";
+        if (this.progressComp) this.progressComp.el.style.display = "none";
         container.querySelectorAll(".comic-helper-button").forEach((btn) => {
           btn.style.display = "none";
         });
@@ -1475,6 +1517,10 @@
       container.style.padding = "8px";
       this.counterComp.el.style.display = "flex";
       this.spreadComp.el.style.display = "flex";
+      if (this.progressComp) {
+        this.progressComp.el.style.display = "block";
+        this.progressComp.update(currentVisibleIndex, imgs.length);
+      }
       container.querySelectorAll(".comic-helper-button").forEach((btn) => {
         btn.style.display = "inline-block";
       });
