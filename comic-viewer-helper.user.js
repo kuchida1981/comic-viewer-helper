@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magazine Comic Viewer Helper
 // @namespace    https://github.com/kuchida1981/comic-viewer-helper
-// @version      1.2.0-unstable.df2193e
+// @version      1.3.0-unstable.d044e07
 // @description  A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @match        https://something/magazine/*
 // @match        https://something/fanzine/*
@@ -18,176 +18,6 @@
  */
 (function() {
   "use strict";
-  function calculateVisibleHeight(rect, windowHeight) {
-    const visibleTop = Math.max(0, rect.top);
-    const visibleBottom = Math.min(windowHeight, rect.bottom);
-    return Math.max(0, visibleBottom - visibleTop);
-  }
-  function shouldPairWithNext(current, next, isDualViewEnabled) {
-    if (!isDualViewEnabled) return false;
-    if (current.isLandscape) return false;
-    if (!next) return false;
-    if (next.isLandscape) return false;
-    return true;
-  }
-  function getPrimaryVisibleImageIndex(imgs, windowHeight) {
-    if (imgs.length === 0) return -1;
-    let maxVisibleHeight = 0;
-    let minDistanceToCenter = Infinity;
-    let primaryIndex = -1;
-    const viewportCenter = windowHeight / 2;
-    imgs.forEach((img, index) => {
-      const rect = img.getBoundingClientRect();
-      const visibleHeight = calculateVisibleHeight(rect, windowHeight);
-      if (visibleHeight > 0) {
-        const elementCenter = (rect.top + rect.bottom) / 2;
-        const distanceToCenter = Math.abs(viewportCenter - elementCenter);
-        if (visibleHeight > maxVisibleHeight || visibleHeight === maxVisibleHeight && distanceToCenter < minDistanceToCenter) {
-          maxVisibleHeight = visibleHeight;
-          minDistanceToCenter = distanceToCenter;
-          primaryIndex = index;
-        }
-      }
-    });
-    return primaryIndex;
-  }
-  function getImageElementByIndex(imgs, index) {
-    if (index < 0 || index >= imgs.length) return null;
-    return imgs[index];
-  }
-  function cleanupDOM(container) {
-    const allImages = (
-      /** @type {HTMLImageElement[]} */
-      Array.from(container.querySelectorAll("img"))
-    );
-    const wrappers = container.querySelectorAll(".comic-row-wrapper");
-    wrappers.forEach((w) => w.remove());
-    allImages.forEach((img) => {
-      img.style.cssText = "";
-    });
-    return allImages;
-  }
-  function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualViewEnabled = false) {
-    const container = (
-      /** @type {HTMLElement | null} */
-      document.querySelector(containerSelector)
-    );
-    if (!container) return;
-    const allImages = cleanupDOM(container);
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    Object.assign(container.style, {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      padding: "0",
-      margin: "0",
-      width: "100%",
-      maxWidth: "none"
-    });
-    for (let i = 0; i < allImages.length; i++) {
-      const img = allImages[i];
-      const isLandscape = img.naturalWidth > img.naturalHeight;
-      let pairWithNext = false;
-      const effectiveIndex = i - spreadOffset;
-      const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
-      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length) {
-        const nextImg = allImages[i + 1];
-        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
-        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
-          pairWithNext = true;
-        }
-      }
-      const row = document.createElement("div");
-      row.className = "comic-row-wrapper";
-      Object.assign(row.style, {
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100vw",
-        maxWidth: "100vw",
-        marginLeft: "calc(50% - 50vw)",
-        marginRight: "calc(50% - 50vw)",
-        height: "100vh",
-        marginBottom: "0",
-        position: "relative",
-        boxSizing: "border-box"
-      });
-      if (pairWithNext) {
-        const nextImg = allImages[i + 1];
-        row.style.flexDirection = "row-reverse";
-        [img, nextImg].forEach((im) => {
-          Object.assign(im.style, {
-            maxWidth: "50%",
-            maxHeight: "100%",
-            width: "auto",
-            height: "auto",
-            objectFit: "contain",
-            margin: "0",
-            display: "block"
-          });
-        });
-        row.appendChild(img);
-        row.appendChild(nextImg);
-        container.appendChild(row);
-        i++;
-      } else {
-        Object.assign(img.style, {
-          maxWidth: `${vw}px`,
-          maxHeight: `${vh}px`,
-          width: "auto",
-          height: "auto",
-          display: "block",
-          margin: "0 auto",
-          flexShrink: "0",
-          objectFit: "contain"
-        });
-        row.appendChild(img);
-        container.appendChild(row);
-      }
-    }
-  }
-  function revertToOriginal(originalImages, containerSelector) {
-    const container = (
-      /** @type {HTMLElement | null} */
-      document.querySelector(containerSelector)
-    );
-    if (!container) return;
-    container.style.cssText = "";
-    originalImages.forEach((img) => {
-      img.style.cssText = "";
-      container.appendChild(img);
-    });
-    const wrappers = container.querySelectorAll(".comic-row-wrapper");
-    wrappers.forEach((w) => w.remove());
-  }
-  function getNavigationDirection(event, threshold = 50) {
-    if (Math.abs(event.deltaY) < threshold) {
-      return "none";
-    }
-    return event.deltaY > 0 ? "next" : "prev";
-  }
-  function extractMetadata() {
-    const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
-    const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => ({
-      text: a.textContent?.trim() || "",
-      href: (
-        /** @type {HTMLAnchorElement} */
-        a.href
-      )
-    }));
-    const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
-      const anchor = el.closest("a");
-      const img = el.querySelector("img");
-      const titleEl = el.querySelector("span") || anchor?.querySelector("span");
-      return {
-        title: titleEl?.textContent?.trim() || "Untitled",
-        href: anchor?.href || "",
-        thumb: img?.src || ""
-      };
-    });
-    return { title, tags, relatedWorks };
-  }
   const STORAGE_KEYS = {
     DUAL_VIEW: "comic-viewer-helper-dual-view",
     GUI_POS: "comic-viewer-helper-gui-pos",
@@ -268,6 +98,315 @@
         return pos;
       } catch {
         return null;
+      }
+    }
+  }
+  const CONTAINER_SELECTOR = "#post-comic";
+  const DefaultAdapter = {
+    // Always match as a fallback (should be checked last)
+    match: () => true,
+    getContainer: () => (
+      /** @type {HTMLElement | null} */
+      document.querySelector(CONTAINER_SELECTOR)
+    ),
+    getImages: () => (
+      /** @type {HTMLImageElement[]} */
+      Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`))
+    ),
+    getMetadata: () => {
+      const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
+      const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => ({
+        text: a.textContent?.trim() || "",
+        href: (
+          /** @type {HTMLAnchorElement} */
+          a.href
+        )
+      }));
+      const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
+        const anchor = el.closest("a");
+        const img = el.querySelector("img");
+        const titleEl = el.querySelector("span") || anchor?.querySelector("span");
+        return {
+          title: titleEl?.textContent?.trim() || "Untitled",
+          href: anchor?.href || "",
+          thumb: img?.src || ""
+        };
+      });
+      return { title, tags, relatedWorks };
+    }
+  };
+  function calculateVisibleHeight(rect, windowHeight) {
+    const visibleTop = Math.max(0, rect.top);
+    const visibleBottom = Math.min(windowHeight, rect.bottom);
+    return Math.max(0, visibleBottom - visibleTop);
+  }
+  function shouldPairWithNext(current, next, isDualViewEnabled) {
+    if (!isDualViewEnabled) return false;
+    if (current.isLandscape) return false;
+    if (!next) return false;
+    if (next.isLandscape) return false;
+    return true;
+  }
+  function getPrimaryVisibleImageIndex(imgs, windowHeight) {
+    if (imgs.length === 0) return -1;
+    let maxVisibleHeight = 0;
+    let minDistanceToCenter = Infinity;
+    let primaryIndex = -1;
+    const viewportCenter = windowHeight / 2;
+    imgs.forEach((img, index) => {
+      const rect = img.getBoundingClientRect();
+      const visibleHeight = calculateVisibleHeight(rect, windowHeight);
+      if (visibleHeight > 0) {
+        const elementCenter = (rect.top + rect.bottom) / 2;
+        const distanceToCenter = Math.abs(viewportCenter - elementCenter);
+        if (visibleHeight > maxVisibleHeight || visibleHeight === maxVisibleHeight && distanceToCenter < minDistanceToCenter) {
+          maxVisibleHeight = visibleHeight;
+          minDistanceToCenter = distanceToCenter;
+          primaryIndex = index;
+        }
+      }
+    });
+    return primaryIndex;
+  }
+  function getImageElementByIndex(imgs, index) {
+    if (index < 0 || index >= imgs.length) return null;
+    return imgs[index];
+  }
+  function cleanupDOM(container) {
+    const allImages = (
+      /** @type {HTMLImageElement[]} */
+      Array.from(container.querySelectorAll("img"))
+    );
+    const wrappers = container.querySelectorAll(".comic-row-wrapper");
+    wrappers.forEach((w) => w.remove());
+    allImages.forEach((img) => {
+      img.style.cssText = "";
+    });
+    return allImages;
+  }
+  function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
+    if (!container) return;
+    const allImages = cleanupDOM(container);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    Object.assign(container.style, {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: "0",
+      margin: "0",
+      width: "100%",
+      maxWidth: "none"
+    });
+    for (let i = 0; i < allImages.length; i++) {
+      const img = allImages[i];
+      const isLandscape = img.naturalWidth > img.naturalHeight;
+      let pairWithNext = false;
+      const effectiveIndex = i - spreadOffset;
+      const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
+      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length) {
+        const nextImg = allImages[i + 1];
+        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
+        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
+          pairWithNext = true;
+        }
+      }
+      const row = document.createElement("div");
+      row.className = "comic-row-wrapper";
+      Object.assign(row.style, {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100vw",
+        maxWidth: "100vw",
+        marginLeft: "calc(50% - 50vw)",
+        marginRight: "calc(50% - 50vw)",
+        height: "100vh",
+        marginBottom: "0",
+        position: "relative",
+        boxSizing: "border-box"
+      });
+      if (pairWithNext) {
+        const nextImg = allImages[i + 1];
+        row.style.flexDirection = "row-reverse";
+        [img, nextImg].forEach((im) => {
+          Object.assign(im.style, {
+            maxWidth: "50%",
+            maxHeight: "100%",
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            margin: "0",
+            display: "block"
+          });
+        });
+        row.appendChild(img);
+        row.appendChild(nextImg);
+        container.appendChild(row);
+        i++;
+      } else {
+        Object.assign(img.style, {
+          maxWidth: `${vw}px`,
+          maxHeight: `${vh}px`,
+          width: "auto",
+          height: "auto",
+          display: "block",
+          margin: "0 auto",
+          flexShrink: "0",
+          objectFit: "contain"
+        });
+        row.appendChild(img);
+        container.appendChild(row);
+      }
+    }
+  }
+  function revertToOriginal(originalImages, container) {
+    if (!container) return;
+    container.style.cssText = "";
+    originalImages.forEach((img) => {
+      img.style.cssText = "";
+      container.appendChild(img);
+    });
+    const wrappers = container.querySelectorAll(".comic-row-wrapper");
+    wrappers.forEach((w) => w.remove());
+  }
+  function getNavigationDirection(event, threshold = 50) {
+    if (Math.abs(event.deltaY) < threshold) {
+      return "none";
+    }
+    return event.deltaY > 0 ? "next" : "prev";
+  }
+  class Navigator {
+    /**
+     * @param {import('../global').SiteAdapter} adapter 
+     * @param {import('../store.js').Store} store 
+     */
+    constructor(adapter, store) {
+      this.adapter = adapter;
+      this.store = store;
+      this.originalImages = [];
+      this.getImages = this.getImages.bind(this);
+      this.jumpToPage = this.jumpToPage.bind(this);
+      this.scrollToImage = this.scrollToImage.bind(this);
+      this.scrollToEdge = this.scrollToEdge.bind(this);
+      this.applyLayout = this.applyLayout.bind(this);
+      this.updatePageCounter = this.updatePageCounter.bind(this);
+      this.init = this.init.bind(this);
+      this._lastEnabled = void 0;
+      this._lastDualView = void 0;
+      this._lastSpreadOffset = void 0;
+    }
+    init() {
+      this.store.subscribe((state) => {
+        const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
+        if (layoutChanged) {
+          this.applyLayout();
+          this._lastEnabled = state.enabled;
+          this._lastDualView = state.isDualViewEnabled;
+          this._lastSpreadOffset = state.spreadOffset;
+        }
+      });
+      const initialState = this.store.getState();
+      this._lastEnabled = initialState.enabled;
+      this._lastDualView = initialState.isDualViewEnabled;
+      this._lastSpreadOffset = initialState.spreadOffset;
+      const imgs = this.getImages();
+      imgs.forEach((img) => {
+        if (!img.complete) {
+          img.addEventListener("load", () => {
+            requestAnimationFrame(() => this.applyLayout());
+          });
+        }
+      });
+      if (initialState.enabled) {
+        this.applyLayout();
+      }
+    }
+    /**
+     * @returns {HTMLImageElement[]}
+     */
+    getImages() {
+      if (this.originalImages.length > 0) return this.originalImages;
+      this.originalImages = this.adapter.getImages();
+      return this.originalImages;
+    }
+    updatePageCounter() {
+      const state = this.store.getState();
+      const { enabled } = state;
+      if (!enabled) return;
+      const imgs = this.getImages();
+      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      if (currentIndex !== -1) {
+        this.store.setState({ currentVisibleIndex: currentIndex });
+      }
+    }
+    /**
+     * @param {string | number} pageNumber 
+     * @returns {boolean}
+     */
+    jumpToPage(pageNumber) {
+      const imgs = this.getImages();
+      const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
+      const targetImg = getImageElementByIndex(imgs, index);
+      if (targetImg) {
+        targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      } else {
+        this.updatePageCounter();
+        return false;
+      }
+    }
+    /**
+     * @param {number} direction 
+     */
+    scrollToImage(direction) {
+      const imgs = this.getImages();
+      if (imgs.length === 0) return;
+      const { isDualViewEnabled } = this.store.getState();
+      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      let targetIndex = currentIndex + direction;
+      if (targetIndex < 0) targetIndex = 0;
+      if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+      const prospectiveTargetImg = imgs[targetIndex];
+      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+        const currentImg = imgs[currentIndex];
+        if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
+          targetIndex += direction;
+        }
+      }
+      const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
+      const finalTarget = imgs[finalIndex];
+      if (finalTarget) {
+        finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+    /**
+     * @param {'start' | 'end'} position 
+     */
+    scrollToEdge(position) {
+      const imgs = this.getImages();
+      if (imgs.length === 0) return;
+      const target = position === "start" ? imgs[0] : imgs[imgs.length - 1];
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    /**
+     * @param {number} [forcedIndex] 
+     */
+    applyLayout(forcedIndex) {
+      const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
+      const container = this.adapter.getContainer();
+      if (!container) return;
+      if (!enabled) {
+        revertToOriginal(this.getImages(), container);
+        return;
+      }
+      const imgs = this.getImages();
+      const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
+      this.updatePageCounter();
+      if (currentIndex !== -1) {
+        const targetImg = imgs[currentIndex];
+        if (targetImg) targetImg.scrollIntoView({ block: "center" });
       }
     }
   }
@@ -894,7 +1033,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.2.0-unstable.df2193e"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.d044e07"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1102,211 +1241,35 @@
       document.removeEventListener("mouseup", this._onMouseUp);
     }
   }
-  const CONTAINER_SELECTOR = "#post-comic";
-  const IMG_SELECTOR = "#post-comic img";
-  class App {
-    constructor() {
-      this.store = new Store();
-      this.originalImages = [];
-      this.lastWheelTime = 0;
-      this.WHEEL_THROTTLE_MS = 500;
-      this.WHEEL_THRESHOLD = 1;
-      this.pageCounterInput = null;
-      this.totalCounterEl = null;
-      this.resizeReq = void 0;
-      this.scrollReq = void 0;
-      this._lastEnabled = void 0;
-      this._lastDualView = void 0;
-      this._lastSpreadOffset = void 0;
+  class UIManager {
+    /**
+     * @param {import('../global').SiteAdapter} adapter 
+     * @param {import('../store.js').Store} store 
+     * @param {import('./Navigator.js').Navigator} navigator 
+     */
+    constructor(adapter, store, navigator2) {
+      this.adapter = adapter;
+      this.store = store;
+      this.navigator = navigator2;
       this.powerComp = null;
       this.counterComp = null;
       this.spreadComp = null;
       this.draggable = null;
       this.modalEl = null;
       this.helpModalEl = null;
-      this.init = this.init.bind(this);
-      this.handleWheel = this.handleWheel.bind(this);
-      this.onKeyDown = this.onKeyDown.bind(this);
-      this.toggleSpreadOffset = this.toggleSpreadOffset.bind(this);
       this.updateUI = this.updateUI.bind(this);
-      this.applyLayout = this.applyLayout.bind(this);
+      this.init = this.init.bind(this);
     }
-    getImages() {
-      if (this.originalImages.length > 0) return this.originalImages;
-      return (
-        /** @type {HTMLImageElement[]} */
-        Array.from(document.querySelectorAll(IMG_SELECTOR))
-      );
-    }
-    /**
-     * @param {EventTarget | null} target 
-     * @returns {boolean}
-     */
-    isInputField(target) {
-      if (!(target instanceof HTMLElement)) return false;
-      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
-    }
-    toggleSpreadOffset() {
-      const { spreadOffset } = this.store.getState();
-      this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-    }
-    updatePageCounter() {
-      const state = this.store.getState();
-      const { enabled } = state;
-      if (!enabled) return;
-      const imgs = this.getImages();
-      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-      if (currentIndex !== -1) {
-        this.store.setState({ currentVisibleIndex: currentIndex });
-      }
-    }
-    /**
-     * @param {string | number} pageNumber 
-     */
-    jumpToPage(pageNumber) {
-      const imgs = this.getImages();
-      const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
-      const targetImg = getImageElementByIndex(imgs, index);
-      if (targetImg) {
-        targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
-        if (this.pageCounterInput) this.pageCounterInput.blur();
-      } else {
-        this.updatePageCounter();
-        if (this.pageCounterInput) {
-          this.pageCounterInput.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
-          setTimeout(() => {
-            if (this.pageCounterInput) this.pageCounterInput.style.backgroundColor = "transparent";
-          }, 500);
-          this.pageCounterInput.blur();
+    init() {
+      injectStyles();
+      this.updateUI();
+      this.store.subscribe(this.updateUI);
+      window.addEventListener("resize", () => {
+        if (this.draggable) {
+          const { top, left } = this.draggable.clampToViewport();
+          this.store.setState({ guiPos: { top, left } });
         }
-      }
-    }
-    /**
-     * @param {number} direction 
-     */
-    scrollToImage(direction) {
-      const imgs = this.getImages();
-      if (imgs.length === 0) return;
-      const { isDualViewEnabled } = this.store.getState();
-      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-      let targetIndex = currentIndex + direction;
-      if (targetIndex < 0) targetIndex = 0;
-      if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
-      const prospectiveTargetImg = imgs[targetIndex];
-      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-        const currentImg = imgs[currentIndex];
-        if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
-          targetIndex += direction;
-        }
-      }
-      const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
-      const finalTarget = imgs[finalIndex];
-      if (finalTarget) {
-        finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
-    /**
-     * @param {'start' | 'end'} position 
-     */
-    scrollToEdge(position) {
-      const imgs = this.getImages();
-      if (imgs.length === 0) return;
-      const target = position === "start" ? imgs[0] : imgs[imgs.length - 1];
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-    /**
-     * @param {WheelEvent} e 
-     */
-    handleWheel(e) {
-      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-      if (!enabled) return;
-      if (isMetadataModalOpen || isHelpModalOpen) {
-        const modalContent = document.querySelector(".comic-helper-modal-content");
-        if (modalContent && modalContent.contains(
-          /** @type {Node} */
-          e.target
-        )) {
-          return;
-        }
-        e.preventDefault();
-        return;
-      }
-      e.preventDefault();
-      const now = Date.now();
-      if (now - this.lastWheelTime < this.WHEEL_THROTTLE_MS) return;
-      const direction = getNavigationDirection(e, this.WHEEL_THRESHOLD);
-      if (direction === "none") return;
-      const imgs = this.getImages();
-      if (imgs.length === 0) return;
-      this.lastWheelTime = now;
-      const step = isDualViewEnabled ? 2 : 1;
-      const nextIndex = direction === "next" ? Math.min(currentVisibleIndex + step, imgs.length - 1) : Math.max(currentVisibleIndex - step, 0);
-      this.jumpToPage(nextIndex + 1);
-    }
-    /**
-     * @param {KeyboardEvent} e 
-     */
-    onKeyDown(e) {
-      if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-      if (e.key === "Escape") {
-        if (isMetadataModalOpen || isHelpModalOpen) {
-          e.preventDefault();
-          this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
-          return;
-        }
-      }
-      const isKey = (id) => {
-        const sc = SHORTCUTS.find((s) => s.id === id);
-        if (!sc) return false;
-        return sc.keys.some((k) => {
-          if (k.startsWith("Shift+")) {
-            const baseKey = k.replace("Shift+", "");
-            return e.shiftKey && e.key === (baseKey === "Space" ? " " : baseKey);
-          }
-          return !e.shiftKey && e.key === (k === "Space" ? " " : k);
-        });
-      };
-      if (isKey("help") && isHelpModalOpen) {
-        e.preventDefault();
-        this.store.setState({ isHelpModalOpen: false });
-        return;
-      }
-      if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
-      if (isKey("nextPage")) {
-        e.preventDefault();
-        this.scrollToImage(1);
-      } else if (isKey("prevPage")) {
-        e.preventDefault();
-        this.scrollToImage(-1);
-      } else if (isKey("dualView")) {
-        e.preventDefault();
-        this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
-      } else if (isKey("spreadOffset") && isDualViewEnabled) {
-        e.preventDefault();
-        this.toggleSpreadOffset();
-      } else if (isKey("metadata")) {
-        e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
-      } else if (isKey("help")) {
-        e.preventDefault();
-        this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
-      }
-    }
-    /**
-     * @param {number} [forcedIndex] 
-     */
-    applyLayout(forcedIndex) {
-      const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
-      if (!enabled) return;
-      const imgs = this.getImages();
-      const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-      fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-      this.updatePageCounter();
-      if (currentIndex !== -1) {
-        const targetImg = imgs[currentIndex];
-        if (targetImg) targetImg.scrollIntoView({ block: "center" });
-      }
+      });
     }
     updateUI() {
       const state = this.store.getState();
@@ -1332,38 +1295,48 @@
           isEnabled: enabled,
           onClick: () => {
             const newState = !this.store.getState().enabled;
-            if (!newState) {
-              revertToOriginal(this.getImages(), CONTAINER_SELECTOR);
-            }
             this.store.setState({ enabled: newState });
           }
         });
         container.appendChild(this.powerComp.el);
       }
-      const imgs = this.getImages();
+      const imgs = this.navigator.getImages();
       if (!this.counterComp) {
         this.counterComp = createPageCounter({
           current: currentVisibleIndex + 1,
           total: imgs.length,
-          onJump: (val) => this.jumpToPage(val)
+          onJump: (val) => {
+            const success = this.navigator.jumpToPage(val);
+            if (this.counterComp) {
+              this.counterComp.input.blur();
+              if (!success) {
+                this.counterComp.input.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
+                setTimeout(() => {
+                  if (this.counterComp) this.counterComp.input.style.backgroundColor = "";
+                }, 500);
+              }
+            }
+          }
         });
-        this.pageCounterInput = this.counterComp.input;
         container.appendChild(this.counterComp.el);
       }
       if (!this.spreadComp) {
         this.spreadComp = createSpreadControls({
           isDualViewEnabled,
           onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
-          onAdjust: this.toggleSpreadOffset
+          onAdjust: () => {
+            const { spreadOffset } = this.store.getState();
+            this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+          }
         });
         container.appendChild(this.spreadComp.el);
       }
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
         const navBtns = createNavigationButtons({
-          onFirst: () => this.scrollToEdge("start"),
-          onPrev: () => this.scrollToImage(-1),
-          onNext: () => this.scrollToImage(1),
-          onLast: () => this.scrollToEdge("end"),
+          onFirst: () => this.navigator.scrollToEdge("start"),
+          onPrev: () => this.navigator.scrollToImage(-1),
+          onNext: () => this.navigator.scrollToImage(1),
+          onLast: () => this.navigator.scrollToEdge("end"),
           onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
           onHelp: () => this.store.setState({ isHelpModalOpen: true })
         });
@@ -1418,58 +1391,149 @@
       this.counterComp.update(currentVisibleIndex + 1, imgs.length);
       this.spreadComp.update(isDualViewEnabled);
     }
+  }
+  class InputManager {
+    /**
+     * @param {import('../store.js').Store} store 
+     * @param {import('./Navigator.js').Navigator} navigator 
+     */
+    constructor(store, navigator2) {
+      this.store = store;
+      this.navigator = navigator2;
+      this.lastWheelTime = 0;
+      this.WHEEL_THROTTLE_MS = 500;
+      this.WHEEL_THRESHOLD = 1;
+      this.resizeReq = void 0;
+      this.scrollReq = void 0;
+      this.handleWheel = this.handleWheel.bind(this);
+      this.onKeyDown = this.onKeyDown.bind(this);
+      this.handleResize = this.handleResize.bind(this);
+      this.handleScroll = this.handleScroll.bind(this);
+    }
     init() {
-      const container = document.querySelector(CONTAINER_SELECTOR);
-      if (!container) return;
-      injectStyles();
-      this.originalImages = /** @type {HTMLImageElement[]} */
-      Array.from(document.querySelectorAll(IMG_SELECTOR));
-      const metadata = extractMetadata();
-      this.store.setState({ metadata });
-      this.originalImages.forEach((img) => {
-        if (!img.complete) {
-          img.addEventListener("load", () => {
-            if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
-            const { currentVisibleIndex } = this.store.getState();
-            this.resizeReq = requestAnimationFrame(() => this.applyLayout(currentVisibleIndex));
-          });
-        }
-      });
-      this.store.subscribe((state) => {
-        const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
-        if (layoutChanged) {
-          this.applyLayout();
-          this._lastEnabled = state.enabled;
-          this._lastDualView = state.isDualViewEnabled;
-          this._lastSpreadOffset = state.spreadOffset;
-        }
-        this.updateUI();
-      });
-      const initialState = this.store.getState();
-      this._lastEnabled = initialState.enabled;
-      this._lastDualView = initialState.isDualViewEnabled;
-      this._lastSpreadOffset = initialState.spreadOffset;
-      if (initialState.enabled) {
-        this.applyLayout();
-      }
-      this.updateUI();
-      window.addEventListener("resize", () => {
-        const { enabled, currentVisibleIndex } = this.store.getState();
-        if (this.draggable) {
-          const { top, left } = this.draggable.clampToViewport();
-          this.store.setState({ guiPos: { top, left } });
-        }
-        if (!enabled) return;
-        if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
-        this.resizeReq = requestAnimationFrame(() => this.applyLayout(currentVisibleIndex));
-      });
-      window.addEventListener("scroll", () => {
-        if (!this.store.getState().enabled) return;
-        if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
-        this.scrollReq = requestAnimationFrame(() => this.updatePageCounter());
-      });
       window.addEventListener("wheel", this.handleWheel, { passive: false });
       document.addEventListener("keydown", this.onKeyDown, true);
+      window.addEventListener("resize", this.handleResize);
+      window.addEventListener("scroll", this.handleScroll);
+    }
+    /**
+     * @param {EventTarget | null} target 
+     * @returns {boolean}
+     */
+    isInputField(target) {
+      if (!(target instanceof HTMLElement)) return false;
+      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
+    }
+    /**
+     * @param {WheelEvent} e 
+     */
+    handleWheel(e) {
+      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+      if (!enabled) return;
+      if (isMetadataModalOpen || isHelpModalOpen) {
+        const modalContent = document.querySelector(".comic-helper-modal-content");
+        if (modalContent && modalContent.contains(
+          /** @type {Node} */
+          e.target
+        )) {
+          return;
+        }
+        e.preventDefault();
+        return;
+      }
+      e.preventDefault();
+      const now = Date.now();
+      if (now - this.lastWheelTime < this.WHEEL_THROTTLE_MS) return;
+      const direction = getNavigationDirection(e, this.WHEEL_THRESHOLD);
+      if (direction === "none") return;
+      const imgs = this.navigator.getImages();
+      if (imgs.length === 0) return;
+      this.lastWheelTime = now;
+      const step = isDualViewEnabled ? 2 : 1;
+      const nextIndex = direction === "next" ? Math.min(currentVisibleIndex + step, imgs.length - 1) : Math.max(currentVisibleIndex - step, 0);
+      this.navigator.jumpToPage(nextIndex + 1);
+    }
+    /**
+     * @param {KeyboardEvent} e 
+     */
+    onKeyDown(e) {
+      if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+      if (e.key === "Escape") {
+        if (isMetadataModalOpen || isHelpModalOpen) {
+          e.preventDefault();
+          this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
+          return;
+        }
+      }
+      const isKey = (id) => {
+        const sc = SHORTCUTS.find((s) => s.id === id);
+        if (!sc) return false;
+        return sc.keys.some((k) => {
+          if (k.startsWith("Shift+")) {
+            const baseKey = k.replace("Shift+", "");
+            return e.shiftKey && e.key === (baseKey === "Space" ? " " : baseKey);
+          }
+          return !e.shiftKey && e.key === (k === "Space" ? " " : k);
+        });
+      };
+      if (isKey("help") && isHelpModalOpen) {
+        e.preventDefault();
+        this.store.setState({ isHelpModalOpen: false });
+        return;
+      }
+      if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
+      if (isKey("nextPage")) {
+        e.preventDefault();
+        this.navigator.scrollToImage(1);
+      } else if (isKey("prevPage")) {
+        e.preventDefault();
+        this.navigator.scrollToImage(-1);
+      } else if (isKey("dualView")) {
+        e.preventDefault();
+        this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
+      } else if (isKey("spreadOffset") && isDualViewEnabled) {
+        e.preventDefault();
+        const { spreadOffset } = this.store.getState();
+        this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+      } else if (isKey("metadata")) {
+        e.preventDefault();
+        this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
+      } else if (isKey("help")) {
+        e.preventDefault();
+        this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
+      }
+    }
+    handleResize() {
+      const { enabled, currentVisibleIndex } = this.store.getState();
+      if (!enabled) return;
+      if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
+      this.resizeReq = requestAnimationFrame(() => this.navigator.applyLayout(currentVisibleIndex));
+    }
+    handleScroll() {
+      if (!this.store.getState().enabled) return;
+      if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
+      this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
+    }
+  }
+  class App {
+    constructor() {
+      this.store = new Store();
+      const adapters = [DefaultAdapter];
+      this.adapter = adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
+      this.navigator = new Navigator(this.adapter, this.store);
+      this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
+      this.inputManager = new InputManager(this.store, this.navigator);
+      this.init = this.init.bind(this);
+    }
+    init() {
+      const container = this.adapter.getContainer();
+      if (!container) return;
+      const metadata = this.adapter.getMetadata?.() ?? { title: "Unknown Title", tags: [], relatedWorks: [] };
+      this.store.setState({ metadata });
+      this.navigator.init();
+      this.uiManager.init();
+      this.inputManager.init();
     }
   }
   const app = new App();
