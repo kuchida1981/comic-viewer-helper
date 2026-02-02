@@ -367,6 +367,62 @@ export const styles = `
     box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
   }
 
+  /* Resume Notification Styles */
+  #comic-helper-resume-notification {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10002;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 14px;
+  }
+
+  .comic-helper-resume-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+  }
+
+  .comic-helper-resume-continue {
+    background: #4CAF50;
+    color: white;
+  }
+
+  .comic-helper-resume-continue:hover {
+    background: #45a049;
+  }
+
+  .comic-helper-resume-skip {
+    background: #666;
+    color: white;
+  }
+
+  .comic-helper-resume-skip:hover {
+    background: #555;
+  }
+
+  .comic-helper-resume-close {
+    background: transparent;
+    color: white;
+    padding: 2px 8px;
+    font-size: 18px;
+  }
+
+  .comic-helper-resume-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
   /* Global states */
   html.comic-helper-enabled {
     overflow: hidden !important;

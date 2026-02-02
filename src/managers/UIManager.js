@@ -6,6 +6,8 @@ import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createProgressBar } from '../ui/components/ProgressBar.js';
+import { createResumeToggle } from '../ui/components/ResumeToggle.js';
+import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 
@@ -24,6 +26,7 @@ export class UIManager {
     this.powerComp = null;
     this.counterComp = null;
     this.spreadComp = null;
+    this.resumeToggleComp = null;
     this.progressComp = null;
     this.draggable = null;
     this.modalEl = null;
@@ -118,6 +121,16 @@ export class UIManager {
       container.appendChild(this.spreadComp.el);
     }
 
+    // ResumeToggle は将来の設定画面で実装予定のため、現在は非表示
+    // if (!this.resumeToggleComp) {
+    //   const { resumeEnabled } = state;
+    //   this.resumeToggleComp = createResumeToggle({
+    //     resumeEnabled,
+    //     onToggle: (/** @type {boolean} */ val) => this.store.setState({ resumeEnabled: val })
+    //   });
+    //   container.appendChild(this.resumeToggleComp.el);
+    // }
+
     if (!this.progressComp) {
       this.progressComp = createProgressBar();
       document.body.appendChild(this.progressComp.el);
@@ -178,6 +191,7 @@ export class UIManager {
       container.style.padding = '4px 8px';
       this.counterComp.el.style.display = 'none';
       this.spreadComp.el.style.display = 'none';
+      // this.resumeToggleComp.el.style.display = 'none';
       if (this.progressComp) this.progressComp.el.style.display = 'none';
       container.querySelectorAll('.comic-helper-button').forEach(btn => {
          /** @type {HTMLElement} */ (btn).style.display = 'none';
@@ -188,6 +202,7 @@ export class UIManager {
     container.style.padding = '8px';
     this.counterComp.el.style.display = 'flex';
     this.spreadComp.el.style.display = 'flex';
+    // this.resumeToggleComp.el.style.display = 'flex';
     if (this.progressComp) {
       this.progressComp.el.style.display = 'block';
       this.progressComp.update(currentVisibleIndex, imgs.length);
@@ -198,5 +213,32 @@ export class UIManager {
 
     this.counterComp.update(currentVisibleIndex + 1, imgs.length);
     this.spreadComp.update(isDualViewEnabled);
+    // this.resumeToggleComp.update(state.resumeEnabled);
+  }
+
+  /**
+   * Show resume notification
+   * @param {number} savedIndex
+   */
+  showResumeNotification(savedIndex) {
+    console.log('[UIManager] showResumeNotification called with savedIndex:', savedIndex);
+    const imgs = this.navigator.getImages();
+    console.log('[UIManager] Total images:', imgs.length);
+    const notification = createResumeNotification({
+      savedIndex,
+      totalPages: imgs.length,
+      onResume: () => {
+        this.navigator.jumpToPage(savedIndex + 1);
+      },
+      onSkip: () => {
+        // 何もしない（最初から読む）
+      }
+    });
+    console.log('[UIManager] Notification created:', notification);
+    console.log('[UIManager] Appending to body...');
+    document.body.appendChild(notification.el);
+    console.log('[UIManager] Appended! Checking DOM...');
+    const check = document.getElementById('comic-helper-resume-notification');
+    console.log('[UIManager] DOM check:', check);
   }
 }

@@ -28,7 +28,11 @@ export const MESSAGES = {
       shiftOffset: 'Shift spread pairing by 1 page (Offset)',
       space: 'Space',
       enable: 'Enable Comic Viewer Helper',
-      disable: 'Disable Comic Viewer Helper'
+      disable: 'Disable Comic Viewer Helper',
+      resume: 'Resume',
+      resumeNotification: 'Resume from page {page}?',
+      continueReading: 'Continue',
+      startFromBeginning: 'Start Over'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
@@ -62,7 +66,11 @@ export const MESSAGES = {
       shiftOffset: '見開きペアを1ページ分ずらす（オフセット）',
       space: 'スペース',
       enable: 'スクリプトを有効にする',
-      disable: 'スクリプトを無効にする'
+      disable: 'スクリプトを無効にする',
+      resume: 'レジューム',
+      resumeNotification: '{page}ページから再開しますか？',
+      continueReading: '続きから',
+      startFromBeginning: '最初から'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },
