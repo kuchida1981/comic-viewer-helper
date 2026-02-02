@@ -14,6 +14,7 @@
  */
 
 const CONTAINER_SELECTOR = '#post-comic';
+const TAG_TYPES = ['artist', 'character', 'circle', 'fanzine', 'genre', 'magazine', 'parody'];
 
 /**
  * タグのURLパスからタグ種別を判定する
@@ -24,13 +25,11 @@ function getTagType(href) {
   try {
     const url = new URL(href);
     const pathname = url.pathname;
-    if (pathname.startsWith('/artist/')) return 'artist';
-    if (pathname.startsWith('/character/')) return 'character';
-    if (pathname.startsWith('/circle/')) return 'circle';
-    if (pathname.startsWith('/fanzine/')) return 'fanzine';
-    if (pathname.startsWith('/genre/')) return 'genre';
-    if (pathname.startsWith('/magazine/')) return 'magazine';
-    if (pathname.startsWith('/parody/')) return 'parody';
+    for (const type of TAG_TYPES) {
+      if (pathname.startsWith(`/${type}/`)) {
+        return type;
+      }
+    }
     return null;
   } catch {
     return null;
