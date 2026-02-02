@@ -7,7 +7,6 @@ import { createSpreadControls } from '../ui/components/SpreadControls.js';
 import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
-import { createProgressBar } from '../ui/components/ProgressBar.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 

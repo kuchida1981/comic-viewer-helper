@@ -11,4 +11,4 @@ The system SHALL provide keybindings for navigating between images. ナビゲー
 #### Scenario: 前のページへ
 - **WHEN** ユーザーが「前へ」のキー（`k`, `ArrowUp`, `PageUp`, `ArrowLeft`, `Shift+Space`）を押す
 - **THEN** ビューポートが前の画像または見開き画像までスクロールする
-- **AND** 画像/見開き画像がビューポート의 垂直方向中央に配置される
+- **AND** 画像/見開き画像がビューポートの垂直方向中央に配置される

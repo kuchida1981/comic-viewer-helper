@@ -26,7 +26,7 @@
 - **実装詳細**: `UIManager.init()` および `updateUI()` 内で `document.documentElement.classList.toggle('comic-helper-enabled', enabled)` を実行。
 
 ### 3. プログレスバーの更新タイミング
-`Store` の `currentVisibleIndex` を購読し、変更があるたびにバーの幅（`width: (index + 1) / total * 100 %`）を更新します。
+`Store` の `currentVisibleIndex` を購読し、変更があるたびにバーの幅（`width: (index + 1) / total * 100%`）を更新します。
 - **理由**: `Navigator` がすでにビューポート内の画像を判定して `Store` を更新しているため、その既存の仕組みに乗るのが最も効率的であるため。
 
 ## Risks / Trade-offs
