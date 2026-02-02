@@ -56,3 +56,7 @@ npm run lint
 
 This script was created for personal learning and convenience purposes.
 It may stop working due to changes in the specifications of the target sites.
+
+## License
+
+This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
