@@ -6,15 +6,17 @@ declare global {
   const __IS_UNSTABLE__: boolean;
 }
 
+export interface Metadata {
+  title: string;
+  tags: Array<{ text: string, href: string }>;
+  relatedWorks: Array<{ title: string, href: string, thumb: string }>;
+}
+
 export interface SiteAdapter {
   match: (url: string) => boolean;
   getContainer: () => HTMLElement | null;
   getImages: () => HTMLImageElement[];
-  getMetadata?: () => {
-    title: string;
-    tags: Array<{ text: string, href: string }>;
-    relatedWorks: Array<{ title: string, href: string, thumb: string }>;
-  };
+  getMetadata?: () => Metadata;
 }
 
 export {};

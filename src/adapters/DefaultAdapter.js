@@ -13,6 +13,8 @@
  * @property {function(): Metadata} [getMetadata] - メタデータ抽出ロジック（任意）
  */
 
+const CONTAINER_SELECTOR = '#post-comic';
+
 /**
  * Default adapter for the existing site structure
  * @type {SiteAdapter}
@@ -20,9 +22,9 @@
 export const DefaultAdapter = {
   // Always match as a fallback (should be checked last)
   match: () => true,
-  getContainer: () => /** @type {HTMLElement | null} */ (document.querySelector('#post-comic')),
+  getContainer: () => /** @type {HTMLElement | null} */ (document.querySelector(CONTAINER_SELECTOR)),
   getImages: () => /** @type {HTMLImageElement[]} */ (
-    Array.from(document.querySelectorAll('#post-comic img'))
+    Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`))
   ),
   getMetadata: () => {
     const title = document.querySelector('h1')?.textContent?.trim() || 'Unknown Title';

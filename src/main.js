@@ -25,9 +25,7 @@ class App {
     if (!container) return;
 
     // Extract and set metadata
-    const metadata = this.adapter.getMetadata 
-      ? this.adapter.getMetadata() 
-      : { title: 'Unknown Title', tags: [], relatedWorks: [] };
+    const metadata = this.adapter.getMetadata?.() ?? { title: 'Unknown Title', tags: [], relatedWorks: [] };
     this.store.setState({ metadata });
 
     // Initialize managers
