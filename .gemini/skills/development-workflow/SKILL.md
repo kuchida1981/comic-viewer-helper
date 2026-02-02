@@ -62,5 +62,5 @@ for user verification in the PR description.
 
 ### コードレビューと動作確認のあと, OpenSpec提案をverify/archive する
 
-* 動作確認に問題がなく, コードレビューを受けてその対応が完了したら, OpenSpec提案をverify/archiveし, コミット/プッシュしてください
+* OpenSpec 提案を検証・アーカイブする際, `dist/` ディレクトリ配下のファイル（ビルド成果物）はコミットに含めないでください. これらは `.gitignore` で除外されています.
 * そのあとユーザーにプルリクエストをマージするように促してください

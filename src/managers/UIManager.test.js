@@ -44,6 +44,9 @@ vi.mock('../ui/components/MetadataModal.js', () => ({
 vi.mock('../ui/components/HelpModal.js', () => ({
   createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() } }))
 }));
+vi.mock('../ui/components/ProgressBar.js', () => ({
+  createProgressBar: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
+}));
 
 describe('UIManager', () => {
   /** @type {any} */
@@ -89,6 +92,11 @@ describe('UIManager', () => {
     vi.stubGlobal('document', {
         getElementById: vi.fn().mockReturnValue(null),
         body: { appendChild: vi.fn() },
+        documentElement: { 
+          classList: { 
+            toggle: vi.fn() 
+          } 
+        },
         createElement: vi.fn(),
         querySelector: vi.fn().mockReturnValue(null)
     });

@@ -346,6 +346,31 @@ export const styles = `
     font-size: 13px;
     flex: 1;
   }
+
+  /* Progress Bar Styles */
+  #comic-helper-progress-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+    pointer-events: none;
+  }
+
+  .comic-helper-progress-fill {
+    height: 100%;
+    background: #4CAF50;
+    width: 0;
+    transition: width 0.2s ease-out;
+    box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
+  }
+
+  /* Global states */
+  html.comic-helper-enabled {
+    overflow: hidden !important;
+  }
 `;
 
 /**
