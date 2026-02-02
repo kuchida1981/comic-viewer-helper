@@ -102,12 +102,11 @@ export function cleanupDOM(container) {
 
 /**
  * Fit images to viewport
- * @param {string} containerSelector
+ * @param {HTMLElement} container
  * @param {number} spreadOffset
  * @param {boolean} isDualViewEnabled
  */
-export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualViewEnabled = false) {
-  const container = /** @type {HTMLElement | null} */ (document.querySelector(containerSelector));
+export function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
   if (!container) return;
 
   // Cleanup first and get images
@@ -176,10 +175,9 @@ export function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualV
 /**
  * Revert changes: clear styles and restore original DOM structure
  * @param {Array<HTMLImageElement>} originalImages 
- * @param {string} containerSelector 
+ * @param {HTMLElement} container 
  */
-export function revertToOriginal(originalImages, containerSelector) {
-  const container = /** @type {HTMLElement | null} */ (document.querySelector(containerSelector));
+export function revertToOriginal(originalImages, container) {
   if (!container) return;
 
   // Clear container styles
@@ -209,30 +207,3 @@ export function getNavigationDirection(event, threshold = 50) {
   return event.deltaY > 0 ? 'next' : 'prev';
 }
 
-/**
- * Extract metadata from the document
- * @returns {{ title: string, tags: Array<{text: string, href: string}>, relatedWorks: Array<{title: string, href: string, thumb: string}> }}
- */
-export function extractMetadata() {
-  const title = document.querySelector('h1')?.textContent?.trim() || 'Unknown Title';
-  
-  const tags = Array.from(document.querySelectorAll('#post-tag a')).map(a => ({
-    text: a.textContent?.trim() || '',
-    href: /** @type {HTMLAnchorElement} */ (a).href
-  }));
-
-  const relatedWorks = Array.from(document.querySelectorAll('.post-list-image')).map(el => {
-    const anchor = el.closest('a');
-    const img = el.querySelector('img');
-    // Assuming title is in a span inside or near .post-list-image based on issue description
-    const titleEl = el.querySelector('span') || anchor?.querySelector('span');
-    
-    return {
-      title: titleEl?.textContent?.trim() || 'Untitled',
-      href: anchor?.href || '',
-      thumb: img?.src || ''
-    };
-  });
-
-  return { title, tags, relatedWorks };
-}

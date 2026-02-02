@@ -1,117 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, extractMetadata } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection } from './logic';
 
 describe('logic.js', () => {
-  describe('extractMetadata', () => {
-    beforeEach(() => {
-      vi.stubGlobal('document', {
-        querySelector: vi.fn(),
-        querySelectorAll: vi.fn()
-      });
-    });
-
-    afterEach(() => {
-      vi.unstubAllGlobals();
-    });
-
-    it('should extract title from h1', () => {
-      // @ts-ignore
-      document.querySelector.mockImplementation(sel => {
-        if (sel === 'h1') return { textContent: ' My Manga Title ' };
-        return null;
-      });
-      // @ts-ignore
-      document.querySelectorAll.mockReturnValue([]);
-
-      const result = extractMetadata();
-      expect(result.title).toBe('My Manga Title');
-    });
-
-    it('should extract tags from #post-tag a', () => {
-      // @ts-ignore
-      document.querySelector.mockReturnValue(null);
-      // @ts-ignore
-      document.querySelectorAll.mockImplementation(sel => {
-        if (sel === '#post-tag a') return [
-          { textContent: 'Action', href: 'http://tags/action' },
-          { textContent: 'Fantasy', href: 'http://tags/fantasy' }
-        ];
-        return [];
-      });
-
-      const result = extractMetadata();
-      expect(result.tags).toEqual([
-        { text: 'Action', href: 'http://tags/action' },
-        { text: 'Fantasy', href: 'http://tags/fantasy' }
-      ]);
-    });
-
-    it('should extract related works from .post-list-image', () => {
-      // @ts-ignore
-      document.querySelector.mockReturnValue(null);
-      // @ts-ignore
-      document.querySelectorAll.mockImplementation(sel => {
-        if (sel === '.post-list-image') {
-          const mockEl = {
-            closest: vi.fn().mockReturnValue({ href: 'http://work/1' }),
-            querySelector: vi.fn().mockImplementation(s => {
-              if (s === 'img') return { src: 'thumb1.jpg' };
-              if (s === 'span') return { textContent: 'Related Work 1' };
-              return null;
-            })
-          };
-          return [mockEl];
-        }
-        return [];
-      });
-
-      const result = extractMetadata();
-      expect(result.relatedWorks).toEqual([
-        { title: 'Related Work 1', href: 'http://work/1', thumb: 'thumb1.jpg' }
-      ]);
-    });
-
-    it('should extract title from anchor span if not found in .post-list-image span', () => {
-      // @ts-ignore
-      document.querySelector.mockReturnValue(null);
-      // @ts-ignore
-      document.querySelectorAll.mockImplementation(sel => {
-        if (sel === '.post-list-image') {
-          const mockAnchor = { 
-            href: 'http://work/2',
-            querySelector: vi.fn().mockImplementation(s => {
-              if (s === 'span') return { textContent: 'Title from Anchor' };
-              return null;
-            })
-          };
-          const mockEl = {
-            closest: vi.fn().mockReturnValue(mockAnchor),
-            querySelector: vi.fn().mockReturnValue(null) // No span inside .post-list-image
-          };
-          return [mockEl];
-        }
-        return [];
-      });
-
-      const result = extractMetadata();
-      expect(result.relatedWorks[0].title).toBe('Title from Anchor');
-    });
-
-    it('should provide default values if elements not found', () => {
-      // @ts-ignore
-      document.querySelector.mockReturnValue(null);
-      // @ts-ignore
-      document.querySelectorAll.mockReturnValue([]);
-
-      const result = extractMetadata();
-      expect(result).toEqual({
-        title: 'Unknown Title',
-        tags: [],
-        relatedWorks: []
-      });
-    });
-  });
-
   describe('calculateVisibleHeight', () => {
 
     it('should return full height when image is fully in viewport', () => {
@@ -244,12 +134,12 @@ describe('logic.js', () => {
     });
 
     it('should reset container styles', () => {
-      revertToOriginal(originalImages, '#container');
+      revertToOriginal(originalImages, container);
       expect(container.style.cssText).toBe('');
     });
 
     it('should reset image styles and append them to container', () => {
-      revertToOriginal(originalImages, '#container');
+      revertToOriginal(originalImages, container);
       originalImages.forEach((/** @type {any} */ img) => {
         expect(img.style.cssText).toBe('');
         expect(container.appendChild).toHaveBeenCalledWith(img);
@@ -257,17 +147,16 @@ describe('logic.js', () => {
     });
 
     it('should remove wrappers', () => {
-      revertToOriginal(originalImages, '#container');
+      revertToOriginal(originalImages, container);
       expect(container.querySelectorAll).toHaveBeenCalledWith('.comic-row-wrapper');
       wrappers.forEach((/** @type {any} */ w) => {
         expect(w.remove).toHaveBeenCalled();
       });
     });
 
-    it('should do nothing if container is not found', () => {
-      // @ts-ignore - mockReturnValue is from Vitest
-      document.querySelector.mockReturnValue(null);
-      revertToOriginal(originalImages, '#container');
+    it('should do nothing if container is null', () => {
+      // @ts-ignore
+      revertToOriginal(originalImages, null);
       // No errors should occur
       expect(container.appendChild).not.toHaveBeenCalled();
     });
@@ -322,7 +211,7 @@ describe('logic.js', () => {
     });
 
     it('should pair 0-1 and 2-3 when offset is 0', () => {
-      fitImagesToViewport('#container', 0, true);
+      fitImagesToViewport(container, 0, true);
       
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(2);
@@ -337,7 +226,7 @@ describe('logic.js', () => {
       images[1].naturalWidth = 500; images[1].naturalHeight = 100;
       images[2].naturalWidth = 500; images[2].naturalHeight = 100;
 
-      fitImagesToViewport('#container', 0, true);
+      fitImagesToViewport(container, 0, true);
       // Expected: 4 solo rows
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(4);
@@ -353,7 +242,7 @@ describe('logic.js', () => {
       // i=1: [1] solo (landscape)
       // i=2: [2-3] pair
       
-      fitImagesToViewport('#container', 0, true);
+      fitImagesToViewport(container, 0, true);
 
       // Check the order of appendChild calls on container
       const calls = container.appendChild.mock.calls.map((/** @type {any[]} */ call) => call[0]);
@@ -373,7 +262,7 @@ describe('logic.js', () => {
         return [];
       });
 
-      fitImagesToViewport('#container', 1, true);
+      fitImagesToViewport(container, 1, true);
       // Expected: 0 solo, 1-2 pair -> 2 rows
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(2);
@@ -392,14 +281,13 @@ describe('logic.js', () => {
         return [];
       });
 
-      fitImagesToViewport('#container', 0, true);
+      fitImagesToViewport(container, 0, true);
       expect(existingWrapper.remove).toHaveBeenCalled();
     });
 
-    it('should do nothing if container is not found', () => {
-      // @ts-ignore - mockReturnValue is from Vitest
-      document.querySelector.mockReturnValue(null);
-      fitImagesToViewport('#non-existent', 0, true);
+    it('should do nothing if container is null', () => {
+      // @ts-ignore
+      fitImagesToViewport(null, 0, true);
       expect(container.appendChild).not.toHaveBeenCalled();
     });
   });
