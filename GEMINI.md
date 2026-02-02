@@ -51,6 +51,7 @@ Do not skip steps unless the user explicitly instructs otherwise.
 
 ### Important Rules
 
+- **Do NOT commit files in the `dist/` directory** (build artifacts are ignored by `.gitignore`)
 - **Do NOT write production code before reaching the "implementation" step**
 - **Always include a TODO checklist for user verification in PR descriptions**
 - **Never skip user verification**
