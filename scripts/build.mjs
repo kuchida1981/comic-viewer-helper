@@ -32,7 +32,7 @@ execSync('npx vite build', {
 
 // 4. Update version in header.js and concatenate
 let header = fs.readFileSync('./src/header.js', 'utf-8');
-header = header.replace(/@version\s+.*/, `@version      ${version}`);
+header = header.replace(/@version\s+.*/, `@version         ${version}`);
 
 if (isUnstable) {
   // Replace URLs pointing to stable branch with unstable branch
