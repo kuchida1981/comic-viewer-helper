@@ -179,7 +179,6 @@ export class UIManager {
       container.style.padding = '4px 8px';
       this.counterComp.el.style.display = 'none';
       this.spreadComp.el.style.display = 'none';
-      // this.resumeToggleComp.el.style.display = 'none';
       if (this.progressComp) this.progressComp.el.style.display = 'none';
       container.querySelectorAll('.comic-helper-button').forEach(btn => {
          /** @type {HTMLElement} */ (btn).style.display = 'none';
@@ -190,7 +189,6 @@ export class UIManager {
     container.style.padding = '8px';
     this.counterComp.el.style.display = 'flex';
     this.spreadComp.el.style.display = 'flex';
-    // this.resumeToggleComp.el.style.display = 'flex';
     if (this.progressComp) {
       this.progressComp.el.style.display = 'block';
       this.progressComp.update(currentVisibleIndex, imgs.length);
