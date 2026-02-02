@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.3360989
+// @version         1.3.0-unstable.b326b58
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -106,6 +106,21 @@
     }
   }
   const CONTAINER_SELECTOR = "#post-comic";
+  const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
+  function getTagType(href) {
+    try {
+      const url = new URL(href);
+      const pathname = url.pathname;
+      for (const type of TAG_TYPES) {
+        if (pathname.startsWith(`/${type}/`)) {
+          return type;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
   const DefaultAdapter = {
     // Always match as a fallback (should be checked last)
     match: () => true,
@@ -119,13 +134,17 @@
     ),
     getMetadata: () => {
       const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
-      const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => ({
-        text: a.textContent?.trim() || "",
-        href: (
+      const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
+        const href = (
           /** @type {HTMLAnchorElement} */
           a.href
-        )
-      }));
+        );
+        return {
+          text: a.textContent?.trim() || "",
+          href,
+          type: getTagType(href)
+        };
+      });
       const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
         const anchor = el.closest("a");
         const img = el.querySelector("img");
@@ -614,6 +633,70 @@
     color: #fff;
   }
 
+  /* Tag type color variants */
+  .comic-helper-tag-chip--artist {
+    background: #5c3d4a;
+    color: #f0d0dc;
+  }
+  .comic-helper-tag-chip--artist:hover {
+    background: #7a5060;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--character {
+    background: #3d5c4a;
+    color: #d0f0dc;
+  }
+  .comic-helper-tag-chip--character:hover {
+    background: #507a60;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--circle {
+    background: #3d4a5c;
+    color: #d0dcf0;
+  }
+  .comic-helper-tag-chip--circle:hover {
+    background: #50607a;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--fanzine {
+    background: #5c4a3d;
+    color: #f0dcd0;
+  }
+  .comic-helper-tag-chip--fanzine:hover {
+    background: #7a6050;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--genre {
+    background: #4a4a4a;
+    color: #d0d0d0;
+  }
+  .comic-helper-tag-chip--genre:hover {
+    background: #606060;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--magazine {
+    background: #4a3d5c;
+    color: #dcd0f0;
+  }
+  .comic-helper-tag-chip--magazine:hover {
+    background: #60507a;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--parody {
+    background: #3d5c5c;
+    color: #d0f0f0;
+  }
+  .comic-helper-tag-chip--parody:hover {
+    background: #507a7a;
+    color: #fff;
+  }
+
   .comic-helper-related-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -994,14 +1077,17 @@
       className: "comic-helper-modal-title",
       textContent: title
     });
-    const tagChips = tags.map((tag) => createElement("a", {
-      className: "comic-helper-tag-chip",
-      textContent: tag.text,
-      attributes: { href: tag.href, target: "_blank" },
-      events: {
-        click: (e) => e.stopPropagation()
-      }
-    }));
+    const tagChips = tags.map((tag) => {
+      const className = tag.type ? `comic-helper-tag-chip comic-helper-tag-chip--${tag.type}` : "comic-helper-tag-chip";
+      return createElement("a", {
+        className,
+        textContent: tag.text,
+        attributes: { href: tag.href, target: "_blank" },
+        events: {
+          click: (e) => e.stopPropagation()
+        }
+      });
+    });
     const tagSection = createElement("div", {}, [
       createElement("div", { className: "comic-helper-section-title", textContent: t("ui.tags") }),
       createElement("div", { className: "comic-helper-tag-list" }, tagChips)
@@ -1037,7 +1123,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.3360989"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.b326b58"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
