@@ -7,6 +7,7 @@ import { createSpreadControls } from '../ui/components/SpreadControls.js';
 import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
+import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 
@@ -34,6 +35,9 @@ vi.mock('../ui/components/PageCounter.js', () => ({
 }));
 vi.mock('../ui/components/SpreadControls.js', () => ({
   createSpreadControls: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
+}));
+vi.mock('../ui/components/ResumeNotification.js', () => ({
+  createResumeNotification: vi.fn(() => ({ el: { style: {}, display: '' } }))
 }));
 vi.mock('../ui/components/NavigationButtons.js', () => ({
   createNavigationButtons: vi.fn(() => ({ elements: [{ style: {}, querySelectorAll: vi.fn() }] }))
@@ -200,6 +204,19 @@ describe('UIManager', () => {
     store.getState.mockReturnValue({ spreadOffset: 0 });
     spreadOnAdjust();
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
+  });
+
+  it('showResumeNotification should work', () => {
+    uiManager.showResumeNotification(5);
+    
+    expect(createResumeNotification).toHaveBeenCalledWith(expect.objectContaining({
+      savedIndex: 5
+    }));
+    expect(document.body.appendChild).toHaveBeenCalled();
+
+    const onResume = vi.mocked(createResumeNotification).mock.calls[0][0].onResume;
+    onResume();
+    expect(navigator.jumpToPage).toHaveBeenCalledWith(6);
   });
 
   it('navigation button callbacks should work', () => {

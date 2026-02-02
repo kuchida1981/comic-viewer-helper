@@ -6,6 +6,7 @@ import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createProgressBar } from '../ui/components/ProgressBar.js';
+import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 
@@ -198,5 +199,22 @@ export class UIManager {
 
     this.counterComp.update(currentVisibleIndex + 1, imgs.length);
     this.spreadComp.update(isDualViewEnabled);
+  }
+
+  /**
+   * Show resume notification
+   * @param {number} savedIndex
+   */
+  showResumeNotification(savedIndex) {
+    const notification = createResumeNotification({
+      savedIndex,
+      onResume: () => {
+        this.navigator.jumpToPage(savedIndex + 1);
+      },
+      onSkip: () => {
+        // 何もしない（最初から読む）
+      }
+    });
+    document.body.appendChild(notification.el);
   }
 }

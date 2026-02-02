@@ -3,6 +3,7 @@ import { DefaultAdapter } from './adapters/DefaultAdapter.js';
 import { Navigator } from './managers/Navigator.js';
 import { UIManager } from './managers/UIManager.js';
 import { InputManager } from './managers/InputManager.js';
+import { ResumeManager } from './managers/ResumeManager.js';
 
 class App {
   constructor() {
@@ -16,6 +17,7 @@ class App {
     this.navigator = new Navigator(this.adapter, this.store);
     this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
     this.inputManager = new InputManager(this.store, this.navigator);
+    this.resumeManager = new ResumeManager(this.store);
 
     this.init = this.init.bind(this);
   }
@@ -32,6 +34,25 @@ class App {
     this.navigator.init();
     this.uiManager.init();
     this.inputManager.init();
+
+    // Resume position logic
+    if (this.resumeManager.isEnabled()) {
+      const workKey = window.location.origin + window.location.pathname;
+      const savedIndex = this.resumeManager.loadPosition(workKey);
+      // 1ページ目以外の場合のみ通知を表示
+      if (savedIndex !== null && savedIndex > 0) {
+        this.uiManager.showResumeNotification(savedIndex);
+      }
+    }
+
+    // Save position on page unload
+    window.addEventListener('beforeunload', () => {
+      if (this.resumeManager.isEnabled()) {
+        const workKey = window.location.origin + window.location.pathname;
+        const currentIndex = this.store.getState().currentVisibleIndex;
+        this.resumeManager.savePosition(workKey, currentIndex);
+      }
+    });
   }
 }
 
