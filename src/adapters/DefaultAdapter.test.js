@@ -34,6 +34,7 @@ describe('DefaultAdapter', () => {
 
       // @ts-ignore - DefaultAdapter has getMetadata
       const result = DefaultAdapter.getMetadata();
+      expect(result.title).toBe('My Manga Title');
     });
 
     it('should extract tags from #post-tag a', () => {
