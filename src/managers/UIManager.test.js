@@ -207,12 +207,10 @@ describe('UIManager', () => {
   });
 
   it('showResumeNotification should work', () => {
-    navigator.getImages.mockReturnValue(new Array(10));
     uiManager.showResumeNotification(5);
     
     expect(createResumeNotification).toHaveBeenCalledWith(expect.objectContaining({
-      savedIndex: 5,
-      totalPages: 10
+      savedIndex: 5
     }));
     expect(document.body.appendChild).toHaveBeenCalled();
 

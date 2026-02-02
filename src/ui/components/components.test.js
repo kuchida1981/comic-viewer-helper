@@ -1499,7 +1499,6 @@ describe('UI Components', () => {
     it('should render message and buttons', () => {
       const { el } = createResumeNotification({
         savedIndex: 5,
-        totalPages: 10,
         onResume: () => {},
         onSkip: () => {}
       });
@@ -1515,7 +1514,6 @@ describe('UI Components', () => {
       const onSkip = vi.fn();
       const { el } = createResumeNotification({
         savedIndex: 5,
-        totalPages: 10,
         onResume,
         onSkip
       });
@@ -1535,7 +1533,6 @@ describe('UI Components', () => {
       const onSkip = vi.fn();
       const { el } = createResumeNotification({
         savedIndex: 5,
-        totalPages: 10,
         onResume,
         onSkip
       });
@@ -1555,7 +1552,6 @@ describe('UI Components', () => {
       const onSkip = vi.fn();
       const { el } = createResumeNotification({
         savedIndex: 5,
-        totalPages: 10,
         onResume,
         onSkip
       });
@@ -1573,7 +1569,6 @@ describe('UI Components', () => {
     it('should auto-cleanup after 15 seconds', () => {
       const { el } = createResumeNotification({
         savedIndex: 5,
-        totalPages: 10,
         onResume: () => {},
         onSkip: () => {}
       });
@@ -1589,7 +1584,6 @@ describe('UI Components', () => {
     it('should cleanup on scroll after 1 second delay', () => {
       const { el } = createResumeNotification({
         savedIndex: 5,
-        totalPages: 10,
         onResume: () => {},
         onSkip: () => {}
       });
@@ -1611,7 +1605,6 @@ describe('UI Components', () => {
     it('should format message with correct page number', () => {
       const { el } = createResumeNotification({
         savedIndex: 0,
-        totalPages: 10,
         onResume: () => {},
         onSkip: () => {}
       });
@@ -1621,7 +1614,6 @@ describe('UI Components', () => {
 
       const el2 = createResumeNotification({
         savedIndex: 9,
-        totalPages: 10,
         onResume: () => {},
         onSkip: () => {}
       }).el;

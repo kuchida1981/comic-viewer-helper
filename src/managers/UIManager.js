@@ -208,12 +208,8 @@ export class UIManager {
    * @param {number} savedIndex
    */
   showResumeNotification(savedIndex) {
-    console.log('[UIManager] showResumeNotification called with savedIndex:', savedIndex);
-    const imgs = this.navigator.getImages();
-    console.log('[UIManager] Total images:', imgs.length);
     const notification = createResumeNotification({
       savedIndex,
-      totalPages: imgs.length,
       onResume: () => {
         this.navigator.jumpToPage(savedIndex + 1);
       },
@@ -221,11 +217,6 @@ export class UIManager {
         // 何もしない（最初から読む）
       }
     });
-    console.log('[UIManager] Notification created:', notification);
-    console.log('[UIManager] Appending to body...');
     document.body.appendChild(notification.el);
-    console.log('[UIManager] Appended! Checking DOM...');
-    const check = document.getElementById('comic-helper-resume-notification');
-    console.log('[UIManager] DOM check:', check);
   }
 }

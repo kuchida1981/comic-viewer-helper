@@ -36,16 +36,11 @@ class App {
     this.inputManager.init();
 
     // Resume position logic
-    console.log('[Resume] Checking resume...');
-    console.log('[Resume] isEnabled:', this.resumeManager.isEnabled());
     if (this.resumeManager.isEnabled()) {
       const workKey = window.location.origin + window.location.pathname;
-      console.log('[Resume] workKey:', workKey);
       const savedIndex = this.resumeManager.loadPosition(workKey);
-      console.log('[Resume] savedIndex:', savedIndex);
       // 1ページ目以外の場合のみ通知を表示
       if (savedIndex !== null && savedIndex > 0) {
-        console.log('[Resume] Showing notification...');
         this.uiManager.showResumeNotification(savedIndex);
       }
     }
