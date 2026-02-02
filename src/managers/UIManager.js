@@ -5,6 +5,7 @@ import { createSpreadControls } from '../ui/components/SpreadControls.js';
 import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
+import { createProgressBar } from '../ui/components/ProgressBar.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 
@@ -23,6 +24,7 @@ export class UIManager {
     this.powerComp = null;
     this.counterComp = null;
     this.spreadComp = null;
+    this.progressComp = null;
     this.draggable = null;
     this.modalEl = null;
     this.helpModalEl = null;
@@ -116,6 +118,11 @@ export class UIManager {
       container.appendChild(this.spreadComp.el);
     }
 
+    if (!this.progressComp) {
+      this.progressComp = createProgressBar();
+      document.body.appendChild(this.progressComp.el);
+    }
+
     if (container.querySelectorAll('.comic-helper-button').length === 0) {
       const navBtns = createNavigationButtons({
         onFirst: () => this.navigator.scrollToEdge('start'),
@@ -162,13 +169,16 @@ export class UIManager {
       }
     }
 
-    // Update visibility and state
     this.powerComp.update(enabled);
     
+    // Toggle global scrollbar visibility
+    document.documentElement.classList.toggle('comic-helper-enabled', enabled);
+
     if (!enabled) {
       container.style.padding = '4px 8px';
       this.counterComp.el.style.display = 'none';
       this.spreadComp.el.style.display = 'none';
+      if (this.progressComp) this.progressComp.el.style.display = 'none';
       container.querySelectorAll('.comic-helper-button').forEach(btn => {
          /** @type {HTMLElement} */ (btn).style.display = 'none';
       });
@@ -178,6 +188,10 @@ export class UIManager {
     container.style.padding = '8px';
     this.counterComp.el.style.display = 'flex';
     this.spreadComp.el.style.display = 'flex';
+    if (this.progressComp) {
+      this.progressComp.el.style.display = 'block';
+      this.progressComp.update(currentVisibleIndex, imgs.length);
+    }
     container.querySelectorAll('.comic-helper-button').forEach(btn => {
        /** @type {HTMLElement} */ (btn).style.display = 'inline-block';
     });

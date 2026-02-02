@@ -7,6 +7,7 @@ import { createSpreadControls } from '../ui/components/SpreadControls.js';
 import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
+import { createProgressBar } from '../ui/components/ProgressBar.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 
@@ -43,6 +44,9 @@ vi.mock('../ui/components/MetadataModal.js', () => ({
 }));
 vi.mock('../ui/components/HelpModal.js', () => ({
   createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() } }))
+}));
+vi.mock('../ui/components/ProgressBar.js', () => ({
+  createProgressBar: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
 }));
 
 describe('UIManager', () => {
@@ -89,6 +93,11 @@ describe('UIManager', () => {
     vi.stubGlobal('document', {
         getElementById: vi.fn().mockReturnValue(null),
         body: { appendChild: vi.fn() },
+        documentElement: { 
+          classList: { 
+            toggle: vi.fn() 
+          } 
+        },
         createElement: vi.fn(),
         querySelector: vi.fn().mockReturnValue(null)
     });
