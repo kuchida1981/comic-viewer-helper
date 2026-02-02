@@ -44,4 +44,24 @@ describe('i18n', () => {
       expect(enSubKeys).toEqual(expect.arrayContaining(jaSubKeys));
     }
   });
+
+  describe('resume messages', () => {
+    it('should have resume message in english', async () => {
+      vi.stubGlobal('navigator', { language: 'en-US' });
+      const { t } = await import('./i18n.js');
+      expect(t('ui.resume')).toBe('Resume');
+      expect(t('ui.resumeNotification')).toBe('Resume from page {page}?');
+      expect(t('ui.continueReading')).toBe('Continue');
+      expect(t('ui.startFromBeginning')).toBe('Start Over');
+    });
+
+    it('should have resume message in japanese', async () => {
+      vi.stubGlobal('navigator', { language: 'ja-JP' });
+      const { t } = await import('./i18n.js');
+      expect(t('ui.resume')).toBe('レジューム');
+      expect(t('ui.resumeNotification')).toBe('{page}ページから再開しますか？');
+      expect(t('ui.continueReading')).toBe('続きから');
+      expect(t('ui.startFromBeginning')).toBe('最初から');
+    });
+  });
 });

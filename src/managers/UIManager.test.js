@@ -7,6 +7,8 @@ import { createSpreadControls } from '../ui/components/SpreadControls.js';
 import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
+import { createResumeToggle } from '../ui/components/ResumeToggle.js';
+import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 
@@ -34,6 +36,12 @@ vi.mock('../ui/components/PageCounter.js', () => ({
 }));
 vi.mock('../ui/components/SpreadControls.js', () => ({
   createSpreadControls: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
+}));
+vi.mock('../ui/components/ResumeToggle.js', () => ({
+  createResumeToggle: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
+}));
+vi.mock('../ui/components/ResumeNotification.js', () => ({
+  createResumeNotification: vi.fn(() => ({ el: { style: {}, display: '' } }))
 }));
 vi.mock('../ui/components/NavigationButtons.js', () => ({
   createNavigationButtons: vi.fn(() => ({ elements: [{ style: {}, querySelectorAll: vi.fn() }] }))
@@ -74,7 +82,8 @@ describe('UIManager', () => {
         metadata: {},
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
-        spreadOffset: 0
+        spreadOffset: 0,
+        resumeEnabled: true
       }),
       setState: vi.fn(),
       subscribe: vi.fn()
@@ -200,6 +209,25 @@ describe('UIManager', () => {
     store.getState.mockReturnValue({ spreadOffset: 0 });
     spreadOnAdjust();
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
+
+    const resumeOnToggle = vi.mocked(createResumeToggle).mock.calls[0][0].onToggle;
+    resumeOnToggle(true);
+    expect(store.setState).toHaveBeenCalledWith({ resumeEnabled: true });
+  });
+
+  it('showResumeNotification should work', () => {
+    navigator.getImages.mockReturnValue(new Array(10));
+    uiManager.showResumeNotification(5);
+    
+    expect(createResumeNotification).toHaveBeenCalledWith(expect.objectContaining({
+      savedIndex: 5,
+      totalPages: 10
+    }));
+    expect(document.body.appendChild).toHaveBeenCalled();
+
+    const onResume = vi.mocked(createResumeNotification).mock.calls[0][0].onResume;
+    onResume();
+    expect(navigator.jumpToPage).toHaveBeenCalledWith(6);
   });
 
   it('navigation button callbacks should work', () => {

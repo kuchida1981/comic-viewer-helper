@@ -5,7 +5,7 @@
 ## ADDED Requirements
 
 ### Requirement: レジューム機能の有効/無効状態を管理する
-システムは、レジューム機能の有効/無効状態をStoreで管理しなければならない。
+システムは、レジューム機能の有効/無効状態をStoreで管理しなければならない（SHALL）。
 
 #### Scenario: デフォルト状態の読み込み
 - **WHEN** アプリケーションが初期化される
@@ -20,7 +20,7 @@
 - **THEN** システムは新しい値を localStorage に保存する
 
 ### Requirement: 設定トグルUIを提供する
-システムは、GUIパネル内にレジューム機能のON/OFFを切り替えるチェックボックスを提供しなければならない。
+システムは、GUIパネル内にレジューム機能のON/OFFを切り替えるチェックボックスを提供しなければならない（SHALL）。
 
 #### Scenario: トグルUIの配置
 - **WHEN** GUIパネルが表示される
@@ -35,7 +35,7 @@
 - **THEN** ラベルは "Resume" と表示される（i18n対応）
 
 ### Requirement: トグル操作で状態を変更できる
-システムは、チェックボックスの操作でレジューム機能の有効/無効を切り替えられなければならない。
+システムは、チェックボックスの操作でレジューム機能の有効/無効を切り替えられなければならない（SHALL）。
 
 #### Scenario: チェックボックスをONにする
 - **WHEN** ユーザーがチェックボックスをONにした
@@ -50,14 +50,14 @@
 - **THEN** システムは自動的にチェックボックスのフォーカスを外す
 
 ### Requirement: Store状態の変更に応答する
-システムは、Store.resumeEnabled の変更に応じてUIを更新しなければならない。
+システムは、Store.resumeEnabled の変更に応じてUIを更新しなければならない（SHALL）。
 
 #### Scenario: 外部からの状態変更を反映
 - **WHEN** Store.resumeEnabled が外部から変更された
 - **THEN** チェックボックスの checked 状態が新しい値に更新される
 
 ### Requirement: 無効時は保存・復元を行わない
-システムは、resumeEnabled が false の場合、すべての保存・復元処理をスキップしなければならない。
+システムは、resumeEnabled が false の場合、すべての保存・復元処理をスキップしなければならない（SHALL）。
 
 #### Scenario: 無効時にページ離脱
 - **WHEN** resumeEnabled が false でユーザーがページから離脱した

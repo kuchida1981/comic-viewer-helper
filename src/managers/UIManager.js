@@ -121,15 +121,14 @@ export class UIManager {
       container.appendChild(this.spreadComp.el);
     }
 
-    // ResumeToggle は将来の設定画面で実装予定のため、現在は非表示
-    // if (!this.resumeToggleComp) {
-    //   const { resumeEnabled } = state;
-    //   this.resumeToggleComp = createResumeToggle({
-    //     resumeEnabled,
-    //     onToggle: (/** @type {boolean} */ val) => this.store.setState({ resumeEnabled: val })
-    //   });
-    //   container.appendChild(this.resumeToggleComp.el);
-    // }
+    if (!this.resumeToggleComp) {
+      const { resumeEnabled } = state;
+      this.resumeToggleComp = createResumeToggle({
+        resumeEnabled,
+        onToggle: (/** @type {boolean} */ val) => this.store.setState({ resumeEnabled: val })
+      });
+      container.appendChild(this.resumeToggleComp.el);
+    }
 
     if (!this.progressComp) {
       this.progressComp = createProgressBar();

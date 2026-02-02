@@ -12,7 +12,13 @@ A browser extension (UserScript) that enhances the reading experience on specifi
    - **[Unstable Version (Latest Development)](https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js)**
 
 
-...
+## Key Features
+
+- **Resume Reading Position**: Automatically saves your last read page and offers to resume when you revisit the same URL.
+- **Spread View**: View two pages at once for a better reading experience.
+- **Progress Bar**: Visual progress tracking.
+- **Keyboard Navigation**: Fast and easy navigation using keyboard shortcuts.
+- **Dual Mode Support**: Seamlessly switch between single page and spread views.
 
 ## Development
 

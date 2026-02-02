@@ -12,7 +12,9 @@ export function createResumeNotification({ savedIndex, totalPages, onResume, onS
   console.log('[ResumeNotification] Creating notification...');
   console.log('[ResumeNotification] savedIndex:', savedIndex, 'totalPages:', totalPages);
 
+  /** @type {any} */
   let timeoutId = null;
+  /** @type {any} */
   let scrollHandler = null;
 
   const cleanup = () => {

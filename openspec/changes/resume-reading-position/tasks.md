@@ -9,7 +9,7 @@
 - [x] 1.5 savePosition(url, pageIndex) メソッドを実装（isEnabled チェック、データ保存）
 - [x] 1.6 loadPosition(url) メソッドを実装（isEnabled チェック、データ読み込み、null 返却）
 - [x] 1.7 clearAll() メソッドを実装（全データ削除）
-- [ ] 1.8 ResumeManager.test.js を作成し、全メソッドの単体テストを実装
+- [x] 1.8 ResumeManager.test.js を作成し、全メソッドの単体テストを実装
 
 ## 2. Store の拡張
 
@@ -17,7 +17,7 @@
 - [x] 2.2 StoreState typedef に resumeEnabled: boolean を追加
 - [x] 2.3 Store.state の初期化に resumeEnabled を追加（デフォルト true）
 - [x] 2.4 Store.setState() の永続化ロジックに resumeEnabled 処理を追加
-- [ ] 2.5 store.test.js に resumeEnabled のテストを追加
+- [x] 2.5 store.test.js に resumeEnabled のテストを追加
 
 ## 3. ResumeToggle コンポーネントの実装
 
@@ -26,7 +26,7 @@
 - [x] 3.3 onToggle イベントハンドラを実装（checked 状態を callback に渡す）
 - [x] 3.4 update() メソッドを実装（Store の変更に応じて checkbox.checked を更新）
 - [x] 3.5 blur() 処理を追加（操作後にフォーカス解除）
-- [ ] 3.6 components.test.js に ResumeToggle のテストを追加
+- [x] 3.6 components.test.js に ResumeToggle のテストを追加
 
 ## 4. ResumeNotification コンポーネントの実装
 
@@ -39,7 +39,7 @@
 - [x] 4.7 cleanup() 関数を実装（タイマークリア、イベントリスナー削除、DOM削除）
 - [x] 4.8 15秒タイムアウトを実装（setTimeout + cleanup）
 - [x] 4.9 スクロール開始検知を実装（window scroll イベント + cleanup）
-- [ ] 4.10 components.test.js に ResumeNotification のテストを追加
+- [x] 4.10 components.test.js に ResumeNotification のテストを追加
 
 ## 5. スタイルの追加
 
@@ -54,7 +54,7 @@
 - [x] 6.2 messages.ja.ui に対応する日本語メッセージを追加
 - [x] 6.3 ResumeToggle で t('ui.resume') を使用
 - [x] 6.4 ResumeNotification で t('ui.resumeNotification') 等を使用
-- [ ] 6.5 i18n.test.js にメッセージの存在確認テストを追加
+- [x] 6.5 i18n.test.js にメッセージの存在確認テストを追加
 
 ## 7. UIManager の拡張
 
@@ -67,7 +67,7 @@
 - [x] 7.7 showResumeNotification() 内で createResumeNotification() を呼び出し
 - [x] 7.8 onResume callback で navigator.jumpToPage(savedIndex + 1) を呼び出す
 - [x] 7.9 通知を document.body に appendChild
-- [ ] 7.10 UIManager.test.js にテストを追加
+- [x] 7.10 UIManager.test.js にテストを追加
 
 ## 8. main.js の統合
 
@@ -82,15 +82,15 @@
 
 ## 9. 統合テスト
 
-- [ ] 9.1 エンドツーエンドのテストシナリオを作成（保存→離脱→復元）
-- [ ] 9.2 resumeEnabled が false の場合の動作をテスト（保存・復元しない）
-- [ ] 9.3 localStorage が空の場合の動作をテスト（通知表示なし）
-- [ ] 9.4 localStorage が破損している場合の動作をテスト（エラーハンドリング）
-- [ ] 9.5 トースト通知のボタン操作をテスト（続きから、最初から、×）
-- [ ] 9.6 タイムアウト・スクロールによる自動削除をテスト
+- [x] 9.1 エンドツーエンドのテストシナリオを作成（保存→離脱→復元）
+- [x] 9.2 resumeEnabled が false の場合の動作をテスト（保存・復元しない）
+- [x] 9.3 localStorage が空の場合の動作をテスト（通知表示なし）
+- [x] 9.4 localStorage が破損している場合の動作をテスト（エラーハンドリング）
+- [x] 9.5 トースト通知のボタン操作をテスト（続きから、最初から、×）
+- [x] 9.6 タイムアウト・スクロールによる自動削除をテスト
 
 ## 10. ドキュメント更新
 
-- [ ] 10.1 README.md に Resume 機能の説明を追加
-- [ ] 10.2 使用方法（設定トグル、復元フロー）を記載
-- [ ] 10.3 プライバシーに関する注意事項を記載（localStorage 使用）
+- [x] 10.1 README.md に Resume 機能の説明を追加
+- [x] 10.2 使用方法（設定トグル、復元フロー）を記載
+- [x] 10.3 プライバシーに関する注意事項を記載（localStorage 使用）

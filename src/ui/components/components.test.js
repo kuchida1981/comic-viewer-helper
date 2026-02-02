@@ -1,10 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createPowerButton } from './PowerButton.js';
 import { createPageCounter } from './PageCounter.js';
 import { createSpreadControls } from './SpreadControls.js';
 import { createNavigationButtons } from './NavigationButtons.js';
 import { createMetadataModal } from './MetadataModal.js';
 import { createHelpModal } from './HelpModal.js';
+import { createResumeToggle } from './ResumeToggle.js';
+import { createResumeNotification } from './ResumeNotification.js';
 
 describe('UI Components', () => {
   describe('PowerButton', () => {
@@ -1466,3 +1468,211 @@ describe('UI Components', () => {
       
 
   
+  describe('ResumeToggle', () => {
+    it('should render checkbox and label', () => {
+      const { el } = createResumeToggle({ resumeEnabled: true, onToggle: () => {} });
+      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+      expect(checkbox.checked).toBe(true);
+      expect(el.textContent).toContain('Resume');
+    });
+
+    it('should render unchecked when resumeEnabled is false', () => {
+      const { el } = createResumeToggle({ resumeEnabled: false, onToggle: () => {} });
+      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it('should call onToggle when checkbox changes', () => {
+      const onToggle = vi.fn();
+      const { el } = createResumeToggle({ resumeEnabled: false, onToggle });
+      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+
+      expect(onToggle).toHaveBeenCalledWith(true);
+    });
+
+    it('should blur checkbox after change', () => {
+      const { el } = createResumeToggle({ resumeEnabled: false, onToggle: () => {} });
+      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+      const blurSpy = vi.spyOn(checkbox, 'blur');
+
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+
+      expect(blurSpy).toHaveBeenCalled();
+    });
+
+    it('should update checkbox state', () => {
+      const { el, update } = createResumeToggle({ resumeEnabled: false, onToggle: () => {} });
+      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+
+      expect(checkbox.checked).toBe(false);
+
+      update(true);
+      expect(checkbox.checked).toBe(true);
+
+      update(false);
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it('should not call onToggle when event target is not input', () => {
+      const onToggle = vi.fn();
+      const { el } = createResumeToggle({ resumeEnabled: false, onToggle });
+      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+
+      const event = new Event('change');
+      Object.defineProperty(event, 'target', { value: {} });
+      checkbox.dispatchEvent(event);
+
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ResumeNotification', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      // Mock console.log to suppress output during tests
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    });
+
+    it('should render message and buttons', () => {
+      const { el } = createResumeNotification({
+        savedIndex: 5,
+        totalPages: 10,
+        onResume: () => {},
+        onSkip: () => {}
+      });
+
+      expect(el.textContent).toContain('6');
+      expect(el.textContent).toContain('Continue');
+      expect(el.textContent).toContain('Start Over');
+      expect(el.textContent).toContain('×');
+    });
+
+    it('should call onResume and cleanup when continue button is clicked', () => {
+      const onResume = vi.fn();
+      const onSkip = vi.fn();
+      const { el } = createResumeNotification({
+        savedIndex: 5,
+        totalPages: 10,
+        onResume,
+        onSkip
+      });
+
+      document.body.appendChild(el);
+
+      const continueBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-resume-continue'));
+      continueBtn.click();
+
+      expect(onResume).toHaveBeenCalled();
+      expect(onSkip).not.toHaveBeenCalled();
+      expect(document.body.contains(el)).toBe(false);
+    });
+
+    it('should call onSkip and cleanup when skip button is clicked', () => {
+      const onResume = vi.fn();
+      const onSkip = vi.fn();
+      const { el } = createResumeNotification({
+        savedIndex: 5,
+        totalPages: 10,
+        onResume,
+        onSkip
+      });
+
+      document.body.appendChild(el);
+
+      const skipBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-resume-skip'));
+      skipBtn.click();
+
+      expect(onSkip).toHaveBeenCalled();
+      expect(onResume).not.toHaveBeenCalled();
+      expect(document.body.contains(el)).toBe(false);
+    });
+
+    it('should cleanup when close button is clicked', () => {
+      const onResume = vi.fn();
+      const onSkip = vi.fn();
+      const { el } = createResumeNotification({
+        savedIndex: 5,
+        totalPages: 10,
+        onResume,
+        onSkip
+      });
+
+      document.body.appendChild(el);
+
+      const closeBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-resume-close'));
+      closeBtn.click();
+
+      expect(onResume).not.toHaveBeenCalled();
+      expect(onSkip).not.toHaveBeenCalled();
+      expect(document.body.contains(el)).toBe(false);
+    });
+
+    it('should auto-cleanup after 15 seconds', () => {
+      const { el } = createResumeNotification({
+        savedIndex: 5,
+        totalPages: 10,
+        onResume: () => {},
+        onSkip: () => {}
+      });
+
+      document.body.appendChild(el);
+      expect(document.body.contains(el)).toBe(true);
+
+      vi.advanceTimersByTime(15000);
+
+      expect(document.body.contains(el)).toBe(false);
+    });
+
+    it('should cleanup on scroll after 1 second delay', () => {
+      const { el } = createResumeNotification({
+        savedIndex: 5,
+        totalPages: 10,
+        onResume: () => {},
+        onSkip: () => {}
+      });
+
+      document.body.appendChild(el);
+
+      // Scroll immediately should not remove element (scroll handler not yet registered)
+      window.dispatchEvent(new Event('scroll'));
+      expect(document.body.contains(el)).toBe(true);
+
+      // After 1 second, scroll handler should be registered
+      vi.advanceTimersByTime(1000);
+
+      // Now scroll should remove element
+      window.dispatchEvent(new Event('scroll'));
+      expect(document.body.contains(el)).toBe(false);
+    });
+
+    it('should format message with correct page number', () => {
+      const { el } = createResumeNotification({
+        savedIndex: 0,
+        totalPages: 10,
+        onResume: () => {},
+        onSkip: () => {}
+      });
+
+      // savedIndex 0 should show as page 1
+      expect(el.textContent).toContain('1');
+
+      const el2 = createResumeNotification({
+        savedIndex: 9,
+        totalPages: 10,
+        onResume: () => {},
+        onSkip: () => {}
+      }).el;
+
+      // savedIndex 9 should show as page 10
+      expect(el2.textContent).toContain('10');
+    });
+  });
