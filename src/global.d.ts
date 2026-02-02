@@ -13,6 +13,11 @@ export interface SiteAdapter {
     images: string;
   };
   getImages?: () => HTMLImageElement[];
+  getMetadata?: () => {
+    title: string;
+    tags: Array<{ text: string, href: string }>;
+    relatedWorks: Array<{ title: string, href: string, thumb: string }>;
+  };
 }
 
 export {};

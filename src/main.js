@@ -1,4 +1,3 @@
-import { extractMetadata } from './logic.js';
 import { Store } from './store.js';
 import { DefaultAdapter } from './adapters/DefaultAdapter.js';
 import { Navigator } from './managers/Navigator.js';
@@ -26,7 +25,9 @@ class App {
     if (!container) return;
 
     // Extract and set metadata
-    const metadata = extractMetadata();
+    const metadata = this.adapter.getMetadata 
+      ? this.adapter.getMetadata() 
+      : { title: 'Unknown Title', tags: [], relatedWorks: [] };
     this.store.setState({ metadata });
 
     // Initialize managers
