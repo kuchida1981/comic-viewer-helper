@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.9624a11
+// @version         1.3.0-unstable.71d9a6c
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -41,7 +41,8 @@
           relatedWorks: []
         },
         isMetadataModalOpen: false,
-        isHelpModalOpen: false
+        isHelpModalOpen: false,
+        isLoading: false
       };
       this.listeners = [];
     }
@@ -299,6 +300,70 @@
     }
     return event.deltaY > 0 ? "next" : "prev";
   }
+  async function waitForImageLoad(img, timeout = 5e3) {
+    if (img.complete && img.naturalHeight !== 0) {
+      return;
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve();
+      }, timeout);
+      const onLoad = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        resolve();
+      };
+      const cleanup = () => {
+        clearTimeout(timer);
+        img.removeEventListener("load", onLoad);
+        img.removeEventListener("error", onError);
+      };
+      img.addEventListener("load", onLoad);
+      img.addEventListener("error", onError);
+    });
+  }
+  function forceImageLoad(img) {
+    if (img.getAttribute("loading") === "lazy") {
+      img.setAttribute("loading", "eager");
+    }
+    if ("decode" in img) {
+      img.decode().catch(() => {
+      });
+    }
+  }
+  function preloadImages(images, currentIndex, count = 3) {
+    if (images.length === 0) return;
+    for (let i = 1; i <= count; i++) {
+      const nextIndex = currentIndex + i;
+      if (nextIndex < images.length) {
+        const img = images[nextIndex];
+        if (!img.complete) {
+          img.loading = "eager";
+          if ("decode" in img) {
+            img.decode().catch(() => {
+            });
+          }
+        }
+      }
+    }
+    for (let i = 1; i <= Math.min(count, 2); i++) {
+      const prevIndex = currentIndex - i;
+      if (prevIndex >= 0) {
+        const img = images[prevIndex];
+        if (!img.complete) {
+          img.loading = "eager";
+          if ("decode" in img) {
+            img.decode().catch(() => {
+            });
+          }
+        }
+      }
+    }
+  }
   class Navigator {
     /**
      * @param {import('../global').SiteAdapter} adapter 
@@ -318,6 +383,7 @@
       this._lastEnabled = void 0;
       this._lastDualView = void 0;
       this._lastSpreadOffset = void 0;
+      this.pendingTargetIndex = null;
     }
     init() {
       this.store.subscribe((state) => {
@@ -337,6 +403,10 @@
       imgs.forEach((img) => {
         if (!img.complete) {
           img.addEventListener("load", () => {
+            if (this.pendingTargetIndex !== null) {
+              console.log("[Navigator] Skipping auto applyLayout because navigation is pending");
+              return;
+            }
             requestAnimationFrame(() => this.applyLayout());
           });
         }
@@ -361,18 +431,32 @@
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       if (currentIndex !== -1) {
         this.store.setState({ currentVisibleIndex: currentIndex });
+        preloadImages(imgs, currentIndex);
       }
     }
     /**
      * @param {string | number} pageNumber 
-     * @returns {boolean}
+     * @returns {Promise<boolean>}
      */
-    jumpToPage(pageNumber) {
+    async jumpToPage(pageNumber) {
       const imgs = this.getImages();
       const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
       const targetImg = getImageElementByIndex(imgs, index);
+      console.log(`[Navigator] jumpToPage: ${pageNumber} (index: ${index})`, { complete: targetImg?.complete, height: targetImg?.naturalHeight });
       if (targetImg) {
-        targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
+        this.pendingTargetIndex = index;
+        forceImageLoad(targetImg);
+        if (!targetImg.complete || targetImg.naturalHeight === 0) {
+          console.log(`[Navigator] Waiting for image load...`);
+          this.store.setState({ isLoading: true });
+          await waitForImageLoad(targetImg);
+          console.log(`[Navigator] Image loaded. Applying layout...`);
+          this.applyLayout(index);
+          this.store.setState({ isLoading: false });
+        } else {
+          targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        this.pendingTargetIndex = null;
         return true;
       } else {
         this.updatePageCounter();
@@ -381,8 +465,9 @@
     }
     /**
      * @param {number} direction 
+     * @returns {Promise<void>}
      */
-    scrollToImage(direction) {
+    async scrollToImage(direction) {
       const imgs = this.getImages();
       if (imgs.length === 0) return;
       const { isDualViewEnabled } = this.store.getState();
@@ -390,6 +475,7 @@
       let targetIndex = currentIndex + direction;
       if (targetIndex < 0) targetIndex = 0;
       if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+      console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
       const prospectiveTargetImg = imgs[targetIndex];
       if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
         const currentImg = imgs[currentIndex];
@@ -400,7 +486,18 @@
       const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
       const finalTarget = imgs[finalIndex];
       if (finalTarget) {
-        finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+        this.pendingTargetIndex = finalIndex;
+        forceImageLoad(finalTarget);
+        if (!finalTarget.complete || finalTarget.naturalHeight === 0) {
+          console.log(`[Navigator] Waiting for image load...`);
+          this.store.setState({ isLoading: true });
+          await waitForImageLoad(finalTarget);
+          this.applyLayout(finalIndex);
+          this.store.setState({ isLoading: false });
+        } else {
+          finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        this.pendingTargetIndex = null;
       }
     }
     /**
@@ -424,12 +521,20 @@
         return;
       }
       const imgs = this.getImages();
-      const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      const viewportIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      const currentIndex = this.pendingTargetIndex !== null ? this.pendingTargetIndex : forcedIndex !== void 0 ? forcedIndex : viewportIndex;
+      console.log(`[Navigator] applyLayout: current=${currentIndex}, pending=${this.pendingTargetIndex}, forced=${forcedIndex}, viewport=${viewportIndex}`);
       fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
       this.updatePageCounter();
       if (currentIndex !== -1) {
         const targetImg = imgs[currentIndex];
-        if (targetImg) targetImg.scrollIntoView({ block: "center" });
+        if (targetImg) {
+          requestAnimationFrame(() => {
+            console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
+            targetImg.scrollIntoView({ block: "center" });
+          });
+          preloadImages(imgs, currentIndex);
+        }
       }
     }
   }
@@ -858,6 +963,46 @@
     background: rgba(255, 255, 255, 0.1);
   }
 
+  /* Loading Indicator Styles */
+  #comic-helper-loading {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10003;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  #comic-helper-loading.visible {
+    opacity: 1;
+  }
+
+  .comic-helper-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #fff;
+    border-radius: 50%;
+    animation: comic-helper-spin 1s linear infinite;
+  }
+
+  @keyframes comic-helper-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
   /* Global states */
   html.comic-helper-enabled {
     overflow: hidden !important;
@@ -1212,7 +1357,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.9624a11"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.71d9a6c"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1391,6 +1536,24 @@
     }, 1e3);
     return { el };
   }
+  function createLoadingIndicator({ isLoading }) {
+    const el = createElement("div", { id: "comic-helper-loading" });
+    const spinner = createElement("div", { className: "comic-helper-spinner" });
+    const text = createElement("span", { textContent: "Loading..." });
+    el.appendChild(spinner);
+    el.appendChild(text);
+    if (isLoading) {
+      el.classList.add("visible");
+    }
+    const update = (newLoading) => {
+      if (newLoading) {
+        el.classList.add("visible");
+      } else {
+        el.classList.remove("visible");
+      }
+    };
+    return { el, update };
+  }
   class Draggable {
     /**
      * @param {HTMLElement} element 
@@ -1495,6 +1658,7 @@
       this.counterComp = null;
       this.spreadComp = null;
       this.progressComp = null;
+      this.loadingComp = null;
       this.draggable = null;
       this.modalEl = null;
       this.helpModalEl = null;
@@ -1514,7 +1678,7 @@
     }
     updateUI() {
       const state = this.store.getState();
-      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = state;
+      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex, isLoading } = state;
       let container = document.getElementById("comic-helper-ui");
       if (!container) {
         container = createElement("div", { id: "comic-helper-ui" });
@@ -1576,6 +1740,10 @@
         this.progressComp = createProgressBar();
         document.body.appendChild(this.progressComp.el);
       }
+      if (!this.loadingComp) {
+        this.loadingComp = createLoadingIndicator({ isLoading });
+        document.body.appendChild(this.loadingComp.el);
+      }
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
         const navBtns = createNavigationButtons({
           onFirst: () => this.navigator.scrollToEdge("start"),
@@ -1618,6 +1786,7 @@
         }
       }
       this.powerComp.update(enabled);
+      this.loadingComp.update(isLoading);
       document.documentElement.classList.toggle("comic-helper-enabled", enabled);
       if (!enabled) {
         container.style.padding = "4px 8px";
