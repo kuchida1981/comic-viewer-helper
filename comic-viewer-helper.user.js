@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.71d9a6c
+// @version         1.3.0-unstable.c3b65e5
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -501,13 +501,25 @@
       }
     }
     /**
-     * @param {'start' | 'end'} position 
+     * @param {'start' | 'end'} position
+     * @returns {Promise<void>}
      */
-    scrollToEdge(position) {
+    async scrollToEdge(position) {
       const imgs = this.getImages();
       if (imgs.length === 0) return;
-      const target = position === "start" ? imgs[0] : imgs[imgs.length - 1];
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      const targetIndex = position === "start" ? 0 : imgs.length - 1;
+      const target = imgs[targetIndex];
+      this.pendingTargetIndex = targetIndex;
+      forceImageLoad(target);
+      if (!target.complete || target.naturalHeight === 0) {
+        this.store.setState({ isLoading: true });
+        await waitForImageLoad(target);
+        this.store.setState({ isLoading: false });
+      }
+      this.applyLayout(targetIndex);
+      requestAnimationFrame(() => {
+        this.pendingTargetIndex = null;
+      });
     }
     /**
      * @param {number} [forcedIndex] 
@@ -1357,7 +1369,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.71d9a6c"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.c3b65e5"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
