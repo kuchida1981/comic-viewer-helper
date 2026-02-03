@@ -1,4 +1,4 @@
-import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal } from '../logic.js';
+import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, waitForImageLoad, preloadImages, forceImageLoad } from '../logic.js';
 
 export class Navigator {
   /**
@@ -23,6 +23,9 @@ export class Navigator {
     this._lastEnabled = undefined;
     this._lastDualView = undefined;
     this._lastSpreadOffset = undefined;
+
+    /** @type {number | null} */
+    this.pendingTargetIndex = null;
   }
 
   init() {
@@ -49,6 +52,12 @@ export class Navigator {
     imgs.forEach(img => {
       if (!img.complete) {
         img.addEventListener('load', () => {
+          // If we are explicitly navigating to a target, ignore automatic layout updates
+          // triggered by image loads, as jumpToPage/scrollToImage will handle it.
+          if (this.pendingTargetIndex !== null) {
+            console.log('[Navigator] Skipping auto applyLayout because navigation is pending');
+            return;
+          }
           requestAnimationFrame(() => this.applyLayout());
         });
       }
@@ -77,20 +86,37 @@ export class Navigator {
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
     if (currentIndex !== -1) {
       this.store.setState({ currentVisibleIndex: currentIndex });
+      preloadImages(imgs, currentIndex);
     }
   }
 
   /**
    * @param {string | number} pageNumber 
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
-  jumpToPage(pageNumber) {
+  async jumpToPage(pageNumber) {
     const imgs = this.getImages();
     const index = typeof pageNumber === 'string' ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
     const targetImg = getImageElementByIndex(imgs, index);
 
+    console.log(`[Navigator] jumpToPage: ${pageNumber} (index: ${index})`, { complete: targetImg?.complete, height: targetImg?.naturalHeight });
+
     if (targetImg) {
-      targetImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this.pendingTargetIndex = index;
+      forceImageLoad(targetImg);
+      
+      if (!targetImg.complete || targetImg.naturalHeight === 0) {
+        console.log(`[Navigator] Waiting for image load...`);
+        this.store.setState({ isLoading: true });
+        await waitForImageLoad(targetImg);
+        console.log(`[Navigator] Image loaded. Applying layout...`);
+        this.applyLayout(index);
+        this.store.setState({ isLoading: false });
+      } else {
+        targetImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      
+      this.pendingTargetIndex = null;
       return true;
     } else {
       this.updatePageCounter();
@@ -100,8 +126,9 @@ export class Navigator {
 
   /**
    * @param {number} direction 
+   * @returns {Promise<void>}
    */
-  scrollToImage(direction) {
+  async scrollToImage(direction) {
     const imgs = this.getImages();
     if (imgs.length === 0) return;
 
@@ -111,6 +138,8 @@ export class Navigator {
 
     if (targetIndex < 0) targetIndex = 0;
     if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+
+    console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
 
     const prospectiveTargetImg = imgs[targetIndex];
 
@@ -124,7 +153,19 @@ export class Navigator {
     const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
     const finalTarget = imgs[finalIndex];
     if (finalTarget) {
-      finalTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this.pendingTargetIndex = finalIndex;
+      forceImageLoad(finalTarget);
+      
+      if (!finalTarget.complete || finalTarget.naturalHeight === 0) {
+        console.log(`[Navigator] Waiting for image load...`);
+        this.store.setState({ isLoading: true });
+        await waitForImageLoad(finalTarget);
+        this.applyLayout(finalIndex);
+        this.store.setState({ isLoading: false });
+      } else {
+        finalTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      this.pendingTargetIndex = null;
     }
   }
 
@@ -153,14 +194,28 @@ export class Navigator {
     }
 
     const imgs = this.getImages();
-    const currentIndex = forcedIndex !== undefined ? forcedIndex : getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    const viewportIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    const currentIndex = (this.pendingTargetIndex !== null)
+      ? this.pendingTargetIndex
+      : (forcedIndex !== undefined ? forcedIndex : viewportIndex);
+
+    console.log(`[Navigator] applyLayout: current=${currentIndex}, pending=${this.pendingTargetIndex}, forced=${forcedIndex}, viewport=${viewportIndex}`);
 
     fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
     this.updatePageCounter();
 
     if (currentIndex !== -1) {
       const targetImg = imgs[currentIndex];
-      if (targetImg) targetImg.scrollIntoView({ block: 'center' });
+      if (targetImg) {
+        // DOM update might take a moment to be reflected in layout.
+        // Wait for next frame before scrolling.
+        requestAnimationFrame(() => {
+          console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
+          targetImg.scrollIntoView({ block: 'center' });
+        });
+        preloadImages(imgs, currentIndex);
+      }
     }
   }
 }
+

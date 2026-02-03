@@ -21,6 +21,7 @@ export const STORAGE_KEYS = {
  * @property {Metadata} metadata
  * @property {boolean} isMetadataModalOpen
  * @property {boolean} isHelpModalOpen
+ * @property {boolean} isLoading
  */
 
 export class Store {
@@ -38,7 +39,8 @@ export class Store {
         relatedWorks: []
       },
       isMetadataModalOpen: false,
-      isHelpModalOpen: false
+      isHelpModalOpen: false,
+      isLoading: false
     };
     /** @type {Function[]} */
     this.listeners = [];

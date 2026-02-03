@@ -40,7 +40,8 @@ describe('Store', () => {
         relatedWorks: []
       },
       isMetadataModalOpen: false,
-      isHelpModalOpen: false
+      isHelpModalOpen: false,
+      isLoading: false
     });
   });
 

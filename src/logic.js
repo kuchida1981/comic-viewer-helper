@@ -207,3 +207,97 @@ export function getNavigationDirection(event, threshold = 50) {
   return event.deltaY > 0 ? 'next' : 'prev';
 }
 
+/**
+ * Wait for an image to load or timeout
+ * @param {HTMLImageElement} img 
+ * @param {number} timeout 
+ * @returns {Promise<void>}
+ */
+export async function waitForImageLoad(img, timeout = 5000) {
+  if (img.complete && img.naturalHeight !== 0) {
+    return;
+  }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, timeout);
+
+    const onLoad = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onError = () => {
+      cleanup();
+      resolve();
+    };
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      img.removeEventListener('load', onLoad);
+      img.removeEventListener('error', onError);
+    };
+
+    img.addEventListener('load', onLoad);
+    img.addEventListener('error', onError);
+  });
+}
+
+/**
+ * Force image to start loading by setting loading='eager' and trying to decode
+ * @param {HTMLImageElement} img
+ */
+export function forceImageLoad(img) {
+  // If the image is lazy loaded, force it to be eager so the browser starts downloading immediately
+  // even if it's off-screen (which it is during jump).
+  if (img.getAttribute('loading') === 'lazy') {
+    img.setAttribute('loading', 'eager');
+  }
+
+  // Trigger decode to hint the browser
+  if ('decode' in img) {
+    img.decode().catch(() => {});
+  }
+}
+
+/**
+ * Preload images around current index
+ * @param {HTMLImageElement[]} images 
+ * @param {number} currentIndex 
+ * @param {number} count 
+ */
+export function preloadImages(images, currentIndex, count = 3) {
+  if (images.length === 0) return;
+
+  // Preload next images
+  for (let i = 1; i <= count; i++) {
+    const nextIndex = currentIndex + i;
+    if (nextIndex < images.length) {
+      const img = images[nextIndex];
+      if (!img.complete) {
+        img.loading = 'eager';
+        // Use decode() to trigger decoding in the background
+        if ('decode' in img) {
+          img.decode().catch(() => {});
+        }
+      }
+    }
+  }
+
+  // Optionally preload previous images (just one or two)
+  for (let i = 1; i <= Math.min(count, 2); i++) {
+    const prevIndex = currentIndex - i;
+    if (prevIndex >= 0) {
+      const img = images[prevIndex];
+      if (!img.complete) {
+        img.loading = 'eager';
+        if ('decode' in img) {
+          img.decode().catch(() => {});
+        }
+      }
+    }
+  }
+}
+

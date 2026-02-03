@@ -39,6 +39,9 @@ vi.mock('../ui/components/SpreadControls.js', () => ({
 vi.mock('../ui/components/ResumeNotification.js', () => ({
   createResumeNotification: vi.fn(() => ({ el: { style: {}, display: '' } }))
 }));
+vi.mock('../ui/components/LoadingIndicator.js', () => ({
+  createLoadingIndicator: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
+}));
 vi.mock('../ui/components/NavigationButtons.js', () => ({
   createNavigationButtons: vi.fn(() => ({ elements: [{ style: {}, querySelectorAll: vi.fn() }] }))
 }));
@@ -78,7 +81,8 @@ describe('UIManager', () => {
         metadata: {},
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
-        spreadOffset: 0
+        spreadOffset: 0,
+        isLoading: false
       }),
       setState: vi.fn(),
       subscribe: vi.fn()

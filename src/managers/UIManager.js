@@ -7,6 +7,7 @@ import { createMetadataModal } from '../ui/components/MetadataModal.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createProgressBar } from '../ui/components/ProgressBar.js';
 import { createResumeNotification } from '../ui/components/ResumeNotification.js';
+import { createLoadingIndicator } from '../ui/components/LoadingIndicator.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 
@@ -26,6 +27,7 @@ export class UIManager {
     this.counterComp = null;
     this.spreadComp = null;
     this.progressComp = null;
+    this.loadingComp = null;
     this.draggable = null;
     this.modalEl = null;
     this.helpModalEl = null;
@@ -52,7 +54,7 @@ export class UIManager {
 
   updateUI() {
     const state = this.store.getState();
-    const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = state;
+    const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex, isLoading } = state;
     let container = document.getElementById('comic-helper-ui');
 
     if (!container) {
@@ -124,6 +126,11 @@ export class UIManager {
       document.body.appendChild(this.progressComp.el);
     }
 
+    if (!this.loadingComp) {
+      this.loadingComp = createLoadingIndicator({ isLoading });
+      document.body.appendChild(this.loadingComp.el);
+    }
+
     if (container.querySelectorAll('.comic-helper-button').length === 0) {
       const navBtns = createNavigationButtons({
         onFirst: () => this.navigator.scrollToEdge('start'),
@@ -171,9 +178,11 @@ export class UIManager {
     }
 
     this.powerComp.update(enabled);
+    this.loadingComp.update(isLoading);
     
     // Toggle global scrollbar visibility
     document.documentElement.classList.toggle('comic-helper-enabled', enabled);
+
 
     if (!enabled) {
       container.style.padding = '4px 8px';
