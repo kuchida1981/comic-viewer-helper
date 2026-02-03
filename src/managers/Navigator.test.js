@@ -10,7 +10,10 @@ vi.mock('../logic', async (importOriginal) => {
     fitImagesToViewport: vi.fn(),
     getPrimaryVisibleImageIndex: vi.fn().mockReturnValue(0),
     getImageElementByIndex: vi.fn((imgs, idx) => imgs[idx]),
-    revertToOriginal: vi.fn()
+    revertToOriginal: vi.fn(),
+    forceImageLoad: vi.fn(),
+    waitForImageLoad: vi.fn().mockResolvedValue(undefined),
+    preloadImages: vi.fn()
   };
 });
 
@@ -67,11 +70,12 @@ describe('Navigator', () => {
     
     navigator = new Navigator(/** @type {any} */ (adapter), /** @type {any} */ (store));
 
-    vi.stubGlobal('window', { 
-        innerHeight: 1000, 
+    vi.stubGlobal('window', {
+        innerHeight: 1000,
         requestAnimationFrame: vi.fn(cb => cb()),
-        cancelAnimationFrame: vi.fn() 
+        cancelAnimationFrame: vi.fn()
     });
+    vi.stubGlobal('requestAnimationFrame', vi.fn(cb => cb()));
     // Don't stub document globally, use real one but spy if needed
   });
 
@@ -132,11 +136,36 @@ describe('Navigator', () => {
     expect(mockImages[1].scrollIntoView).toHaveBeenCalled();
   });
 
-  it('should scroll to edge', () => {
-    navigator.scrollToEdge('start');
-    expect(mockImages[0].scrollIntoView).toHaveBeenCalled();
-    navigator.scrollToEdge('end');
-    expect(mockImages[1].scrollIntoView).toHaveBeenCalled();
+  it('should scroll to edge (loaded images)', async () => {
+    const spy = vi.spyOn(navigator, 'applyLayout');
+
+    await navigator.scrollToEdge('start');
+    expect(logic.forceImageLoad).toHaveBeenCalledWith(mockImages[0]);
+    expect(spy).toHaveBeenCalledWith(0);
+    expect(store.setState).not.toHaveBeenCalledWith({ isLoading: true });
+
+    spy.mockClear();
+    vi.mocked(logic.forceImageLoad).mockClear();
+
+    await navigator.scrollToEdge('end');
+    expect(logic.forceImageLoad).toHaveBeenCalledWith(mockImages[1]);
+    expect(spy).toHaveBeenCalledWith(1);
+  });
+
+  it('should scroll to edge (unloaded image - waits for load)', async () => {
+    // Simulate the last image being unloaded
+    mockImages[1].complete = false;
+    mockImages[1].naturalHeight = 0;
+
+    const spy = vi.spyOn(navigator, 'applyLayout');
+
+    await navigator.scrollToEdge('end');
+
+    expect(logic.forceImageLoad).toHaveBeenCalledWith(mockImages[1]);
+    expect(store.setState).toHaveBeenCalledWith({ isLoading: true });
+    expect(logic.waitForImageLoad).toHaveBeenCalledWith(mockImages[1]);
+    expect(spy).toHaveBeenCalledWith(1);
+    expect(store.setState).toHaveBeenCalledWith({ isLoading: false });
   });
 
   it('should apply layout', () => {
