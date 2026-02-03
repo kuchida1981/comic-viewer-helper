@@ -32,7 +32,15 @@ export const MESSAGES = {
       resume: 'Resume',
       resumeNotification: 'Resume from page {page}?',
       continueReading: 'Continue',
-      startFromBeginning: 'Start Over'
+      startFromBeginning: 'Start Over',
+      settings: 'Settings',
+      displaySettings: 'Display Settings',
+      dualView: 'Dual View',
+      dualViewDesc: 'Display two pages side by side',
+      guiPosition: 'GUI Position',
+      guiPositionRemember: 'Remember previous position',
+      guiPositionFixed: 'Fixed position',
+      guiPositionDesc: 'Remember the previous position. Fixed position always displays in the bottom right.'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
@@ -41,7 +49,8 @@ export const MESSAGES = {
       spreadOffset: { label: 'Spread Offset', desc: 'Toggle Offset (0 ↔ 1)', cond: 'Dual View only' },
       metadata: { label: 'Metadata', desc: 'Show metadata' },
       help: { label: 'Help', desc: 'Show this help' },
-      closeModal: { label: 'Close Modal', desc: 'Close modal' }
+      closeModal: { label: 'Close Modal', desc: 'Close modal' },
+      config: { label: 'Settings', desc: 'Open settings' }
     }
   },
   ja: {
@@ -70,7 +79,15 @@ export const MESSAGES = {
       resume: 'レジューム',
       resumeNotification: '{page}ページから再開しますか？',
       continueReading: '続きから',
-      startFromBeginning: '最初から'
+      startFromBeginning: '最初から',
+      settings: '設定',
+      displaySettings: '表示設定',
+      dualView: '見開き表示',
+      dualViewDesc: '2ページを並べて表示します',
+      guiPosition: 'GUI表示位置',
+      guiPositionRemember: '前回の位置を記憶する',
+      guiPositionFixed: '固定位置に表示する',
+      guiPositionDesc: '前回表示した位置を記憶します。固定位置では常に右下に表示されます。'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },
@@ -79,7 +96,8 @@ export const MESSAGES = {
       spreadOffset: { label: '見開きオフセット', desc: '見開きオフセットの切替 (0 ↔ 1)', cond: '見開きモード中のみ' },
       metadata: { label: '作品情報', desc: '作品情報（メタデータ）の表示' },
       help: { label: 'ヘルプ', desc: 'このヘルプの表示' },
-      closeModal: { label: '閉じる', desc: 'モーダルを閉じる' }
+      closeModal: { label: '閉じる', desc: 'モーダルを閉じる' },
+      config: { label: '設定', desc: '設定画面を開く' }
     }
   }
 };

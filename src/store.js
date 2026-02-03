@@ -1,7 +1,9 @@
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
   GUI_POS: 'comic-viewer-helper-gui-pos',
-  ENABLED: 'comic-viewer-helper-enabled'
+  ENABLED: 'comic-viewer-helper-enabled',
+  GUI_POSITION_MODE: 'comic-viewer-helper-gui-position-mode',
+  CONFIG_MODAL: 'comic-viewer-helper-config-modal'
 };
 
 /**
@@ -18,9 +20,11 @@ export const STORAGE_KEYS = {
  * @property {number} spreadOffset
  * @property {number} currentVisibleIndex
  * @property {{top: number, left: number} | null} guiPos
+ * @property {'remember' | 'fixed'} guiPositionMode
  * @property {Metadata} metadata
  * @property {boolean} isMetadataModalOpen
  * @property {boolean} isHelpModalOpen
+ * @property {boolean} isConfigModalOpen
  */
 
 export class Store {
@@ -32,13 +36,15 @@ export class Store {
       spreadOffset: 0,
       currentVisibleIndex: 0,
       guiPos: this._loadGuiPos(),
+      guiPositionMode: this._loadGuiPositionMode(),
       metadata: {
         title: '',
         tags: [],
         relatedWorks: []
       },
       isMetadataModalOpen: false,
-      isHelpModalOpen: false
+      isHelpModalOpen: false,
+      isConfigModalOpen: false
     };
     /** @type {Function[]} */
     this.listeners = [];
@@ -75,7 +81,18 @@ export class Store {
       localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
     }
     if ('guiPos' in patch) {
-      localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      if (this.state.guiPositionMode === 'remember') {
+        localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      }
+    }
+    if ('guiPositionMode' in patch) {
+      localStorage.setItem(STORAGE_KEYS.GUI_POSITION_MODE, patch.guiPositionMode);
+      if (patch.guiPositionMode === 'remember' && this.state.guiPos) {
+        localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(this.state.guiPos));
+      }
+    }
+    if ('isConfigModalOpen' in patch) {
+      localStorage.setItem(STORAGE_KEYS.CONFIG_MODAL, String(patch.isConfigModalOpen));
     }
 
     this._notify();
@@ -103,9 +120,9 @@ export class Store {
       // Basic validation (copied from main.js)
       const buffer = 50;
       if (
-        pos.left < -buffer || 
-        pos.left > window.innerWidth + buffer || 
-        pos.top < -buffer || 
+        pos.left < -buffer ||
+        pos.left > window.innerWidth + buffer ||
+        pos.top < -buffer ||
         pos.top > window.innerHeight + buffer
       ) {
         return null;
@@ -114,5 +131,10 @@ export class Store {
     } catch {
       return null;
     }
+  }
+
+  _loadGuiPositionMode() {
+    const saved = localStorage.getItem(STORAGE_KEYS.GUI_POSITION_MODE);
+    return saved === 'fixed' ? 'fixed' : 'remember';
   }
 }

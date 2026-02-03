@@ -5,6 +5,7 @@ import { createSpreadControls } from '../ui/components/SpreadControls.js';
 import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
+import { createConfigModal } from '../ui/components/ConfigModal.js';
 import { createProgressBar } from '../ui/components/ProgressBar.js';
 import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
@@ -29,6 +30,7 @@ export class UIManager {
     this.draggable = null;
     this.modalEl = null;
     this.helpModalEl = null;
+    this.configModalEl = null;
 
     this.updateUI = this.updateUI.bind(this);
     this.init = this.init.bind(this);
@@ -36,8 +38,42 @@ export class UIManager {
 
   init() {
     injectStyles();
+
+    const { guiPositionMode, guiPos } = this.store.getState();
+
+    // Create container with initial position
+    let container = document.getElementById('comic-helper-ui');
+    if (!container) {
+      container = createElement('div', { id: 'comic-helper-ui' });
+
+      // Set initial position based on mode
+      if (guiPositionMode === 'fixed') {
+        // Fixed position: use bottom-right positioning
+        Object.assign(container.style, {
+          bottom: '20px',
+          right: '20px',
+          top: 'auto',
+          left: 'auto'
+        });
+      } else if (guiPos) {
+        // Remember mode: use saved position
+        Object.assign(container.style, {
+          top: `${guiPos.top}px`,
+          left: `${guiPos.left}px`,
+          bottom: 'auto',
+          right: 'auto'
+        });
+      }
+
+      this.draggable = new Draggable(container, {
+        onDragEnd: (/** @type {number} */ top, /** @type {number} */ left) =>
+          this.store.setState({ guiPos: { top, left } })
+      });
+      document.body.appendChild(container);
+    }
+
     this.updateUI();
-    
+
     // Subscribe to store changes to update UI
     this.store.subscribe(this.updateUI);
 
@@ -52,24 +88,9 @@ export class UIManager {
 
   updateUI() {
     const state = this.store.getState();
-    const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = state;
-    let container = document.getElementById('comic-helper-ui');
-
-    if (!container) {
-      container = createElement('div', { id: 'comic-helper-ui' });
-      if (guiPos) {
-        Object.assign(container.style, { 
-          top: `${guiPos.top}px`, 
-          left: `${guiPos.left}px`, 
-          bottom: 'auto', 
-          right: 'auto' 
-        });
-      }
-      this.draggable = new Draggable(container, {
-        onDragEnd: (/** @type {number} */ top, /** @type {number} */ left) => this.store.setState({ guiPos: { top, left } })
-      });
-      document.body.appendChild(container);
-    }
+    const { enabled, isDualViewEnabled, currentVisibleIndex } = state;
+    const container = document.getElementById('comic-helper-ui');
+    if (!container) return;
 
     // Initialize components if they don't exist
     if (!this.powerComp) {
@@ -131,7 +152,8 @@ export class UIManager {
         onNext: () => this.navigator.scrollToImage(1),
         onLast: () => this.navigator.scrollToEdge('end'),
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
-        onHelp: () => this.store.setState({ isHelpModalOpen: true })
+        onHelp: () => this.store.setState({ isHelpModalOpen: true }),
+        onConfig: () => this.store.setState({ isConfigModalOpen: true })
       });
       navBtns.elements.forEach(btn => container.appendChild(btn));
     }
@@ -167,6 +189,27 @@ export class UIManager {
       if (this.modalEl) {
         this.modalEl.remove();
         this.modalEl = null;
+      }
+    }
+
+    // Handle Config Modal
+    const { isConfigModalOpen, guiPositionMode } = state;
+    if (isConfigModalOpen) {
+      if (!this.configModalEl) {
+        const modal = createConfigModal({
+          onClose: () => this.store.setState({ isConfigModalOpen: false }),
+          isDualViewEnabled,
+          guiPositionMode,
+          onDualViewChange: (val) => this.store.setState({ isDualViewEnabled: val }),
+          onGuiPositionModeChange: (val) => this.store.setState({ guiPositionMode: val })
+        });
+        this.configModalEl = modal.el;
+        document.body.appendChild(this.configModalEl);
+      }
+    } else {
+      if (this.configModalEl) {
+        this.configModalEl.remove();
+        this.configModalEl = null;
       }
     }
 

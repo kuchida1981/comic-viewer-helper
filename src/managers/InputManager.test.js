@@ -115,10 +115,10 @@ describe('InputManager', () => {
   });
 
   it('onKeyDown should handle Escape', () => {
-    store.getState.mockReturnValue({ enabled: true, isMetadataModalOpen: true });
+    store.getState.mockReturnValue({ enabled: true, isMetadataModalOpen: true, isConfigModalOpen: false });
     const event = { key: 'Escape', preventDefault: vi.fn(), target: document.body };
     inputManager.onKeyDown(/** @type {any} */ (event));
-    expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false, isHelpModalOpen: false });
+    expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false, isHelpModalOpen: false, isConfigModalOpen: false });
   });
 
   it('onKeyDown should handle help toggle', () => {

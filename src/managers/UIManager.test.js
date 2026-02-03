@@ -70,14 +70,16 @@ describe('UIManager', () => {
     };
     
     store = {
-      getState: vi.fn().mockReturnValue({ 
-        enabled: true, 
-        isDualViewEnabled: false, 
+      getState: vi.fn().mockReturnValue({
+        enabled: true,
+        isDualViewEnabled: false,
         guiPos: { top: 10, left: 10 },
+        guiPositionMode: 'remember',
         currentVisibleIndex: 0,
         metadata: {},
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
+        isConfigModalOpen: false,
         spreadOffset: 0
       }),
       setState: vi.fn(),
@@ -93,23 +95,24 @@ describe('UIManager', () => {
     
     uiManager = new UIManager(/** @type {any} */ (adapter), /** @type {any} */ (store), /** @type {any} */ (navigator));
 
+    const mockContainer = {
+        style: {},
+        appendChild: vi.fn(),
+        querySelectorAll: vi.fn().mockReturnValue([]) // Empty by default
+    };
+
     vi.stubGlobal('document', {
-        getElementById: vi.fn().mockReturnValue(null),
+        getElementById: vi.fn().mockReturnValue(/** @type {any} */ (mockContainer)),
         body: { appendChild: vi.fn() },
-        documentElement: { 
-          classList: { 
-            toggle: vi.fn() 
-          } 
+        documentElement: {
+          classList: {
+            toggle: vi.fn()
+          }
         },
         createElement: vi.fn(),
         querySelector: vi.fn().mockReturnValue(null)
     });
-    
-    const mockContainer = { 
-        style: {}, 
-        appendChild: vi.fn(), 
-        querySelectorAll: vi.fn().mockReturnValue([]) // Empty by default
-    };
+
     vi.mocked(createElement).mockReturnValue(/** @type {any} */ (mockContainer));
 
     vi.stubGlobal('window', { addEventListener: vi.fn(), innerWidth: 1000, innerHeight: 1000 });
@@ -121,6 +124,7 @@ describe('UIManager', () => {
   });
 
   it('init should inject styles and update UI', () => {
+    vi.mocked(document.getElementById).mockReturnValueOnce(null);
     uiManager.init();
     expect(injectStyles).toHaveBeenCalled();
     expect(document.body.appendChild).toHaveBeenCalled();
@@ -133,18 +137,18 @@ describe('UIManager', () => {
 
   it('updateUI should handle disabled state and toggling', () => {
     const mockBtn = { style: { display: '' } };
-    vi.mocked(createElement).mockReturnValue(/** @type {any} */ ({
+    vi.mocked(document.getElementById).mockReturnValue(/** @type {any} */ ({
         style: {}, appendChild: vi.fn(),
         querySelectorAll: vi.fn().mockImplementation(sel => sel === '.comic-helper-button' ? [mockBtn] : [])
     }));
-    
+
     // Disabled
-    store.getState.mockReturnValue({ enabled: false, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
+    store.getState.mockReturnValue({ enabled: false, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, isConfigModalOpen: false, currentVisibleIndex: 0 });
     uiManager.updateUI();
     expect(mockBtn.style.display).toBe('none');
-    
+
     // Enabled
-    store.getState.mockReturnValue({ enabled: true, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
+    store.getState.mockReturnValue({ enabled: true, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, isConfigModalOpen: false, currentVisibleIndex: 0 });
     uiManager.updateUI();
     expect(mockBtn.style.display).toBe('inline-block');
   });
@@ -166,6 +170,7 @@ describe('UIManager', () => {
   });
 
   it('should handle resize for draggable', () => {
+    vi.mocked(document.getElementById).mockReturnValueOnce(null);
     uiManager.init();
     const calls = vi.mocked(window.addEventListener).mock.calls;
     const resizeCall = calls.find(c => c[0] === 'resize');
@@ -178,7 +183,8 @@ describe('UIManager', () => {
   });
 
   it('onDragEnd should update store', () => {
-    uiManager.updateUI();
+    vi.mocked(document.getElementById).mockReturnValueOnce(null);
+    uiManager.init();
     const onDragEnd = /** @type {Function} */ ((/** @type {any} */ (vi.mocked(Draggable).mock.calls[0][1])).onDragEnd);
     onDragEnd(100, 200);
     expect(store.setState).toHaveBeenCalledWith({ guiPos: { top: 100, left: 200 } });
@@ -234,5 +240,7 @@ describe('UIManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
     callbacks.onHelp();
     expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: true });
+    callbacks.onConfig();
+    expect(store.setState).toHaveBeenCalledWith({ isConfigModalOpen: true });
   });
 });

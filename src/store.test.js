@@ -34,13 +34,15 @@ describe('Store', () => {
       spreadOffset: 0,
       currentVisibleIndex: 0,
       guiPos: null,
+      guiPositionMode: 'remember',
       metadata: {
         title: '',
         tags: [],
         relatedWorks: []
       },
       isMetadataModalOpen: false,
-      isHelpModalOpen: false
+      isHelpModalOpen: false,
+      isConfigModalOpen: false
     });
   });
 

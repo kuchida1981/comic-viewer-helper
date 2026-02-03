@@ -9,15 +9,17 @@ import { t } from '../../i18n.js';
  * @param {Function} props.onLast
  * @param {Function} props.onInfo
  * @param {Function} props.onHelp
+ * @param {Function} props.onConfig
  */
-export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp }) {
+export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp, onConfig }) {
   const configs = [
     { text: '<<', title: t('ui.goFirst'), action: onFirst },
     { text: '<', title: t('ui.goPrev'), action: onPrev },
     { text: '>', title: t('ui.goNext'), action: onNext },
     { text: '>>', title: t('ui.goLast'), action: onLast },
     { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
-    { text: '?', title: t('ui.showHelp'), action: onHelp }
+    { text: '?', title: t('ui.showHelp'), action: onHelp },
+    { text: '⚙', title: t('ui.settings'), action: onConfig }
   ];
 
   const elements = configs.map(cfg => createElement('button', {

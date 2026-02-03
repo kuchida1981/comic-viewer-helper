@@ -5,6 +5,8 @@
  * @property {string} [textContent]
  * @property {string} [title]
  * @property {string} [type]
+ * @property {string} [name]
+ * @property {string} [value]
  * @property {boolean} [checked]
  * @property {Partial<CSSStyleDeclaration>} [style]
  * @property {Record<string, string | number | boolean>} [attributes]
@@ -28,6 +30,8 @@ export function createElement(tag, options = {}, children = []) {
   
   if (el instanceof HTMLInputElement) {
     if (options.type) el.type = options.type;
+    if (options.name) el.name = options.name;
+    if (options.value) el.value = options.value;
     if (options.checked !== undefined) el.checked = options.checked;
   }
 

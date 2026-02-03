@@ -347,6 +347,73 @@ export const styles = `
     flex: 1;
   }
 
+  /* Config Modal Styles */
+  .comic-helper-config-row {
+    padding: 16px 0;
+    border-bottom: 1px solid #222;
+  }
+
+  .comic-helper-config-label {
+    color: #eee;
+    font-size: 14px;
+    font-weight: bold;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .comic-helper-config-toggle {
+    width: 40px;
+    height: 20px;
+    appearance: none;
+    background: #444;
+    border-radius: 20px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+    vertical-align: middle;
+  }
+
+  .comic-helper-config-toggle:checked {
+    background: #4CAF50;
+  }
+
+  .comic-helper-config-toggle::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    top: 2px;
+    left: 2px;
+    transition: left 0.3s;
+  }
+
+  .comic-helper-config-toggle:checked::before {
+    left: 22px;
+  }
+
+  .comic-helper-config-radio-label {
+    display: block;
+    color: #ccc;
+    font-size: 13px;
+    margin: 8px 0;
+    cursor: pointer;
+  }
+
+  .comic-helper-config-radio {
+    margin-right: 8px;
+    vertical-align: middle;
+    cursor: pointer;
+  }
+
+  .comic-helper-config-desc {
+    color: #888;
+    font-size: 12px;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
   /* Progress Bar Styles */
   #comic-helper-progress-bar {
     position: fixed;

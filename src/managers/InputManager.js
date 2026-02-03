@@ -50,10 +50,10 @@ export class InputManager {
    * @param {WheelEvent} e 
    */
   handleWheel(e) {
-    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen, isConfigModalOpen } = this.store.getState();
     if (!enabled) return;
-    
-    if (isMetadataModalOpen || isHelpModalOpen) {
+
+    if (isMetadataModalOpen || isHelpModalOpen || isConfigModalOpen) {
       const modalContent = document.querySelector('.comic-helper-modal-content');
       if (modalContent && modalContent.contains(/** @type {Node} */ (e.target))) {
         return;
@@ -86,13 +86,13 @@ export class InputManager {
    */
   onKeyDown(e) {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-    
+    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, isConfigModalOpen } = this.store.getState();
+
     // Handle Escape for all modals
     if (e.key === 'Escape') {
-      if (isMetadataModalOpen || isHelpModalOpen) {
+      if (isMetadataModalOpen || isHelpModalOpen || isConfigModalOpen) {
         e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
+        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isConfigModalOpen: false });
         return;
       }
     }
@@ -118,7 +118,14 @@ export class InputManager {
       return;
     }
 
-    if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
+    // Allow toggling config even if already open
+    if (isKey('config') && isConfigModalOpen) {
+      e.preventDefault();
+      this.store.setState({ isConfigModalOpen: false });
+      return;
+    }
+
+    if (isMetadataModalOpen || isHelpModalOpen || isConfigModalOpen || !enabled) return;
 
     if (isKey('nextPage')) {
       e.preventDefault();
@@ -139,6 +146,9 @@ export class InputManager {
     } else if (isKey('help')) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
+    } else if (isKey('config')) {
+      e.preventDefault();
+      this.store.setState({ isConfigModalOpen: !isConfigModalOpen });
     }
   }
 

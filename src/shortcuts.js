@@ -50,6 +50,12 @@ export const SHORTCUTS = [
     description: t('shortcuts.help.desc')
   },
   {
+    id: 'config',
+    label: t('shortcuts.config.label'),
+    keys: [','],
+    description: t('shortcuts.config.desc')
+  },
+  {
     id: 'closeModal',
     label: t('shortcuts.closeModal.label'),
     keys: ['Escape'],

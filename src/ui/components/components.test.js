@@ -6,6 +6,7 @@ import { createNavigationButtons } from './NavigationButtons.js';
 import { createMetadataModal } from './MetadataModal.js';
 import { createHelpModal } from './HelpModal.js';
 import { createResumeNotification } from './ResumeNotification.js';
+import { createConfigModal } from './ConfigModal.js';
 
 describe('UI Components', () => {
   describe('PowerButton', () => {
@@ -150,11 +151,11 @@ describe('UI Components', () => {
 
       describe('NavigationButtons', () => {
 
-        it('should render 6 navigation buttons', () => {
+        it('should render 7 navigation buttons', () => {
 
-          const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {} });
+          const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onConfig: () => {} });
 
-          expect(elements.length).toBe(6);
+          expect(elements.length).toBe(7);
 
           expect(elements[0].textContent).toBe('<<');
 
@@ -167,6 +168,8 @@ describe('UI Components', () => {
           expect(elements[4].textContent).toBe('Info');
 
           expect(elements[5].textContent).toBe('?');
+
+          expect(elements[6].textContent).toBe('⚙');
 
         });
 
@@ -1468,7 +1471,120 @@ describe('UI Components', () => {
 
   
 
-                      describe('ResumeNotification', () => {
+                      describe('ConfigModal', () => {
+        const defaultProps = {
+          onClose: vi.fn(),
+          isDualViewEnabled: false,
+          guiPositionMode: /** @type {'remember' | 'fixed'} */ ('remember'),
+          onDualViewChange: vi.fn(),
+          onGuiPositionModeChange: vi.fn()
+        };
+
+        beforeEach(() => {
+          defaultProps.onClose = vi.fn();
+          defaultProps.onDualViewChange = vi.fn();
+          defaultProps.onGuiPositionModeChange = vi.fn();
+        });
+
+        it('should render title and settings sections', () => {
+          const { el } = createConfigModal(defaultProps);
+          expect(el.textContent).toContain('Settings');
+          expect(el.textContent).toContain('Display Settings');
+          expect(el.textContent).toContain('Dual View');
+          expect(el.textContent).toContain('GUI Position');
+        });
+
+        it('should call onClose when clicking overlay', () => {
+          const { el } = createConfigModal(defaultProps);
+          el.click();
+          expect(defaultProps.onClose).toHaveBeenCalled();
+        });
+
+        it('should call onClose when clicking close button', () => {
+          const { el } = createConfigModal(defaultProps);
+          const closeBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-modal-close'));
+          closeBtn.click();
+          expect(defaultProps.onClose).toHaveBeenCalled();
+        });
+
+        it('should not call onClose when clicking content', () => {
+          const { el } = createConfigModal(defaultProps);
+          const content = el.querySelector('.comic-helper-modal-content');
+          /** @type {HTMLElement} */ (content).click();
+          expect(defaultProps.onClose).not.toHaveBeenCalled();
+        });
+
+        it('should initialize dualView toggle with correct checked state', () => {
+          const { el } = createConfigModal({ ...defaultProps, isDualViewEnabled: true });
+          const toggle = /** @type {HTMLInputElement} */ (el.querySelector('.comic-helper-config-toggle'));
+          expect(toggle.checked).toBe(true);
+
+          const { el: el2 } = createConfigModal({ ...defaultProps, isDualViewEnabled: false });
+          const toggle2 = /** @type {HTMLInputElement} */ (el2.querySelector('.comic-helper-config-toggle'));
+          expect(toggle2.checked).toBe(false);
+        });
+
+        it('should call onDualViewChange when toggle changes', () => {
+          const { el } = createConfigModal(defaultProps);
+          const toggle = /** @type {HTMLInputElement} */ (el.querySelector('.comic-helper-config-toggle'));
+          toggle.checked = true;
+          toggle.dispatchEvent(new Event('change'));
+          expect(defaultProps.onDualViewChange).toHaveBeenCalledWith(true);
+        });
+
+        it('should initialize radio buttons with correct checked state', () => {
+          const { el } = createConfigModal({ ...defaultProps, guiPositionMode: 'remember' });
+          const radios = /** @type {NodeListOf<HTMLInputElement>} */ (el.querySelectorAll('.comic-helper-config-radio'));
+          expect(radios[0].checked).toBe(true);   // remember
+          expect(radios[1].checked).toBe(false);  // fixed
+
+          const { el: el2 } = createConfigModal({ ...defaultProps, guiPositionMode: 'fixed' });
+          const radios2 = /** @type {NodeListOf<HTMLInputElement>} */ (el2.querySelectorAll('.comic-helper-config-radio'));
+          expect(radios2[0].checked).toBe(false); // remember
+          expect(radios2[1].checked).toBe(true);  // fixed
+        });
+
+        it('should call onGuiPositionModeChange when radio changes', () => {
+          const { el } = createConfigModal({ ...defaultProps, guiPositionMode: 'fixed' });
+          const radios = /** @type {NodeListOf<HTMLInputElement>} */ (el.querySelectorAll('.comic-helper-config-radio'));
+          // Select 'remember' radio
+          radios[0].checked = true;
+          radios[0].dispatchEvent(new Event('change'));
+          expect(defaultProps.onGuiPositionModeChange).toHaveBeenCalledWith('remember');
+
+          // Select 'fixed' radio
+          defaultProps.onGuiPositionModeChange.mockClear();
+          radios[1].checked = true;
+          radios[1].dispatchEvent(new Event('change'));
+          expect(defaultProps.onGuiPositionModeChange).toHaveBeenCalledWith('fixed');
+        });
+
+        it('should not call onGuiPositionModeChange if radio is not checked', () => {
+          const { el } = createConfigModal(defaultProps);
+          const radios = /** @type {NodeListOf<HTMLInputElement>} */ (el.querySelectorAll('.comic-helper-config-radio'));
+          radios[0].checked = false;
+          radios[0].dispatchEvent(new Event('change'));
+          expect(defaultProps.onGuiPositionModeChange).not.toHaveBeenCalled();
+        });
+
+        it('update should sync toggle and radio states', () => {
+          const { el, update } = createConfigModal(defaultProps);
+          const toggle = /** @type {HTMLInputElement} */ (el.querySelector('.comic-helper-config-toggle'));
+          const radios = /** @type {NodeListOf<HTMLInputElement>} */ (el.querySelectorAll('.comic-helper-config-radio'));
+
+          update(true, 'fixed');
+          expect(toggle.checked).toBe(true);
+          expect(radios[0].checked).toBe(false); // remember
+          expect(radios[1].checked).toBe(true);  // fixed
+
+          update(false, 'remember');
+          expect(toggle.checked).toBe(false);
+          expect(radios[0].checked).toBe(true);  // remember
+          expect(radios[1].checked).toBe(false); // fixed
+        });
+      });
+
+      describe('ResumeNotification', () => {
 
   
 
