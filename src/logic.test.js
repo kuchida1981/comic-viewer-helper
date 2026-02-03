@@ -1,7 +1,119 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, waitForImageLoad, preloadImages } from './logic';
 
 describe('logic.js', () => {
+  describe('waitForImageLoad', () => {
+    it('should resolve immediately if image is already complete and has height', async () => {
+      const img = { complete: true, naturalHeight: 100 };
+      // @ts-ignore
+      await expect(waitForImageLoad(img)).resolves.toBeUndefined();
+    });
+
+    it('should resolve when load event fires', async () => {
+      /** @type {any} */
+      const listeners = {};
+      const img = { 
+        complete: false,
+        addEventListener: vi.fn((event, cb) => { listeners[event] = cb; }),
+        removeEventListener: vi.fn()
+      };
+
+      // @ts-ignore
+      const promise = waitForImageLoad(img);
+      listeners['load']();
+      await expect(promise).resolves.toBeUndefined();
+      expect(img.removeEventListener).toHaveBeenCalledWith('load', expect.any(Function));
+    });
+
+    it('should resolve when error event fires', async () => {
+      /** @type {any} */
+      const listeners = {};
+      const img = { 
+        complete: false,
+        addEventListener: vi.fn((event, cb) => { listeners[event] = cb; }),
+        removeEventListener: vi.fn()
+      };
+
+      // @ts-ignore
+      const promise = waitForImageLoad(img);
+      listeners['error']();
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('should resolve on timeout', async () => {
+      vi.useFakeTimers();
+      const img = { 
+        complete: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn()
+      };
+
+      // @ts-ignore
+      const promise = waitForImageLoad(img, 1000);
+      vi.advanceTimersByTime(1000);
+      await expect(promise).resolves.toBeUndefined();
+      vi.useRealTimers();
+    });
+  });
+
+  describe('preloadImages', () => {
+    it('should trigger decode for next images', () => {
+      const images = Array.from({ length: 5 }, () => ({
+        complete: false,
+        loading: 'lazy',
+        decode: vi.fn().mockResolvedValue(undefined)
+      }));
+      
+      // @ts-ignore
+      preloadImages(images, 0, 2);
+      
+      expect(images[1].loading).toBe('eager');
+      expect(images[1].decode).toHaveBeenCalled();
+      expect(images[2].loading).toBe('eager');
+      expect(images[2].decode).toHaveBeenCalled();
+      expect(images[3].loading).toBe('lazy'); // Out of range
+    });
+
+    it('should handle images without decode method', () => {
+      const images = Array.from({ length: 3 }, () => ({
+        complete: false,
+        loading: 'lazy'
+      }));
+      
+      // @ts-ignore
+      preloadImages(images, 0, 1);
+      
+      expect(images[1].loading).toBe('eager');
+    });
+
+    it('should skip already complete images', () => {
+      const images = [
+        { complete: true, loading: 'lazy', decode: vi.fn() },
+        { complete: true, loading: 'lazy', decode: vi.fn() }
+      ];
+      
+      // @ts-ignore
+      preloadImages(images, 0, 1);
+      
+      expect(images[1].loading).toBe('lazy');
+      expect(images[1].decode).not.toHaveBeenCalled();
+    });
+
+    it('should preload previous images', () => {
+      const images = Array.from({ length: 5 }, () => ({
+        complete: false,
+        loading: 'lazy',
+        decode: vi.fn().mockResolvedValue(undefined)
+      }));
+      
+      // @ts-ignore
+      preloadImages(images, 2, 1);
+      
+      expect(images[1].loading).toBe('eager'); // Previous
+      expect(images[3].loading).toBe('eager'); // Next
+    });
+  });
+
   describe('calculateVisibleHeight', () => {
 
     it('should return full height when image is fully in viewport', () => {

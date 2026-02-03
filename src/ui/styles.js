@@ -423,6 +423,46 @@ export const styles = `
     background: rgba(255, 255, 255, 0.1);
   }
 
+  /* Loading Indicator Styles */
+  #comic-helper-loading {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10003;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  #comic-helper-loading.visible {
+    opacity: 1;
+  }
+
+  .comic-helper-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #fff;
+    border-radius: 50%;
+    animation: comic-helper-spin 1s linear infinite;
+  }
+
+  @keyframes comic-helper-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
   /* Global states */
   html.comic-helper-enabled {
     overflow: hidden !important;

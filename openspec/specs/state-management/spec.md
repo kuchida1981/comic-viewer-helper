@@ -17,3 +17,10 @@ Store は初期化時に `localStorage` から保存された状態を読み込�
 - **WHEN**: Store がインスタンス化された時
 - **THEN**: `localStorage` に保存されているユーザー設定（enabled, dualView, guiPosなど）が初期状態として反映される
 
+### Requirement: 一時的なUI状態の管理
+Store は永続化の必要がない一時的なUI状態（ローディング中など）も管理できるものとし、これらは `localStorage` への保存対象から除外されなければならない（SHALL）。
+
+#### Scenario: ローディング状態の更新
+- **WHEN** 画像読み込み待ちが発生し、`Store.setState({ isLoading: true })` が呼び出されたとき
+- **THEN** 購読しているコンポーネントには通知されるが、`localStorage` には保存されない
+- **AND** ページリロード後、この状態は初期値（false）に戻る

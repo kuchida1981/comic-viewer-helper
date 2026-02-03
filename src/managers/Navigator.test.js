@@ -26,8 +26,26 @@ describe('Navigator', () => {
 
   beforeEach(() => {
     mockImages = [
-      { id: 'img1', scrollIntoView: vi.fn(), parentElement: { classList: { contains: () => false } }, complete: true, addEventListener: vi.fn() },
-      { id: 'img2', scrollIntoView: vi.fn(), parentElement: { classList: { contains: () => false } }, complete: true, addEventListener: vi.fn() }
+      { 
+        id: 'img1', 
+        scrollIntoView: vi.fn(), 
+        parentElement: { classList: { contains: () => false } }, 
+        complete: true, 
+        naturalHeight: 100,
+        addEventListener: vi.fn(), 
+        getAttribute: vi.fn().mockReturnValue(null),
+        setAttribute: vi.fn()
+      },
+      { 
+        id: 'img2', 
+        scrollIntoView: vi.fn(), 
+        parentElement: { classList: { contains: () => false } }, 
+        complete: true, 
+        naturalHeight: 100,
+        addEventListener: vi.fn(),
+        getAttribute: vi.fn().mockReturnValue(null),
+        setAttribute: vi.fn()
+      }
     ];
 
     adapter = {
@@ -85,15 +103,15 @@ describe('Navigator', () => {
     expect(logic.getPrimaryVisibleImageIndex).not.toHaveBeenCalled();
   });
 
-  it('should jump to page', () => {
-    const success = navigator.jumpToPage(1);
+  it('should jump to page', async () => {
+    const success = await navigator.jumpToPage(1);
     expect(success).toBe(true);
     expect(mockImages[0].scrollIntoView).toHaveBeenCalled();
   });
 
-  it('should handle invalid page jump', () => {
+  it('should handle invalid page jump', async () => {
     vi.mocked(logic.getImageElementByIndex).mockReturnValue(null);
-    const success = navigator.jumpToPage(999);
+    const success = await navigator.jumpToPage(999);
     expect(success).toBe(false);
     expect(logic.getPrimaryVisibleImageIndex).toHaveBeenCalled();
   });
