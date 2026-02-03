@@ -170,13 +170,31 @@ export class Navigator {
   }
 
   /**
-   * @param {'start' | 'end'} position 
+   * @param {'start' | 'end'} position
+   * @returns {Promise<void>}
    */
-  scrollToEdge(position) {
+  async scrollToEdge(position) {
     const imgs = this.getImages();
     if (imgs.length === 0) return;
-    const target = position === 'start' ? imgs[0] : imgs[imgs.length - 1];
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const targetIndex = position === 'start' ? 0 : imgs.length - 1;
+    const target = imgs[targetIndex];
+
+    this.pendingTargetIndex = targetIndex;
+    forceImageLoad(target);
+
+    if (!target.complete || target.naturalHeight === 0) {
+      this.store.setState({ isLoading: true });
+      await waitForImageLoad(target);
+      this.store.setState({ isLoading: false });
+    }
+
+    this.applyLayout(targetIndex);
+    // applyLayout は RAF 内で scrollIntoView を実行する。
+    // ガードを RAF と同じフレームで解除することで、スクロール実行前の画像ロード
+    // イベントによる割り込み applyLayout を防止する。
+    requestAnimationFrame(() => {
+      this.pendingTargetIndex = null;
+    });
   }
 
   /**
