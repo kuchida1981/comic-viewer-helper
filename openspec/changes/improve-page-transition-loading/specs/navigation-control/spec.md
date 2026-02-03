@@ -1,0 +1,21 @@
+## MODIFIED Requirements
+
+### Requirement: Keyboard Navigation
+The system SHALL provide keybindings for navigating between images. ナビゲーションは、現在の画像のインデックスに基づいて行われ、遷移先の画像が読み込み完了していない場合は読み込みを待機してから実行されなければならない（SHALL）。また、ブラウザの標準スクロールバーが非表示の場合であっても、これらの操作は完全に機能し続けなければならない。
+
+#### Scenario: 次のページへ（ロード済み）
+- **WHEN** ユーザーが「次へ」のキー（`j`, `ArrowDown`, `PageDown`, `ArrowRight`, `Space`）を押す
+- **AND** 次の画像が既に読み込み完了している
+- **THEN** ビューポートが即座に次の画像または見開き画像までスクロールする
+- **AND** 画像/見開き画像がビューポートの垂直方向中央に配置される
+
+#### Scenario: 次のページへ（ロード未完了）
+- **WHEN** ユーザーが「次へ」のキーを押す
+- **AND** 次の画像がまだ読み込まれていない
+- **THEN** 画面にローディング表示が現れ、スクロールは待機される
+- **AND** 画像の読み込みが完了次第、自動的にスクロールが実行される
+
+#### Scenario: 前のページへ
+- **WHEN** ユーザーが「前へ」のキー（`k`, `ArrowUp`, `PageUp`, `ArrowLeft`, `Shift+Space`）を押す
+- **THEN** ビューポートが前の画像または見開き画像までスクロールする
+- **AND** 画像/見開き画像がビューポートの垂直方向中央に配置される
