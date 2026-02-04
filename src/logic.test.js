@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, waitForImageLoad, preloadImages } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, waitForImageLoad, preloadImages, getClickNavigationDirection } from './logic';
 
 describe('logic.js', () => {
   describe('waitForImageLoad', () => {
@@ -430,6 +430,49 @@ describe('logic.js', () => {
       const event = { deltaY: 55 };
       // @ts-ignore
       expect(getNavigationDirection(event)).toBe('next');
+    });
+  });
+
+  describe('getClickNavigationDirection', () => {
+    /**
+     * Helper: create a .comic-row-wrapper div containing the given images.
+     * @param {HTMLImageElement[]} imgs
+     * @returns {HTMLDivElement}
+     */
+    function wrapInRow(imgs) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'comic-row-wrapper';
+      imgs.forEach(img => wrapper.appendChild(img));
+      return wrapper;
+    }
+
+    it('should return "next" for a single image with no wrapper', () => {
+      const img = document.createElement('img');
+      // @ts-ignore
+      expect(getClickNavigationDirection(img)).toBe('next');
+    });
+
+    it('should return "next" for a single image inside a wrapper (見開き1枚だけ)', () => {
+      const img = document.createElement('img');
+      wrapInRow([img]);
+      // @ts-ignore
+      expect(getClickNavigationDirection(img)).toBe('next');
+    });
+
+    it('should return "prev" for the first child (DOM先頭 = 画面右側) in a spread pair', () => {
+      const imgA = document.createElement('img');
+      const imgB = document.createElement('img');
+      wrapInRow([imgA, imgB]);
+      // @ts-ignore
+      expect(getClickNavigationDirection(imgA)).toBe('prev');
+    });
+
+    it('should return "next" for the second child (DOM末尾 = 画面左側) in a spread pair', () => {
+      const imgA = document.createElement('img');
+      const imgB = document.createElement('img');
+      wrapInRow([imgA, imgB]);
+      // @ts-ignore
+      expect(getClickNavigationDirection(imgB)).toBe('next');
     });
   });
 });

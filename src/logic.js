@@ -195,9 +195,32 @@ export function revertToOriginal(originalImages, container) {
 }
 
 /**
+ * Determine click navigation direction based on image position within a spread pair.
+ * Returns 'next' for single images or the left-side image in a spread,
+ * 'prev' for the right-side image in a spread.
+ * Assumes right-to-left reading order (flexDirection: row-reverse).
+ * @param {HTMLImageElement} img
+ * @returns {'next' | 'prev'}
+ */
+export function getClickNavigationDirection(img) {
+  const wrapper = img.parentElement;
+  if (!wrapper || !wrapper.classList.contains('comic-row-wrapper')) {
+    return 'next';
+  }
+
+  const siblings = /** @type {HTMLImageElement[]} */ (Array.from(wrapper.querySelectorAll('img')));
+  if (siblings.length < 2) {
+    return 'next';
+  }
+
+  // flexDirection: row-reverse の場合、DOM の先頭要素が画面上の右側（prev方向）になる
+  return img === siblings[0] ? 'prev' : 'next';
+}
+
+/**
  * Determine navigation direction from wheel event
- * @param {WheelEvent} event 
- * @param {number} threshold 
+ * @param {WheelEvent} event
+ * @param {number} threshold
  * @returns {'next' | 'prev' | 'none'}
  */
 export function getNavigationDirection(event, threshold = 50) {
