@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.afdc7b5
+// @version         1.3.0-unstable.fd34527
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -293,6 +293,20 @@
     });
     const wrappers = container.querySelectorAll(".comic-row-wrapper");
     wrappers.forEach((w) => w.remove());
+  }
+  function getClickNavigationDirection(img) {
+    const wrapper = img.parentElement;
+    if (!wrapper || !wrapper.classList.contains("comic-row-wrapper")) {
+      return "next";
+    }
+    const siblings = (
+      /** @type {HTMLImageElement[]} */
+      Array.from(wrapper.querySelectorAll("img"))
+    );
+    if (siblings.length < 2) {
+      return "next";
+    }
+    return img === siblings[0] ? "prev" : "next";
   }
   function getNavigationDirection(event, threshold = 50) {
     if (Math.abs(event.deltaY) < threshold) {
@@ -1376,7 +1390,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.afdc7b5"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.fd34527"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1856,6 +1870,7 @@
       document.body.appendChild(notification.el);
     }
   }
+  const CLICK_THRESHOLD_PX = 5;
   class InputManager {
     /**
      * @param {import('../store.js').Store} store 
@@ -1869,14 +1884,20 @@
       this.WHEEL_THRESHOLD = 1;
       this.resizeReq = void 0;
       this.scrollReq = void 0;
+      this.mouseDownPos = null;
+      this.mouseDownTarget = null;
       this.handleWheel = this.handleWheel.bind(this);
       this.onKeyDown = this.onKeyDown.bind(this);
       this.handleResize = this.handleResize.bind(this);
       this.handleScroll = this.handleScroll.bind(this);
+      this.onMouseDown = this.onMouseDown.bind(this);
+      this.onMouseUp = this.onMouseUp.bind(this);
     }
     init() {
       window.addEventListener("wheel", this.handleWheel, { passive: false });
       document.addEventListener("keydown", this.onKeyDown, true);
+      document.addEventListener("mousedown", this.onMouseDown);
+      document.addEventListener("mouseup", this.onMouseUp);
       window.addEventListener("resize", this.handleResize);
       window.addEventListener("scroll", this.handleScroll);
     }
@@ -1994,6 +2015,32 @@
       if (!this.store.getState().enabled) return;
       if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
       this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
+    }
+    /**
+     * @param {MouseEvent} e
+     */
+    onMouseDown(e) {
+      if (!(e.target instanceof HTMLImageElement)) return;
+      this.mouseDownPos = { x: e.clientX, y: e.clientY };
+      this.mouseDownTarget = e.target;
+    }
+    /**
+     * @param {MouseEvent} e
+     */
+    onMouseUp(e) {
+      const target = this.mouseDownTarget;
+      const startPos = this.mouseDownPos;
+      this.mouseDownTarget = null;
+      this.mouseDownPos = null;
+      if (!target || !startPos) return;
+      if (!(e.target instanceof HTMLImageElement) || e.target !== target) return;
+      const dx = e.clientX - startPos.x;
+      const dy = e.clientY - startPos.y;
+      if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
+      const { enabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+      if (!enabled || isMetadataModalOpen || isHelpModalOpen) return;
+      const direction = getClickNavigationDirection(target);
+      this.navigator.scrollToImage(direction === "next" ? 1 : -1);
     }
   }
   class ResumeManager {
