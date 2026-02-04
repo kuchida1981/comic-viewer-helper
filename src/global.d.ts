@@ -9,7 +9,7 @@ declare global {
 export interface Metadata {
   title: string;
   tags: Array<{ text: string, href: string, type: string | null }>;
-  relatedWorks: Array<{ title: string, href: string, thumb: string }>;
+  relatedWorks: Array<{ title: string, href: string, thumb: string, isPrivate?: boolean }>;
 }
 
 export interface SiteAdapter {

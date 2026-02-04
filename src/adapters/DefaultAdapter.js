@@ -65,10 +65,12 @@ export const DefaultAdapter = {
       // Assuming title is in a span inside or near .post-list-image based on issue description
       const titleEl = el.querySelector('span') || anchor?.querySelector('span');
       
+      const title = titleEl?.textContent?.trim() || 'Untitled';
       return {
-        title: titleEl?.textContent?.trim() || 'Untitled',
+        title,
         href: anchor?.href || '',
-        thumb: img?.src || ''
+        thumb: img?.src || '',
+        isPrivate: title.startsWith('非公開')
       };
     });
 

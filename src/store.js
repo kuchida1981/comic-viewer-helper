@@ -8,7 +8,7 @@ export const STORAGE_KEYS = {
  * @typedef {Object} Metadata
  * @property {string} title
  * @property {Array<{text: string, href: string, type: string | null}>} tags
- * @property {Array<{title: string, href: string, thumb: string}>} relatedWorks
+ * @property {Array<{title: string, href: string, thumb: string, isPrivate?: boolean}>} relatedWorks
  */
 
 /**

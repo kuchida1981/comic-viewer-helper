@@ -120,7 +120,7 @@ describe('DefaultAdapter', () => {
       // @ts-ignore
       const result = DefaultAdapter.getMetadata();
       expect(result.relatedWorks).toEqual([
-        { title: 'Related Work 1', href: 'http://work/1', thumb: 'thumb1.jpg' }
+        { title: 'Related Work 1', href: 'http://work/1', thumb: 'thumb1.jpg', isPrivate: false }
       ]);
     });
 

@@ -143,7 +143,7 @@ export class UIManager {
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
         onLucky: hasRelated ? () => {
-          const works = metadata.relatedWorks;
+          const works = metadata.relatedWorks.filter(w => !w.isPrivate);
           const randomWork = works[Math.floor(Math.random() * works.length)];
           if (randomWork?.href) {
             window.location.href = randomWork.href;
