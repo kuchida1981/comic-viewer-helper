@@ -322,17 +322,6 @@ describe('logic.js', () => {
       vi.unstubAllGlobals();
     });
 
-    it('should pair 0-1 and 2-3 when offset is 0', () => {
-      fitImagesToViewport(container, 0, true);
-      
-      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(2);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[1]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[2]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[3]);
-    });
-
     it('should correctly handle multiple landscape images', () => {
       // 0:P, 1:L, 2:L, 3:P
       images[1].naturalWidth = 500; images[1].naturalHeight = 100;
@@ -344,15 +333,89 @@ describe('logic.js', () => {
       expect(wrappers.length).toBe(4);
     });
 
+    it('should show first page (index 0) and last page as solo regardless of offset', () => {
+      // 4 images (0, 1, 2, 3), all portrait
+      // Offset 0: 0(solo), 1(solo), 2(solo), 3(solo)
+      // (1 is not a pairing position for offset 0, 2 would be but next is last)
+      fitImagesToViewport(container, 0, true);
+      
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(4);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]);
+      expect(wrappers[2].appendChild).toHaveBeenCalledWith(images[2]);
+      expect(wrappers[3].appendChild).toHaveBeenCalledWith(images[3]);
+    });
+
+    it('should show first page (index 0) and last page as solo with offset 1', () => {
+      // 4 images (0, 1, 2, 3), all portrait
+      // Offset 1:
+      // i=0: [0] solo (first page)
+      // i=1: [1-2] pair (effectiveIndex 0, next is 2, not last, so pairing is allowed)
+      // i=3: [3] solo (last page)
+      fitImagesToViewport(container, 1, true);
+
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(3);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[2]);
+      expect(wrappers[2].appendChild).toHaveBeenCalledWith(images[3]);
+    });
+
+    it('should show all pages as solo when there are only 2 pages', () => {
+      // 2 images (0, 1), both portrait
+      const twoImages = images.slice(0, 2);
+      container.querySelectorAll.mockImplementation((/** @type {string} */ selector) => {
+        if (selector === 'img') return twoImages;
+        if (selector === '.comic-row-wrapper') return [];
+        return [];
+      });
+
+      fitImagesToViewport(container, 0, true);
+      
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(2);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]); // First page solo
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]); // Last page solo
+    });
+
+    it('should pair 1-2 when offset is 1 but 0 and last are solo', () => {
+      // 5 images (0, 1, 2, 3, 4), all portrait
+      const fiveImages = Array.from({ length: 5 }, (_, i) => ({
+        id: `img${i}`, naturalWidth: 100, naturalHeight: 200, style: {}, remove: vi.fn()
+      }));
+      container.querySelectorAll.mockImplementation((/** @type {string} */ selector) => {
+        if (selector === 'img') return fiveImages;
+        return [];
+      });
+
+      // Offset 1:
+      // i=0: [0] solo (first)
+      // i=1: [1-2] pair (effectiveIndex 0, next is 2, not last)
+      // i=3: [3] solo (next is 4, which is last)
+      // i=4: [4] solo (last)
+      fitImagesToViewport(container, 1, true);
+
+      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
+      expect(wrappers.length).toBe(4);
+      expect(wrappers[0].appendChild).toHaveBeenCalledWith(fiveImages[0]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(fiveImages[1]);
+      expect(wrappers[1].appendChild).toHaveBeenCalledWith(fiveImages[2]);
+      expect(wrappers[2].appendChild).toHaveBeenCalledWith(fiveImages[3]);
+      expect(wrappers[3].appendChild).toHaveBeenCalledWith(fiveImages[4]);
+    });
+
     it('should maintain global order even when some images are paired and some are solo', () => {
       // Image 1 is landscape
       images[1].naturalWidth = 500;
       images[1].naturalHeight = 100;
 
-      // Logic with offset 0:
-      // i=0: [0] solo (since next is landscape)
+      // New Logic with offset 0:
+      // i=0: [0] solo (first page)
       // i=1: [1] solo (landscape)
-      // i=2: [2-3] pair
+      // i=2: [2] solo (next is last page)
+      // i=3: [3] solo (last page)
       
       fitImagesToViewport(container, 0, true);
 
@@ -360,13 +423,14 @@ describe('logic.js', () => {
       const calls = container.appendChild.mock.calls.map((/** @type {any[]} */ call) => call[0]);
       
       // All calls should be wrappers now
-      expect(calls.length).toBe(3);
+      expect(calls.length).toBe(4);
       expect(calls[0].tagName).toBe('DIV');
       expect(calls[1].tagName).toBe('DIV');
       expect(calls[2].tagName).toBe('DIV');
+      expect(calls[3].tagName).toBe('DIV');
     });
 
-    it('should pair correctly with offset 1 and odd number of images', () => {
+    it('should show all pages as solo for 3 images with offset 1', () => {
       // Images: 0:P, 1:P, 2:P (total 3)
       const threeImages = images.slice(0, 3);
       container.querySelectorAll.mockImplementation((/** @type {string} */ selector) => {
@@ -375,14 +439,12 @@ describe('logic.js', () => {
       });
 
       fitImagesToViewport(container, 1, true);
-      // Expected: 0 solo, 1-2 pair -> 2 rows
+      // Expected: 0 solo (first), 1 solo (next is last), 2 solo (last) -> 3 rows
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(2);
-      // Wrapper 0 is for image 0
+      expect(wrappers.length).toBe(3);
       expect(wrappers[0].appendChild).toHaveBeenCalledWith(threeImages[0]);
-      // Wrapper 1 is for image 1 and 2
       expect(wrappers[1].appendChild).toHaveBeenCalledWith(threeImages[1]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(threeImages[2]);
+      expect(wrappers[2].appendChild).toHaveBeenCalledWith(threeImages[2]);
     });
 
     it('should call cleanupDOM (remove wrappers)', () => {

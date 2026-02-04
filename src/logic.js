@@ -130,7 +130,11 @@ export function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabl
     const effectiveIndex = i - spreadOffset;
     const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
 
-    if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length) {
+    // EXCEPTIONS: First and last pages are always solo
+    const isFirstPage = i === 0;
+    const isNextLastPage = i + 1 === allImages.length - 1;
+
+    if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
       const nextImg = allImages[i+1];
       const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
       
