@@ -30,8 +30,8 @@ execSync('npx vite build', {
   }
 });
 
-// 4. Update version in header.js and concatenate
-let header = fs.readFileSync('./src/header.js', 'utf-8');
+// 4. Update version in header.ts and concatenate
+let header = fs.readFileSync('./src/header.ts', 'utf-8');
 header = header.replace(/@version\s+.*/, `@version         ${version}`);
 
 if (isUnstable) {
