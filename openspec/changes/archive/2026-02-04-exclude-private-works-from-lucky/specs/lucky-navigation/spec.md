@@ -1,3 +1,9 @@
+## REMOVED Requirements
+
+### Requirement: ボタンの表示制御
+**Reason**: 🎲 ボタンは常に表示し続ける設計に変更された。関連作品が0件・全て非公開の場合でも遷移しないだけでよい。
+**Migration**: なし（ボタンの表示制御ロジックを削除すればよい）
+
 ## MODIFIED Requirements
 
 ### Requirement: 関連作品へのランダム遷移
