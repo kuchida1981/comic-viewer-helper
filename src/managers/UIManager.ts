@@ -41,14 +41,6 @@ interface LoadingIndicatorComponent {
   update: (isLoading: boolean) => void;
 }
 
-interface ModalComponent {
-  el: HTMLElement;
-}
-
-interface NavigationButtonsComponent {
-  elements: HTMLElement[];
-}
-
 export class UIManager {
   private adapter: SiteAdapter;
   private store: Store;
@@ -129,7 +121,7 @@ export class UIManager {
           // Revert logic is handled by Navigator via store subscription in main orchestration
           this.store.setState({ enabled: newState });
         }
-      }) as unknown as PowerButtonComponent;
+      });
       container.appendChild(this.powerComp.el);
     }
 
@@ -154,7 +146,7 @@ export class UIManager {
             }
           })();
         }
-      }) as unknown as PageCounterComponent;
+      });
       container.appendChild(this.counterComp.el);
     }
 
@@ -166,17 +158,17 @@ export class UIManager {
           const { spreadOffset } = this.store.getState();
           this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
         }
-      }) as unknown as SpreadControlsComponent;
+      });
       container.appendChild(this.spreadComp.el);
     }
 
     if (!this.progressComp) {
-      this.progressComp = createProgressBar() as unknown as ProgressBarComponent;
+      this.progressComp = createProgressBar();
       document.body.appendChild(this.progressComp.el);
     }
 
     if (!this.loadingComp) {
-      this.loadingComp = createLoadingIndicator({ isLoading }) as unknown as LoadingIndicatorComponent;
+      this.loadingComp = createLoadingIndicator({ isLoading });
       document.body.appendChild(this.loadingComp.el);
     }
 
@@ -191,7 +183,7 @@ export class UIManager {
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
         onLucky: () => { jumpToRandomWork(metadata); }
-      }) as unknown as NavigationButtonsComponent;
+      });
       navBtns.elements.forEach(btn => container?.appendChild(btn));
     }
 
@@ -201,7 +193,7 @@ export class UIManager {
       if (!this.helpModalEl) {
         const modal = createHelpModal({
           onClose: () => this.store.setState({ isHelpModalOpen: false })
-        }) as unknown as ModalComponent;
+        });
         this.helpModalEl = modal.el;
         document.body.appendChild(this.helpModalEl);
       }
@@ -218,7 +210,7 @@ export class UIManager {
         const modal = createMetadataModal({
           metadata,
           onClose: () => this.store.setState({ isMetadataModalOpen: false })
-        }) as unknown as ModalComponent;
+        });
         this.modalEl = modal.el;
         document.body.appendChild(this.modalEl);
       }
@@ -274,7 +266,7 @@ export class UIManager {
       onSkip: () => {
         // 何もしない（最初から読む）
       }
-    }) as unknown as ModalComponent;
+    });
     document.body.appendChild(notification.el);
   }
 }

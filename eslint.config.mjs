@@ -30,13 +30,6 @@ export default [
     ...config,
     files: ["**/*.ts"],
   })),
-  // Allow 'any' in test files during migration
-  {
-    files: ["**/*.test.ts"],
-    rules: {
-      "@typescript-eslint/no-explicit-any": "off"
-    }
-  },
   // UserScript rules (specific file)
   {
     files: ["src/header.js", "src/header.ts"],
@@ -58,16 +51,11 @@ export default [
         "caughtErrorsIgnorePattern": "^_"
       }],
       "no-console": "off",
-      "@typescript-eslint/ban-ts-comment": "off" // Allow @ts-ignore for migration
+      "@typescript-eslint/ban-ts-comment": "off", // Allow @ts-ignore for migration
+      "@typescript-eslint/no-explicit-any": "warn"
     }
   },
-  // Default warn for any, but off for tests
-  {
-    files: ["**/*.ts"],
-    rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
-    }
-  },
+  // Allow 'any' in test files during migration
   {
     files: ["**/*.test.ts"],
     rules: {
