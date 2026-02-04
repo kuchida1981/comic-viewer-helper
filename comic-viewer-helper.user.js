@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.49ce43e
+// @version         1.3.0-unstable.6d1bcd5
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -380,6 +380,14 @@
           }
         }
       }
+    }
+  }
+  function jumpToRandomWork(metadata) {
+    if (!metadata?.relatedWorks) return;
+    const works = metadata.relatedWorks.filter((w) => !w.isPrivate);
+    const randomWork = works[Math.floor(Math.random() * works.length)];
+    if (randomWork?.href) {
+      window.location.href = randomWork.href;
     }
   }
   class Navigator {
@@ -1130,7 +1138,8 @@
         metadata: { label: "Metadata", desc: "Show metadata" },
         fullscreen: { label: "Fullscreen", desc: "Toggle Fullscreen" },
         help: { label: "Help", desc: "Show this help" },
-        closeModal: { label: "Close Modal", desc: "Close modal" }
+        closeModal: { label: "Close Modal", desc: "Close modal" },
+        randomJump: { label: "Random Jump", desc: "Jump to a random related work" }
       }
     },
     ja: {
@@ -1170,7 +1179,8 @@
         metadata: { label: "作品情報", desc: "作品情報（メタデータ）の表示" },
         fullscreen: { label: "フルスクリーン", desc: "フルスクリーンの切り替え" },
         help: { label: "ヘルプ", desc: "このヘルプの表示" },
-        closeModal: { label: "閉じる", desc: "モーダルを閉じる" }
+        closeModal: { label: "閉じる", desc: "モーダルを閉じる" },
+        randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" }
       }
     }
   };
@@ -1406,7 +1416,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.49ce43e"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.6d1bcd5"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1477,6 +1487,12 @@
       label: t("shortcuts.help.label"),
       keys: ["?"],
       description: t("shortcuts.help.desc")
+    },
+    {
+      id: "randomJump",
+      label: t("shortcuts.randomJump.label"),
+      keys: ["p"],
+      description: t("shortcuts.randomJump.desc")
     },
     {
       id: "closeModal",
@@ -1812,13 +1828,7 @@
           onLast: () => this.navigator.scrollToEdge("end"),
           onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
           onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-          onLucky: () => {
-            const works = metadata2.relatedWorks.filter((w) => !w.isPrivate);
-            const randomWork = works[Math.floor(Math.random() * works.length)];
-            if (randomWork?.href) {
-              window.location.href = randomWork.href;
-            }
-          }
+          onLucky: () => jumpToRandomWork(metadata2)
         });
         navBtns.elements.forEach((btn) => container.appendChild(btn));
       }
@@ -2027,6 +2037,10 @@
           document.documentElement.requestFullscreen().catch(() => {
           });
         }
+      } else if (isKey("randomJump")) {
+        e.preventDefault();
+        const { metadata } = this.store.getState();
+        jumpToRandomWork(metadata);
       }
     }
     handleResize() {
