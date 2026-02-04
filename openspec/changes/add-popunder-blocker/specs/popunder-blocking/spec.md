@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: ポップアンダー広告リダイレクトの抑制
-`PopUnderBlocker` は、ページ内の `<a>` タグへのクリックイベントをキャプチャフェーズでインターセプトし、サイト側スクリプトによるポップアンダー広告リダイレクトを抑制する。インターセプト時には `stopImmediatePropagation()` と `preventDefault()` を呼び、`window.location.href` で現在のタブで直接遷移を実行する。
+`PopUnderBlocker` SHALL ページ内の `<a>` タグへのクリックイベントをキャプチャフェーズでインターセプトし、サイト側スクリプトによるポップアンダー広告リダイレクトを抑制する。インターセプト時には `stopImmediatePropagation()` と `preventDefault()` を呼び、`window.location.href` で現在のタブで直接遷移を実行する。
 
 #### Scenario: 通常リンクへのクリックで直接遷移を実行する
 - **WHEN** ユーザーが `target` 属性なしの `<a>` タグをクリックする
@@ -12,7 +12,7 @@
 - **THEN** `PopUnderBlocker` のハンドラがキャプチャフェーズで先に実行され、`stopImmediatePropagation()` で他のハンドラの実行を阻止する
 
 ### Requirement: 除外対象リンクの非インターセプト
-以下の条件に該当する `<a>` クリックは、インターセプト対象としない。
+システム SHALL 以下の条件に該当する `<a>` クリックを、インターセプト対象としない。
 
 #### Scenario: target="_blank" リンクは除外する
 - **WHEN** ユーザーが `target="_blank"` が明示されている `<a>` タグをクリックする
@@ -31,7 +31,7 @@
 - **THEN** インターセプトを行わず、デフォルトの動作のまま遷移する
 
 ### Requirement: 機能オン/オフの制御
-`PopUnderBlocker` は、`store` の `enabled` フラグで機能のオン/オフを制御する。
+`PopUnderBlocker` SHALL `store` の `enabled` フラグで機能のオン/オフを制御する。
 
 #### Scenario: 機能が無効の場合はインターセプトしない
 - **WHEN** `store` の `enabled` が `false` の状態で `<a>` タグがクリックされる
