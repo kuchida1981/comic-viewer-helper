@@ -47,7 +47,10 @@ export const styles = `
     font-size: 16px;
     padding: 0 4px;
     font-weight: bold;
-    transition: color 0.2s;
+    transition: color 0.2s, opacity 0.2s;
+  }
+  .comic-helper-power-btn:hover {
+    opacity: 0.8;
   }
   .comic-helper-power-btn.enabled { color: #4CAF50; }
   .comic-helper-power-btn.disabled { color: #888; }
