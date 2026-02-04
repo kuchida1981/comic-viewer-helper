@@ -8,7 +8,7 @@ import { t } from '../../i18n.js';
  */
 export function createPowerButton({ isEnabled, onClick }) {
   const el = createElement('button', {
-    className: `comic-helper-power-btn ${isEnabled ? 'enabled' : 'disabled'}`,
+    className: `comic-helper-icon-btn comic-helper-power-btn ${isEnabled ? 'enabled' : 'disabled'}`,
     title: isEnabled ? t('ui.disable') : t('ui.enable'),
     textContent: '⚡',
     style: {
@@ -27,7 +27,7 @@ export function createPowerButton({ isEnabled, onClick }) {
     el,
     /** @param {boolean} enabled */
     update: (enabled) => {
-      el.className = `comic-helper-power-btn ${enabled ? 'enabled' : 'disabled'}`;
+      el.className = `comic-helper-icon-btn comic-helper-power-btn ${enabled ? 'enabled' : 'disabled'}`;
       el.title = enabled ? t('ui.disable') : t('ui.enable');
       el.style.marginRight = enabled ? '8px' : '0';
     }

@@ -133,7 +133,6 @@ export class UIManager {
 
     if (container.querySelectorAll('.comic-helper-button').length === 0) {
       const { metadata } = state;
-      const hasRelated = metadata?.relatedWorks?.length > 0;
 
       const navBtns = createNavigationButtons({
         onFirst: () => this.navigator.scrollToEdge('start'),
@@ -142,13 +141,13 @@ export class UIManager {
         onLast: () => this.navigator.scrollToEdge('end'),
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-        onLucky: hasRelated ? () => {
-          const works = metadata.relatedWorks;
+        onLucky: () => {
+          const works = metadata.relatedWorks.filter(w => !w.isPrivate);
           const randomWork = works[Math.floor(Math.random() * works.length)];
           if (randomWork?.href) {
             window.location.href = randomWork.href;
           }
-        } : undefined
+        }
       });
       navBtns.elements.forEach(btn => container.appendChild(btn));
     }

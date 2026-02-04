@@ -150,23 +150,25 @@ describe('UI Components', () => {
 
       describe('NavigationButtons', () => {
 
-        it('should render 6 navigation buttons', () => {
+        it('should render 7 navigation buttons', () => {
 
           const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {} });
 
-          expect(elements.length).toBe(6);
+          expect(elements.length).toBe(7);
 
           expect(elements[0].textContent).toBe('<<');
 
           expect(elements[1].textContent).toBe('<');
 
-          expect(elements[2].textContent).toBe('>');
+          expect(elements[2].textContent).toBe('🎲');
 
-          expect(elements[3].textContent).toBe('>>');
+          expect(elements[3].textContent).toBe('>');
 
-          expect(elements[4].textContent).toBe('Info');
+          expect(elements[4].textContent).toBe('>>');
 
-          expect(elements[5].textContent).toBe('?');
+          expect(elements[5].textContent).toBe('Info');
+
+          expect(elements[6].textContent).toBe('?');
 
         });
 

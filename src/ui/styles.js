@@ -40,7 +40,7 @@ export const styles = `
     background: #eee;
   }
 
-  .comic-helper-power-btn {
+  .comic-helper-icon-btn {
     cursor: pointer;
     border: none;
     background: transparent;
@@ -49,7 +49,7 @@ export const styles = `
     font-weight: bold;
     transition: color 0.2s, opacity 0.2s;
   }
-  .comic-helper-power-btn:hover {
+  .comic-helper-icon-btn:hover {
     opacity: 0.8;
   }
   .comic-helper-power-btn.enabled { color: #4CAF50; }

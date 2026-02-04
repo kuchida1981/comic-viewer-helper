@@ -64,3 +64,4 @@ Do not skip steps unless the user explicitly instructs otherwise.
 - **Do NOT write production code before reaching the "implementation" step**
 - **Always include a TODO checklist for user verification in PR descriptions**
 - **Never skip user verification**
+- **`openspec validate --strict --all` は全チャンジを対象とする**: 自分のチャンジ以外の既存チャンジも検証される。失敗したチャンジは今回の変更とは無関係であっても修正が必要。一般的な原因は `specs/` が存在しないか、デルタヘッダ（`## ADDED/MODIFIED/REMOVED Requirements`）やシナリオ（`#### Scenario:`）が不足していること。
