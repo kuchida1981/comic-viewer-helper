@@ -139,6 +139,17 @@ export class Navigator {
     let targetIndex = currentIndex + direction;
 
     if (targetIndex < 0) targetIndex = 0;
+
+    if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+      const currentImg = imgs[currentIndex];
+      if (targetIndex < imgs.length) {
+        const prospectiveTargetImg = imgs[targetIndex];
+        if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains('comic-row-wrapper')) {
+          targetIndex += direction;
+        }
+      }
+    }
+
     if (targetIndex >= imgs.length) {
       if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
         this.store.setState({ isMetadataModalOpen: true });
@@ -147,15 +158,6 @@ export class Navigator {
     }
 
     console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
-
-    const prospectiveTargetImg = imgs[targetIndex];
-
-    if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-      const currentImg = imgs[currentIndex];
-      if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains('comic-row-wrapper')) {
-        targetIndex += direction;
-      }
-    }
 
     const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
     const finalTarget = imgs[finalIndex];
