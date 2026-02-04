@@ -196,9 +196,9 @@ describe('UI Components', () => {
 
           const blurSpy = vi.spyOn(elements[0], 'blur');
 
-          elements[0].click(); 
+          elements[0].click();
 
-          expect(actions.onFirst).toHaveBeenCalled();
+          expect(actions.onLast).toHaveBeenCalled();
 
           expect(blurSpy).toHaveBeenCalled();
 
@@ -212,7 +212,7 @@ describe('UI Components', () => {
 
           elements[1].dispatchEvent(event);
 
-          expect(actions.onPrev).toHaveBeenCalled();
+          expect(actions.onNext).toHaveBeenCalled();
 
         });
 

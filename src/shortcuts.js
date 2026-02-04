@@ -10,18 +10,28 @@ import { t } from './i18n.js';
  * @property {boolean} [shift] - Shiftキーが必要か
  */
 
+/**
+ * ナビゲーション方向の割り当て。
+ * 右開き書籍: ArrowLeft = next, ArrowRight = prev
+ * 将来の左開き対応で反転可能にする（#73）
+ */
+export const NAV_ARROW_KEYS = {
+  next: 'ArrowLeft',
+  prev: 'ArrowRight'
+};
+
 /** @type {Shortcut[]} */
 export const SHORTCUTS = [
   {
     id: 'nextPage',
     label: t('shortcuts.nextPage.label'),
-    keys: ['j', 'ArrowDown', 'PageDown', 'ArrowRight', 'Space'],
+    keys: ['j', 'ArrowDown', 'PageDown', NAV_ARROW_KEYS.next, 'Space'],
     description: t('shortcuts.nextPage.desc')
   },
   {
     id: 'prevPage',
     label: t('shortcuts.prevPage.label'),
-    keys: ['k', 'ArrowUp', 'PageUp', 'ArrowLeft', 'Shift+Space'],
+    keys: ['k', 'ArrowUp', 'PageUp', NAV_ARROW_KEYS.prev, 'Shift+Space'],
     description: t('shortcuts.prevPage.desc')
   },
   {

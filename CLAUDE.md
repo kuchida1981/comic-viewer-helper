@@ -37,6 +37,14 @@ Do not skip steps unless the user explicitly instructs otherwise.
 4. **Implement**
    - Implement the changes and commit the code
    - Consider if README or documentation updates are needed
+   - 実装コミットの後、以下の全工程を経て全てが緑になることを確認してからPRに進む（いずれかが失敗した場合は修正してから再実行する）:
+     ```
+     npm run test
+     npm run lint
+     npm run check-types
+     openspec validate --strict --all
+     IS_UNSTABLE=true npm run build
+     ```
 
 5. **Create Pull Request**
    - Push the topic branch and create a pull request

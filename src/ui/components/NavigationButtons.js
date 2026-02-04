@@ -12,10 +12,10 @@ import { t } from '../../i18n.js';
  */
 export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp }) {
   const configs = [
-    { text: '<<', title: t('ui.goFirst'), action: onFirst },
-    { text: '<', title: t('ui.goPrev'), action: onPrev },
-    { text: '>', title: t('ui.goNext'), action: onNext },
-    { text: '>>', title: t('ui.goLast'), action: onLast },
+    { text: '<<', title: t('ui.goLast'), action: onLast },
+    { text: '<', title: t('ui.goNext'), action: onNext },
+    { text: '>', title: t('ui.goPrev'), action: onPrev },
+    { text: '>>', title: t('ui.goFirst'), action: onFirst },
     { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
     { text: '?', title: t('ui.showHelp'), action: onHelp }
   ];
