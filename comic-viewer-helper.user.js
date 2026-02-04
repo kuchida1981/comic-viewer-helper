@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.b9e45d0
+// @version         1.3.0-unstable.afdc7b5
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1100,6 +1100,7 @@
         dualView: { label: "Dual View", desc: "Toggle Dual View" },
         spreadOffset: { label: "Spread Offset", desc: "Toggle Offset (0 ↔ 1)", cond: "Dual View only" },
         metadata: { label: "Metadata", desc: "Show metadata" },
+        fullscreen: { label: "Fullscreen", desc: "Toggle Fullscreen" },
         help: { label: "Help", desc: "Show this help" },
         closeModal: { label: "Close Modal", desc: "Close modal" }
       }
@@ -1138,6 +1139,7 @@
         dualView: { label: "見開き", desc: "見開きモードのON/OFF" },
         spreadOffset: { label: "見開きオフセット", desc: "見開きオフセットの切替 (0 ↔ 1)", cond: "見開きモード中のみ" },
         metadata: { label: "作品情報", desc: "作品情報（メタデータ）の表示" },
+        fullscreen: { label: "フルスクリーン", desc: "フルスクリーンの切り替え" },
         help: { label: "ヘルプ", desc: "このヘルプの表示" },
         closeModal: { label: "閉じる", desc: "モーダルを閉じる" }
       }
@@ -1374,7 +1376,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.b9e45d0"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.afdc7b5"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1433,6 +1435,12 @@
       label: t("shortcuts.metadata.label"),
       keys: ["i"],
       description: t("shortcuts.metadata.desc")
+    },
+    {
+      id: "fullscreen",
+      label: t("shortcuts.fullscreen.label"),
+      keys: ["f"],
+      description: t("shortcuts.fullscreen.desc")
     },
     {
       id: "help",
@@ -1964,6 +1972,16 @@
       } else if (isKey("help")) {
         e.preventDefault();
         this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
+      } else if (isKey("fullscreen")) {
+        e.preventDefault();
+        if (!document.documentElement.requestFullscreen) return;
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {
+          });
+        } else {
+          document.documentElement.requestFullscreen().catch(() => {
+          });
+        }
       }
     }
     handleResize() {
