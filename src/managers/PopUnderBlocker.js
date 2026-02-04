@@ -19,6 +19,7 @@ export class PopUnderBlocker {
 
     const link = /** @type {HTMLElement} */ (e.target)?.closest?.('a');
     if (!(link instanceof HTMLAnchorElement)) return;
+    if (!link.hasAttribute('href')) return;
 
     if (e.ctrlKey || e.metaKey) return;
     if (link.href.startsWith('javascript:')) return;

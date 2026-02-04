@@ -21,7 +21,7 @@
 ### イベント受付の仕組み
 **決定**: `document.addEventListener('click', handler, true)` でキャプチャフェーズにリスナーを登録する。
 
-**理ionale**: サイト側スクリプトはバブルフェーズで動いている前提で、キャプチャフェーズで先に `stopImmediatePropagation()` を呼ぶことで他のハンドラに伝達しない。`InputManager` でも既に `keydown` がキャプチャフェーズで登録されており、プロジェクト内の先例がある。
+**Rationale**: サイト側スクリプトはバブルフェーズで動いている前提で、キャプチャフェーズで先に `stopImmediatePropagation()` を呼ぶことで他のハンドラに伝達しない。`InputManager` でも既に `keydown` がキャプチャフェーズで登録されており、プロジェクト内の先例がある。
 
 ### クラス設計
 **決定**: `PopUnderBlocker` を `src/managers/` に新規クラスとして作成し、`main.js` で他のマネージャーと同じ粒度で初期化する。

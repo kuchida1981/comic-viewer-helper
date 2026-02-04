@@ -151,6 +151,27 @@ describe('PopUnderBlocker', () => {
       expect(window.location.href).toBe('http://localhost/');
     });
 
+    it('href 属性なしの <a> タグはインターセプトしない', () => {
+      const anchor = document.createElement('a');
+      anchor.setAttribute('name', 'section');
+      document.body.appendChild(link);
+
+      const event = {
+        target: anchor,
+        ctrlKey: false,
+        metaKey: false,
+        stopImmediatePropagation: vi.fn(),
+        preventDefault: vi.fn()
+      };
+      blocker.handleClick(/** @type {any} */ (event));
+
+      expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(window.location.href).toBe('http://localhost/');
+
+      anchor.remove();
+    });
+
     it('javascript: リンクはインターセプトしない', () => {
       link.href = 'javascript:void(0)';
       const event = {
