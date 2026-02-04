@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, waitForImageLoad, preloadImages, getClickNavigationDirection } from './logic';
+import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, waitForImageLoad, preloadImages, getClickNavigationDirection, jumpToRandomWork } from './logic';
 
 describe('logic.js', () => {
   describe('waitForImageLoad', () => {
@@ -535,6 +535,84 @@ describe('logic.js', () => {
       wrapInRow([imgA, imgB]);
       // @ts-ignore
       expect(getClickNavigationDirection(imgB)).toBe('next');
+    });
+  });
+
+  describe('jumpToRandomWork', () => {
+    it('should update window.location.href with a random non-private work', () => {
+      const metadata = {
+        relatedWorks: [
+          { href: 'http://example.com/1', isPrivate: false },
+          { href: 'http://example.com/2', isPrivate: true },
+          { href: 'http://example.com/3', isPrivate: false }
+        ]
+      };
+
+      vi.spyOn(Math, 'random').mockReturnValue(0.99); // Selects the last available (index 2 in filtered list)
+
+      const originalLocation = window.location;
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = { href: '' };
+
+      // @ts-ignore
+      jumpToRandomWork(metadata);
+
+      expect(window.location.href).toBe('http://example.com/3');
+
+      // @ts-ignore
+      window.location = originalLocation;
+      vi.spyOn(Math, 'random').mockRestore();
+    });
+
+    it('should do nothing if no related works are available', () => {
+      const metadata = { relatedWorks: [] };
+      const originalLocation = window.location;
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = { href: 'stay' };
+
+      // @ts-ignore
+      jumpToRandomWork(metadata);
+      expect(window.location.href).toBe('stay');
+
+      // @ts-ignore
+      window.location = originalLocation;
+    });
+
+    it('should do nothing if all related works are private', () => {
+      const metadata = {
+        relatedWorks: [{ href: 'p1', isPrivate: true }]
+      };
+      const originalLocation = window.location;
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = { href: 'stay' };
+
+      // @ts-ignore
+      jumpToRandomWork(metadata);
+      expect(window.location.href).toBe('stay');
+
+      // @ts-ignore
+      window.location = originalLocation;
+    });
+
+    it('should do nothing if metadata is null', () => {
+      const originalLocation = window.location;
+      // @ts-ignore
+      delete window.location;
+      // @ts-ignore
+      window.location = { href: 'stay' };
+
+      // @ts-ignore
+      jumpToRandomWork(null);
+      expect(window.location.href).toBe('stay');
+
+      // @ts-ignore
+      window.location = originalLocation;
     });
   });
 });

@@ -328,3 +328,16 @@ export function preloadImages(images, currentIndex, count = 3) {
   }
 }
 
+/**
+ * Select a random non-private work from related works and jump to it
+ * @param {import('./global').Metadata} metadata 
+ */
+export function jumpToRandomWork(metadata) {
+  if (!metadata?.relatedWorks) return;
+  const works = metadata.relatedWorks.filter(w => !w.isPrivate);
+  const randomWork = works[Math.floor(Math.random() * works.length)];
+  if (randomWork?.href) {
+    window.location.href = randomWork.href;
+  }
+}
+

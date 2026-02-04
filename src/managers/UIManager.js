@@ -10,6 +10,7 @@ import { createResumeNotification } from '../ui/components/ResumeNotification.js
 import { createLoadingIndicator } from '../ui/components/LoadingIndicator.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
+import { jumpToRandomWork } from '../logic.js';
 
 export class UIManager {
   /**
@@ -141,13 +142,7 @@ export class UIManager {
         onLast: () => this.navigator.scrollToEdge('end'),
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-        onLucky: () => {
-          const works = metadata.relatedWorks.filter(w => !w.isPrivate);
-          const randomWork = works[Math.floor(Math.random() * works.length)];
-          if (randomWork?.href) {
-            window.location.href = randomWork.href;
-          }
-        }
+        onLucky: () => jumpToRandomWork(metadata)
       });
       navBtns.elements.forEach(btn => container.appendChild(btn));
     }

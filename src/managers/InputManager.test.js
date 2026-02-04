@@ -4,7 +4,8 @@ import * as logic from '../logic.js';
 
 vi.mock('../logic.js', () => ({
   getNavigationDirection: vi.fn(),
-  getClickNavigationDirection: vi.fn()
+  getClickNavigationDirection: vi.fn(),
+  jumpToRandomWork: vi.fn()
 }));
 
 vi.mock('../shortcuts.js', () => ({
@@ -198,25 +199,41 @@ describe('InputManager', () => {
       metadata: { relatedWorks } 
     });
 
-    vi.spyOn(Math, 'random').mockReturnValue(0); // Selects first element (index 0)
+    const event = { key: 'p', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
 
-    // Mock window.location
-    const originalLocation = window.location;
-    // @ts-ignore
-    delete window.location;
-    // @ts-ignore
-    window.location = { href: '' };
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks });
+  });
+
+  it('onKeyDown should not navigate if no related works', () => {
+    store.getState.mockReturnValue({ 
+      enabled: true, 
+      metadata: { relatedWorks: [] } 
+    });
 
     const event = { key: 'p', preventDefault: vi.fn(), target: document.body };
     inputManager.onKeyDown(/** @type {any} */ (event));
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(window.location.href).toBe('http://example.com/1');
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks: [] });
+  });
 
-    // Cleanup
-    // @ts-ignore
-    window.location = originalLocation;
-    vi.spyOn(Math, 'random').mockRestore();
+  it('onKeyDown should not navigate if all related works are private', () => {
+    const relatedWorks = [
+      { href: 'private-1', isPrivate: true },
+      { href: 'private-2', isPrivate: true }
+    ];
+    store.getState.mockReturnValue({ 
+      enabled: true, 
+      metadata: { relatedWorks } 
+    });
+
+    const event = { key: 'p', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks });
   });
 
   it('onKeyDown should enter fullscreen when not in fullscreen', async () => {
