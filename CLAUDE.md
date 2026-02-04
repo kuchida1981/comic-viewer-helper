@@ -59,6 +59,8 @@ Do not skip steps unless the user explicitly instructs otherwise.
 
 ### Important Rules
 
+- **Do NOT use broad staging commands**: Never use `git add .` or `git add -A`. Always stage files individually or by specific paths to avoid including unintended files.
+- **Check status before commit**: Always run `git status` before committing to verify staged changes.
 - **Do NOT write production code before reaching the "implementation" step**
 - **Always include a TODO checklist for user verification in PR descriptions**
 - **Never skip user verification**
