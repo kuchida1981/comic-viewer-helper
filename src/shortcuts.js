@@ -54,6 +54,12 @@ export const SHORTCUTS = [
     description: t('shortcuts.metadata.desc')
   },
   {
+    id: 'fullscreen',
+    label: t('shortcuts.fullscreen.label'),
+    keys: ['f'],
+    description: t('shortcuts.fullscreen.desc')
+  },
+  {
     id: 'help',
     label: t('shortcuts.help.label'),
     keys: ['?'],
