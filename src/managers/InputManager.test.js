@@ -15,7 +15,8 @@ vi.mock('../shortcuts.js', () => ({
     { id: 'spreadOffset', keys: ['s'] },
     { id: 'metadata', keys: ['i'] },
     { id: 'fullscreen', keys: ['f'] },
-    { id: 'help', keys: ['?'] }
+    { id: 'help', keys: ['?'] },
+    { id: 'randomJump', keys: ['p'] }
   ]
 }));
 
@@ -184,6 +185,38 @@ describe('InputManager', () => {
     store.getState.mockReturnValue({ enabled: true, isDualViewEnabled: true, spreadOffset: 0 });
     inputManager.onKeyDown(/** @type {any} */ (event2));
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
+  });
+
+  it('onKeyDown should handle randomJump', () => {
+    const relatedWorks = [
+      { href: 'http://example.com/1', isPrivate: false },
+      { href: 'http://example.com/2', isPrivate: true },
+      { href: 'http://example.com/3', isPrivate: false }
+    ];
+    store.getState.mockReturnValue({ 
+      enabled: true, 
+      metadata: { relatedWorks } 
+    });
+
+    vi.spyOn(Math, 'random').mockReturnValue(0); // Selects first element (index 0)
+
+    // Mock window.location
+    const originalLocation = window.location;
+    // @ts-ignore
+    delete window.location;
+    // @ts-ignore
+    window.location = { href: '' };
+
+    const event = { key: 'p', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(window.location.href).toBe('http://example.com/1');
+
+    // Cleanup
+    // @ts-ignore
+    window.location = originalLocation;
+    vi.spyOn(Math, 'random').mockRestore();
   });
 
   it('onKeyDown should enter fullscreen when not in fullscreen', async () => {

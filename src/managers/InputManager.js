@@ -166,6 +166,16 @@ export class InputManager {
       } else {
         document.documentElement.requestFullscreen().catch(() => {});
       }
+    } else if (isKey('randomJump')) {
+      e.preventDefault();
+      const { metadata } = this.store.getState();
+      if (metadata?.relatedWorks) {
+        const works = metadata.relatedWorks.filter(w => !w.isPrivate);
+        const randomWork = works[Math.floor(Math.random() * works.length)];
+        if (randomWork?.href) {
+          window.location.href = randomWork.href;
+        }
+      }
     }
   }
 
