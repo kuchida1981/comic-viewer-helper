@@ -350,10 +350,9 @@ describe('logic.js', () => {
     it('should show first page (index 0) and last page as solo with offset 1', () => {
       // 4 images (0, 1, 2, 3), all portrait
       // Offset 1:
-      // i=0: solo (first)
-      // i=1: solo (effectiveIndex 0, but next is i=2, and i+1=3 is last, so isNextLastPage is false? NO.)
-      // wait, i=1, i+1=2. 2 is NOT last (last is 3). So 1-2 should pair.
-      // i=3: solo (last)
+      // i=0: [0] solo (first page)
+      // i=1: [1-2] pair (effectiveIndex 0, next is 2, not last, so pairing is allowed)
+      // i=3: [3] solo (last page)
       fitImagesToViewport(container, 1, true);
 
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
