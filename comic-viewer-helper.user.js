@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.1d0aac3
+// @version         1.3.0-unstable.9caeb74
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -150,10 +150,12 @@
         const anchor = el.closest("a");
         const img = el.querySelector("img");
         const titleEl = el.querySelector("span") || anchor?.querySelector("span");
+        const title2 = titleEl?.textContent?.trim() || "Untitled";
         return {
-          title: titleEl?.textContent?.trim() || "Untitled",
+          title: title2,
           href: anchor?.href || "",
-          thumb: img?.src || ""
+          thumb: img?.src || "",
+          isPrivate: title2.startsWith("非公開")
         };
       });
       return { title, tags, relatedWorks };
@@ -619,7 +621,7 @@
     background: #eee;
   }
 
-  .comic-helper-power-btn {
+  .comic-helper-icon-btn {
     cursor: pointer;
     border: none;
     background: transparent;
@@ -628,7 +630,7 @@
     font-weight: bold;
     transition: color 0.2s, opacity 0.2s;
   }
-  .comic-helper-power-btn:hover {
+  .comic-helper-icon-btn:hover {
     opacity: 0.8;
   }
   .comic-helper-power-btn.enabled { color: #4CAF50; }
@@ -1189,7 +1191,7 @@
   }
   function createPowerButton({ isEnabled, onClick }) {
     const el = createElement("button", {
-      className: `comic-helper-power-btn ${isEnabled ? "enabled" : "disabled"}`,
+      className: `comic-helper-icon-btn comic-helper-power-btn ${isEnabled ? "enabled" : "disabled"}`,
       title: isEnabled ? t("ui.disable") : t("ui.enable"),
       textContent: "⚡",
       style: {
@@ -1207,7 +1209,7 @@
       el,
       /** @param {boolean} enabled */
       update: (enabled) => {
-        el.className = `comic-helper-power-btn ${enabled ? "enabled" : "disabled"}`;
+        el.className = `comic-helper-icon-btn comic-helper-power-btn ${enabled ? "enabled" : "disabled"}`;
         el.title = enabled ? t("ui.disable") : t("ui.enable");
         el.style.marginRight = enabled ? "8px" : "0";
       }
@@ -1315,13 +1317,13 @@
     const configs = [
       { text: "<<", title: t("ui.goLast"), action: onLast },
       { text: "<", title: t("ui.goNext"), action: onNext },
-      { text: "🎲", title: t("ui.lucky"), action: onLucky, condition: !!onLucky, className: "comic-helper-power-btn enabled" },
+      { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn" },
       { text: ">", title: t("ui.goPrev"), action: onPrev },
       { text: ">>", title: t("ui.goFirst"), action: onFirst },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
       { text: "?", title: t("ui.showHelp"), action: onHelp }
     ];
-    const elements = configs.filter((cfg) => cfg.condition !== false).map((cfg) => createElement("button", {
+    const elements = configs.map((cfg) => createElement("button", {
       className: cfg.className || "comic-helper-button",
       textContent: cfg.text,
       title: cfg.title,
@@ -1404,7 +1406,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.1d0aac3"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.9caeb74"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1803,7 +1805,6 @@
       }
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
         const { metadata: metadata2 } = state;
-        const hasRelated = metadata2?.relatedWorks?.length > 0;
         const navBtns = createNavigationButtons({
           onFirst: () => this.navigator.scrollToEdge("start"),
           onPrev: () => this.navigator.scrollToImage(-1),
@@ -1811,13 +1812,13 @@
           onLast: () => this.navigator.scrollToEdge("end"),
           onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
           onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-          onLucky: hasRelated ? () => {
-            const works = metadata2.relatedWorks;
+          onLucky: () => {
+            const works = metadata2.relatedWorks.filter((w) => !w.isPrivate);
             const randomWork = works[Math.floor(Math.random() * works.length)];
             if (randomWork?.href) {
               window.location.href = randomWork.href;
             }
-          } : void 0
+          }
         });
         navBtns.elements.forEach((btn) => container.appendChild(btn));
       }
