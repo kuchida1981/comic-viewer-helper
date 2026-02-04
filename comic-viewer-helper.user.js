@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.cabdbee
+// @version         1.3.0-unstable.746cf59
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -228,7 +228,9 @@
       let pairWithNext = false;
       const effectiveIndex = i - spreadOffset;
       const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
-      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length) {
+      const isFirstPage = i === 0;
+      const isNextLastPage = i + 1 === allImages.length - 1;
+      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
         const nextImg = allImages[i + 1];
         const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
         if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
@@ -1396,7 +1398,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.cabdbee"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.746cf59"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
