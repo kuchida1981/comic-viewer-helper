@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   build: {
     lib: {
-      entry: path.resolve(__dirname, 'src/main.js'),
+      entry: path.resolve(__dirname, 'src/main.ts'),
       name: 'ComicViewerHelper',
       formats: ['iife'],
       fileName: () => 'comic-viewer-helper.user.js',

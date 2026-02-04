@@ -1,5 +1,6 @@
 import globals from "globals";
 import pluginJs from "@eslint/js";
+import tseslint from "typescript-eslint";
 import pluginUserscripts from "eslint-plugin-userscripts";
 
 /** @type {import('eslint').Linter.Config[]} */
@@ -7,8 +8,8 @@ export default [
   {
     ignores: ["comic-viewer-helper.user.js", "dist/*", "src/global.d.ts"],
   },
+  // Global settings
   {
-    files: ["src/**/*.js"],
     languageOptions: {
       sourceType: "module",
       globals: {
@@ -19,25 +20,58 @@ export default [
       }
     }
   },
+  // JavaScript rules
   {
-    // UserScript 固有のルールは header.js に適用
-    files: ["src/header.js"],
+    files: ["**/*.js", "**/*.mjs"],
+    ...pluginJs.configs.recommended,
+  },
+  // TypeScript rules
+  ...tseslint.configs.recommended.map(config => ({
+    ...config,
+    files: ["**/*.ts"],
+  })),
+  // Allow 'any' in test files during migration
+  {
+    files: ["**/*.test.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off"
+    }
+  },
+  // UserScript rules (specific file)
+  {
+    files: ["src/header.js", "src/header.ts"],
     plugins: {
       userscripts: pluginUserscripts,
     },
     rules: {
       ...pluginUserscripts.configs.recommended.rules,
-      "userscripts/filename-user": "off", // header.js という名前を許容
+      "userscripts/filename-user": "off", // header.js/ts name allowed
+    }
+  },
+  // Custom rules
+  {
+    rules: {
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", { 
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }],
+      "no-console": "off",
+      "@typescript-eslint/ban-ts-comment": "off" // Allow @ts-ignore for migration
+    }
+  },
+  // Default warn for any, but off for tests
+  {
+    files: ["**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
     }
   },
   {
-    files: ["**/*.js"],
-    ...pluginJs.configs.recommended,
-  },
-  {
+    files: ["**/*.test.ts"],
     rules: {
-      "no-unused-vars": "warn",
-      "no-console": "off",
+      "@typescript-eslint/no-explicit-any": "off"
     }
   }
 ];

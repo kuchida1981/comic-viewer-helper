@@ -11,11 +11,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['src/**/*.js'],
+      include: ['src/**/*.js', 'src/**/*.ts'],
       exclude: [
         'src/header.js',
+        'src/header.ts',
         'src/main.js',
-        'src/ui/styles.js'
+        'src/main.ts',
+        'src/ui/styles.js',
+        'src/ui/styles.ts'
       ],
       thresholds: {
         lines: 95,
