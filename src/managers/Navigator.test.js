@@ -129,11 +129,20 @@ describe('Navigator', () => {
     store.getState.mockReturnValue({ enabled: true, isDualViewEnabled: true, currentVisibleIndex: 0 });
     // Mock same parent and row wrapper class
     const parent = { classList: { contains: vi.fn().mockReturnValue(true) } };
-    mockImages[0].parentElement = parent;
-    mockImages[1].parentElement = parent;
+    const parent2 = { classList: { contains: vi.fn().mockReturnValue(true) } };
+    
+    const imgs = [
+        { ...mockImages[0], parentElement: parent },
+        { ...mockImages[1], parentElement: parent },
+        { ...mockImages[0], id: 'img3', parentElement: parent2 },
+        { ...mockImages[1], id: 'img4', parentElement: parent2 }
+    ];
+    
+    adapter.getImages.mockReturnValue(imgs);
     
     navigator.scrollToImage(1);
-    expect(mockImages[1].scrollIntoView).toHaveBeenCalled();
+    // Should skip index 1 and go to index 2 (next spread)
+    expect(imgs[2].scrollIntoView).toHaveBeenCalled();
   });
 
   it('should scroll to edge (loaded images)', async () => {
@@ -222,6 +231,35 @@ describe('Navigator', () => {
       expect(spy).toHaveBeenCalled();
 
     });
+
+    it('should open metadata modal when navigating past last page in dual view spread', () => {
+        store.getState.mockReturnValue({ 
+          enabled: true, 
+          isDualViewEnabled: true, 
+          isMetadataModalOpen: false,
+          currentVisibleIndex: 1 
+        });
+    
+        const parent = { classList: { contains: vi.fn().mockReturnValue(true) } };
+        
+        // 3 images. Index 1 and 2 are a spread.
+        const imgs = [
+            { ...mockImages[0] }, // index 0
+            { ...mockImages[0], parentElement: parent }, // index 1
+            { ...mockImages[0], parentElement: parent }  // index 2
+        ];
+        
+        // Mock getImages to return 3 images
+        adapter.getImages.mockReturnValue(imgs);
+        // Mock visible index to be 1
+        vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(1);
+    
+        navigator.scrollToImage(1);
+    
+        expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
+        // Should NOT scroll to any image (early return)
+        expect(imgs[2].scrollIntoView).not.toHaveBeenCalled();
+      });
 
   });
 
