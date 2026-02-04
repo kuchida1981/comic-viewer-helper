@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.a4278e6
+// @version         1.3.0-unstable.1d0aac3
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1404,7 +1404,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.a4278e6"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.1d0aac3"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2114,6 +2114,37 @@
       localStorage.removeItem(this.storageKey);
     }
   }
+  class PopUnderBlocker {
+    /**
+     * @param {import('../store.js').Store} store
+     */
+    constructor(store) {
+      this.store = store;
+      this.handleClick = this.handleClick.bind(this);
+    }
+    init() {
+      document.addEventListener("click", this.handleClick, true);
+    }
+    /**
+     * @param {MouseEvent} e
+     */
+    handleClick(e) {
+      if (!this.store.getState().enabled) return;
+      const link = (
+        /** @type {HTMLElement} */
+        e.target?.closest?.("a")
+      );
+      if (!(link instanceof HTMLAnchorElement)) return;
+      if (!link.hasAttribute("href")) return;
+      if (e.ctrlKey || e.metaKey) return;
+      if (link.href.startsWith("javascript:")) return;
+      const isOwnLink = link.className.includes("comic-helper-");
+      if (link.target === "_blank" && !isOwnLink) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      window.location.href = link.href;
+    }
+  }
   class App {
     constructor() {
       this.store = new Store();
@@ -2123,6 +2154,7 @@
       this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
       this.inputManager = new InputManager(this.store, this.navigator);
       this.resumeManager = new ResumeManager(this.store);
+      this.popUnderBlocker = new PopUnderBlocker(this.store);
       this.init = this.init.bind(this);
     }
     init() {
@@ -2133,6 +2165,7 @@
       this.navigator.init();
       this.uiManager.init();
       this.inputManager.init();
+      this.popUnderBlocker.init();
       if (this.resumeManager.isEnabled()) {
         const workKey = window.location.origin + window.location.pathname;
         const savedIndex = this.resumeManager.loadPosition(workKey);
