@@ -43,7 +43,8 @@ export const MESSAGES = {
       metadata: { label: 'Metadata', desc: 'Show metadata' },
       fullscreen: { label: 'Fullscreen', desc: 'Toggle Fullscreen' },
       help: { label: 'Help', desc: 'Show this help' },
-      closeModal: { label: 'Close Modal', desc: 'Close modal' }
+      closeModal: { label: 'Close Modal', desc: 'Close modal' },
+      randomJump: { label: 'Random Jump', desc: 'Jump to a random related work' }
     }
   },
   ja: {
@@ -83,7 +84,8 @@ export const MESSAGES = {
       metadata: { label: '作品情報', desc: '作品情報（メタデータ）の表示' },
       fullscreen: { label: 'フルスクリーン', desc: 'フルスクリーンの切り替え' },
       help: { label: 'ヘルプ', desc: 'このヘルプの表示' },
-      closeModal: { label: '閉じる', desc: 'モーダルを閉じる' }
+      closeModal: { label: '閉じる', desc: 'モーダルを閉じる' },
+      randomJump: { label: 'ランダムジャンプ', desc: 'おすすめ（ランダム）へ遷移' }
     }
   }
 };

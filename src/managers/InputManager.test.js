@@ -4,7 +4,8 @@ import * as logic from '../logic.js';
 
 vi.mock('../logic.js', () => ({
   getNavigationDirection: vi.fn(),
-  getClickNavigationDirection: vi.fn()
+  getClickNavigationDirection: vi.fn(),
+  jumpToRandomWork: vi.fn()
 }));
 
 vi.mock('../shortcuts.js', () => ({
@@ -15,7 +16,8 @@ vi.mock('../shortcuts.js', () => ({
     { id: 'spreadOffset', keys: ['s'] },
     { id: 'metadata', keys: ['i'] },
     { id: 'fullscreen', keys: ['f'] },
-    { id: 'help', keys: ['?'] }
+    { id: 'help', keys: ['?'] },
+    { id: 'randomJump', keys: ['p'] }
   ]
 }));
 
@@ -184,6 +186,54 @@ describe('InputManager', () => {
     store.getState.mockReturnValue({ enabled: true, isDualViewEnabled: true, spreadOffset: 0 });
     inputManager.onKeyDown(/** @type {any} */ (event2));
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
+  });
+
+  it('onKeyDown should handle randomJump', () => {
+    const relatedWorks = [
+      { href: 'http://example.com/1', isPrivate: false },
+      { href: 'http://example.com/2', isPrivate: true },
+      { href: 'http://example.com/3', isPrivate: false }
+    ];
+    store.getState.mockReturnValue({ 
+      enabled: true, 
+      metadata: { relatedWorks } 
+    });
+
+    const event = { key: 'p', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks });
+  });
+
+  it('onKeyDown should not navigate if no related works', () => {
+    store.getState.mockReturnValue({ 
+      enabled: true, 
+      metadata: { relatedWorks: [] } 
+    });
+
+    const event = { key: 'p', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks: [] });
+  });
+
+  it('onKeyDown should not navigate if all related works are private', () => {
+    const relatedWorks = [
+      { href: 'private-1', isPrivate: true },
+      { href: 'private-2', isPrivate: true }
+    ];
+    store.getState.mockReturnValue({ 
+      enabled: true, 
+      metadata: { relatedWorks } 
+    });
+
+    const event = { key: 'p', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks });
   });
 
   it('onKeyDown should enter fullscreen when not in fullscreen', async () => {

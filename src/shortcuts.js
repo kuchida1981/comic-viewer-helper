@@ -66,6 +66,12 @@ export const SHORTCUTS = [
     description: t('shortcuts.help.desc')
   },
   {
+    id: 'randomJump',
+    label: t('shortcuts.randomJump.label'),
+    keys: ['p'],
+    description: t('shortcuts.randomJump.desc')
+  },
+  {
     id: 'closeModal',
     label: t('shortcuts.closeModal.label'),
     keys: ['Escape'],

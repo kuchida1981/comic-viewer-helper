@@ -1,4 +1,4 @@
-import { getNavigationDirection, getClickNavigationDirection } from '../logic.js';
+import { getNavigationDirection, getClickNavigationDirection, jumpToRandomWork } from '../logic.js';
 import { SHORTCUTS } from '../shortcuts.js';
 
 const CLICK_THRESHOLD_PX = 5;
@@ -166,6 +166,10 @@ export class InputManager {
       } else {
         document.documentElement.requestFullscreen().catch(() => {});
       }
+    } else if (isKey('randomJump')) {
+      e.preventDefault();
+      const { metadata } = this.store.getState();
+      jumpToRandomWork(metadata);
     }
   }
 
