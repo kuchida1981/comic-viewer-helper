@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.746cf59
+// @version         1.3.0-unstable.d247bbe
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -626,7 +626,10 @@
     font-size: 16px;
     padding: 0 4px;
     font-weight: bold;
-    transition: color 0.2s;
+    transition: color 0.2s, opacity 0.2s;
+  }
+  .comic-helper-power-btn:hover {
+    opacity: 0.8;
   }
   .comic-helper-power-btn.enabled { color: #4CAF50; }
   .comic-helper-power-btn.disabled { color: #888; }
@@ -1105,6 +1108,7 @@
         goPrev: "Go to Previous",
         goNext: "Go to Next",
         goLast: "Go to Last",
+        lucky: "I'm feeling lucky",
         showMetadata: "Show Metadata",
         showHelp: "Show Help",
         shiftOffset: "Shift spread pairing by 1 page (Offset)",
@@ -1144,6 +1148,7 @@
         goPrev: "前へ",
         goNext: "次へ",
         goLast: "最後へ",
+        lucky: "おすすめ（ランダム）",
         showMetadata: "作品情報を表示",
         showHelp: "ヘルプを表示",
         shiftOffset: "見開きペアを1ページ分ずらす（オフセット）",
@@ -1306,24 +1311,25 @@
       }
     };
   }
-  function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp }) {
+  function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp, onLucky }) {
     const configs = [
       { text: "<<", title: t("ui.goLast"), action: onLast },
       { text: "<", title: t("ui.goNext"), action: onNext },
+      { text: "🎲", title: t("ui.lucky"), action: onLucky, condition: !!onLucky, className: "comic-helper-power-btn enabled" },
       { text: ">", title: t("ui.goPrev"), action: onPrev },
       { text: ">>", title: t("ui.goFirst"), action: onFirst },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
       { text: "?", title: t("ui.showHelp"), action: onHelp }
     ];
-    const elements = configs.map((cfg) => createElement("button", {
-      className: "comic-helper-button",
+    const elements = configs.filter((cfg) => cfg.condition !== false).map((cfg) => createElement("button", {
+      className: cfg.className || "comic-helper-button",
       textContent: cfg.text,
       title: cfg.title,
       events: {
         click: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          cfg.action();
+          if (cfg.action) cfg.action();
           if (e.target instanceof HTMLElement) e.target.blur();
         }
       }
@@ -1398,7 +1404,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.746cf59"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.d247bbe"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1796,13 +1802,22 @@
         document.body.appendChild(this.loadingComp.el);
       }
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
+        const { metadata: metadata2 } = state;
+        const hasRelated = metadata2?.relatedWorks?.length > 0;
         const navBtns = createNavigationButtons({
           onFirst: () => this.navigator.scrollToEdge("start"),
           onPrev: () => this.navigator.scrollToImage(-1),
           onNext: () => this.navigator.scrollToImage(1),
           onLast: () => this.navigator.scrollToEdge("end"),
           onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
-          onHelp: () => this.store.setState({ isHelpModalOpen: true })
+          onHelp: () => this.store.setState({ isHelpModalOpen: true }),
+          onLucky: hasRelated ? () => {
+            const works = metadata2.relatedWorks;
+            const randomWork = works[Math.floor(Math.random() * works.length)];
+            if (randomWork?.href) {
+              window.location.href = randomWork.href;
+            }
+          } : void 0
         });
         navBtns.elements.forEach((btn) => container.appendChild(btn));
       }
