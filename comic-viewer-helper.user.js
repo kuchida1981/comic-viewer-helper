@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.c3b65e5
+// @version         1.3.0-unstable.51038d1
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -474,7 +474,12 @@
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       let targetIndex = currentIndex + direction;
       if (targetIndex < 0) targetIndex = 0;
-      if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+      if (targetIndex >= imgs.length) {
+        if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
+          this.store.setState({ isMetadataModalOpen: true });
+        }
+        return;
+      }
       console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
       const prospectiveTargetImg = imgs[targetIndex];
       if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
@@ -1369,7 +1374,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.c3b65e5"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.51038d1"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1897,7 +1902,13 @@
       if (imgs.length === 0) return;
       this.lastWheelTime = now;
       const step = isDualViewEnabled ? 2 : 1;
-      const nextIndex = direction === "next" ? Math.min(currentVisibleIndex + step, imgs.length - 1) : Math.max(currentVisibleIndex - step, 0);
+      if (direction === "next" && currentVisibleIndex + step >= imgs.length) {
+        if (!isMetadataModalOpen) {
+          this.store.setState({ isMetadataModalOpen: true });
+        }
+        return;
+      }
+      const nextIndex = direction === "next" ? currentVisibleIndex + step : Math.max(currentVisibleIndex - step, 0);
       this.navigator.jumpToPage(nextIndex + 1);
     }
     /**
