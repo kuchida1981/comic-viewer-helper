@@ -40,6 +40,7 @@ export const MESSAGES = {
       dualView: { label: 'Dual View', desc: 'Toggle Dual View' },
       spreadOffset: { label: 'Spread Offset', desc: 'Toggle Offset (0 ↔ 1)', cond: 'Dual View only' },
       metadata: { label: 'Metadata', desc: 'Show metadata' },
+      fullscreen: { label: 'Fullscreen', desc: 'Toggle Fullscreen' },
       help: { label: 'Help', desc: 'Show this help' },
       closeModal: { label: 'Close Modal', desc: 'Close modal' }
     }
@@ -78,6 +79,7 @@ export const MESSAGES = {
       dualView: { label: '見開き', desc: '見開きモードのON/OFF' },
       spreadOffset: { label: '見開きオフセット', desc: '見開きオフセットの切替 (0 ↔ 1)', cond: '見開きモード中のみ' },
       metadata: { label: '作品情報', desc: '作品情報（メタデータ）の表示' },
+      fullscreen: { label: 'フルスクリーン', desc: 'フルスクリーンの切り替え' },
       help: { label: 'ヘルプ', desc: 'このヘルプの表示' },
       closeModal: { label: '閉じる', desc: 'モーダルを閉じる' }
     }

@@ -13,6 +13,7 @@ vi.mock('../shortcuts.js', () => ({
     { id: 'dualView', keys: ['d'] },
     { id: 'spreadOffset', keys: ['s'] },
     { id: 'metadata', keys: ['i'] },
+    { id: 'fullscreen', keys: ['f'] },
     { id: 'help', keys: ['?'] }
   ]
 }));
@@ -179,6 +180,45 @@ describe('InputManager', () => {
     store.getState.mockReturnValue({ enabled: true, isDualViewEnabled: true, spreadOffset: 0 });
     inputManager.onKeyDown(/** @type {any} */ (event2));
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
+  });
+
+  it('onKeyDown should enter fullscreen when not in fullscreen', () => {
+    const mockRequestFullscreen = vi.fn(() => Promise.resolve());
+    Object.defineProperty(document.documentElement, 'requestFullscreen', { value: mockRequestFullscreen, configurable: true });
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true });
+
+    const event = { key: 'f', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(mockRequestFullscreen).toHaveBeenCalled();
+
+    delete /** @type {any} */ (document.documentElement).requestFullscreen;
+    delete /** @type {any} */ (document).fullscreenElement;
+  });
+
+  it('onKeyDown should exit fullscreen when already in fullscreen', () => {
+    const mockExitFullscreen = vi.fn(() => Promise.resolve());
+    Object.defineProperty(document.documentElement, 'requestFullscreen', { value: vi.fn(), configurable: true });
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true });
+    Object.defineProperty(document, 'exitFullscreen', { value: mockExitFullscreen, configurable: true });
+
+    const event = { key: 'f', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(mockExitFullscreen).toHaveBeenCalled();
+
+    delete /** @type {any} */ (document.documentElement).requestFullscreen;
+    delete /** @type {any} */ (document).fullscreenElement;
+    delete /** @type {any} */ (document).exitFullscreen;
+  });
+
+  it('onKeyDown should do nothing for fullscreen key when API is unavailable', () => {
+    // requestFullscreen は jsdom で未定義のため、明示的に削除して非対応状態を再現
+    delete /** @type {any} */ (document.documentElement).requestFullscreen;
+
+    const event = { key: 'f', preventDefault: vi.fn(), target: document.body };
+    inputManager.onKeyDown(/** @type {any} */ (event));
+    expect(event.preventDefault).toHaveBeenCalled();
   });
 
   it('handleResize and handleScroll should respect enabled state', () => {

@@ -147,6 +147,14 @@ export class InputManager {
     } else if (isKey('help')) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
+    } else if (isKey('fullscreen')) {
+      e.preventDefault();
+      if (!document.documentElement.requestFullscreen) return;
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        document.documentElement.requestFullscreen();
+      }
     }
   }
 
