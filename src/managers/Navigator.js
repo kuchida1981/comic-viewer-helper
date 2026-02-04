@@ -113,10 +113,12 @@ export class Navigator {
         this.applyLayout(index);
         this.store.setState({ isLoading: false });
       } else {
-        targetImg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        this.applyLayout(index);
       }
-      
-      this.pendingTargetIndex = null;
+
+      requestAnimationFrame(() => {
+        this.pendingTargetIndex = null;
+      });
       return true;
     } else {
       this.updatePageCounter();
@@ -170,7 +172,10 @@ export class Navigator {
       } else {
         finalTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-      this.pendingTargetIndex = null;
+
+      requestAnimationFrame(() => {
+        this.pendingTargetIndex = null;
+      });
     }
   }
 
