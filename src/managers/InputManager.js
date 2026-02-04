@@ -74,10 +74,18 @@ export class InputManager {
 
     this.lastWheelTime = now;
     const step = isDualViewEnabled ? 2 : 1;
-    const nextIndex = direction === 'next' 
-      ? Math.min(currentVisibleIndex + step, imgs.length - 1)
+
+    if (direction === 'next' && currentVisibleIndex + step >= imgs.length) {
+      if (!isMetadataModalOpen) {
+        this.store.setState({ isMetadataModalOpen: true });
+      }
+      return;
+    }
+
+    const nextIndex = direction === 'next'
+      ? currentVisibleIndex + step
       : Math.max(currentVisibleIndex - step, 0);
-    
+
     this.navigator.jumpToPage(nextIndex + 1);
   }
 
