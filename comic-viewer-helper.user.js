@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.51038d1
+// @version         1.3.0-unstable.b9e45d0
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1284,10 +1284,10 @@
   }
   function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp }) {
     const configs = [
-      { text: "<<", title: t("ui.goFirst"), action: onFirst },
-      { text: "<", title: t("ui.goPrev"), action: onPrev },
-      { text: ">", title: t("ui.goNext"), action: onNext },
-      { text: ">>", title: t("ui.goLast"), action: onLast },
+      { text: "<<", title: t("ui.goLast"), action: onLast },
+      { text: "<", title: t("ui.goNext"), action: onNext },
+      { text: ">", title: t("ui.goPrev"), action: onPrev },
+      { text: ">>", title: t("ui.goFirst"), action: onFirst },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
       { text: "?", title: t("ui.showHelp"), action: onHelp }
     ];
@@ -1374,7 +1374,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.51038d1"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.b9e45d0"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1398,17 +1398,21 @@
       // No dynamic update needed once opened
     };
   }
+  const NAV_ARROW_KEYS = {
+    next: "ArrowLeft",
+    prev: "ArrowRight"
+  };
   const SHORTCUTS = [
     {
       id: "nextPage",
       label: t("shortcuts.nextPage.label"),
-      keys: ["j", "ArrowDown", "PageDown", "ArrowRight", "Space"],
+      keys: ["j", "ArrowDown", "PageDown", NAV_ARROW_KEYS.next, "Space"],
       description: t("shortcuts.nextPage.desc")
     },
     {
       id: "prevPage",
       label: t("shortcuts.prevPage.label"),
-      keys: ["k", "ArrowUp", "PageUp", "ArrowLeft", "Shift+Space"],
+      keys: ["k", "ArrowUp", "PageUp", NAV_ARROW_KEYS.prev, "Shift+Space"],
       description: t("shortcuts.prevPage.desc")
     },
     {
