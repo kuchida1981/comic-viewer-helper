@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.c3baca9
+// @version         1.3.0-unstable.cabdbee
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -490,6 +490,15 @@
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       let targetIndex = currentIndex + direction;
       if (targetIndex < 0) targetIndex = 0;
+      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+        const currentImg = imgs[currentIndex];
+        if (targetIndex < imgs.length) {
+          const prospectiveTargetImg = imgs[targetIndex];
+          if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
+            targetIndex += direction;
+          }
+        }
+      }
       if (targetIndex >= imgs.length) {
         if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
           this.store.setState({ isMetadataModalOpen: true });
@@ -497,13 +506,6 @@
         return;
       }
       console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
-      const prospectiveTargetImg = imgs[targetIndex];
-      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-        const currentImg = imgs[currentIndex];
-        if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
-          targetIndex += direction;
-        }
-      }
       const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
       const finalTarget = imgs[finalIndex];
       if (finalTarget) {
@@ -1394,7 +1396,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.c3baca9"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.cabdbee"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
