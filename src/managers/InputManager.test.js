@@ -80,6 +80,36 @@ describe('InputManager', () => {
     expect(navigator.jumpToPage).toHaveBeenCalledWith(2);
   });
 
+  it('handleWheel should show info modal when scrolling past last page', () => {
+    store.getState.mockReturnValue({
+      enabled: true,
+      isDualViewEnabled: false,
+      currentVisibleIndex: 1, // 最後のページ (2画像中の index 1)
+      isMetadataModalOpen: false,
+      isHelpModalOpen: false
+    });
+    vi.mocked(logic.getNavigationDirection).mockReturnValue('next');
+    const event = { preventDefault: vi.fn(), deltaY: 100, target: {} };
+    inputManager.handleWheel(/** @type {any} */ (event));
+    expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
+    expect(navigator.jumpToPage).not.toHaveBeenCalled();
+  });
+
+  it('handleWheel should not show info modal if already open', () => {
+    store.getState.mockReturnValue({
+      enabled: true,
+      isDualViewEnabled: false,
+      currentVisibleIndex: 1,
+      isMetadataModalOpen: true,
+      isHelpModalOpen: false
+    });
+    vi.mocked(logic.getNavigationDirection).mockReturnValue('next');
+    const event = { preventDefault: vi.fn(), deltaY: 100, target: {} };
+    inputManager.handleWheel(/** @type {any} */ (event));
+    expect(store.setState).not.toHaveBeenCalled();
+    expect(navigator.jumpToPage).not.toHaveBeenCalled();
+  });
+
   it('handleWheel should allow wheel on modal content', () => {
     store.getState.mockReturnValue({ enabled: true, isMetadataModalOpen: true });
     const modal = document.createElement('div');
