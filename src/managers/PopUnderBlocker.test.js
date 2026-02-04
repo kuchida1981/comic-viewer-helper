@@ -88,7 +88,7 @@ describe('PopUnderBlocker', () => {
       link.remove();
     });
 
-    it('target="_blank" リンクはインターセプトしない', () => {
+    it('サイト側の target="_blank" リンクはインターセプトしない', () => {
       link.target = '_blank';
       const event = {
         target: link,
@@ -102,6 +102,23 @@ describe('PopUnderBlocker', () => {
       expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
       expect(window.location.href).toBe('http://localhost/');
+    });
+
+    it('ビューア自身の target="_blank" リンクはインターセプトする', () => {
+      link.target = '_blank';
+      link.className = 'comic-helper-tag-chip';
+      const event = {
+        target: link,
+        ctrlKey: false,
+        metaKey: false,
+        stopImmediatePropagation: vi.fn(),
+        preventDefault: vi.fn()
+      };
+      blocker.handleClick(/** @type {any} */ (event));
+
+      expect(event.stopImmediatePropagation).toHaveBeenCalled();
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(window.location.href).toBe('http://example.com/next');
     });
 
     it('Ctrl キー+クリックはインターセプトしない', () => {
