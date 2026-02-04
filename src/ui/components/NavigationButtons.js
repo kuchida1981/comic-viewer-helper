@@ -15,7 +15,7 @@ export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInf
   const configs = [
     { text: '<<', title: t('ui.goLast'), action: onLast },
     { text: '<', title: t('ui.goNext'), action: onNext },
-    { text: '🎲', title: t('ui.lucky'), action: onLucky },
+    { text: '🎲', title: t('ui.lucky'), action: onLucky, className: 'comic-helper-button comic-helper-power-btn enabled' },
     { text: '>', title: t('ui.goPrev'), action: onPrev },
     { text: '>>', title: t('ui.goFirst'), action: onFirst },
     { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
@@ -24,7 +24,7 @@ export function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInf
 
   const elements = configs
     .map(cfg => createElement('button', {
-      className: 'comic-helper-button',
+      className: cfg.className || 'comic-helper-button',
       textContent: cfg.text,
       title: cfg.title,
       events: {
