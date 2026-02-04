@@ -3,7 +3,8 @@ import { InputManager } from './InputManager';
 import * as logic from '../logic.js';
 
 vi.mock('../logic.js', () => ({
-  getNavigationDirection: vi.fn()
+  getNavigationDirection: vi.fn(),
+  getClickNavigationDirection: vi.fn()
 }));
 
 vi.mock('../shortcuts.js', () => ({
@@ -237,5 +238,77 @@ describe('InputManager', () => {
     inputManager.scrollReq = 456;
     inputManager.handleScroll();
     expect(vi.mocked(window.cancelAnimationFrame)).toHaveBeenCalledWith(456);
+  });
+
+  describe('画像クリックによるページ送り', () => {
+    /** @type {HTMLImageElement} */
+    let img;
+
+    beforeEach(() => {
+      img = document.createElement('img');
+      document.body.appendChild(img);
+    });
+
+    afterEach(() => {
+      img.remove();
+    });
+
+    it('画像クリック（移動なし）で次ページに移動する', () => {
+      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      inputManager.onMouseDown(/** @type {any} */ ({ target: img, clientX: 100, clientY: 100 }));
+      inputManager.onMouseUp(/** @type {any} */ ({ target: img, clientX: 100, clientY: 100 }));
+      expect(logic.getClickNavigationDirection).toHaveBeenCalledWith(img);
+      expect(navigator.scrollToImage).toHaveBeenCalledWith(1);
+    });
+
+    it('画像クリック（移動なし）で前ページに移動する（見開き右側）', () => {
+      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('prev');
+      inputManager.onMouseDown(/** @type {any} */ ({ target: img, clientX: 50, clientY: 50 }));
+      inputManager.onMouseUp(/** @type {any} */ ({ target: img, clientX: 50, clientY: 50 }));
+      expect(navigator.scrollToImage).toHaveBeenCalledWith(-1);
+    });
+
+    it('移動距離が閾値以上の場合はクリックとして扱わない', () => {
+      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      inputManager.onMouseDown(/** @type {any} */ ({ target: img, clientX: 100, clientY: 100 }));
+      inputManager.onMouseUp(/** @type {any} */ ({ target: img, clientX: 110, clientY: 100 }));
+      expect(navigator.scrollToImage).not.toHaveBeenCalled();
+    });
+
+    it('mousedown対象と異なる画像でmouseupされた場合は無視する', () => {
+      const otherImg = document.createElement('img');
+      inputManager.onMouseDown(/** @type {any} */ ({ target: img, clientX: 100, clientY: 100 }));
+      inputManager.onMouseUp(/** @type {any} */ ({ target: otherImg, clientX: 100, clientY: 100 }));
+      expect(navigator.scrollToImage).not.toHaveBeenCalled();
+    });
+
+    it('mousedown対象が画像でない場合は記録しない', () => {
+      const div = document.createElement('div');
+      inputManager.onMouseDown(/** @type {any} */ ({ target: div, clientX: 100, clientY: 100 }));
+      inputManager.onMouseUp(/** @type {any} */ ({ target: div, clientX: 100, clientY: 100 }));
+      expect(navigator.scrollToImage).not.toHaveBeenCalled();
+    });
+
+    it('スクリプト無効時はクリック移動しない', () => {
+      store.getState.mockReturnValue({ enabled: false, isMetadataModalOpen: false, isHelpModalOpen: false });
+      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      inputManager.onMouseDown(/** @type {any} */ ({ target: img, clientX: 100, clientY: 100 }));
+      inputManager.onMouseUp(/** @type {any} */ ({ target: img, clientX: 100, clientY: 100 }));
+      expect(navigator.scrollToImage).not.toHaveBeenCalled();
+    });
+
+    it('モーダル表示中はクリック移動しない', () => {
+      store.getState.mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: false });
+      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      inputManager.onMouseDown(/** @type {any} */ ({ target: img, clientX: 100, clientY: 100 }));
+      inputManager.onMouseUp(/** @type {any} */ ({ target: img, clientX: 100, clientY: 100 }));
+      expect(navigator.scrollToImage).not.toHaveBeenCalled();
+    });
+
+    it('init で mousedown/mouseup リスナーが登録される', () => {
+      inputManager.init();
+      expect(document.addEventListener).toHaveBeenCalledWith('mousedown', expect.any(Function));
+      expect(document.addEventListener).toHaveBeenCalledWith('mouseup', expect.any(Function));
+    });
   });
 });

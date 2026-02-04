@@ -1,5 +1,7 @@
-import { getNavigationDirection } from '../logic.js';
+import { getNavigationDirection, getClickNavigationDirection } from '../logic.js';
 import { SHORTCUTS } from '../shortcuts.js';
+
+const CLICK_THRESHOLD_PX = 5;
 
 export class InputManager {
   /**
@@ -19,15 +21,24 @@ export class InputManager {
     /** @type {number | undefined} */
     this.scrollReq = undefined;
 
+    /** @type {{x: number, y: number} | null} */
+    this.mouseDownPos = null;
+    /** @type {HTMLImageElement | null} */
+    this.mouseDownTarget = null;
+
     this.handleWheel = this.handleWheel.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
     this.handleResize = this.handleResize.bind(this);
     this.handleScroll = this.handleScroll.bind(this);
+    this.onMouseDown = this.onMouseDown.bind(this);
+    this.onMouseUp = this.onMouseUp.bind(this);
   }
 
   init() {
     window.addEventListener('wheel', this.handleWheel, { passive: false });
     document.addEventListener('keydown', this.onKeyDown, true);
+    document.addEventListener('mousedown', this.onMouseDown);
+    document.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('resize', this.handleResize);
     window.addEventListener('scroll', this.handleScroll);
   }
@@ -168,8 +179,40 @@ export class InputManager {
 
   handleScroll() {
     if (!this.store.getState().enabled) return;
-    
+
     if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
     this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
+  }
+
+  /**
+   * @param {MouseEvent} e
+   */
+  onMouseDown(e) {
+    if (!(e.target instanceof HTMLImageElement)) return;
+    this.mouseDownPos = { x: e.clientX, y: e.clientY };
+    this.mouseDownTarget = e.target;
+  }
+
+  /**
+   * @param {MouseEvent} e
+   */
+  onMouseUp(e) {
+    const target = this.mouseDownTarget;
+    const startPos = this.mouseDownPos;
+    this.mouseDownTarget = null;
+    this.mouseDownPos = null;
+
+    if (!target || !startPos) return;
+    if (!(e.target instanceof HTMLImageElement) || e.target !== target) return;
+
+    const dx = e.clientX - startPos.x;
+    const dy = e.clientY - startPos.y;
+    if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
+
+    const { enabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+    if (!enabled || isMetadataModalOpen || isHelpModalOpen) return;
+
+    const direction = getClickNavigationDirection(target);
+    this.navigator.scrollToImage(direction === 'next' ? 1 : -1);
   }
 }
