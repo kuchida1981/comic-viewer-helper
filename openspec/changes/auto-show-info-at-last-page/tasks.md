@@ -1,8 +1,8 @@
 ## 1. 実装
 
-- [ ] 1.1 `Navigator.scrollToImage()` の境界チェック箇所で、`targetIndex >= imgs.length`（最終ページ超過）かつ `direction > 0`（「次へ」方向）の場合に分岐を追加する
-- [ ] 1.2 分岐内で `this.store.getState().isMetadataModalOpen` を確認し、`false` の場合のみ `this.store.setState({ isMetadataModalOpen: true })` を呼び出す
-- [ ] 1.3 最終ページ超過の場合はスクロール処理を実行しない（早期リターンとする）
+- [x] 1.1 `Navigator.scrollToImage()` の境界チェック箇所で、`targetIndex >= imgs.length`（最終ページ超過）かつ `direction > 0`（「次へ」方向）の場合に分岐を追加する
+- [x] 1.2 分岐内で `this.store.getState().isMetadataModalOpen` を確認し、`false` の場合のみ `this.store.setState({ isMetadataModalOpen: true })` を呼び出す
+- [x] 1.3 最終ページ超過の場合はスクロール処理を実行しない（早期リターンとする）
 
 ## 2. 検証
 

@@ -137,7 +137,12 @@ export class Navigator {
     let targetIndex = currentIndex + direction;
 
     if (targetIndex < 0) targetIndex = 0;
-    if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
+    if (targetIndex >= imgs.length) {
+      if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
+        this.store.setState({ isMetadataModalOpen: true });
+      }
+      return;
+    }
 
     console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
 
