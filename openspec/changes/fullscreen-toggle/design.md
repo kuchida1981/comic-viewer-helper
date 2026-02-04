@@ -31,7 +31,8 @@
 **選択肢A: `InputManager.js` に直接 Fullscreen API 呼び出しを書く**
 **選択肢B: 別モジュールに抽象化する**
 
-→ **A を採用。** Fullscreen API の呼び出しは2行程度で、他のキー処理（`dualView`, `metadata` など）も同様に `InputManager.js` 内で直接実行している。抽象化のメリットは小さく、既存パターンとの一貯性を優先。
+→ **A を採用。** Fullscreen API の呼び出しは2行程度で、他のキー処理（`dualView`, `metadata` など）も同様に `InputManager.js` 内で直接実行している。抽象化のメリットは小さく、既存パターンとの一貫性を優先。
+
 
 ### 3. モーダル開時の動作
 

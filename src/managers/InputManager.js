@@ -151,9 +151,9 @@ export class InputManager {
       e.preventDefault();
       if (!document.documentElement.requestFullscreen) return;
       if (document.fullscreenElement) {
-        document.exitFullscreen();
+        document.exitFullscreen().catch(() => {});
       } else {
-        document.documentElement.requestFullscreen();
+        document.documentElement.requestFullscreen().catch(() => {});
       }
     }
   }

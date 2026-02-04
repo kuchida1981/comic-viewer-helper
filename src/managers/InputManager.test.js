@@ -57,6 +57,9 @@ describe('InputManager', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    delete /** @type {any} */ (document.documentElement).requestFullscreen;
+    delete /** @type {any} */ (document).fullscreenElement;
+    delete /** @type {any} */ (document).exitFullscreen;
   });
 
   it('init should add listeners', () => {
@@ -182,8 +185,8 @@ describe('InputManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
   });
 
-  it('onKeyDown should enter fullscreen when not in fullscreen', () => {
-    const mockRequestFullscreen = vi.fn(() => Promise.resolve());
+  it('onKeyDown should enter fullscreen when not in fullscreen', async () => {
+    const mockRequestFullscreen = vi.fn(() => Promise.reject(new Error('blocked')));
     Object.defineProperty(document.documentElement, 'requestFullscreen', { value: mockRequestFullscreen, configurable: true });
     Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true });
 
@@ -191,14 +194,12 @@ describe('InputManager', () => {
     inputManager.onKeyDown(/** @type {any} */ (event));
     expect(event.preventDefault).toHaveBeenCalled();
     expect(mockRequestFullscreen).toHaveBeenCalled();
-
-    delete /** @type {any} */ (document.documentElement).requestFullscreen;
-    delete /** @type {any} */ (document).fullscreenElement;
+    await vi.waitFor(() => {});
   });
 
-  it('onKeyDown should exit fullscreen when already in fullscreen', () => {
-    const mockExitFullscreen = vi.fn(() => Promise.resolve());
-    Object.defineProperty(document.documentElement, 'requestFullscreen', { value: vi.fn(), configurable: true });
+  it('onKeyDown should exit fullscreen when already in fullscreen', async () => {
+    const mockExitFullscreen = vi.fn(() => Promise.reject(new Error('blocked')));
+    Object.defineProperty(document.documentElement, 'requestFullscreen', { value: vi.fn(() => Promise.resolve()), configurable: true });
     Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true });
     Object.defineProperty(document, 'exitFullscreen', { value: mockExitFullscreen, configurable: true });
 
@@ -206,10 +207,7 @@ describe('InputManager', () => {
     inputManager.onKeyDown(/** @type {any} */ (event));
     expect(event.preventDefault).toHaveBeenCalled();
     expect(mockExitFullscreen).toHaveBeenCalled();
-
-    delete /** @type {any} */ (document.documentElement).requestFullscreen;
-    delete /** @type {any} */ (document).fullscreenElement;
-    delete /** @type {any} */ (document).exitFullscreen;
+    await vi.waitFor(() => {});
   });
 
   it('onKeyDown should do nothing for fullscreen key when API is unavailable', () => {
