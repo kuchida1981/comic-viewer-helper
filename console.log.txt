@@ -1,0 +1,30 @@
+lib.js:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+jquery-migrate.min.js?ver=3.4.1:2 JQMIGRATE: Migrate is installed, version 3.4.1
+js.ssp.bance.jp/bnctag.js:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+re1889630/:521 Uncaught ReferenceError: StripchatSpot is not defined
+    at re1889630/:521:16
+re1889630/:159 Object
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:442 [Navigator] jumpToPage: 59 (index: 58) {complete: false, height: 0}
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:447 [Navigator] Waiting for image load...
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:450 [Navigator] Image loaded. Applying layout...
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=58, pending=58, forced=58, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 58
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:523 [Navigator] applyLayout: current=0, pending=null, forced=undefined, viewport=0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+userscript.html?name=Magazine-Comic-Viewer-Helper.user.js&id=c370bdd8-c8b0-414b-bed5-011763952f91:530 [Navigator] Executing scrollIntoView for index 0
+
