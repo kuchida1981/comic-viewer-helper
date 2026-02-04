@@ -140,12 +140,13 @@ export class Navigator {
 
     if (targetIndex < 0) targetIndex = 0;
 
-    const prospectiveTargetImg = imgs[targetIndex];
-
     if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
       const currentImg = imgs[currentIndex];
-      if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains('comic-row-wrapper')) {
-        targetIndex += direction;
+      if (targetIndex < imgs.length) {
+        const prospectiveTargetImg = imgs[targetIndex];
+        if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains('comic-row-wrapper')) {
+          targetIndex += direction;
+        }
       }
     }
 
