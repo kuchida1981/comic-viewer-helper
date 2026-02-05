@@ -19,6 +19,7 @@ vi.mock('../shortcuts.js', () => ({
     { id: 'metadata', keys: ['i'] },
     { id: 'fullscreen', keys: ['f'] },
     { id: 'help', keys: ['?'] },
+    { id: 'search', keys: ['/'] },
     { id: 'randomJump', keys: ['p'] }
   ]
 }));
@@ -36,6 +37,7 @@ describe('InputManager', () => {
         currentVisibleIndex: 0,
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
+        isSearchModalOpen: false,
         spreadOffset: 0
       }),
       setState: vi.fn()
@@ -154,10 +156,14 @@ describe('InputManager', () => {
   });
 
   it('onKeyDown should handle Escape', () => {
-    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isSearchModalOpen: false });
     const event = { key: 'Escape', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
-    expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false, isHelpModalOpen: false });
+    expect(store.setState).toHaveBeenCalledWith({
+      isMetadataModalOpen: false,
+      isHelpModalOpen: false,
+      isSearchModalOpen: false
+    });
   });
 
   it('onKeyDown should handle help toggle', () => {
@@ -170,6 +176,25 @@ describe('InputManager', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isHelpModalOpen: true });
     inputManager.onKeyDown(event);
     expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: false });
+  });
+
+  it('onKeyDown should handle search toggle', () => {
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: false });
+    const event = { key: '/', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(event);
+    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: true });
+
+    // Toggle back (open state)
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true });
+    inputManager.onKeyDown(event);
+    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
+  });
+
+  it('onKeyDown should block other shortcuts during search modal', () => {
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true });
+    const event = { key: 'ArrowRight', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(event);
+    expect(navigator.scrollToImage).not.toHaveBeenCalled();
   });
 
   it('onKeyDown should handle shift shortcut for prevPage', () => {

@@ -64,6 +64,12 @@ export const SHORTCUTS: Shortcut[] = [
     description: t('shortcuts.help.desc')
   },
   {
+    id: 'search',
+    label: t('shortcuts.search.label'),
+    keys: ['/'],
+    description: t('shortcuts.search.desc')
+  },
+  {
     id: 'randomJump',
     label: t('shortcuts.randomJump.label'),
     keys: ['p'],

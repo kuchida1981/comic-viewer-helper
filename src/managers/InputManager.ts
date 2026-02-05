@@ -97,13 +97,17 @@ export class InputManager {
 
   onKeyDown(e: KeyboardEvent): void {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
 
     // Handle Escape for all modals
     if (e.key === 'Escape') {
-      if (isMetadataModalOpen || isHelpModalOpen) {
+      if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
         e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
+        this.store.setState({
+          isMetadataModalOpen: false,
+          isHelpModalOpen: false,
+          isSearchModalOpen: false
+        });
         return;
       }
     }
@@ -128,7 +132,13 @@ export class InputManager {
       return;
     }
 
-    if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
+    if (isKey('search')) {
+      e.preventDefault();
+      this.store.setState({ isSearchModalOpen: !isSearchModalOpen });
+      return;
+    }
+
+    if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || !enabled) return;
 
     if (isKey('nextPage')) {
       e.preventDefault();
