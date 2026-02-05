@@ -96,7 +96,6 @@ export const DefaultAdapter: SiteAdapter = {
           const isNext = el.classList.contains('nextpostslink');
           const isPrev = el.classList.contains('previouspostslink');
           const isExtend = el.classList.contains('extend');
-          const isLast = el.classList.contains('last');
 
           let type: 'page' | 'prev' | 'next' | 'extend' = 'page';
           if (isNext) type = 'next';
