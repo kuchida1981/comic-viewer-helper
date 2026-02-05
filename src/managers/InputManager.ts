@@ -125,17 +125,16 @@ export class InputManager {
       });
     };
 
-    // Allow toggling help/search even if already open
+    // Allow toggling help even if already open
     if (isKey('help') && isHelpModalOpen) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: false });
       return;
     }
-    if (isKey('search') && isSearchModalOpen) {
+
+    if (isKey('search')) {
       e.preventDefault();
-      // Already open, usually focuses automatically, but we can toggle it off if needed.
-      // Standard behavior for / is often "focus if not focused", but here we toggle for consistency.
-      this.store.setState({ isSearchModalOpen: false });
+      this.store.setState({ isSearchModalOpen: !isSearchModalOpen });
       return;
     }
 
@@ -160,9 +159,6 @@ export class InputManager {
     } else if (isKey('help')) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
-    } else if (isKey('search')) {
-      e.preventDefault();
-      this.store.setState({ isSearchModalOpen: true });
     } else if (isKey('fullscreen')) {
       e.preventDefault();
       if (!document.documentElement.requestFullscreen) return;
