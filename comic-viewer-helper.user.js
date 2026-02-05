@@ -1,14 +1,18 @@
 // ==UserScript==
-// @name         Magazine Comic Viewer Helper
-// @namespace    https://github.com/kuchida1981/comic-viewer-helper
-// @version      1.2.0
-// @description  A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
-// @match        https://something/magazine/*
-// @match        https://something/fanzine/*
-// @updateURL    https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
-// @downloadURL  https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
-// @run-at       document-idle
-// @grant        none
+// @name            Magazine Comic Viewer Helper
+// @name:ja         マガジン・コミック・ビューア・ヘルパー
+// @author          kuchida1981
+// @namespace       https://github.com/kuchida1981/comic-viewer-helper
+// @version         1.3.0
+// @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
+// @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
+// @license         ISC
+// @match           https://something/magazine/*
+// @match           https://something/fanzine/*
+// @updateURL       https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
+// @downloadURL     https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
+// @run-at          document-idle
+// @grant           none
 // ==/UserScript==
 
 /**
@@ -18,176 +22,6 @@
  */
 (function() {
   "use strict";
-  function calculateVisibleHeight(rect, windowHeight) {
-    const visibleTop = Math.max(0, rect.top);
-    const visibleBottom = Math.min(windowHeight, rect.bottom);
-    return Math.max(0, visibleBottom - visibleTop);
-  }
-  function shouldPairWithNext(current, next, isDualViewEnabled) {
-    if (!isDualViewEnabled) return false;
-    if (current.isLandscape) return false;
-    if (!next) return false;
-    if (next.isLandscape) return false;
-    return true;
-  }
-  function getPrimaryVisibleImageIndex(imgs, windowHeight) {
-    if (imgs.length === 0) return -1;
-    let maxVisibleHeight = 0;
-    let minDistanceToCenter = Infinity;
-    let primaryIndex = -1;
-    const viewportCenter = windowHeight / 2;
-    imgs.forEach((img, index) => {
-      const rect = img.getBoundingClientRect();
-      const visibleHeight = calculateVisibleHeight(rect, windowHeight);
-      if (visibleHeight > 0) {
-        const elementCenter = (rect.top + rect.bottom) / 2;
-        const distanceToCenter = Math.abs(viewportCenter - elementCenter);
-        if (visibleHeight > maxVisibleHeight || visibleHeight === maxVisibleHeight && distanceToCenter < minDistanceToCenter) {
-          maxVisibleHeight = visibleHeight;
-          minDistanceToCenter = distanceToCenter;
-          primaryIndex = index;
-        }
-      }
-    });
-    return primaryIndex;
-  }
-  function getImageElementByIndex(imgs, index) {
-    if (index < 0 || index >= imgs.length) return null;
-    return imgs[index];
-  }
-  function cleanupDOM(container) {
-    const allImages = (
-      /** @type {HTMLImageElement[]} */
-      Array.from(container.querySelectorAll("img"))
-    );
-    const wrappers = container.querySelectorAll(".comic-row-wrapper");
-    wrappers.forEach((w) => w.remove());
-    allImages.forEach((img) => {
-      img.style.cssText = "";
-    });
-    return allImages;
-  }
-  function fitImagesToViewport(containerSelector, spreadOffset = 0, isDualViewEnabled = false) {
-    const container = (
-      /** @type {HTMLElement | null} */
-      document.querySelector(containerSelector)
-    );
-    if (!container) return;
-    const allImages = cleanupDOM(container);
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    Object.assign(container.style, {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      padding: "0",
-      margin: "0",
-      width: "100%",
-      maxWidth: "none"
-    });
-    for (let i = 0; i < allImages.length; i++) {
-      const img = allImages[i];
-      const isLandscape = img.naturalWidth > img.naturalHeight;
-      let pairWithNext = false;
-      const effectiveIndex = i - spreadOffset;
-      const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
-      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length) {
-        const nextImg = allImages[i + 1];
-        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
-        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
-          pairWithNext = true;
-        }
-      }
-      const row = document.createElement("div");
-      row.className = "comic-row-wrapper";
-      Object.assign(row.style, {
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100vw",
-        maxWidth: "100vw",
-        marginLeft: "calc(50% - 50vw)",
-        marginRight: "calc(50% - 50vw)",
-        height: "100vh",
-        marginBottom: "0",
-        position: "relative",
-        boxSizing: "border-box"
-      });
-      if (pairWithNext) {
-        const nextImg = allImages[i + 1];
-        row.style.flexDirection = "row-reverse";
-        [img, nextImg].forEach((im) => {
-          Object.assign(im.style, {
-            maxWidth: "50%",
-            maxHeight: "100%",
-            width: "auto",
-            height: "auto",
-            objectFit: "contain",
-            margin: "0",
-            display: "block"
-          });
-        });
-        row.appendChild(img);
-        row.appendChild(nextImg);
-        container.appendChild(row);
-        i++;
-      } else {
-        Object.assign(img.style, {
-          maxWidth: `${vw}px`,
-          maxHeight: `${vh}px`,
-          width: "auto",
-          height: "auto",
-          display: "block",
-          margin: "0 auto",
-          flexShrink: "0",
-          objectFit: "contain"
-        });
-        row.appendChild(img);
-        container.appendChild(row);
-      }
-    }
-  }
-  function revertToOriginal(originalImages, containerSelector) {
-    const container = (
-      /** @type {HTMLElement | null} */
-      document.querySelector(containerSelector)
-    );
-    if (!container) return;
-    container.style.cssText = "";
-    originalImages.forEach((img) => {
-      img.style.cssText = "";
-      container.appendChild(img);
-    });
-    const wrappers = container.querySelectorAll(".comic-row-wrapper");
-    wrappers.forEach((w) => w.remove());
-  }
-  function getNavigationDirection(event, threshold = 50) {
-    if (Math.abs(event.deltaY) < threshold) {
-      return "none";
-    }
-    return event.deltaY > 0 ? "next" : "prev";
-  }
-  function extractMetadata() {
-    const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
-    const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => ({
-      text: a.textContent?.trim() || "",
-      href: (
-        /** @type {HTMLAnchorElement} */
-        a.href
-      )
-    }));
-    const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
-      const anchor = el.closest("a");
-      const img = el.querySelector("img");
-      const titleEl = el.querySelector("span") || anchor?.querySelector("span");
-      return {
-        title: titleEl?.textContent?.trim() || "Untitled",
-        href: anchor?.href || "",
-        thumb: img?.src || ""
-      };
-    });
-    return { title, tags, relatedWorks };
-  }
   const STORAGE_KEYS = {
     DUAL_VIEW: "comic-viewer-helper-dual-view",
     GUI_POS: "comic-viewer-helper-gui-pos",
@@ -207,7 +41,8 @@
           relatedWorks: []
         },
         isMetadataModalOpen: false,
-        isHelpModalOpen: false
+        isHelpModalOpen: false,
+        isLoading: false
       };
       this.listeners = [];
     }
@@ -271,6 +106,487 @@
       }
     }
   }
+  const CONTAINER_SELECTOR = "#post-comic";
+  const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
+  function getTagType(href) {
+    try {
+      const url = new URL(href);
+      const pathname = url.pathname;
+      for (const type of TAG_TYPES) {
+        if (pathname.startsWith(`/${type}/`)) {
+          return type;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  const DefaultAdapter = {
+    // Always match as a fallback (should be checked last)
+    match: () => true,
+    getContainer: () => (
+      /** @type {HTMLElement | null} */
+      document.querySelector(CONTAINER_SELECTOR)
+    ),
+    getImages: () => (
+      /** @type {HTMLImageElement[]} */
+      Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`))
+    ),
+    getMetadata: () => {
+      const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
+      const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
+        const href = (
+          /** @type {HTMLAnchorElement} */
+          a.href
+        );
+        return {
+          text: a.textContent?.trim() || "",
+          href,
+          type: getTagType(href)
+        };
+      });
+      const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
+        const anchor = el.closest("a");
+        const img = el.querySelector("img");
+        const titleEl = el.querySelector("span") || anchor?.querySelector("span");
+        const title2 = titleEl?.textContent?.trim() || "Untitled";
+        return {
+          title: title2,
+          href: anchor?.href || "",
+          thumb: img?.src || "",
+          isPrivate: title2.startsWith("非公開")
+        };
+      });
+      return { title, tags, relatedWorks };
+    }
+  };
+  function calculateVisibleHeight(rect, windowHeight) {
+    const visibleTop = Math.max(0, rect.top);
+    const visibleBottom = Math.min(windowHeight, rect.bottom);
+    return Math.max(0, visibleBottom - visibleTop);
+  }
+  function shouldPairWithNext(current, next, isDualViewEnabled) {
+    if (!isDualViewEnabled) return false;
+    if (current.isLandscape) return false;
+    if (!next) return false;
+    if (next.isLandscape) return false;
+    return true;
+  }
+  function getPrimaryVisibleImageIndex(imgs, windowHeight) {
+    if (imgs.length === 0) return -1;
+    let maxVisibleHeight = 0;
+    let minDistanceToCenter = Infinity;
+    let primaryIndex = -1;
+    const viewportCenter = windowHeight / 2;
+    imgs.forEach((img, index) => {
+      const rect = img.getBoundingClientRect();
+      const visibleHeight = calculateVisibleHeight(rect, windowHeight);
+      if (visibleHeight > 0) {
+        const elementCenter = (rect.top + rect.bottom) / 2;
+        const distanceToCenter = Math.abs(viewportCenter - elementCenter);
+        if (visibleHeight > maxVisibleHeight || visibleHeight === maxVisibleHeight && distanceToCenter < minDistanceToCenter) {
+          maxVisibleHeight = visibleHeight;
+          minDistanceToCenter = distanceToCenter;
+          primaryIndex = index;
+        }
+      }
+    });
+    return primaryIndex;
+  }
+  function getImageElementByIndex(imgs, index) {
+    if (index < 0 || index >= imgs.length) return null;
+    return imgs[index];
+  }
+  function cleanupDOM(container) {
+    const allImages = (
+      /** @type {HTMLImageElement[]} */
+      Array.from(container.querySelectorAll("img"))
+    );
+    const wrappers = container.querySelectorAll(".comic-row-wrapper");
+    wrappers.forEach((w) => w.remove());
+    allImages.forEach((img) => {
+      img.style.cssText = "";
+    });
+    return allImages;
+  }
+  function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
+    if (!container) return;
+    const allImages = cleanupDOM(container);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    Object.assign(container.style, {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: "0",
+      margin: "0",
+      width: "100%",
+      maxWidth: "none"
+    });
+    for (let i = 0; i < allImages.length; i++) {
+      const img = allImages[i];
+      const isLandscape = img.naturalWidth > img.naturalHeight;
+      let pairWithNext = false;
+      const effectiveIndex = i - spreadOffset;
+      const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
+      const isFirstPage = i === 0;
+      const isNextLastPage = i + 1 === allImages.length - 1;
+      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
+        const nextImg = allImages[i + 1];
+        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
+        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
+          pairWithNext = true;
+        }
+      }
+      const row = document.createElement("div");
+      row.className = "comic-row-wrapper";
+      Object.assign(row.style, {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        width: "100vw",
+        maxWidth: "100vw",
+        marginLeft: "calc(50% - 50vw)",
+        marginRight: "calc(50% - 50vw)",
+        height: "100vh",
+        marginBottom: "0",
+        position: "relative",
+        boxSizing: "border-box"
+      });
+      if (pairWithNext) {
+        const nextImg = allImages[i + 1];
+        row.style.flexDirection = "row-reverse";
+        [img, nextImg].forEach((im) => {
+          Object.assign(im.style, {
+            maxWidth: "50%",
+            maxHeight: "100%",
+            width: "auto",
+            height: "auto",
+            objectFit: "contain",
+            margin: "0",
+            display: "block"
+          });
+        });
+        row.appendChild(img);
+        row.appendChild(nextImg);
+        container.appendChild(row);
+        i++;
+      } else {
+        Object.assign(img.style, {
+          maxWidth: `${vw}px`,
+          maxHeight: `${vh}px`,
+          width: "auto",
+          height: "auto",
+          display: "block",
+          margin: "0 auto",
+          flexShrink: "0",
+          objectFit: "contain"
+        });
+        row.appendChild(img);
+        container.appendChild(row);
+      }
+    }
+  }
+  function revertToOriginal(originalImages, container) {
+    if (!container) return;
+    container.style.cssText = "";
+    originalImages.forEach((img) => {
+      img.style.cssText = "";
+      container.appendChild(img);
+    });
+    const wrappers = container.querySelectorAll(".comic-row-wrapper");
+    wrappers.forEach((w) => w.remove());
+  }
+  function getClickNavigationDirection(img) {
+    const wrapper = img.parentElement;
+    if (!wrapper || !wrapper.classList.contains("comic-row-wrapper")) {
+      return "next";
+    }
+    const siblings = (
+      /** @type {HTMLImageElement[]} */
+      Array.from(wrapper.querySelectorAll("img"))
+    );
+    if (siblings.length < 2) {
+      return "next";
+    }
+    return img === siblings[0] ? "prev" : "next";
+  }
+  function getNavigationDirection(event, threshold = 50) {
+    if (Math.abs(event.deltaY) < threshold) {
+      return "none";
+    }
+    return event.deltaY > 0 ? "next" : "prev";
+  }
+  async function waitForImageLoad(img, timeout = 5e3) {
+    if (img.complete && img.naturalHeight !== 0) {
+      return;
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve();
+      }, timeout);
+      const onLoad = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        resolve();
+      };
+      const cleanup = () => {
+        clearTimeout(timer);
+        img.removeEventListener("load", onLoad);
+        img.removeEventListener("error", onError);
+      };
+      img.addEventListener("load", onLoad);
+      img.addEventListener("error", onError);
+    });
+  }
+  function forceImageLoad(img) {
+    if (img.getAttribute("loading") === "lazy") {
+      img.setAttribute("loading", "eager");
+    }
+    if ("decode" in img) {
+      img.decode().catch(() => {
+      });
+    }
+  }
+  function preloadImages(images, currentIndex, count = 3) {
+    if (images.length === 0) return;
+    for (let i = 1; i <= count; i++) {
+      const nextIndex = currentIndex + i;
+      if (nextIndex < images.length) {
+        const img = images[nextIndex];
+        if (!img.complete) {
+          img.loading = "eager";
+          if ("decode" in img) {
+            img.decode().catch(() => {
+            });
+          }
+        }
+      }
+    }
+    for (let i = 1; i <= Math.min(count, 2); i++) {
+      const prevIndex = currentIndex - i;
+      if (prevIndex >= 0) {
+        const img = images[prevIndex];
+        if (!img.complete) {
+          img.loading = "eager";
+          if ("decode" in img) {
+            img.decode().catch(() => {
+            });
+          }
+        }
+      }
+    }
+  }
+  function jumpToRandomWork(metadata) {
+    if (!metadata?.relatedWorks) return;
+    const works = metadata.relatedWorks.filter((w) => !w.isPrivate);
+    const randomWork = works[Math.floor(Math.random() * works.length)];
+    if (randomWork?.href) {
+      window.location.href = randomWork.href;
+    }
+  }
+  class Navigator {
+    /**
+     * @param {import('../global').SiteAdapter} adapter 
+     * @param {import('../store.js').Store} store 
+     */
+    constructor(adapter, store) {
+      this.adapter = adapter;
+      this.store = store;
+      this.originalImages = [];
+      this.getImages = this.getImages.bind(this);
+      this.jumpToPage = this.jumpToPage.bind(this);
+      this.scrollToImage = this.scrollToImage.bind(this);
+      this.scrollToEdge = this.scrollToEdge.bind(this);
+      this.applyLayout = this.applyLayout.bind(this);
+      this.updatePageCounter = this.updatePageCounter.bind(this);
+      this.init = this.init.bind(this);
+      this._lastEnabled = void 0;
+      this._lastDualView = void 0;
+      this._lastSpreadOffset = void 0;
+      this.pendingTargetIndex = null;
+    }
+    init() {
+      this.store.subscribe((state) => {
+        const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
+        if (layoutChanged) {
+          this.applyLayout();
+          this._lastEnabled = state.enabled;
+          this._lastDualView = state.isDualViewEnabled;
+          this._lastSpreadOffset = state.spreadOffset;
+        }
+      });
+      const initialState = this.store.getState();
+      this._lastEnabled = initialState.enabled;
+      this._lastDualView = initialState.isDualViewEnabled;
+      this._lastSpreadOffset = initialState.spreadOffset;
+      const imgs = this.getImages();
+      imgs.forEach((img) => {
+        if (!img.complete) {
+          img.addEventListener("load", () => {
+            if (this.pendingTargetIndex !== null) {
+              console.log("[Navigator] Skipping auto applyLayout because navigation is pending");
+              return;
+            }
+            requestAnimationFrame(() => this.applyLayout());
+          });
+        }
+      });
+      if (initialState.enabled) {
+        this.applyLayout();
+      }
+    }
+    /**
+     * @returns {HTMLImageElement[]}
+     */
+    getImages() {
+      if (this.originalImages.length > 0) return this.originalImages;
+      this.originalImages = this.adapter.getImages();
+      return this.originalImages;
+    }
+    updatePageCounter() {
+      const state = this.store.getState();
+      const { enabled } = state;
+      if (!enabled) return;
+      const imgs = this.getImages();
+      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      if (currentIndex !== -1) {
+        this.store.setState({ currentVisibleIndex: currentIndex });
+        preloadImages(imgs, currentIndex);
+      }
+    }
+    /**
+     * @param {string | number} pageNumber 
+     * @returns {Promise<boolean>}
+     */
+    async jumpToPage(pageNumber) {
+      const imgs = this.getImages();
+      const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
+      const targetImg = getImageElementByIndex(imgs, index);
+      console.log(`[Navigator] jumpToPage: ${pageNumber} (index: ${index})`, { complete: targetImg?.complete, height: targetImg?.naturalHeight });
+      if (targetImg) {
+        this.pendingTargetIndex = index;
+        forceImageLoad(targetImg);
+        if (!targetImg.complete || targetImg.naturalHeight === 0) {
+          console.log(`[Navigator] Waiting for image load...`);
+          this.store.setState({ isLoading: true });
+          await waitForImageLoad(targetImg);
+          console.log(`[Navigator] Image loaded. Applying layout...`);
+          this.applyLayout(index);
+          this.store.setState({ isLoading: false });
+        } else {
+          this.applyLayout(index);
+        }
+        requestAnimationFrame(() => {
+          this.pendingTargetIndex = null;
+        });
+        return true;
+      } else {
+        this.updatePageCounter();
+        return false;
+      }
+    }
+    /**
+     * @param {number} direction 
+     * @returns {Promise<void>}
+     */
+    async scrollToImage(direction) {
+      const imgs = this.getImages();
+      if (imgs.length === 0) return;
+      const { isDualViewEnabled } = this.store.getState();
+      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      let targetIndex = currentIndex + direction;
+      if (targetIndex < 0) targetIndex = 0;
+      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+        const currentImg = imgs[currentIndex];
+        if (targetIndex < imgs.length) {
+          const prospectiveTargetImg = imgs[targetIndex];
+          if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
+            targetIndex += direction;
+          }
+        }
+      }
+      if (targetIndex >= imgs.length) {
+        if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
+          this.store.setState({ isMetadataModalOpen: true });
+        }
+        return;
+      }
+      console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
+      const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
+      const finalTarget = imgs[finalIndex];
+      if (finalTarget) {
+        this.pendingTargetIndex = finalIndex;
+        forceImageLoad(finalTarget);
+        if (!finalTarget.complete || finalTarget.naturalHeight === 0) {
+          console.log(`[Navigator] Waiting for image load...`);
+          this.store.setState({ isLoading: true });
+          await waitForImageLoad(finalTarget);
+          this.applyLayout(finalIndex);
+          this.store.setState({ isLoading: false });
+        } else {
+          finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        requestAnimationFrame(() => {
+          this.pendingTargetIndex = null;
+        });
+      }
+    }
+    /**
+     * @param {'start' | 'end'} position
+     * @returns {Promise<void>}
+     */
+    async scrollToEdge(position) {
+      const imgs = this.getImages();
+      if (imgs.length === 0) return;
+      const targetIndex = position === "start" ? 0 : imgs.length - 1;
+      const target = imgs[targetIndex];
+      this.pendingTargetIndex = targetIndex;
+      forceImageLoad(target);
+      if (!target.complete || target.naturalHeight === 0) {
+        this.store.setState({ isLoading: true });
+        await waitForImageLoad(target);
+        this.store.setState({ isLoading: false });
+      }
+      this.applyLayout(targetIndex);
+      requestAnimationFrame(() => {
+        this.pendingTargetIndex = null;
+      });
+    }
+    /**
+     * @param {number} [forcedIndex] 
+     */
+    applyLayout(forcedIndex) {
+      const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
+      const container = this.adapter.getContainer();
+      if (!container) return;
+      if (!enabled) {
+        revertToOriginal(this.getImages(), container);
+        return;
+      }
+      const imgs = this.getImages();
+      const viewportIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      const currentIndex = this.pendingTargetIndex !== null ? this.pendingTargetIndex : forcedIndex !== void 0 ? forcedIndex : viewportIndex;
+      console.log(`[Navigator] applyLayout: current=${currentIndex}, pending=${this.pendingTargetIndex}, forced=${forcedIndex}, viewport=${viewportIndex}`);
+      fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
+      this.updatePageCounter();
+      if (currentIndex !== -1) {
+        const targetImg = imgs[currentIndex];
+        if (targetImg) {
+          requestAnimationFrame(() => {
+            console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
+            targetImg.scrollIntoView({ block: "center" });
+          });
+          preloadImages(imgs, currentIndex);
+        }
+      }
+    }
+  }
   const styles = `
   #comic-helper-ui {
     position: fixed;
@@ -313,14 +629,17 @@
     background: #eee;
   }
 
-  .comic-helper-power-btn {
+  .comic-helper-icon-btn {
     cursor: pointer;
     border: none;
     background: transparent;
     font-size: 16px;
     padding: 0 4px;
     font-weight: bold;
-    transition: color 0.2s;
+    transition: color 0.2s, opacity 0.2s;
+  }
+  .comic-helper-icon-btn:hover {
+    opacity: 0.8;
   }
   .comic-helper-power-btn.enabled { color: #4CAF50; }
   .comic-helper-power-btn.disabled { color: #888; }
@@ -471,6 +790,70 @@
     color: #fff;
   }
 
+  /* Tag type color variants */
+  .comic-helper-tag-chip--artist {
+    background: #5c3d4a;
+    color: #f0d0dc;
+  }
+  .comic-helper-tag-chip--artist:hover {
+    background: #7a5060;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--character {
+    background: #3d5c4a;
+    color: #d0f0dc;
+  }
+  .comic-helper-tag-chip--character:hover {
+    background: #507a60;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--circle {
+    background: #3d4a5c;
+    color: #d0dcf0;
+  }
+  .comic-helper-tag-chip--circle:hover {
+    background: #50607a;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--fanzine {
+    background: #5c4a3d;
+    color: #f0dcd0;
+  }
+  .comic-helper-tag-chip--fanzine:hover {
+    background: #7a6050;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--genre {
+    background: #4a4a4a;
+    color: #d0d0d0;
+  }
+  .comic-helper-tag-chip--genre:hover {
+    background: #606060;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--magazine {
+    background: #4a3d5c;
+    color: #dcd0f0;
+  }
+  .comic-helper-tag-chip--magazine:hover {
+    background: #60507a;
+    color: #fff;
+  }
+
+  .comic-helper-tag-chip--parody {
+    background: #3d5c5c;
+    color: #d0f0f0;
+  }
+  .comic-helper-tag-chip--parody:hover {
+    background: #507a7a;
+    color: #fff;
+  }
+
   .comic-helper-related-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -555,6 +938,127 @@
     font-size: 13px;
     flex: 1;
   }
+
+  /* Progress Bar Styles */
+  #comic-helper-progress-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+    pointer-events: none;
+  }
+
+  .comic-helper-progress-fill {
+    height: 100%;
+    background: #4CAF50;
+    width: 0;
+    transition: width 0.2s ease-out;
+    box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
+  }
+
+  /* Resume Notification Styles */
+  #comic-helper-resume-notification {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10002;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 14px;
+  }
+
+  .comic-helper-resume-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+  }
+
+  .comic-helper-resume-continue {
+    background: #4CAF50;
+    color: white;
+  }
+
+  .comic-helper-resume-continue:hover {
+    background: #45a049;
+  }
+
+  .comic-helper-resume-skip {
+    background: #666;
+    color: white;
+  }
+
+  .comic-helper-resume-skip:hover {
+    background: #555;
+  }
+
+  .comic-helper-resume-close {
+    background: transparent;
+    color: white;
+    padding: 2px 8px;
+    font-size: 18px;
+  }
+
+  .comic-helper-resume-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Loading Indicator Styles */
+  #comic-helper-loading {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10003;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-size: 14px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  #comic-helper-loading.visible {
+    opacity: 1;
+  }
+
+  .comic-helper-spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #fff;
+    border-radius: 50%;
+    animation: comic-helper-spin 1s linear infinite;
+  }
+
+  @keyframes comic-helper-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Global states */
+  html.comic-helper-enabled {
+    overflow: hidden !important;
+  }
 `;
   function injectStyles() {
     const id = "comic-helper-style";
@@ -614,12 +1118,17 @@
         goPrev: "Go to Previous",
         goNext: "Go to Next",
         goLast: "Go to Last",
+        lucky: "I'm feeling lucky",
         showMetadata: "Show Metadata",
         showHelp: "Show Help",
         shiftOffset: "Shift spread pairing by 1 page (Offset)",
         space: "Space",
         enable: "Enable Comic Viewer Helper",
-        disable: "Disable Comic Viewer Helper"
+        disable: "Disable Comic Viewer Helper",
+        resume: "Resume",
+        resumeNotification: "Resume from page {page}?",
+        continueReading: "Continue",
+        startFromBeginning: "Start Over"
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
@@ -627,8 +1136,10 @@
         dualView: { label: "Dual View", desc: "Toggle Dual View" },
         spreadOffset: { label: "Spread Offset", desc: "Toggle Offset (0 ↔ 1)", cond: "Dual View only" },
         metadata: { label: "Metadata", desc: "Show metadata" },
+        fullscreen: { label: "Fullscreen", desc: "Toggle Fullscreen" },
         help: { label: "Help", desc: "Show this help" },
-        closeModal: { label: "Close Modal", desc: "Close modal" }
+        closeModal: { label: "Close Modal", desc: "Close modal" },
+        randomJump: { label: "Random Jump", desc: "Jump to a random related work" }
       }
     },
     ja: {
@@ -648,12 +1159,17 @@
         goPrev: "前へ",
         goNext: "次へ",
         goLast: "最後へ",
+        lucky: "おすすめ（ランダム）",
         showMetadata: "作品情報を表示",
         showHelp: "ヘルプを表示",
         shiftOffset: "見開きペアを1ページ分ずらす（オフセット）",
         space: "スペース",
         enable: "スクリプトを有効にする",
-        disable: "スクリプトを無効にする"
+        disable: "スクリプトを無効にする",
+        resume: "レジューム",
+        resumeNotification: "{page}ページから再開しますか？",
+        continueReading: "続きから",
+        startFromBeginning: "最初から"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
@@ -661,8 +1177,10 @@
         dualView: { label: "見開き", desc: "見開きモードのON/OFF" },
         spreadOffset: { label: "見開きオフセット", desc: "見開きオフセットの切替 (0 ↔ 1)", cond: "見開きモード中のみ" },
         metadata: { label: "作品情報", desc: "作品情報（メタデータ）の表示" },
+        fullscreen: { label: "フルスクリーン", desc: "フルスクリーンの切り替え" },
         help: { label: "ヘルプ", desc: "このヘルプの表示" },
-        closeModal: { label: "閉じる", desc: "モーダルを閉じる" }
+        closeModal: { label: "閉じる", desc: "モーダルを閉じる" },
+        randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" }
       }
     }
   };
@@ -683,7 +1201,7 @@
   }
   function createPowerButton({ isEnabled, onClick }) {
     const el = createElement("button", {
-      className: `comic-helper-power-btn ${isEnabled ? "enabled" : "disabled"}`,
+      className: `comic-helper-icon-btn comic-helper-power-btn ${isEnabled ? "enabled" : "disabled"}`,
       title: isEnabled ? t("ui.disable") : t("ui.enable"),
       textContent: "⚡",
       style: {
@@ -701,7 +1219,7 @@
       el,
       /** @param {boolean} enabled */
       update: (enabled) => {
-        el.className = `comic-helper-power-btn ${enabled ? "enabled" : "disabled"}`;
+        el.className = `comic-helper-icon-btn comic-helper-power-btn ${enabled ? "enabled" : "disabled"}`;
         el.title = enabled ? t("ui.disable") : t("ui.enable");
         el.style.marginRight = enabled ? "8px" : "0";
       }
@@ -805,24 +1323,25 @@
       }
     };
   }
-  function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp }) {
+  function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp, onLucky }) {
     const configs = [
-      { text: "<<", title: t("ui.goFirst"), action: onFirst },
-      { text: "<", title: t("ui.goPrev"), action: onPrev },
-      { text: ">", title: t("ui.goNext"), action: onNext },
-      { text: ">>", title: t("ui.goLast"), action: onLast },
+      { text: "<<", title: t("ui.goLast"), action: onLast },
+      { text: "<", title: t("ui.goNext"), action: onNext },
+      { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn" },
+      { text: ">", title: t("ui.goPrev"), action: onPrev },
+      { text: ">>", title: t("ui.goFirst"), action: onFirst },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
       { text: "?", title: t("ui.showHelp"), action: onHelp }
     ];
     const elements = configs.map((cfg) => createElement("button", {
-      className: "comic-helper-button",
+      className: cfg.className || "comic-helper-button",
       textContent: cfg.text,
       title: cfg.title,
       events: {
         click: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          cfg.action();
+          if (cfg.action) cfg.action();
           if (e.target instanceof HTMLElement) e.target.blur();
         }
       }
@@ -851,14 +1370,17 @@
       className: "comic-helper-modal-title",
       textContent: title
     });
-    const tagChips = tags.map((tag) => createElement("a", {
-      className: "comic-helper-tag-chip",
-      textContent: tag.text,
-      attributes: { href: tag.href, target: "_blank" },
-      events: {
-        click: (e) => e.stopPropagation()
-      }
-    }));
+    const tagChips = tags.map((tag) => {
+      const className = tag.type ? `comic-helper-tag-chip comic-helper-tag-chip--${tag.type}` : "comic-helper-tag-chip";
+      return createElement("a", {
+        className,
+        textContent: tag.text,
+        attributes: { href: tag.href, target: "_blank" },
+        events: {
+          click: (e) => e.stopPropagation()
+        }
+      });
+    });
     const tagSection = createElement("div", {}, [
       createElement("div", { className: "comic-helper-section-title", textContent: t("ui.tags") }),
       createElement("div", { className: "comic-helper-tag-list" }, tagChips)
@@ -894,7 +1416,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.2.0"} (${t("ui.stable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0"} (${t("ui.stable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -918,17 +1440,21 @@
       // No dynamic update needed once opened
     };
   }
+  const NAV_ARROW_KEYS = {
+    next: "ArrowLeft",
+    prev: "ArrowRight"
+  };
   const SHORTCUTS = [
     {
       id: "nextPage",
       label: t("shortcuts.nextPage.label"),
-      keys: ["j", "ArrowDown", "PageDown", "ArrowRight", "Space"],
+      keys: ["j", "ArrowDown", "PageDown", NAV_ARROW_KEYS.next, "Space"],
       description: t("shortcuts.nextPage.desc")
     },
     {
       id: "prevPage",
       label: t("shortcuts.prevPage.label"),
-      keys: ["k", "ArrowUp", "PageUp", "ArrowLeft", "Shift+Space"],
+      keys: ["k", "ArrowUp", "PageUp", NAV_ARROW_KEYS.prev, "Shift+Space"],
       description: t("shortcuts.prevPage.desc")
     },
     {
@@ -951,10 +1477,22 @@
       description: t("shortcuts.metadata.desc")
     },
     {
+      id: "fullscreen",
+      label: t("shortcuts.fullscreen.label"),
+      keys: ["f"],
+      description: t("shortcuts.fullscreen.desc")
+    },
+    {
       id: "help",
       label: t("shortcuts.help.label"),
       keys: ["?"],
       description: t("shortcuts.help.desc")
+    },
+    {
+      id: "randomJump",
+      label: t("shortcuts.randomJump.label"),
+      keys: ["p"],
+      description: t("shortcuts.randomJump.desc")
     },
     {
       id: "closeModal",
@@ -1011,6 +1549,85 @@
       update: () => {
       }
     };
+  }
+  function createProgressBar() {
+    const bar = createElement("div", { className: "comic-helper-progress-fill" });
+    const el = createElement("div", { id: "comic-helper-progress-bar" }, [bar]);
+    const update = (current, total) => {
+      if (total <= 0) return;
+      const percentage = Math.min((current + 1) / total * 100, 100);
+      bar.style.width = `${percentage}%`;
+    };
+    return { el, update };
+  }
+  function createResumeNotification({ savedIndex, onResume, onSkip }) {
+    let timeoutId = null;
+    let scrollHandler = null;
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (scrollHandler) window.removeEventListener("scroll", scrollHandler);
+      el.remove();
+    };
+    const message = t("ui.resumeNotification").replace("{page}", String(savedIndex + 1));
+    const continueBtn = createElement("button", {
+      className: "comic-helper-resume-btn comic-helper-resume-continue",
+      textContent: t("ui.continueReading"),
+      events: {
+        click: () => {
+          onResume();
+          cleanup();
+        }
+      }
+    });
+    const skipBtn = createElement("button", {
+      className: "comic-helper-resume-btn comic-helper-resume-skip",
+      textContent: t("ui.startFromBeginning"),
+      events: {
+        click: () => {
+          cleanup();
+        }
+      }
+    });
+    const closeBtn = createElement("button", {
+      className: "comic-helper-resume-btn comic-helper-resume-close",
+      textContent: "×",
+      events: {
+        click: cleanup
+      }
+    });
+    const el = createElement("div", {
+      id: "comic-helper-resume-notification",
+      className: "comic-helper-resume-notification"
+    }, [
+      createElement("span", { textContent: message }),
+      continueBtn,
+      skipBtn,
+      closeBtn
+    ]);
+    timeoutId = setTimeout(cleanup, 15e3);
+    setTimeout(() => {
+      scrollHandler = () => cleanup();
+      window.addEventListener("scroll", scrollHandler, { once: true });
+    }, 1e3);
+    return { el };
+  }
+  function createLoadingIndicator({ isLoading }) {
+    const el = createElement("div", { id: "comic-helper-loading" });
+    const spinner = createElement("div", { className: "comic-helper-spinner" });
+    const text = createElement("span", { textContent: "Loading..." });
+    el.appendChild(spinner);
+    el.appendChild(text);
+    if (isLoading) {
+      el.classList.add("visible");
+    }
+    const update = (newLoading) => {
+      if (newLoading) {
+        el.classList.add("visible");
+      } else {
+        el.classList.remove("visible");
+      }
+    };
+    return { el, update };
   }
   class Draggable {
     /**
@@ -1102,215 +1719,41 @@
       document.removeEventListener("mouseup", this._onMouseUp);
     }
   }
-  const CONTAINER_SELECTOR = "#post-comic";
-  const IMG_SELECTOR = "#post-comic img";
-  class App {
-    constructor() {
-      this.store = new Store();
-      this.originalImages = [];
-      this.lastWheelTime = 0;
-      this.WHEEL_THROTTLE_MS = 500;
-      this.WHEEL_THRESHOLD = 1;
-      this.pageCounterInput = null;
-      this.totalCounterEl = null;
-      this.resizeReq = void 0;
-      this.scrollReq = void 0;
-      this._lastEnabled = void 0;
-      this._lastDualView = void 0;
-      this._lastSpreadOffset = void 0;
+  class UIManager {
+    /**
+     * @param {import('../global').SiteAdapter} adapter 
+     * @param {import('../store.js').Store} store 
+     * @param {import('./Navigator.js').Navigator} navigator 
+     */
+    constructor(adapter, store, navigator2) {
+      this.adapter = adapter;
+      this.store = store;
+      this.navigator = navigator2;
       this.powerComp = null;
       this.counterComp = null;
       this.spreadComp = null;
+      this.progressComp = null;
+      this.loadingComp = null;
       this.draggable = null;
       this.modalEl = null;
       this.helpModalEl = null;
-      this.init = this.init.bind(this);
-      this.handleWheel = this.handleWheel.bind(this);
-      this.onKeyDown = this.onKeyDown.bind(this);
-      this.toggleSpreadOffset = this.toggleSpreadOffset.bind(this);
       this.updateUI = this.updateUI.bind(this);
-      this.applyLayout = this.applyLayout.bind(this);
+      this.init = this.init.bind(this);
     }
-    getImages() {
-      if (this.originalImages.length > 0) return this.originalImages;
-      return (
-        /** @type {HTMLImageElement[]} */
-        Array.from(document.querySelectorAll(IMG_SELECTOR))
-      );
-    }
-    /**
-     * @param {EventTarget | null} target 
-     * @returns {boolean}
-     */
-    isInputField(target) {
-      if (!(target instanceof HTMLElement)) return false;
-      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
-    }
-    toggleSpreadOffset() {
-      const { spreadOffset } = this.store.getState();
-      this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-    }
-    updatePageCounter() {
-      const state = this.store.getState();
-      const { enabled } = state;
-      if (!enabled) return;
-      const imgs = this.getImages();
-      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-      if (currentIndex !== -1) {
-        this.store.setState({ currentVisibleIndex: currentIndex });
-      }
-    }
-    /**
-     * @param {string | number} pageNumber 
-     */
-    jumpToPage(pageNumber) {
-      const imgs = this.getImages();
-      const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
-      const targetImg = getImageElementByIndex(imgs, index);
-      if (targetImg) {
-        targetImg.scrollIntoView({ behavior: "smooth", block: "center" });
-        if (this.pageCounterInput) this.pageCounterInput.blur();
-      } else {
-        this.updatePageCounter();
-        if (this.pageCounterInput) {
-          this.pageCounterInput.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
-          setTimeout(() => {
-            if (this.pageCounterInput) this.pageCounterInput.style.backgroundColor = "transparent";
-          }, 500);
-          this.pageCounterInput.blur();
+    init() {
+      injectStyles();
+      this.updateUI();
+      this.store.subscribe(this.updateUI);
+      window.addEventListener("resize", () => {
+        if (this.draggable) {
+          const { top, left } = this.draggable.clampToViewport();
+          this.store.setState({ guiPos: { top, left } });
         }
-      }
-    }
-    /**
-     * @param {number} direction 
-     */
-    scrollToImage(direction) {
-      const imgs = this.getImages();
-      if (imgs.length === 0) return;
-      const { isDualViewEnabled } = this.store.getState();
-      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-      let targetIndex = currentIndex + direction;
-      if (targetIndex < 0) targetIndex = 0;
-      if (targetIndex >= imgs.length) targetIndex = imgs.length - 1;
-      const prospectiveTargetImg = imgs[targetIndex];
-      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-        const currentImg = imgs[currentIndex];
-        if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
-          targetIndex += direction;
-        }
-      }
-      const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
-      const finalTarget = imgs[finalIndex];
-      if (finalTarget) {
-        finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
-    /**
-     * @param {'start' | 'end'} position 
-     */
-    scrollToEdge(position) {
-      const imgs = this.getImages();
-      if (imgs.length === 0) return;
-      const target = position === "start" ? imgs[0] : imgs[imgs.length - 1];
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-    /**
-     * @param {WheelEvent} e 
-     */
-    handleWheel(e) {
-      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-      if (!enabled) return;
-      if (isMetadataModalOpen || isHelpModalOpen) {
-        const modalContent = document.querySelector(".comic-helper-modal-content");
-        if (modalContent && modalContent.contains(
-          /** @type {Node} */
-          e.target
-        )) {
-          return;
-        }
-        e.preventDefault();
-        return;
-      }
-      e.preventDefault();
-      const now = Date.now();
-      if (now - this.lastWheelTime < this.WHEEL_THROTTLE_MS) return;
-      const direction = getNavigationDirection(e, this.WHEEL_THRESHOLD);
-      if (direction === "none") return;
-      const imgs = this.getImages();
-      if (imgs.length === 0) return;
-      this.lastWheelTime = now;
-      const step = isDualViewEnabled ? 2 : 1;
-      const nextIndex = direction === "next" ? Math.min(currentVisibleIndex + step, imgs.length - 1) : Math.max(currentVisibleIndex - step, 0);
-      this.jumpToPage(nextIndex + 1);
-    }
-    /**
-     * @param {KeyboardEvent} e 
-     */
-    onKeyDown(e) {
-      if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-      if (e.key === "Escape") {
-        if (isMetadataModalOpen || isHelpModalOpen) {
-          e.preventDefault();
-          this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
-          return;
-        }
-      }
-      const isKey = (id) => {
-        const sc = SHORTCUTS.find((s) => s.id === id);
-        if (!sc) return false;
-        return sc.keys.some((k) => {
-          if (k.startsWith("Shift+")) {
-            const baseKey = k.replace("Shift+", "");
-            return e.shiftKey && e.key === (baseKey === "Space" ? " " : baseKey);
-          }
-          return !e.shiftKey && e.key === (k === "Space" ? " " : k);
-        });
-      };
-      if (isKey("help") && isHelpModalOpen) {
-        e.preventDefault();
-        this.store.setState({ isHelpModalOpen: false });
-        return;
-      }
-      if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
-      if (isKey("nextPage")) {
-        e.preventDefault();
-        this.scrollToImage(1);
-      } else if (isKey("prevPage")) {
-        e.preventDefault();
-        this.scrollToImage(-1);
-      } else if (isKey("dualView")) {
-        e.preventDefault();
-        this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
-      } else if (isKey("spreadOffset") && isDualViewEnabled) {
-        e.preventDefault();
-        this.toggleSpreadOffset();
-      } else if (isKey("metadata")) {
-        e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
-      } else if (isKey("help")) {
-        e.preventDefault();
-        this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
-      }
-    }
-    /**
-     * @param {number} [forcedIndex] 
-     */
-    applyLayout(forcedIndex) {
-      const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
-      if (!enabled) return;
-      const imgs = this.getImages();
-      const currentIndex = forcedIndex !== void 0 ? forcedIndex : getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-      fitImagesToViewport(CONTAINER_SELECTOR, spreadOffset, isDualViewEnabled);
-      this.updatePageCounter();
-      if (currentIndex !== -1) {
-        const targetImg = imgs[currentIndex];
-        if (targetImg) targetImg.scrollIntoView({ block: "center" });
-      }
+      });
     }
     updateUI() {
       const state = this.store.getState();
-      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex } = state;
+      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex, isLoading } = state;
       let container = document.getElementById("comic-helper-ui");
       if (!container) {
         container = createElement("div", { id: "comic-helper-ui" });
@@ -1332,40 +1775,60 @@
           isEnabled: enabled,
           onClick: () => {
             const newState = !this.store.getState().enabled;
-            if (!newState) {
-              revertToOriginal(this.getImages(), CONTAINER_SELECTOR);
-            }
             this.store.setState({ enabled: newState });
           }
         });
         container.appendChild(this.powerComp.el);
       }
-      const imgs = this.getImages();
+      const imgs = this.navigator.getImages();
       if (!this.counterComp) {
         this.counterComp = createPageCounter({
           current: currentVisibleIndex + 1,
           total: imgs.length,
-          onJump: (val) => this.jumpToPage(val)
+          onJump: (val) => {
+            const success = this.navigator.jumpToPage(val);
+            if (this.counterComp) {
+              this.counterComp.input.blur();
+              if (!success) {
+                this.counterComp.input.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
+                setTimeout(() => {
+                  if (this.counterComp) this.counterComp.input.style.backgroundColor = "";
+                }, 500);
+              }
+            }
+          }
         });
-        this.pageCounterInput = this.counterComp.input;
         container.appendChild(this.counterComp.el);
       }
       if (!this.spreadComp) {
         this.spreadComp = createSpreadControls({
           isDualViewEnabled,
           onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
-          onAdjust: this.toggleSpreadOffset
+          onAdjust: () => {
+            const { spreadOffset } = this.store.getState();
+            this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+          }
         });
         container.appendChild(this.spreadComp.el);
       }
+      if (!this.progressComp) {
+        this.progressComp = createProgressBar();
+        document.body.appendChild(this.progressComp.el);
+      }
+      if (!this.loadingComp) {
+        this.loadingComp = createLoadingIndicator({ isLoading });
+        document.body.appendChild(this.loadingComp.el);
+      }
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
+        const { metadata: metadata2 } = state;
         const navBtns = createNavigationButtons({
-          onFirst: () => this.scrollToEdge("start"),
-          onPrev: () => this.scrollToImage(-1),
-          onNext: () => this.scrollToImage(1),
-          onLast: () => this.scrollToEdge("end"),
+          onFirst: () => this.navigator.scrollToEdge("start"),
+          onPrev: () => this.navigator.scrollToImage(-1),
+          onNext: () => this.navigator.scrollToImage(1),
+          onLast: () => this.navigator.scrollToEdge("end"),
           onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
-          onHelp: () => this.store.setState({ isHelpModalOpen: true })
+          onHelp: () => this.store.setState({ isHelpModalOpen: true }),
+          onLucky: () => jumpToRandomWork(metadata2)
         });
         navBtns.elements.forEach((btn) => container.appendChild(btn));
       }
@@ -1400,10 +1863,13 @@
         }
       }
       this.powerComp.update(enabled);
+      this.loadingComp.update(isLoading);
+      document.documentElement.classList.toggle("comic-helper-enabled", enabled);
       if (!enabled) {
         container.style.padding = "4px 8px";
         this.counterComp.el.style.display = "none";
         this.spreadComp.el.style.display = "none";
+        if (this.progressComp) this.progressComp.el.style.display = "none";
         container.querySelectorAll(".comic-helper-button").forEach((btn) => {
           btn.style.display = "none";
         });
@@ -1412,64 +1878,323 @@
       container.style.padding = "8px";
       this.counterComp.el.style.display = "flex";
       this.spreadComp.el.style.display = "flex";
+      if (this.progressComp) {
+        this.progressComp.el.style.display = "block";
+        this.progressComp.update(currentVisibleIndex, imgs.length);
+      }
       container.querySelectorAll(".comic-helper-button").forEach((btn) => {
         btn.style.display = "inline-block";
       });
       this.counterComp.update(currentVisibleIndex + 1, imgs.length);
       this.spreadComp.update(isDualViewEnabled);
     }
+    /**
+     * Show resume notification
+     * @param {number} savedIndex
+     */
+    showResumeNotification(savedIndex) {
+      const notification = createResumeNotification({
+        savedIndex,
+        onResume: () => {
+          this.navigator.jumpToPage(savedIndex + 1);
+        },
+        onSkip: () => {
+        }
+      });
+      document.body.appendChild(notification.el);
+    }
+  }
+  const CLICK_THRESHOLD_PX = 5;
+  class InputManager {
+    /**
+     * @param {import('../store.js').Store} store 
+     * @param {import('./Navigator.js').Navigator} navigator 
+     */
+    constructor(store, navigator2) {
+      this.store = store;
+      this.navigator = navigator2;
+      this.lastWheelTime = 0;
+      this.WHEEL_THROTTLE_MS = 500;
+      this.WHEEL_THRESHOLD = 1;
+      this.resizeReq = void 0;
+      this.scrollReq = void 0;
+      this.mouseDownPos = null;
+      this.mouseDownTarget = null;
+      this.handleWheel = this.handleWheel.bind(this);
+      this.onKeyDown = this.onKeyDown.bind(this);
+      this.handleResize = this.handleResize.bind(this);
+      this.handleScroll = this.handleScroll.bind(this);
+      this.onMouseDown = this.onMouseDown.bind(this);
+      this.onMouseUp = this.onMouseUp.bind(this);
+    }
     init() {
-      const container = document.querySelector(CONTAINER_SELECTOR);
-      if (!container) return;
-      injectStyles();
-      this.originalImages = /** @type {HTMLImageElement[]} */
-      Array.from(document.querySelectorAll(IMG_SELECTOR));
-      const metadata = extractMetadata();
-      this.store.setState({ metadata });
-      this.originalImages.forEach((img) => {
-        if (!img.complete) {
-          img.addEventListener("load", () => {
-            if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
-            const { currentVisibleIndex } = this.store.getState();
-            this.resizeReq = requestAnimationFrame(() => this.applyLayout(currentVisibleIndex));
-          });
-        }
-      });
-      this.store.subscribe((state) => {
-        const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
-        if (layoutChanged) {
-          this.applyLayout();
-          this._lastEnabled = state.enabled;
-          this._lastDualView = state.isDualViewEnabled;
-          this._lastSpreadOffset = state.spreadOffset;
-        }
-        this.updateUI();
-      });
-      const initialState = this.store.getState();
-      this._lastEnabled = initialState.enabled;
-      this._lastDualView = initialState.isDualViewEnabled;
-      this._lastSpreadOffset = initialState.spreadOffset;
-      if (initialState.enabled) {
-        this.applyLayout();
-      }
-      this.updateUI();
-      window.addEventListener("resize", () => {
-        const { enabled, currentVisibleIndex } = this.store.getState();
-        if (this.draggable) {
-          const { top, left } = this.draggable.clampToViewport();
-          this.store.setState({ guiPos: { top, left } });
-        }
-        if (!enabled) return;
-        if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
-        this.resizeReq = requestAnimationFrame(() => this.applyLayout(currentVisibleIndex));
-      });
-      window.addEventListener("scroll", () => {
-        if (!this.store.getState().enabled) return;
-        if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
-        this.scrollReq = requestAnimationFrame(() => this.updatePageCounter());
-      });
       window.addEventListener("wheel", this.handleWheel, { passive: false });
       document.addEventListener("keydown", this.onKeyDown, true);
+      document.addEventListener("mousedown", this.onMouseDown);
+      document.addEventListener("mouseup", this.onMouseUp);
+      window.addEventListener("resize", this.handleResize);
+      window.addEventListener("scroll", this.handleScroll);
+    }
+    /**
+     * @param {EventTarget | null} target 
+     * @returns {boolean}
+     */
+    isInputField(target) {
+      if (!(target instanceof HTMLElement)) return false;
+      return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
+    }
+    /**
+     * @param {WheelEvent} e 
+     */
+    handleWheel(e) {
+      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+      if (!enabled) return;
+      if (isMetadataModalOpen || isHelpModalOpen) {
+        const modalContent = document.querySelector(".comic-helper-modal-content");
+        if (modalContent && modalContent.contains(
+          /** @type {Node} */
+          e.target
+        )) {
+          return;
+        }
+        e.preventDefault();
+        return;
+      }
+      e.preventDefault();
+      const now = Date.now();
+      if (now - this.lastWheelTime < this.WHEEL_THROTTLE_MS) return;
+      const direction = getNavigationDirection(e, this.WHEEL_THRESHOLD);
+      if (direction === "none") return;
+      const imgs = this.navigator.getImages();
+      if (imgs.length === 0) return;
+      this.lastWheelTime = now;
+      const step = isDualViewEnabled ? 2 : 1;
+      if (direction === "next" && currentVisibleIndex + step >= imgs.length) {
+        if (!isMetadataModalOpen) {
+          this.store.setState({ isMetadataModalOpen: true });
+        }
+        return;
+      }
+      const nextIndex = direction === "next" ? currentVisibleIndex + step : Math.max(currentVisibleIndex - step, 0);
+      this.navigator.jumpToPage(nextIndex + 1);
+    }
+    /**
+     * @param {KeyboardEvent} e 
+     */
+    onKeyDown(e) {
+      if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+      const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+      if (e.key === "Escape") {
+        if (isMetadataModalOpen || isHelpModalOpen) {
+          e.preventDefault();
+          this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
+          return;
+        }
+      }
+      const isKey = (id) => {
+        const sc = SHORTCUTS.find((s) => s.id === id);
+        if (!sc) return false;
+        return sc.keys.some((k) => {
+          if (k.startsWith("Shift+")) {
+            const baseKey = k.replace("Shift+", "");
+            return e.shiftKey && e.key === (baseKey === "Space" ? " " : baseKey);
+          }
+          return !e.shiftKey && e.key === (k === "Space" ? " " : k);
+        });
+      };
+      if (isKey("help") && isHelpModalOpen) {
+        e.preventDefault();
+        this.store.setState({ isHelpModalOpen: false });
+        return;
+      }
+      if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
+      if (isKey("nextPage")) {
+        e.preventDefault();
+        this.navigator.scrollToImage(1);
+      } else if (isKey("prevPage")) {
+        e.preventDefault();
+        this.navigator.scrollToImage(-1);
+      } else if (isKey("dualView")) {
+        e.preventDefault();
+        this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
+      } else if (isKey("spreadOffset") && isDualViewEnabled) {
+        e.preventDefault();
+        const { spreadOffset } = this.store.getState();
+        this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+      } else if (isKey("metadata")) {
+        e.preventDefault();
+        this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
+      } else if (isKey("help")) {
+        e.preventDefault();
+        this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
+      } else if (isKey("fullscreen")) {
+        e.preventDefault();
+        if (!document.documentElement.requestFullscreen) return;
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {
+          });
+        } else {
+          document.documentElement.requestFullscreen().catch(() => {
+          });
+        }
+      } else if (isKey("randomJump")) {
+        e.preventDefault();
+        const { metadata } = this.store.getState();
+        jumpToRandomWork(metadata);
+      }
+    }
+    handleResize() {
+      const { enabled, currentVisibleIndex } = this.store.getState();
+      if (!enabled) return;
+      if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
+      this.resizeReq = requestAnimationFrame(() => this.navigator.applyLayout(currentVisibleIndex));
+    }
+    handleScroll() {
+      if (!this.store.getState().enabled) return;
+      if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
+      this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
+    }
+    /**
+     * @param {MouseEvent} e
+     */
+    onMouseDown(e) {
+      if (!(e.target instanceof HTMLImageElement)) return;
+      this.mouseDownPos = { x: e.clientX, y: e.clientY };
+      this.mouseDownTarget = e.target;
+    }
+    /**
+     * @param {MouseEvent} e
+     */
+    onMouseUp(e) {
+      const target = this.mouseDownTarget;
+      const startPos = this.mouseDownPos;
+      this.mouseDownTarget = null;
+      this.mouseDownPos = null;
+      if (!target || !startPos) return;
+      if (!(e.target instanceof HTMLImageElement) || e.target !== target) return;
+      const dx = e.clientX - startPos.x;
+      const dy = e.clientY - startPos.y;
+      if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
+      const { enabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+      if (!enabled || isMetadataModalOpen || isHelpModalOpen) return;
+      const direction = getClickNavigationDirection(target);
+      this.navigator.scrollToImage(direction === "next" ? 1 : -1);
+    }
+  }
+  class ResumeManager {
+    /**
+     * @param {import('../store.js').Store} store 
+     */
+    constructor(store) {
+      this.store = store;
+      this.storageKey = "comic-viewer-helper-resume-data";
+    }
+    /**
+     * @returns {boolean}
+     */
+    isEnabled() {
+      return true;
+    }
+    /**
+     * @param {string} url 
+     * @param {number} pageIndex 
+     */
+    savePosition(url, pageIndex) {
+      const data = this._loadData();
+      data[url] = { pageIndex };
+      localStorage.setItem(this.storageKey, JSON.stringify(data));
+    }
+    /**
+     * @param {string} url 
+     * @returns {number|null}
+     */
+    loadPosition(url) {
+      const data = this._loadData();
+      return data[url]?.pageIndex ?? null;
+    }
+    /**
+     * @returns {Object.<string, any>}
+     */
+    _loadData() {
+      try {
+        return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+      } catch {
+        return {};
+      }
+    }
+    /**
+     * Clear all saved positions
+     */
+    clearAll() {
+      localStorage.removeItem(this.storageKey);
+    }
+  }
+  class PopUnderBlocker {
+    /**
+     * @param {import('../store.js').Store} store
+     */
+    constructor(store) {
+      this.store = store;
+      this.handleClick = this.handleClick.bind(this);
+    }
+    init() {
+      document.addEventListener("click", this.handleClick, true);
+    }
+    /**
+     * @param {MouseEvent} e
+     */
+    handleClick(e) {
+      if (!this.store.getState().enabled) return;
+      const link = (
+        /** @type {HTMLElement} */
+        e.target?.closest?.("a")
+      );
+      if (!(link instanceof HTMLAnchorElement)) return;
+      if (!link.hasAttribute("href")) return;
+      if (e.ctrlKey || e.metaKey) return;
+      if (link.href.startsWith("javascript:")) return;
+      const isOwnLink = link.className.includes("comic-helper-");
+      if (link.target === "_blank" && !isOwnLink) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      window.location.href = link.href;
+    }
+  }
+  class App {
+    constructor() {
+      this.store = new Store();
+      const adapters = [DefaultAdapter];
+      this.adapter = adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
+      this.navigator = new Navigator(this.adapter, this.store);
+      this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
+      this.inputManager = new InputManager(this.store, this.navigator);
+      this.resumeManager = new ResumeManager(this.store);
+      this.popUnderBlocker = new PopUnderBlocker(this.store);
+      this.init = this.init.bind(this);
+    }
+    init() {
+      const container = this.adapter.getContainer();
+      if (!container) return;
+      const metadata = this.adapter.getMetadata?.() ?? { title: "Unknown Title", tags: [], relatedWorks: [] };
+      this.store.setState({ metadata });
+      this.navigator.init();
+      this.uiManager.init();
+      this.inputManager.init();
+      this.popUnderBlocker.init();
+      if (this.resumeManager.isEnabled()) {
+        const workKey = window.location.origin + window.location.pathname;
+        const savedIndex = this.resumeManager.loadPosition(workKey);
+        if (savedIndex !== null && savedIndex > 0) {
+          this.uiManager.showResumeNotification(savedIndex);
+        }
+      }
+      window.addEventListener("beforeunload", () => {
+        if (this.resumeManager.isEnabled()) {
+          const workKey = window.location.origin + window.location.pathname;
+          const currentIndex = this.store.getState().currentVisibleIndex;
+          this.resumeManager.savePosition(workKey, currentIndex);
+        }
+      });
     }
   }
   const app = new App();
