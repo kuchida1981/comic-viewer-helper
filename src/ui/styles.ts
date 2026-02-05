@@ -299,6 +299,51 @@ export const styles = `
     line-height: 1.4;
   }
 
+  /* Search Modal Styles */
+  .comic-helper-search-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .comic-helper-search-form {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .comic-helper-search-input {
+    flex: 1;
+    background: #222;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .comic-helper-search-input:focus {
+    border-color: #4CAF50;
+  }
+
+  .comic-helper-search-submit {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+
+  .comic-helper-search-submit:hover {
+    background: #45a049;
+  }
+
   /* Help Modal Styles */
   .comic-helper-shortcut-list {
     display: flex;

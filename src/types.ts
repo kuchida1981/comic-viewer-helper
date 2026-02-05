@@ -17,9 +17,16 @@ export interface Metadata {
   relatedWorks: RelatedWork[];
 }
 
+export interface SearchConfig {
+  baseUrl: string;
+  queryParam: string;
+}
+
 export interface SiteAdapter {
   match: (url: string) => boolean;
   getContainer: () => HTMLElement | null;
   getImages: () => HTMLImageElement[];
   getMetadata?: () => Metadata;
+  getSearchUrl?: (query: string) => string;
+  searchConfig?: SearchConfig;
 }

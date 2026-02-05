@@ -5,6 +5,7 @@ import { createSpreadControls, SpreadControlsComponent } from '../ui/components/
 import { createNavigationButtons } from '../ui/components/NavigationButtons';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
+import { createSearchModal } from '../ui/components/SearchModal';
 import { createProgressBar, ProgressBarComponent } from '../ui/components/ProgressBar';
 import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
@@ -30,6 +31,7 @@ export class UIManager {
   private draggable: Draggable | null;
   private modalEl: HTMLElement | null;
   private helpModalEl: HTMLElement | null;
+  private searchModalEl: HTMLElement | null;
 
   constructor(adapter: SiteAdapter, store: Store, navigator: Navigator) {
     this.adapter = adapter;
@@ -45,6 +47,7 @@ export class UIManager {
     this.draggable = null;
     this.modalEl = null;
     this.helpModalEl = null;
+    this.searchModalEl = null;
 
     this.updateUI = this.updateUI.bind(this);
     this.init = this.init.bind(this);
@@ -157,13 +160,14 @@ export class UIManager {
         onLast: () => { void this.navigator.scrollToEdge('end'); },
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
+        onSearch: () => this.store.setState({ isSearchModalOpen: true }),
         onLucky: () => { jumpToRandomWork(metadata); }
       });
       navBtns.elements.forEach(btn => container?.appendChild(btn));
     }
 
     // Handle Help Modal
-    const { isMetadataModalOpen, isHelpModalOpen, metadata } = state;
+    const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, metadata } = state;
     if (isHelpModalOpen) {
       if (!this.helpModalEl) {
         const modal = createHelpModal({
@@ -176,6 +180,28 @@ export class UIManager {
       if (this.helpModalEl) {
         this.helpModalEl.remove();
         this.helpModalEl = null;
+      }
+    }
+
+    // Handle Search Modal
+    if (isSearchModalOpen) {
+      if (!this.searchModalEl) {
+        const modal = createSearchModal({
+          onSearch: (query: string) => {
+            this.store.setState({ isSearchModalOpen: false });
+            if (this.adapter.getSearchUrl) {
+              window.location.href = this.adapter.getSearchUrl(query);
+            }
+          },
+          onClose: () => this.store.setState({ isSearchModalOpen: false })
+        });
+        this.searchModalEl = modal.el;
+        document.body.appendChild(this.searchModalEl);
+      }
+    } else {
+      if (this.searchModalEl) {
+        this.searchModalEl.remove();
+        this.searchModalEl = null;
       }
     }
 

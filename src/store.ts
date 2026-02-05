@@ -20,6 +20,7 @@ export interface StoreState {
   metadata: Metadata;
   isMetadataModalOpen: boolean;
   isHelpModalOpen: boolean;
+  isSearchModalOpen: boolean;
   isLoading: boolean;
 }
 
@@ -43,6 +44,7 @@ export class Store {
       },
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
+      isSearchModalOpen: false,
       isLoading: false
     };
     this.listeners = [];
