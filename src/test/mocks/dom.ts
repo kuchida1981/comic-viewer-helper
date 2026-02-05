@@ -18,17 +18,9 @@ export function createMockImage(props: {
   getBoundingClientRect?: () => { top: number; bottom: number };
 } = {}): HTMLImageElement {
   const obj: Record<string, unknown> = {};
-  if ('complete' in props) obj.complete = props.complete;
-  if ('naturalWidth' in props) obj.naturalWidth = props.naturalWidth;
-  if ('naturalHeight' in props) obj.naturalHeight = props.naturalHeight;
-  if ('loading' in props) obj.loading = props.loading;
-  if ('style' in props) obj.style = props.style;
-  if ('id' in props) obj.id = props.id;
-  if ('remove' in props) obj.remove = props.remove;
-  if ('addEventListener' in props) obj.addEventListener = props.addEventListener;
-  if ('removeEventListener' in props) obj.removeEventListener = props.removeEventListener;
-  if ('decode' in props) obj.decode = props.decode;
-  if ('getBoundingClientRect' in props) obj.getBoundingClientRect = props.getBoundingClientRect;
+  for (const key of Object.keys(props) as Array<keyof typeof props>) {
+    obj[key] = props[key];
+  }
   return obj as unknown as HTMLImageElement;
 }
 
@@ -40,7 +32,7 @@ export function createMockMouseEvent(props: {
   target: EventTarget;
   ctrlKey?: boolean;
   metaKey?: boolean;
-} = { target: {} as EventTarget }) {
+}) {
   const stopImmediatePropagation = vi.fn();
   const preventDefault = vi.fn();
   const event = {
