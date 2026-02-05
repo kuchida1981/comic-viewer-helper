@@ -56,7 +56,7 @@ export class Store {
     let changed = false;
     for (const key of Object.keys(patch) as (keyof StoreState)[]) {
       if (this.state[key] !== patch[key]) {
-        this._applyPatch(key, patch[key] as StoreState[typeof key]);
+        this._applyPatch(key, patch[key]!);
         changed = true;
       }
     }
