@@ -1,13 +1,13 @@
 import { injectStyles } from '../ui/styles';
-import { createPowerButton } from '../ui/components/PowerButton';
-import { createPageCounter } from '../ui/components/PageCounter';
-import { createSpreadControls } from '../ui/components/SpreadControls';
+import { createPowerButton, PowerButtonComponent } from '../ui/components/PowerButton';
+import { createPageCounter, PageCounterComponent } from '../ui/components/PageCounter';
+import { createSpreadControls, SpreadControlsComponent } from '../ui/components/SpreadControls';
 import { createNavigationButtons } from '../ui/components/NavigationButtons';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
-import { createProgressBar } from '../ui/components/ProgressBar';
+import { createProgressBar, ProgressBarComponent } from '../ui/components/ProgressBar';
 import { createResumeNotification } from '../ui/components/ResumeNotification';
-import { createLoadingIndicator } from '../ui/components/LoadingIndicator';
+import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
 import { Draggable } from '../ui/Draggable';
 import { createElement } from '../ui/utils';
 import { jumpToRandomWork } from '../logic';
@@ -15,31 +15,6 @@ import { Store } from '../store';
 import { Navigator } from './Navigator';
 import { SiteAdapter } from '../types';
 
-interface PowerButtonComponent {
-  el: HTMLElement;
-  update: (enabled: boolean) => void;
-}
-
-interface PageCounterComponent {
-  el: HTMLElement;
-  input: HTMLInputElement;
-  update: (current: number, total: number) => void;
-}
-
-interface SpreadControlsComponent {
-  el: HTMLElement;
-  update: (isEnabled: boolean) => void;
-}
-
-interface ProgressBarComponent {
-  el: HTMLElement;
-  update: (current: number, total: number) => void;
-}
-
-interface LoadingIndicatorComponent {
-  el: HTMLElement;
-  update: (isLoading: boolean) => void;
-}
 
 export class UIManager {
   private adapter: SiteAdapter;

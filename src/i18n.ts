@@ -111,14 +111,16 @@ const currentLang = getLanguage();
  */
 export function t(path: MessageKey): string {
   const keys = path.split('.');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let result: any = MESSAGES[currentLang];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let fallback: any = MESSAGES['en'];
+  let result: unknown = MESSAGES[currentLang];
+  let fallback: unknown = MESSAGES['en'];
 
   for (const key of keys) {
-    result = result ? result[key] : undefined;
-    fallback = fallback ? fallback[key] : undefined;
+    result = (typeof result === 'object' && result !== null)
+      ? (result as Record<string, unknown>)[key]
+      : undefined;
+    fallback = (typeof fallback === 'object' && fallback !== null)
+      ? (fallback as Record<string, unknown>)[key]
+      : undefined;
   }
 
   const value = result ?? fallback ?? path;
