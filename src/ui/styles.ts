@@ -446,7 +446,7 @@ export const styles = `
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.4);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -454,7 +454,7 @@ export const styles = `
     border-radius: 12px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s;
+    transition: opacity 0.3s ease-in-out;
   }
 
   .comic-helper-search-spinner-overlay.visible {

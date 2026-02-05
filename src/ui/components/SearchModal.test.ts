@@ -188,7 +188,7 @@ describe('SearchModal', () => {
   });
 
   describe('updating state', () => {
-    it('should show loading indicators and disable inputs when setUpdating(true)', () => {
+    it('should show loading indicators and disable inputs when setUpdating(true) after delay', () => {
       const { el, input, setUpdating } = createSearchModal(defaultProps);
       const submitBtn = el.querySelector('.comic-helper-search-submit') as HTMLButtonElement;
       const overlay = el.querySelector('.comic-helper-search-spinner-overlay') as HTMLElement;
@@ -196,23 +196,34 @@ describe('SearchModal', () => {
 
       setUpdating(true);
 
-      expect(overlay.classList.contains('visible')).toBe(true);
+      // Should be immediate for indicator and disabled state
       expect(updatingText.style.display).toBe('inline');
       expect(input.disabled).toBe(true);
       expect(submitBtn.disabled).toBe(true);
+      
+      // Spinner overlay should be delayed (200ms)
+      expect(overlay.classList.contains('visible')).toBe(false);
+      vi.advanceTimersByTime(200);
+      expect(overlay.classList.contains('visible')).toBe(true);
     });
 
-    it('should hide loading indicators and enable inputs when setUpdating(false)', () => {
+    it('should hide loading indicators and enable inputs when setUpdating(false) after minimum time', () => {
       const { el, input, setUpdating } = createSearchModal(defaultProps);
       const submitBtn = el.querySelector('.comic-helper-search-submit') as HTMLButtonElement;
       const overlay = el.querySelector('.comic-helper-search-spinner-overlay') as HTMLElement;
-      const updatingText = el.querySelector('.comic-helper-search-updating') as HTMLElement;
 
       setUpdating(true);
+      vi.advanceTimersByTime(200); // Show it
+      expect(overlay.classList.contains('visible')).toBe(true);
+
       setUpdating(false);
 
+      // Should still be visible due to minimum display time (400ms)
+      expect(overlay.classList.contains('visible')).toBe(true);
+      expect(input.disabled).toBe(true);
+
+      vi.advanceTimersByTime(400);
       expect(overlay.classList.contains('visible')).toBe(false);
-      expect(updatingText.style.display).toBe('none');
       expect(input.disabled).toBe(false);
       expect(submitBtn.disabled).toBe(false);
     });

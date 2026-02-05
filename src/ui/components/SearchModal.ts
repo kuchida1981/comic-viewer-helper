@@ -183,6 +183,12 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
   // Autofocus doesn't always work when dynamically added
   setTimeout(() => input.focus(), 50);
 
+  // Anti-flicker logic state
+  let loadingTimeout: number | null = null;
+  let loadingStartTime: number = 0;
+  const SHOW_DELAY_MS = 200;
+  const MIN_SHOW_TIME_MS = 400;
+
   return {
     el: overlay,
     input,
@@ -194,14 +200,45 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     },
     setUpdating: (updating: boolean) => {
       updatingIndicator.style.display = updating ? 'inline' : 'none';
+
       if (updating) {
-        spinnerOverlay.classList.add('visible');
+        // Clear any pending hidden state
+        if (loadingTimeout) {
+          clearTimeout(loadingTimeout);
+          loadingTimeout = null;
+        }
+
+        // Delay showing the spinner to avoid flickering for fast searches
+        loadingTimeout = window.setTimeout(() => {
+          spinnerOverlay.classList.add('visible');
+          loadingStartTime = Date.now();
+          loadingTimeout = null;
+        }, SHOW_DELAY_MS);
+
         input.disabled = true;
         submitBtn.disabled = true;
       } else {
-        spinnerOverlay.classList.remove('visible');
-        input.disabled = false;
-        submitBtn.disabled = false;
+        // Clear pending show
+        if (loadingTimeout) {
+          clearTimeout(loadingTimeout);
+          loadingTimeout = null;
+        }
+
+        const hide = () => {
+          spinnerOverlay.classList.remove('visible');
+          input.disabled = false;
+          submitBtn.disabled = false;
+        };
+
+        const shownDuration = Date.now() - loadingStartTime;
+        if (loadingStartTime > 0 && shownDuration < MIN_SHOW_TIME_MS) {
+          // Ensure it stays visible for a minimum duration if it was already shown
+          window.setTimeout(hide, MIN_SHOW_TIME_MS - shownDuration);
+          loadingStartTime = 0;
+        } else {
+          hide();
+          loadingStartTime = 0;
+        }
       }
     }
   };
