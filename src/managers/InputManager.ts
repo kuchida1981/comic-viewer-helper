@@ -56,10 +56,10 @@ export class InputManager {
   }
 
   handleWheel(e: WheelEvent): void {
-    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
     if (!enabled) return;
 
-    if (isMetadataModalOpen || isHelpModalOpen) {
+    if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
       const modalContent = document.querySelector('.comic-helper-modal-content');
       if (modalContent && modalContent.contains(e.target as Node)) {
         return;
@@ -208,8 +208,8 @@ export class InputManager {
     const dy = e.clientY - startPos.y;
     if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
 
-    const { enabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-    if (!enabled || isMetadataModalOpen || isHelpModalOpen) return;
+    const { enabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+    if (!enabled || isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) return;
 
     const direction = getClickNavigationDirection(target);
     this.navigator.scrollToImage(direction === 'next' ? 1 : -1);

@@ -30,12 +30,14 @@
 - **代替案**: グローバルな `LoadingIndicator` を使用することも検討しましたが、検索モーダルというコンテキスト内に限定した方がユーザー体験が向上すると判断しました。
 
 ### 3. イベント伝搬阻止の徹底
-以下の要素に対して `e.stopPropagation()` を確実に適用します。
-- `form` の `submit` イベント。
-- `pagination` ボタンの `click` イベント。
-- `content` 要素全体への `click` イベントハンドラ追加（セーフティネットとして）。
+以下の修正により、イベントが背面に影響を与えるのを阻止します。
+- `src/ui/components/SearchModal.ts`: 各種イベントでの `stopPropagation()` 適用。
+- `src/managers/InputManager.ts`: `handleWheel` および `onMouseUp` に `isSearchModalOpen` のチェックを追加し、モーダル表示中はナビゲーション処理をスキップするようにします。
+  - **理由**: `document` レベルのリスナーは要素の `stopPropagation()` だけでは防げない場合があるため、状態（Store）によるガードが必要です。
 
-### 4. `UIManager._performSearch` の修正
+### 4. スピナー表示の確実化
+- `spinnerOverlay` の `z-index` を `100` に引き上げ、他の要素（サムネイルなど）より確実に前面に表示されるようにします。
+- `UIManager._performSearch` の修正
 `silent` フラグに関わらず、すべての検索開始時に `setUpdating(true)` を呼び出すように変更します。
 
 ## Risks / Trade-offs

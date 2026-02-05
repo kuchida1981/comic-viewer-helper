@@ -450,7 +450,7 @@ export const styles = `
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10;
+    z-index: 100;
     border-radius: 8px;
     opacity: 0;
     pointer-events: none;

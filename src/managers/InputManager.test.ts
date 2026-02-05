@@ -134,7 +134,15 @@ describe('InputManager', () => {
   });
 
   it('handleWheel should block during modals', () => {
-    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isSearchModalOpen: false });
+    const event = { preventDefault: vi.fn(), target: document.body } as unknown as WheelEvent;
+    inputManager.handleWheel(event);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(logic.getNavigationDirection).not.toHaveBeenCalled();
+  });
+
+  it('handleWheel should block during search modal', () => {
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isSearchModalOpen: true });
     const event = { preventDefault: vi.fn(), target: document.body } as unknown as WheelEvent;
     inputManager.handleWheel(event);
     expect(event.preventDefault).toHaveBeenCalled();
@@ -377,7 +385,15 @@ describe('InputManager', () => {
     });
 
     it('モーダル表示中はクリック移動しない', () => {
-      (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: false });
+      (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: false, isSearchModalOpen: false });
+      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
+      inputManager.onMouseUp({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
+      expect(navigator.scrollToImage).not.toHaveBeenCalled();
+    });
+
+    it('検索モーダル表示中はクリック移動しない', () => {
+      (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: true });
       vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
       inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       inputManager.onMouseUp({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
