@@ -22,13 +22,16 @@ describe('SearchModal', () => {
     expect(input.placeholder).toContain(t('ui.searchPlaceholder'));
   });
 
-  it('should call onSearch when submitting the form', () => {
+  it('should call onSearch and stop propagation when submitting the form', () => {
     const onSearch = vi.fn();
     const { el, input } = createSearchModal({ ...defaultProps, onSearch });
     input.value = 'test query';
     const form = el.querySelector('form') as HTMLFormElement;
-    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    const event = new Event('submit', { cancelable: true, bubbles: true });
+    const stopSpy = vi.spyOn(event, 'stopPropagation');
+    form.dispatchEvent(event);
     expect(onSearch).toHaveBeenCalledWith('test query');
+    expect(stopSpy).toHaveBeenCalled();
   });
 
   it('should not call onSearch if query is empty', () => {
@@ -116,12 +119,15 @@ describe('SearchModal', () => {
       expect(buttons[2].textContent).toBe('›');
     });
 
-    it('should call onPageChange when clicking a pagination button', () => {
+    it('should call onPageChange and stop propagation when clicking a pagination button', () => {
       const onPageChange = vi.fn();
       const { el } = createSearchModal({ ...defaultProps, onPageChange, searchResults: sampleResults });
       const btn2 = el.querySelectorAll('.comic-helper-search-page-btn')[1] as HTMLButtonElement;
-      btn2.click();
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      const stopSpy = vi.spyOn(event, 'stopPropagation');
+      btn2.dispatchEvent(event);
       expect(onPageChange).toHaveBeenCalledWith('/page/2/?s=kw');
+      expect(stopSpy).toHaveBeenCalled();
     });
 
     it('should not render pagination when pagination data is empty', () => {
@@ -178,6 +184,48 @@ describe('SearchModal', () => {
       updateResults(newResults);
       expect(el.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(1);
       expect(el.querySelector('.comic-helper-search-pagination')).toBeNull();
+    });
+  });
+
+  describe('updating state', () => {
+    it('should show loading indicators and disable inputs when setUpdating(true) after delay', () => {
+      const { el, input, setUpdating } = createSearchModal(defaultProps);
+      const submitBtn = el.querySelector('.comic-helper-search-submit') as HTMLButtonElement;
+      const overlay = el.querySelector('.comic-helper-search-spinner-overlay') as HTMLElement;
+      const updatingText = el.querySelector('.comic-helper-search-updating') as HTMLElement;
+
+      setUpdating(true);
+
+      // Should be immediate for indicator and disabled state
+      expect(updatingText.style.display).toBe('inline');
+      expect(input.disabled).toBe(true);
+      expect(submitBtn.disabled).toBe(true);
+      
+      // Spinner overlay should be delayed (200ms)
+      expect(overlay.classList.contains('visible')).toBe(false);
+      vi.advanceTimersByTime(200);
+      expect(overlay.classList.contains('visible')).toBe(true);
+    });
+
+    it('should hide loading indicators and enable inputs when setUpdating(false) after minimum time', () => {
+      const { el, input, setUpdating } = createSearchModal(defaultProps);
+      const submitBtn = el.querySelector('.comic-helper-search-submit') as HTMLButtonElement;
+      const overlay = el.querySelector('.comic-helper-search-spinner-overlay') as HTMLElement;
+
+      setUpdating(true);
+      vi.advanceTimersByTime(200); // Show it
+      expect(overlay.classList.contains('visible')).toBe(true);
+
+      setUpdating(false);
+
+      // Should still be visible due to minimum display time (400ms)
+      expect(overlay.classList.contains('visible')).toBe(true);
+      expect(input.disabled).toBe(true);
+
+      vi.advanceTimersByTime(400);
+      expect(overlay.classList.contains('visible')).toBe(false);
+      expect(input.disabled).toBe(false);
+      expect(submitBtn.disabled).toBe(false);
     });
   });
 

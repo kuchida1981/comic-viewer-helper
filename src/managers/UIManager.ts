@@ -319,9 +319,7 @@ export class UIManager {
       }
     }
 
-    if (silent || isUrl) {
-      this.searchModalComp?.setUpdating(true);
-    }
+    this.searchModalComp?.setUpdating(true);
 
     try {
       const res = await fetch(url);

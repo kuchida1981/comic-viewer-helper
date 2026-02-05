@@ -81,6 +81,7 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
         events: {
           click: (e) => {
             e.preventDefault();
+            e.stopPropagation();
             if (item.url) onPageChange(item.url);
           }
         }
@@ -122,13 +123,13 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     events: {
       submit: (e) => {
         e.preventDefault();
+        e.stopPropagation();
         handleSubmit();
       }
     }
   }, [input, submitBtn]);
 
   let resultsSection = createResultsSection(searchResults, onPageChange);
-
   const container = createElement('div', {
     className: 'comic-helper-search-container'
   }, [form, resultsSection]);
@@ -157,12 +158,18 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
   });
   title.appendChild(updatingIndicator);
 
+  const spinner = createElement('div', { className: 'comic-helper-spinner' });
+  const spinnerOverlay = createElement('div', {
+    className: 'comic-helper-search-spinner-overlay'
+  }, [spinner]);
+
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
     events: {
       click: (e) => e.stopPropagation()
     }
-  }, [closeBtn, title, container]);
+  }, [closeBtn, title, container, spinnerOverlay]);
+  content.addEventListener('click', (e) => e.stopPropagation());
   content.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
 
   const overlay = createElement('div', {
@@ -176,6 +183,12 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
   // Autofocus doesn't always work when dynamically added
   setTimeout(() => input.focus(), 50);
 
+  // Anti-flicker logic state
+  let loadingTimeout: number | null = null;
+  let loadingStartTime: number = 0;
+  const SHOW_DELAY_MS = 200;
+  const MIN_SHOW_TIME_MS = 400;
+
   return {
     el: overlay,
     input,
@@ -187,6 +200,40 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     },
     setUpdating: (updating: boolean) => {
       updatingIndicator.style.display = updating ? 'inline' : 'none';
+
+      // Always clear any pending timeout when state changes
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        loadingTimeout = null;
+      }
+
+      if (updating) {
+        // Disable inputs immediately to prevent double submission
+        input.disabled = true;
+        submitBtn.disabled = true;
+
+        // Delay showing the spinner to avoid flickering for fast searches
+        loadingTimeout = window.setTimeout(() => {
+          spinnerOverlay.classList.add('visible');
+          loadingStartTime = Date.now();
+          loadingTimeout = null;
+        }, SHOW_DELAY_MS);
+      } else {
+        const hide = () => {
+          spinnerOverlay.classList.remove('visible');
+          input.disabled = false;
+          submitBtn.disabled = false;
+        };
+
+        const shownDuration = Date.now() - loadingStartTime;
+        if (loadingStartTime > 0 && shownDuration < MIN_SHOW_TIME_MS) {
+          // Ensure it stays visible for a minimum duration if it was already shown
+          window.setTimeout(hide, MIN_SHOW_TIME_MS - shownDuration);
+        } else {
+          hide();
+        }
+        loadingStartTime = 0;
+      }
     }
   };
 }
