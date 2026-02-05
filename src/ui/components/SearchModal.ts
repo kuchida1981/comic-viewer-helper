@@ -201,12 +201,16 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     setUpdating: (updating: boolean) => {
       updatingIndicator.style.display = updating ? 'inline' : 'none';
 
+      // Always clear any pending timeout when state changes
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+        loadingTimeout = null;
+      }
+
       if (updating) {
-        // Clear any pending hidden state
-        if (loadingTimeout) {
-          clearTimeout(loadingTimeout);
-          loadingTimeout = null;
-        }
+        // Disable inputs immediately to prevent double submission
+        input.disabled = true;
+        submitBtn.disabled = true;
 
         // Delay showing the spinner to avoid flickering for fast searches
         loadingTimeout = window.setTimeout(() => {
@@ -214,16 +218,7 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
           loadingStartTime = Date.now();
           loadingTimeout = null;
         }, SHOW_DELAY_MS);
-
-        input.disabled = true;
-        submitBtn.disabled = true;
       } else {
-        // Clear pending show
-        if (loadingTimeout) {
-          clearTimeout(loadingTimeout);
-          loadingTimeout = null;
-        }
-
         const hide = () => {
           spinnerOverlay.classList.remove('visible');
           input.disabled = false;
@@ -234,11 +229,10 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
         if (loadingStartTime > 0 && shownDuration < MIN_SHOW_TIME_MS) {
           // Ensure it stays visible for a minimum duration if it was already shown
           window.setTimeout(hide, MIN_SHOW_TIME_MS - shownDuration);
-          loadingStartTime = 0;
         } else {
           hide();
-          loadingStartTime = 0;
         }
+        loadingStartTime = 0;
       }
     }
   };
