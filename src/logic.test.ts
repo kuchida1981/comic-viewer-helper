@@ -1,21 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, waitForImageLoad, preloadImages, getClickNavigationDirection, jumpToRandomWork } from './logic.js';
 import { Metadata } from './types.js';
+import { createMockImage, asNodeList, setupLocationMock } from './test/mocks/dom.js';
 
 describe('logic.js', () => {
   describe('waitForImageLoad', () => {
     it('should resolve immediately if image is already complete and has height', async () => {
-      const img = { complete: true, naturalHeight: 100 } as unknown as HTMLImageElement;
+      const img = createMockImage({ complete: true, naturalHeight: 100 });
       await expect(waitForImageLoad(img)).resolves.toBeUndefined();
     });
 
     it('should resolve when load event fires', async () => {
       const listeners: Record<string, EventListener> = {};
-      const img = { 
+      const img = createMockImage({
         complete: false,
         addEventListener: vi.fn((event, cb) => { listeners[event] = cb as EventListener; }),
         removeEventListener: vi.fn()
-      } as unknown as HTMLImageElement;
+      });
 
       const promise = waitForImageLoad(img);
       listeners['load']({} as Event);
@@ -25,11 +26,11 @@ describe('logic.js', () => {
 
     it('should resolve when error event fires', async () => {
       const listeners: Record<string, EventListener> = {};
-      const img = { 
+      const img = createMockImage({
         complete: false,
         addEventListener: vi.fn((event, cb) => { listeners[event] = cb as EventListener; }),
         removeEventListener: vi.fn()
-      } as unknown as HTMLImageElement;
+      });
 
       const promise = waitForImageLoad(img);
       listeners['error']({} as Event);
@@ -38,11 +39,11 @@ describe('logic.js', () => {
 
     it('should resolve on timeout', async () => {
       vi.useFakeTimers();
-      const img = { 
+      const img = createMockImage({
         complete: false,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn()
-      } as unknown as HTMLImageElement;
+      });
 
       const promise = waitForImageLoad(img, 1000);
       vi.advanceTimersByTime(1000);
@@ -53,11 +54,11 @@ describe('logic.js', () => {
 
   describe('preloadImages', () => {
     it('should trigger decode for next images', () => {
-      const images = Array.from({ length: 5 }, () => ({
+      const images = Array.from({ length: 5 }, () => createMockImage({
         complete: false,
         loading: 'lazy',
         decode: vi.fn().mockResolvedValue(undefined)
-      } as unknown as HTMLImageElement));
+      }));
       
       preloadImages(images, 0, 2);
       
@@ -69,10 +70,10 @@ describe('logic.js', () => {
     });
 
     it('should handle images without decode method', () => {
-      const images = Array.from({ length: 3 }, () => ({
+      const images = Array.from({ length: 3 }, () => createMockImage({
         complete: false,
         loading: 'lazy'
-      } as unknown as HTMLImageElement));
+      }));
       
       preloadImages(images, 0, 1);
       
@@ -80,23 +81,25 @@ describe('logic.js', () => {
     });
 
     it('should skip already complete images', () => {
+      const decode0 = vi.fn();
+      const decode1 = vi.fn();
       const images = [
-        { complete: true, loading: 'lazy', decode: vi.fn() } as unknown as HTMLImageElement,
-        { complete: true, loading: 'lazy', decode: vi.fn() } as unknown as HTMLImageElement
+        createMockImage({ complete: true, loading: 'lazy', decode: decode0 }),
+        createMockImage({ complete: true, loading: 'lazy', decode: decode1 })
       ];
-      
+
       preloadImages(images, 0, 1);
-      
+
       expect(images[1].loading).toBe('lazy');
-      expect((images[1] as any).decode).not.toHaveBeenCalled();
+      expect(decode1).not.toHaveBeenCalled();
     });
 
     it('should preload previous images', () => {
-      const images = Array.from({ length: 5 }, () => ({
+      const images = Array.from({ length: 5 }, () => createMockImage({
         complete: false,
         loading: 'lazy',
         decode: vi.fn().mockResolvedValue(undefined)
-      } as unknown as HTMLImageElement));
+      }));
       
       preloadImages(images, 2, 1);
       
@@ -159,10 +162,10 @@ describe('logic.js', () => {
   describe('getPrimaryVisibleImageIndex', () => {
     it('should return the index of the image with most visible height', () => {
       const imgs = [
-        { getBoundingClientRect: () => ({ top: -100, bottom: 100 }) }, // visible: 100
-        { getBoundingClientRect: () => ({ top: 100, bottom: 500 }) },  // visible: 400
-        { getBoundingClientRect: () => ({ top: 500, bottom: 600 }) }   // visible: 100
-      ] as unknown as HTMLImageElement[];
+        createMockImage({ getBoundingClientRect: () => ({ top: -100, bottom: 100 }) }), // visible: 100
+        createMockImage({ getBoundingClientRect: () => ({ top: 100, bottom: 500 }) }),  // visible: 400
+        createMockImage({ getBoundingClientRect: () => ({ top: 500, bottom: 600 }) })   // visible: 100
+      ];
       const windowHeight = 1000;
       expect(getPrimaryVisibleImageIndex(imgs, windowHeight)).toBe(1);
     });
@@ -170,9 +173,9 @@ describe('logic.js', () => {
     it('should prefer the one closer to center if visible heights are equal', () => {
       const windowHeight = 1000;
       const imgs = [
-        { getBoundingClientRect: () => ({ top: 0, bottom: 500 }) },   // height 500, center 250, dist 250
-        { getBoundingClientRect: () => ({ top: 250, bottom: 750 }) }  // height 500, center 500, dist 0
-      ] as unknown as HTMLImageElement[];
+        createMockImage({ getBoundingClientRect: () => ({ top: 0, bottom: 500 }) }),   // height 500, center 250, dist 250
+        createMockImage({ getBoundingClientRect: () => ({ top: 250, bottom: 750 }) })  // height 500, center 500, dist 0
+      ];
       expect(getPrimaryVisibleImageIndex(imgs, windowHeight)).toBe(1);
     });
 
@@ -183,12 +186,12 @@ describe('logic.js', () => {
 
   describe('getImageElementByIndex', () => {
     it('should return the element if index is within range', () => {
-      const imgs = ['img0', 'img1', 'img2'] as unknown as HTMLImageElement[];
-      expect(getImageElementByIndex(imgs, 1)).toBe('img1');
+      const imgs = [createMockImage({ id: 'img0' }), createMockImage({ id: 'img1' }), createMockImage({ id: 'img2' })];
+      expect(getImageElementByIndex(imgs, 1)).toBe(imgs[1]);
     });
 
     it('should return null if index is out of range', () => {
-      const imgs = ['img0', 'img1'] as unknown as HTMLImageElement[];
+      const imgs = [createMockImage({ id: 'img0' }), createMockImage({ id: 'img1' })];
       expect(getImageElementByIndex(imgs, 2)).toBe(null);
       expect(getImageElementByIndex(imgs, -1)).toBe(null);
     });
@@ -208,15 +211,15 @@ describe('logic.js', () => {
       } as unknown as HTMLElement;
       
       originalImages = [
-        { style: { cssText: 'img-style' } },
-        { style: { cssText: 'img-style-2' } }
-      ] as unknown as HTMLImageElement[];
+        createMockImage({ style: { cssText: 'img-style' } }),
+        createMockImage({ style: { cssText: 'img-style-2' } })
+      ];
 
       wrappers = [
         { remove: vi.fn() }
       ] as unknown as HTMLElement[];
 
-      vi.mocked(container.querySelectorAll).mockReturnValue(wrappers as any);
+      vi.mocked(container.querySelectorAll).mockReturnValue(asNodeList(wrappers));
 
       // Mock global document
       vi.stubGlobal('document', {
@@ -263,21 +266,21 @@ describe('logic.js', () => {
 
     beforeEach(() => {
       createdElements = [];
-      images = Array.from({ length: 4 }, (_, i) => ({
+      images = Array.from({ length: 4 }, (_, i) => createMockImage({
         id: `img${i}`,
         naturalWidth: 100,
         naturalHeight: 200,
         style: {},
         remove: vi.fn()
-      })) as unknown as HTMLImageElement[];
+      }));
 
       container = {
         style: {},
         appendChild: vi.fn(),
-        querySelectorAll: vi.fn().mockImplementation((selector) => {
-          if (selector === 'img') return images;
-          if (selector === '.comic-row-wrapper') return [];
-          return [];
+        querySelectorAll: vi.fn((selector: string) => {
+          if (selector === 'img') return asNodeList(images);
+          if (selector === '.comic-row-wrapper') return asNodeList([]);
+          return asNodeList([]);
         })
       } as unknown as HTMLElement;
 
@@ -347,10 +350,10 @@ describe('logic.js', () => {
     it('should show all pages as solo when there are only 2 pages', () => {
       // 2 images (0, 1), both portrait
       const twoImages = images.slice(0, 2);
-      vi.mocked(container.querySelectorAll).mockImplementation((selector: any) => {
-        if (selector === 'img') return twoImages as any;
-        if (selector === '.comic-row-wrapper') return [];
-        return [];
+      vi.mocked(container.querySelectorAll).mockImplementation((selector: string) => {
+        if (selector === 'img') return asNodeList(twoImages);
+        if (selector === '.comic-row-wrapper') return asNodeList([]);
+        return asNodeList([]);
       });
 
       fitImagesToViewport(container, 0, true);
@@ -363,12 +366,12 @@ describe('logic.js', () => {
 
     it('should pair 1-2 when offset is 1 but 0 and last are solo', () => {
       // 5 images (0, 1, 2, 3, 4), all portrait
-      const fiveImages = Array.from({ length: 5 }, (_, i) => ({
+      const fiveImages = Array.from({ length: 5 }, (_, i) => createMockImage({
         id: `img${i}`, naturalWidth: 100, naturalHeight: 200, style: {}, remove: vi.fn()
-      })) as unknown as HTMLImageElement[];
-      vi.mocked(container.querySelectorAll).mockImplementation((selector: any) => {
-        if (selector === 'img') return fiveImages as any;
-        return [];
+      }));
+      vi.mocked(container.querySelectorAll).mockImplementation((selector: string) => {
+        if (selector === 'img') return asNodeList(fiveImages);
+        return asNodeList([]);
       });
 
       // Offset 1:
@@ -414,9 +417,9 @@ describe('logic.js', () => {
     it('should show all pages as solo for 3 images with offset 1', () => {
       // Images: 0:P, 1:P, 2:P (total 3)
       const threeImages = images.slice(0, 3);
-      vi.mocked(container.querySelectorAll).mockImplementation((selector: any) => {
-        if (selector === 'img') return threeImages as any;
-        return [];
+      vi.mocked(container.querySelectorAll).mockImplementation((selector: string) => {
+        if (selector === 'img') return asNodeList(threeImages);
+        return asNodeList([]);
       });
 
       fitImagesToViewport(container, 1, true);
@@ -430,10 +433,10 @@ describe('logic.js', () => {
 
     it('should call cleanupDOM (remove wrappers)', () => {
       const existingWrapper = { remove: vi.fn() };
-      vi.mocked(container.querySelectorAll).mockImplementation((selector: any) => {
-        if (selector === '.comic-row-wrapper') return [existingWrapper] as any;
-        if (selector === 'img') return images as any;
-        return [];
+      vi.mocked(container.querySelectorAll).mockImplementation((selector: string) => {
+        if (selector === '.comic-row-wrapper') return asNodeList([existingWrapper] as unknown as HTMLElement[]);
+        if (selector === 'img') return asNodeList(images);
+        return asNodeList([]);
       });
 
       fitImagesToViewport(container, 0, true);
@@ -520,66 +523,38 @@ describe('logic.js', () => {
       } as Metadata;
 
       vi.spyOn(Math, 'random').mockReturnValue(0.99); // Selects the last available (index 2 in filtered list)
-
-      const originalLocation = window.location;
-      // @ts-expect-error - testing purpose
-      delete window.location;
-      // @ts-expect-error - testing purpose
-      window.location = { href: '' };
+      setupLocationMock('');
 
       jumpToRandomWork(metadata);
 
       expect(window.location.href).toBe('http://example.com/3');
 
-      // @ts-expect-error - testing purpose
-      window.location = originalLocation;
       vi.spyOn(Math, 'random').mockRestore();
     });
 
     it('should do nothing if no related works are available', () => {
       const metadata = { title: '', tags: [], relatedWorks: [] } as Metadata;
-      const originalLocation = window.location;
-      // @ts-expect-error - testing purpose
-      delete window.location;
-      // @ts-expect-error - testing purpose
-      window.location = { href: 'stay' };
+      setupLocationMock('stay');
 
       jumpToRandomWork(metadata);
       expect(window.location.href).toBe('stay');
-
-      // @ts-expect-error - testing purpose
-      window.location = originalLocation;
     });
 
     it('should do nothing if all related works are private', () => {
       const metadata = {
         title: '', tags: [], relatedWorks: [{ href: 'p1', isPrivate: true, title: 't1', thumb: 't1.jpg' }]
       } as Metadata;
-      const originalLocation = window.location;
-      // @ts-expect-error - testing purpose
-      delete window.location;
-      // @ts-expect-error - testing purpose
-      window.location = { href: 'stay' };
+      setupLocationMock('stay');
 
       jumpToRandomWork(metadata);
       expect(window.location.href).toBe('stay');
-
-      // @ts-expect-error - testing purpose
-      window.location = originalLocation;
     });
 
     it('should do nothing if metadata is null', () => {
-      const originalLocation = window.location;
-      // @ts-expect-error - testing purpose
-      delete window.location;
-      // @ts-expect-error - testing purpose
-      window.location = { href: 'stay' };
+      setupLocationMock('stay');
 
       jumpToRandomWork(null as unknown as Metadata);
       expect(window.location.href).toBe('stay');
-
-      // @ts-expect-error - testing purpose
-      window.location = originalLocation;
     });
   });
 });
