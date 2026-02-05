@@ -53,6 +53,74 @@ describe('DefaultAdapter', () => {
     });
   });
 
+  describe('parseSearchResults', () => {
+    const parse = (html: string) => {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      return DefaultAdapter.parseSearchResults!(doc);
+    };
+
+    it('should extract results from div.post-list > a', () => {
+      const html = `
+        <div class="post-list">
+          <a href="/fanzine/100/">
+            <div class="post-list-image"><img src="/thumb/100.webp"></div>
+            <span>Title A</span>
+            <div class="post-list-time">2020-01-01</div>
+          </a>
+          <a href="/fanzine/200/">
+            <div class="post-list-image"><img src="/thumb/200.webp"></div>
+            <span>Title B</span>
+          </a>
+        </div>
+      `;
+      const result = parse(html);
+      expect(result.results).toEqual([
+        { title: 'Title A', href: '/fanzine/100/', thumb: '/thumb/100.webp' },
+        { title: 'Title B', href: '/fanzine/200/', thumb: '/thumb/200.webp' }
+      ]);
+    });
+
+    it('should extract totalCount from div.page-h > span', () => {
+      const html = `
+        <div class="page-h"><h3>検索</h3><h1>Keyword</h1><span>64,786件</span></div>
+        <div class="post-list"></div>
+      `;
+      const result = parse(html);
+      expect(result.totalCount).toBe('64,786件');
+    });
+
+    it('should return totalCount as null if div.page-h > span is absent', () => {
+      const html = `<div class="post-list"></div>`;
+      const result = parse(html);
+      expect(result.totalCount).toBeNull();
+    });
+
+    it('should extract nextPageUrl from a.nextpostslink inside div.wp-pagenavi', () => {
+      const html = `
+        <div class="post-list"></div>
+        <div class="wp-pagenavi" role="navigation">
+          <span class="current">1</span>
+          <a class="page larger" href="/page/2/?s=kw">2</a>
+          <a class="nextpostslink" rel="next" href="/page/2/?s=kw">›</a>
+        </div>
+      `;
+      const result = parse(html);
+      expect(result.nextPageUrl).toBe('/page/2/?s=kw');
+    });
+
+    it('should return nextPageUrl as null if wp-pagenavi or nextpostslink is absent', () => {
+      const html = `<div class="post-list"></div>`;
+      const result = parse(html);
+      expect(result.nextPageUrl).toBeNull();
+    });
+
+    it('should return empty results array when post-list has no children', () => {
+      const html = `<div class="post-list"></div>`;
+      const result = parse(html);
+      expect(result.results).toEqual([]);
+    });
+  });
+
   describe('getMetadata', () => {
     beforeEach(() => {
       vi.stubGlobal('document', {

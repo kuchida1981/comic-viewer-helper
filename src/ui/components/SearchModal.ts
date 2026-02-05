@@ -1,17 +1,79 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
+import { SearchResultsState } from '../../types';
 
 export interface SearchModalProps {
   onSearch: (query: string) => void;
   onClose: () => void;
+  searchResults: SearchResultsState | null;
 }
 
 export interface SearchModalComponent {
   el: HTMLElement;
   input: HTMLInputElement;
+  updateResults: (searchResults: SearchResultsState | null) => void;
 }
 
-export function createSearchModal({ onSearch, onClose }: SearchModalProps): SearchModalComponent {
+function createResultsSection(searchResults: SearchResultsState | null): HTMLElement {
+  const section = createElement('div', {
+    className: 'comic-helper-search-results-section'
+  });
+
+  if (!searchResults) return section;
+
+  const { results, totalCount, nextPageUrl } = searchResults;
+
+  const header = createElement('div', {
+    className: 'comic-helper-section-title'
+  });
+  header.textContent = totalCount
+    ? `${t('ui.searchResults')} ${totalCount}`
+    : t('ui.searchResults');
+  section.appendChild(header);
+
+  if (results.length === 0) {
+    section.appendChild(createElement('div', {
+      className: 'comic-helper-search-no-results',
+      textContent: t('ui.searchNoResults')
+    }));
+    return section;
+  }
+
+  const grid = createElement('div', {
+    className: 'comic-helper-search-result-grid'
+  });
+
+  results.forEach(item => {
+    const thumb = createElement('img', {
+      className: 'comic-helper-search-result-thumb',
+      attributes: { src: item.thumb, loading: 'lazy' }
+    });
+    const title = createElement('div', {
+      className: 'comic-helper-search-result-title',
+      textContent: item.title
+    });
+    const link = createElement('a', {
+      className: 'comic-helper-search-result-item',
+      attributes: { href: item.href, target: '_blank' },
+      events: { click: (e) => e.stopPropagation() }
+    }, [thumb, title]);
+    grid.appendChild(link);
+  });
+  section.appendChild(grid);
+
+  if (nextPageUrl) {
+    section.appendChild(createElement('a', {
+      className: 'comic-helper-search-more-link',
+      textContent: t('ui.searchMoreLink'),
+      attributes: { href: nextPageUrl, target: '_blank' },
+      events: { click: (e) => e.stopPropagation() }
+    }));
+  }
+
+  return section;
+}
+
+export function createSearchModal({ onSearch, onClose, searchResults }: SearchModalProps): SearchModalComponent {
   const input = createElement('input', {
     className: 'comic-helper-search-input',
     attributes: {
@@ -44,9 +106,11 @@ export function createSearchModal({ onSearch, onClose }: SearchModalProps): Sear
     }
   }, [input, submitBtn]);
 
+  let resultsSection = createResultsSection(searchResults);
+
   const container = createElement('div', {
     className: 'comic-helper-search-container'
-  }, [form]);
+  }, [form, resultsSection]);
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -71,6 +135,7 @@ export function createSearchModal({ onSearch, onClose }: SearchModalProps): Sear
       click: (e) => e.stopPropagation()
     }
   }, [closeBtn, title, container]);
+  content.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
 
   const overlay = createElement('div', {
     className: 'comic-helper-modal-overlay',
@@ -78,12 +143,18 @@ export function createSearchModal({ onSearch, onClose }: SearchModalProps): Sear
       click: onClose
     }
   }, [content]);
+  overlay.addEventListener('wheel', (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
 
   // Autofocus doesn't always work when dynamically added
   setTimeout(() => input.focus(), 50);
 
   return {
     el: overlay,
-    input
+    input,
+    updateResults: (newResults: SearchResultsState | null) => {
+      const newSection = createResultsSection(newResults);
+      container.replaceChild(newSection, resultsSection);
+      resultsSection = newSection;
+    }
   };
 }

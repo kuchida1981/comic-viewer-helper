@@ -30,7 +30,8 @@ describe('Store', () => {
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
       isSearchModalOpen: false,
-      isLoading: false
+      isLoading: false,
+      searchResults: null
     });
   });
 

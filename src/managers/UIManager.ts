@@ -5,7 +5,7 @@ import { createSpreadControls, SpreadControlsComponent } from '../ui/components/
 import { createNavigationButtons } from '../ui/components/NavigationButtons';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
-import { createSearchModal } from '../ui/components/SearchModal';
+import { createSearchModal, SearchModalComponent } from '../ui/components/SearchModal';
 import { createProgressBar, ProgressBarComponent } from '../ui/components/ProgressBar';
 import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
@@ -31,7 +31,7 @@ export class UIManager {
   private draggable: Draggable | null;
   private modalEl: HTMLElement | null;
   private helpModalEl: HTMLElement | null;
-  private searchModalEl: HTMLElement | null;
+  private searchModalComp: SearchModalComponent | null;
 
   constructor(adapter: SiteAdapter, store: Store, navigator: Navigator) {
     this.adapter = adapter;
@@ -47,7 +47,7 @@ export class UIManager {
     this.draggable = null;
     this.modalEl = null;
     this.helpModalEl = null;
-    this.searchModalEl = null;
+    this.searchModalComp = null;
 
     this.updateUI = this.updateUI.bind(this);
     this.init = this.init.bind(this);
@@ -177,19 +177,41 @@ export class UIManager {
       })
     );
 
-    this.searchModalEl = this._manageModal(
-      isSearchModalOpen,
-      this.searchModalEl,
-      () => createSearchModal({
-        onSearch: (query: string) => {
-          this.store.setState({ isSearchModalOpen: false });
-          if (this.adapter.getSearchUrl) {
-            window.location.href = this.adapter.getSearchUrl(query);
+    if (isSearchModalOpen) {
+      if (!this.searchModalComp) {
+        const { searchResults } = state;
+        this.searchModalComp = createSearchModal({
+          searchResults,
+          onSearch: (query: string) => {
+            if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
+            const url = this.adapter.getSearchUrl(query);
+            fetch(url)
+              .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.text();
+              })
+              .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const results = this.adapter.parseSearchResults!(doc);
+                this.store.setState({ searchResults: results });
+                this.searchModalComp?.updateResults(results);
+              })
+              .catch(error => {
+                console.error('Failed to fetch search results:', error);
+              });
+          },
+          onClose: () => {
+            this.store.setState({ isSearchModalOpen: false, searchResults: null });
           }
-        },
-        onClose: () => this.store.setState({ isSearchModalOpen: false })
-      })
-    );
+        });
+        document.body.appendChild(this.searchModalComp.el);
+      }
+    } else {
+      if (this.searchModalComp) {
+        this.searchModalComp.el.remove();
+        this.searchModalComp = null;
+      }
+    }
 
     this.modalEl = this._manageModal(
       isMetadataModalOpen,

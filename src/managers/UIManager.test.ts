@@ -57,7 +57,7 @@ vi.mock('../ui/components/HelpModal.js', () => ({
   createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/SearchModal.js', () => ({
-  createSearchModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
+  createSearchModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, input: {}, updateResults: vi.fn() }))
 }));
 vi.mock('../ui/components/ProgressBar.js', () => ({
   createProgressBar: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
@@ -87,7 +87,8 @@ describe('UIManager', () => {
         isHelpModalOpen: false,
         isSearchModalOpen: false,
         spreadOffset: 0,
-        isLoading: false
+        isLoading: false,
+        searchResults: null
       }),
       setState: vi.fn(),
       subscribe: vi.fn()
@@ -159,7 +160,7 @@ describe('UIManager', () => {
   });
 
   it('should handle modals and their onClose callbacks', () => {
-    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0, searchResults: null });
     uiManager.updateUI();
     
     // Test onClose
@@ -170,31 +171,40 @@ describe('UIManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false });
 
     (createSearchModal as unknown as Mock).mock.calls[0][0].onClose();
-    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
+    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false, searchResults: null });
     
     // Close modals in state and update UI
-    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, metadata: {}, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, metadata: {}, currentVisibleIndex: 0, searchResults: null });
     uiManager.updateUI();
   });
 
-  it('should handle search modal redirect', () => {
+  it('should handle search modal fetch and parse', async () => {
+    const mockResults = { results: [{ title: 'A', href: '/a', thumb: '/a.jpg' }], totalCount: '1件', nextPageUrl: null };
     adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com?q=test');
-    
-    // Mock window.location properly
-    const locationMock = { href: '' };
-    vi.stubGlobal('location', locationMock);
-    // Also stub window.location to be safe
-    vi.stubGlobal('window', { ...window, location: locationMock });
+    adapter.parseSearchResults = vi.fn().mockReturnValue(mockResults);
 
-    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0 });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('<html></html>') });
+    vi.stubGlobal('fetch', fetchMock);
+
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0, searchResults: null });
     uiManager.updateUI();
 
     const onSearch = (createSearchModal as unknown as Mock).mock.calls[0][0].onSearch;
     onSearch('test');
 
-    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
     expect(adapter.getSearchUrl).toHaveBeenCalledWith('test');
-    expect(window.location.href).toBe('http://search.com?q=test');
+    expect(fetchMock).toHaveBeenCalledWith('http://search.com?q=test');
+
+    // fetch → res.ok チェック+res.text() → パース の3段チェインを消費
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(adapter.parseSearchResults).toHaveBeenCalled();
+    expect(store.setState).toHaveBeenCalledWith({ searchResults: mockResults });
+
+    vi.unstubAllGlobals();
   });
 
   it('should handle resize for draggable', () => {

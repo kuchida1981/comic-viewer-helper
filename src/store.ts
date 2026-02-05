@@ -1,4 +1,4 @@
-import { Metadata } from './types';
+import { Metadata, SearchResultsState } from './types';
 
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
@@ -22,6 +22,7 @@ export interface StoreState {
   isHelpModalOpen: boolean;
   isSearchModalOpen: boolean;
   isLoading: boolean;
+  searchResults: SearchResultsState | null;
 }
 
 export type StoreListener = (state: StoreState) => void;
@@ -45,7 +46,8 @@ export class Store {
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
       isSearchModalOpen: false,
-      isLoading: false
+      isLoading: false,
+      searchResults: null
     };
     this.listeners = [];
   }

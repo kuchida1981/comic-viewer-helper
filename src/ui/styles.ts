@@ -344,6 +344,66 @@ export const styles = `
     background: #45a049;
   }
 
+  /* Search Results Styles */
+  .comic-helper-search-results-section {
+    margin-top: 4px;
+  }
+
+  .comic-helper-search-no-results {
+    color: #888;
+    font-size: 14px;
+    padding: 12px 0;
+  }
+
+  .comic-helper-search-result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .comic-helper-search-result-item {
+    text-decoration: none;
+    color: #ccc;
+    font-size: 11px;
+    transition: transform 0.2s;
+  }
+  .comic-helper-search-result-item:hover {
+    transform: translateY(-4px);
+  }
+
+  .comic-helper-search-result-thumb {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 4px;
+    background: #222;
+    margin-bottom: 6px;
+  }
+
+  .comic-helper-search-result-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
+
+  .comic-helper-search-more-link {
+    display: block;
+    margin-top: 16px;
+    color: #4CAF50;
+    font-size: 13px;
+    text-decoration: none;
+    text-align: center;
+    padding: 8px 0;
+    border-top: 1px solid #333;
+    transition: color 0.2s;
+  }
+  .comic-helper-search-more-link:hover {
+    color: #6fcf73;
+  }
+
   /* Help Modal Styles */
   .comic-helper-shortcut-list {
     display: flex;
