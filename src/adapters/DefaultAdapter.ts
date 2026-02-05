@@ -1,4 +1,4 @@
-import { SiteAdapter, Metadata } from '../types';
+import { SiteAdapter, Metadata, SearchResultsState } from '../types';
 
 const CONTAINER_SELECTOR = '#post-comic';
 const TAG_TYPES = ['artist', 'character', 'circle', 'fanzine', 'genre', 'magazine', 'parody'];
@@ -69,5 +69,21 @@ export const DefaultAdapter: SiteAdapter = {
     });
 
     return { title, tags, relatedWorks };
+  },
+  parseSearchResults: (doc: Document): SearchResultsState => {
+    const results = Array.from(doc.querySelectorAll<HTMLAnchorElement>('div.post-list > a')).map(a => {
+      const img = a.querySelector<HTMLImageElement>('.post-list-image img');
+      const titleEl = a.querySelector<HTMLSpanElement>(':scope > span');
+      return {
+        title: titleEl?.textContent?.trim() || '',
+        href: a.getAttribute('href') || '',
+        thumb: img?.getAttribute('src') || ''
+      };
+    });
+
+    const totalCount = doc.querySelector<HTMLElement>('div.page-h > span')?.textContent?.trim() || null;
+    const nextPageUrl = doc.querySelector<HTMLAnchorElement>('div.wp-pagenavi a.nextpostslink')?.getAttribute('href') || null;
+
+    return { results, totalCount, nextPageUrl };
   }
 };

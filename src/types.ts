@@ -17,6 +17,18 @@ export interface Metadata {
   relatedWorks: RelatedWork[];
 }
 
+export interface SearchResult {
+  title: string;
+  href: string;
+  thumb: string;
+}
+
+export interface SearchResultsState {
+  results: SearchResult[];
+  totalCount: string | null;
+  nextPageUrl: string | null;
+}
+
 export interface SearchConfig {
   baseUrl: string;
   queryParam: string;
@@ -29,4 +41,5 @@ export interface SiteAdapter {
   getMetadata?: () => Metadata;
   getSearchUrl?: (query: string) => string;
   searchConfig?: SearchConfig;
+  parseSearchResults?: (doc: Document) => SearchResultsState;
 }

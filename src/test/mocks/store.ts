@@ -12,6 +12,7 @@ const DEFAULT_STATE: StoreState = {
   isHelpModalOpen: false,
   isSearchModalOpen: false,
   isLoading: false,
+  searchResults: null,
 };
 
 /**
