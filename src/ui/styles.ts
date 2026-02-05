@@ -389,19 +389,50 @@ export const styles = `
     line-height: 1.4;
   }
 
-  .comic-helper-search-more-link {
-    display: block;
-    margin-top: 16px;
-    color: #4CAF50;
-    font-size: 13px;
-    text-decoration: none;
-    text-align: center;
-    padding: 8px 0;
+  .comic-helper-search-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 20px;
+    padding-top: 16px;
     border-top: 1px solid #333;
-    transition: color 0.2s;
+    justify-content: center;
   }
-  .comic-helper-search-more-link:hover {
-    color: #6fcf73;
+
+  .comic-helper-search-page-btn {
+    background: #333;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    min-width: 32px;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-search-page-btn:hover:not(:disabled) {
+    background: #444;
+    color: #fff;
+    border-color: #666;
+  }
+
+  .comic-helper-search-page-btn.active {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+    cursor: default;
+  }
+
+  .comic-helper-search-page-btn:disabled:not(.active) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .comic-helper-search-page-btn.type-next,
+  .comic-helper-search-page-btn.type-prev {
+    font-weight: bold;
+    padding: 4px 12px;
   }
 
   .comic-helper-search-updating {

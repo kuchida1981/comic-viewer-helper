@@ -187,6 +187,7 @@ export class UIManager {
           searchResults,
           searchQuery,
           onSearch: (query: string) => this._performSearch(query),
+          onPageChange: (url: string) => this._performSearch(url),
           onClose: () => {
             this.store.setState({ isSearchModalOpen: false });
           }
@@ -299,16 +300,27 @@ export class UIManager {
   /**
    * Perform search and update store/cache
    */
-  private async _performSearch(query: string, silent = false): Promise<void> {
+  private async _performSearch(queryOrUrl: string, silent = false): Promise<void> {
     if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
 
-    if (!silent) {
-      this.store.setState({ searchQuery: query });
+    let url: string;
+    let query: string;
+
+    if (queryOrUrl.startsWith('http')) {
+      url = queryOrUrl;
+      query = this.store.getState().searchQuery;
     } else {
+      query = queryOrUrl;
+      url = this.adapter.getSearchUrl(query);
+      if (!silent) {
+        this.store.setState({ searchQuery: query });
+      }
+    }
+
+    if (silent || queryOrUrl.startsWith('http')) {
       this.searchModalComp?.setUpdating(true);
     }
 
-    const url = this.adapter.getSearchUrl(query);
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -328,9 +340,7 @@ export class UIManager {
     } catch (error) {
       console.error('Failed to fetch search results:', error);
     } finally {
-      if (silent) {
-        this.searchModalComp?.setUpdating(false);
-      }
+      this.searchModalComp?.setUpdating(false);
     }
   }
 }
