@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.ce2033d
+// @version         1.3.0-unstable.086049e
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -53,10 +53,9 @@
     }
     setState(patch) {
       let changed = false;
-      for (const key in patch) {
-        const k = key;
-        if (this.state[k] !== patch[k]) {
-          this.state[k] = patch[k];
+      for (const key of Object.keys(patch)) {
+        if (this.state[key] !== patch[key]) {
+          this._applyPatch(key, patch[key]);
           changed = true;
         }
       }
@@ -80,6 +79,9 @@
     }
     _notify() {
       this.listeners.forEach((callback) => callback(this.getState()));
+    }
+    _applyPatch(key, value) {
+      this.state[key] = value;
     }
     _loadGuiPos() {
       try {
@@ -1154,8 +1156,8 @@
     let result = MESSAGES[currentLang];
     let fallback = MESSAGES["en"];
     for (const key of keys) {
-      result = result ? result[key] : void 0;
-      fallback = fallback ? fallback[key] : void 0;
+      result = typeof result === "object" && result !== null ? result[key] : void 0;
+      fallback = typeof fallback === "object" && fallback !== null ? fallback[key] : void 0;
     }
     const value = result ?? fallback ?? path;
     if (typeof value === "object") {
@@ -1380,7 +1382,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.ce2033d"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.086049e"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
