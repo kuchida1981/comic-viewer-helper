@@ -54,11 +54,9 @@ export class Store {
 
   setState(patch: Partial<StoreState>): void {
     let changed = false;
-    for (const key in patch) {
-      const k = key as keyof StoreState;
-      if (this.state[k] !== patch[k]) {
-        // @ts-expect-error - Dynamic assignment to state
-        this.state[k] = patch[k];
+    for (const key of Object.keys(patch) as (keyof StoreState)[]) {
+      if (this.state[key] !== patch[key]) {
+        this._applyPatch(key, patch[key]!);
         changed = true;
       }
     }
@@ -88,6 +86,10 @@ export class Store {
 
   private _notify(): void {
     this.listeners.forEach(callback => callback(this.getState()));
+  }
+
+  private _applyPatch<K extends keyof StoreState>(key: K, value: StoreState[K]): void {
+    this.state[key] = value;
   }
 
   private _loadGuiPos(): GuiPos | null {
