@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.17d426c
+// @version         1.3.0-unstable.d8d52f0
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -25,7 +25,9 @@
   const STORAGE_KEYS = {
     DUAL_VIEW: "comic-viewer-helper-dual-view",
     GUI_POS: "comic-viewer-helper-gui-pos",
-    ENABLED: "comic-viewer-helper-enabled"
+    ENABLED: "comic-viewer-helper-enabled",
+    SEARCH_QUERY: "comic-viewer-helper-search-query",
+    SEARCH_CACHE: "comic-viewer-helper-search-cache"
   };
   class Store {
     state;
@@ -46,7 +48,9 @@
         isHelpModalOpen: false,
         isSearchModalOpen: false,
         isLoading: false,
-        searchResults: null
+        searchResults: null,
+        searchQuery: this._loadSearchQuery(),
+        searchCache: this._loadSearchCache()
       };
       this.listeners = [];
     }
@@ -71,6 +75,17 @@
       if ("guiPos" in patch) {
         localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
       }
+      const host = window.location.hostname;
+      if ("searchQuery" in patch) {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
+      }
+      if ("searchCache" in patch) {
+        try {
+          localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
+        } catch (e) {
+          console.warn("Failed to save search cache to localStorage:", e);
+        }
+      }
       this._notify();
     }
     subscribe(callback) {
@@ -84,6 +99,19 @@
     }
     _applyPatch(key, value) {
       this.state[key] = value;
+    }
+    _loadSearchCache() {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
+        return saved ? JSON.parse(saved) : null;
+      } catch {
+        return null;
+      }
+    }
+    _loadSearchQuery() {
+      const host = window.location.hostname;
+      return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
     }
     _loadGuiPos() {
       try {
@@ -980,6 +1008,12 @@
     color: #6fcf73;
   }
 
+  .comic-helper-search-updating {
+    margin-left: 8px;
+    font-size: 0.8em;
+    color: #888;
+  }
+
   /* Help Modal Styles */
   .comic-helper-shortcut-list {
     display: flex;
@@ -1528,7 +1562,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.17d426c"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.d8d52f0"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1723,13 +1757,14 @@
     }
     return section;
   }
-  function createSearchModal({ onSearch, onClose, searchResults }) {
+  function createSearchModal({ onSearch, onClose, searchResults, searchQuery }) {
     const input = createElement("input", {
       className: "comic-helper-search-input",
       attributes: {
         type: "text",
         placeholder: t("ui.searchPlaceholder"),
-        autofocus: "true"
+        autofocus: "true",
+        value: searchQuery || ""
       }
     });
     const submitBtn = createElement("button", {
@@ -1771,6 +1806,12 @@
       className: "comic-helper-modal-title",
       textContent: t("ui.search")
     });
+    const updatingIndicator = createElement("span", {
+      className: "comic-helper-search-updating",
+      textContent: "...",
+      style: { display: "none" }
+    });
+    title.appendChild(updatingIndicator);
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
@@ -1796,6 +1837,9 @@
         const newSection = createResultsSection(newResults);
         container.replaceChild(newSection, resultsSection);
         resultsSection = newSection;
+      },
+      setUpdating: (updating) => {
+        updatingIndicator.style.display = updating ? "inline" : "none";
       }
     };
   }
@@ -1964,6 +2008,7 @@
       document.removeEventListener("mouseup", this._onMouseUp);
     }
   }
+  const SEARCH_TTL = 60 * 60 * 1e3;
   class UIManager {
     adapter;
     store;
@@ -2109,29 +2154,25 @@
       );
       if (isSearchModalOpen) {
         if (!this.searchModalComp) {
-          const { searchResults } = state;
+          const { searchResults, searchQuery, searchCache } = state;
           this.searchModalComp = createSearchModal({
             searchResults,
-            onSearch: (query) => {
-              if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
-              const url = this.adapter.getSearchUrl(query);
-              fetch(url).then((res) => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.text();
-              }).then((html) => {
-                const doc = new DOMParser().parseFromString(html, "text/html");
-                const results = this.adapter.parseSearchResults(doc);
-                this.store.setState({ searchResults: results });
-                this.searchModalComp?.updateResults(results);
-              }).catch((error) => {
-                console.error("Failed to fetch search results:", error);
-              });
-            },
+            searchQuery,
+            onSearch: (query) => this._performSearch(query),
             onClose: () => {
-              this.store.setState({ isSearchModalOpen: false, searchResults: null });
+              this.store.setState({ isSearchModalOpen: false });
             }
           });
           document.body.appendChild(this.searchModalComp.el);
+          if (searchCache && searchCache.query === searchQuery) {
+            this.store.setState({ searchResults: searchCache.results });
+            this.searchModalComp.updateResults(searchCache.results);
+            if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
+              void this._performSearch(searchQuery, true);
+            }
+          } else if (searchQuery) {
+            void this._performSearch(searchQuery);
+          }
         }
       } else {
         if (this.searchModalComp) {
@@ -2204,6 +2245,40 @@
         }
       }
       return modalEl;
+    }
+    /**
+     * Perform search and update store/cache
+     */
+    async _performSearch(query, silent = false) {
+      if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
+      if (!silent) {
+        this.store.setState({ searchQuery: query });
+      } else {
+        this.searchModalComp?.setUpdating(true);
+      }
+      const url = this.adapter.getSearchUrl(query);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const results = this.adapter.parseSearchResults(doc);
+        this.store.setState({
+          searchResults: results,
+          searchCache: {
+            query,
+            results,
+            fetchedAt: Date.now()
+          }
+        });
+        this.searchModalComp?.updateResults(results);
+      } catch (error) {
+        console.error("Failed to fetch search results:", error);
+      } finally {
+        if (silent) {
+          this.searchModalComp?.setUpdating(false);
+        }
+      }
     }
   }
   const CLICK_THRESHOLD_PX = 5;
