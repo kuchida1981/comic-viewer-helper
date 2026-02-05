@@ -70,11 +70,12 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
     });
 
     pagination.forEach(item => {
+      const label = item.type === 'next' ? t('ui.goNext') : item.type === 'prev' ? t('ui.goPrev') : item.label;
       const btn = createElement('button', {
         className: `comic-helper-search-page-btn${item.isCurrent ? ' active' : ''} type-${item.type}`,
         textContent: item.label,
         attributes: {
-          title: item.label,
+          title: label,
           ...( (!item.url || item.isCurrent) ? { disabled: 'true' } : {} )
         },
         events: {
@@ -182,6 +183,7 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
       const newSection = createResultsSection(newResults, onPageChange);
       container.replaceChild(newSection, resultsSection);
       resultsSection = newSection;
+      content.scrollTop = 0;
     },
     setUpdating: (updating: boolean) => {
       updatingIndicator.style.display = updating ? 'inline' : 'none';

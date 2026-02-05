@@ -306,7 +306,9 @@ export class UIManager {
     let url: string;
     let query: string;
 
-    if (queryOrUrl.startsWith('http')) {
+    const isUrl = queryOrUrl.startsWith('http') || queryOrUrl.startsWith('/');
+
+    if (isUrl) {
       url = queryOrUrl;
       query = this.store.getState().searchQuery;
     } else {
@@ -317,7 +319,7 @@ export class UIManager {
       }
     }
 
-    if (silent || queryOrUrl.startsWith('http')) {
+    if (silent || isUrl) {
       this.searchModalComp?.setUpdating(true);
     }
 
