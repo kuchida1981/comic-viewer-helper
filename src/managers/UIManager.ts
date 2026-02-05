@@ -17,6 +17,8 @@ import { Navigator } from './Navigator';
 import { SiteAdapter } from '../types';
 
 
+const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
+
 export class UIManager {
   private adapter: SiteAdapter;
   private store: Store;
@@ -179,32 +181,32 @@ export class UIManager {
 
     if (isSearchModalOpen) {
       if (!this.searchModalComp) {
-        const { searchResults } = state;
+        const { searchResults, searchQuery, searchCache } = state;
+
         this.searchModalComp = createSearchModal({
           searchResults,
-          onSearch: (query: string) => {
-            if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
-            const url = this.adapter.getSearchUrl(query);
-            fetch(url)
-              .then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.text();
-              })
-              .then(html => {
-                const doc = new DOMParser().parseFromString(html, 'text/html');
-                const results = this.adapter.parseSearchResults!(doc);
-                this.store.setState({ searchResults: results });
-                this.searchModalComp?.updateResults(results);
-              })
-              .catch(error => {
-                console.error('Failed to fetch search results:', error);
-              });
-          },
+          searchQuery,
+          onSearch: (query: string) => this._performSearch(query),
           onClose: () => {
-            this.store.setState({ isSearchModalOpen: false, searchResults: null });
+            this.store.setState({ isSearchModalOpen: false });
           }
         });
         document.body.appendChild(this.searchModalComp.el);
+
+        // SWR logic
+        if (searchCache && searchCache.query === searchQuery) {
+          // If query matches cache, show it immediately
+          this.store.setState({ searchResults: searchCache.results });
+          this.searchModalComp.updateResults(searchCache.results);
+
+          // Check if expired
+          if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
+            void this._performSearch(searchQuery, true);
+          }
+        } else if (searchQuery) {
+          // Perform search if cache doesn't exist or query is different
+          void this._performSearch(searchQuery);
+        }
       }
     } else {
       if (this.searchModalComp) {
@@ -292,5 +294,43 @@ export class UIManager {
       }
     }
     return modalEl;
+  }
+
+  /**
+   * Perform search and update store/cache
+   */
+  private async _performSearch(query: string, silent = false): Promise<void> {
+    if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
+
+    if (!silent) {
+      this.store.setState({ searchQuery: query });
+    } else {
+      this.searchModalComp?.setUpdating(true);
+    }
+
+    const url = this.adapter.getSearchUrl(query);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const results = this.adapter.parseSearchResults!(doc);
+
+      this.store.setState({
+        searchResults: results,
+        searchCache: {
+          query,
+          results,
+          fetchedAt: Date.now()
+        }
+      });
+      this.searchModalComp?.updateResults(results);
+    } catch (error) {
+      console.error('Failed to fetch search results:', error);
+    } finally {
+      if (silent) {
+        this.searchModalComp?.setUpdating(false);
+      }
+    }
   }
 }

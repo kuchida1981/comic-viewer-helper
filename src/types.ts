@@ -29,6 +29,12 @@ export interface SearchResultsState {
   nextPageUrl: string | null;
 }
 
+export interface SearchCache {
+  query: string;
+  results: SearchResultsState;
+  fetchedAt: number;
+}
+
 export interface SearchConfig {
   baseUrl: string;
   queryParam: string;

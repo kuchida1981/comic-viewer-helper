@@ -57,7 +57,7 @@ vi.mock('../ui/components/HelpModal.js', () => ({
   createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/SearchModal.js', () => ({
-  createSearchModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, input: {}, updateResults: vi.fn() }))
+  createSearchModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, input: {}, updateResults: vi.fn(), setUpdating: vi.fn() }))
 }));
 vi.mock('../ui/components/ProgressBar.js', () => ({
   createProgressBar: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
@@ -88,7 +88,9 @@ describe('UIManager', () => {
         isSearchModalOpen: false,
         spreadOffset: 0,
         isLoading: false,
-        searchResults: null
+        searchResults: null,
+        searchQuery: '',
+        searchCache: null
       }),
       setState: vi.fn(),
       subscribe: vi.fn()
@@ -171,7 +173,7 @@ describe('UIManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false });
 
     (createSearchModal as unknown as Mock).mock.calls[0][0].onClose();
-    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false, searchResults: null });
+    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
     
     // Close modals in state and update UI
     (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, metadata: {}, currentVisibleIndex: 0, searchResults: null });
@@ -202,7 +204,61 @@ describe('UIManager', () => {
     await Promise.resolve();
 
     expect(adapter.parseSearchResults).toHaveBeenCalled();
-    expect(store.setState).toHaveBeenCalledWith({ searchResults: mockResults });
+    expect(store.setState).toHaveBeenCalledWith({ searchQuery: 'test' });
+    expect(store.setState).toHaveBeenCalledWith({
+      searchResults: mockResults,
+      searchCache: {
+        query: 'test',
+        results: mockResults,
+        fetchedAt: expect.any(Number)
+      }
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('should handle SWR: show cache immediately and fetch if expired', async () => {
+    const oldCache = {
+      query: 'test',
+      results: { results: [{ title: 'Old', href: '/old', thumb: '/old.jpg' }], totalCount: '1', nextPageUrl: null },
+      fetchedAt: Date.now() - 5000000 // Expired (> 1 hour)
+    };
+    const newResults = { results: [{ title: 'New', href: '/new', thumb: '/new.jpg' }], totalCount: '1', nextPageUrl: null };
+    
+    adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com?q=test');
+    adapter.parseSearchResults = vi.fn().mockReturnValue(newResults);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('<html></html>') });
+    vi.stubGlobal('fetch', fetchMock);
+
+    (store.getState as Mock).mockReturnValue({ 
+      enabled: true, 
+      isSearchModalOpen: true, 
+      metadata: {}, 
+      currentVisibleIndex: 0, 
+      searchResults: null,
+      searchQuery: 'test',
+      searchCache: oldCache
+    });
+    
+    uiManager.updateUI();
+
+    // Should show cache immediately
+    expect(store.setState).toHaveBeenCalledWith({ searchResults: oldCache.results });
+    expect(createSearchModal).toHaveBeenCalled();
+    const modal = (createSearchModal as unknown as Mock).mock.results[0].value;
+    expect(modal.updateResults).toHaveBeenCalledWith(oldCache.results);
+
+    // fetch should have been called (SWR)
+    expect(fetchMock).toHaveBeenCalled();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Should update with new results
+    expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({ searchResults: newResults }));
+    expect(modal.updateResults).toHaveBeenCalledWith(newResults);
 
     vi.unstubAllGlobals();
   });

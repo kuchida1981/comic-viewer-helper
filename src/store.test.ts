@@ -31,7 +31,9 @@ describe('Store', () => {
       isHelpModalOpen: false,
       isSearchModalOpen: false,
       isLoading: false,
-      searchResults: null
+      searchResults: null,
+      searchQuery: '',
+      searchCache: null
     });
   });
 
@@ -55,6 +57,24 @@ describe('Store', () => {
     expect(store.getState().isDualViewEnabled).toBe(true);
     expect(localStorage.getItem(STORAGE_KEYS.ENABLED)).toBe('false');
     expect(localStorage.getItem(STORAGE_KEYS.DUAL_VIEW)).toBe('true');
+  });
+
+  it('should persist search query and cache', () => {
+    const store = new Store();
+    const cache = {
+      query: 'test',
+      results: { results: [], totalCount: '0', nextPageUrl: null },
+      fetchedAt: Date.now()
+    };
+    store.setState({ searchQuery: 'test', searchCache: cache });
+
+    const host = window.location.hostname;
+    expect(localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`)).toBe('test');
+    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`) || '{}')).toEqual(cache);
+    
+    const store2 = new Store();
+    expect(store2.getState().searchQuery).toBe('test');
+    expect(store2.getState().searchCache).toEqual(cache);
   });
 
   it('should notify subscribers on state change', () => {

@@ -1,9 +1,11 @@
-import { Metadata, SearchResultsState } from './types';
+import { Metadata, SearchResultsState, SearchCache } from './types';
 
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
   GUI_POS: 'comic-viewer-helper-gui-pos',
-  ENABLED: 'comic-viewer-helper-enabled'
+  ENABLED: 'comic-viewer-helper-enabled',
+  SEARCH_QUERY: 'comic-viewer-helper-search-query',
+  SEARCH_CACHE: 'comic-viewer-helper-search-cache'
 } as const;
 
 export interface GuiPos {
@@ -23,6 +25,8 @@ export interface StoreState {
   isSearchModalOpen: boolean;
   isLoading: boolean;
   searchResults: SearchResultsState | null;
+  searchQuery: string;
+  searchCache: SearchCache | null;
 }
 
 export type StoreListener = (state: StoreState) => void;
@@ -47,7 +51,9 @@ export class Store {
       isHelpModalOpen: false,
       isSearchModalOpen: false,
       isLoading: false,
-      searchResults: null
+      searchResults: null,
+      searchQuery: this._loadSearchQuery(),
+      searchCache: this._loadSearchCache()
     };
     this.listeners = [];
   }
@@ -78,6 +84,18 @@ export class Store {
       localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
     }
 
+    const host = window.location.hostname;
+    if ('searchQuery' in patch) {
+      localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery!);
+    }
+    if ('searchCache' in patch) {
+      try {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
+      } catch (e) {
+        console.warn('Failed to save search cache to localStorage:', e);
+      }
+    }
+
     this._notify();
   }
 
@@ -94,6 +112,21 @@ export class Store {
 
   private _applyPatch<K extends keyof StoreState>(key: K, value: StoreState[K]): void {
     this.state[key] = value;
+  }
+
+  private _loadSearchCache(): SearchCache | null {
+    try {
+      const host = window.location.hostname;
+      const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private _loadSearchQuery(): string {
+    const host = window.location.hostname;
+    return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || '';
   }
 
   private _loadGuiPos(): GuiPos | null {

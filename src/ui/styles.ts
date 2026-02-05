@@ -404,6 +404,12 @@ export const styles = `
     color: #6fcf73;
   }
 
+  .comic-helper-search-updating {
+    margin-left: 8px;
+    font-size: 0.8em;
+    color: #888;
+  }
+
   /* Help Modal Styles */
   .comic-helper-shortcut-list {
     display: flex;
