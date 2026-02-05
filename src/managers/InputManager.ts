@@ -97,13 +97,17 @@ export class InputManager {
 
   onKeyDown(e: KeyboardEvent): void {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
 
     // Handle Escape for all modals
     if (e.key === 'Escape') {
-      if (isMetadataModalOpen || isHelpModalOpen) {
+      if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
         e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
+        this.store.setState({
+          isMetadataModalOpen: false,
+          isHelpModalOpen: false,
+          isSearchModalOpen: false
+        });
         return;
       }
     }
@@ -121,14 +125,21 @@ export class InputManager {
       });
     };
 
-    // Allow toggling help even if already open
+    // Allow toggling help/search even if already open
     if (isKey('help') && isHelpModalOpen) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: false });
       return;
     }
+    if (isKey('search') && isSearchModalOpen) {
+      e.preventDefault();
+      // Already open, usually focuses automatically, but we can toggle it off if needed.
+      // Standard behavior for / is often "focus if not focused", but here we toggle for consistency.
+      this.store.setState({ isSearchModalOpen: false });
+      return;
+    }
 
-    if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
+    if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || !enabled) return;
 
     if (isKey('nextPage')) {
       e.preventDefault();
@@ -149,6 +160,9 @@ export class InputManager {
     } else if (isKey('help')) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
+    } else if (isKey('search')) {
+      e.preventDefault();
+      this.store.setState({ isSearchModalOpen: true });
     } else if (isKey('fullscreen')) {
       e.preventDefault();
       if (!document.documentElement.requestFullscreen) return;
