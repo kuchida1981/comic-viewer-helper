@@ -1,7 +1,8 @@
 # state-management Specification
 
 ## Purpose
-TBD - created by archiving change refactor-main-js. Update Purpose after archive.
+アプリケーション全体の状態を一元管理し、永続化が必要な設定を同期・復元することで、一貫したユーザー体験を提供します。
+
 ## Requirements
 ### Requirement: 状態の一元管理と永続化
 Store はアプリケーションのすべての重要な状態を保持し、変更が加えられた際には自動的に `localStorage` へ永続化し、登録されたリスナーへ通知しなければならない (MUST)。状態の定義には TypeScript のインターフェースを用い、型安全なアクセスを保証する。
@@ -9,6 +10,10 @@ Store はアプリケーションのすべての重要な状態を保持し、�
 #### Scenario: 型安全な状態更新
 - **WHEN** `Store.setState` を呼び出すとき
 - **THEN** 渡されたオブジェクトのキーと値が `StoreState` 型と一致しているかコンパイル時に検証される
+
+#### Scenario: 検索状態の永続化
+- **WHEN** 検索キーワードまたは検索キャッシュが更新された時
+- **THEN** それらのデータが `localStorage` に保存されること
 
 ### Requirement: 初期状態のロード
 Store は初期化時に `localStorage` から保存された状態を読み込み、存在しない場合はデフォルト値を適用しなければならない (MUST)。
