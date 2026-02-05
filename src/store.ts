@@ -1,9 +1,11 @@
-import { Metadata, SearchResultsState } from './types';
+import { Metadata, SearchResultsState, SearchCache } from './types';
 
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
   GUI_POS: 'comic-viewer-helper-gui-pos',
-  ENABLED: 'comic-viewer-helper-enabled'
+  ENABLED: 'comic-viewer-helper-enabled',
+  SEARCH_QUERY: 'comic-viewer-helper-search-query',
+  SEARCH_CACHE: 'comic-viewer-helper-search-cache'
 } as const;
 
 export interface GuiPos {
@@ -23,6 +25,8 @@ export interface StoreState {
   isSearchModalOpen: boolean;
   isLoading: boolean;
   searchResults: SearchResultsState | null;
+  searchQuery: string;
+  searchCache: SearchCache | null;
 }
 
 export type StoreListener = (state: StoreState) => void;
@@ -47,7 +51,9 @@ export class Store {
       isHelpModalOpen: false,
       isSearchModalOpen: false,
       isLoading: false,
-      searchResults: null
+      searchResults: null,
+      searchQuery: localStorage.getItem(STORAGE_KEYS.SEARCH_QUERY) || '',
+      searchCache: this._loadSearchCache()
     };
     this.listeners = [];
   }
@@ -77,6 +83,12 @@ export class Store {
     if ('guiPos' in patch) {
       localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
     }
+    if ('searchQuery' in patch) {
+      localStorage.setItem(STORAGE_KEYS.SEARCH_QUERY, patch.searchQuery!);
+    }
+    if ('searchCache' in patch) {
+      localStorage.setItem(STORAGE_KEYS.SEARCH_CACHE, JSON.stringify(patch.searchCache));
+    }
 
     this._notify();
   }
@@ -94,6 +106,15 @@ export class Store {
 
   private _applyPatch<K extends keyof StoreState>(key: K, value: StoreState[K]): void {
     this.state[key] = value;
+  }
+
+  private _loadSearchCache(): SearchCache | null {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SEARCH_CACHE);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   }
 
   private _loadGuiPos(): GuiPos | null {

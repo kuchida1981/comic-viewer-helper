@@ -179,32 +179,38 @@ export class UIManager {
 
     if (isSearchModalOpen) {
       if (!this.searchModalComp) {
-        const { searchResults } = state;
+        const { searchResults, searchQuery, searchCache } = state;
+
         this.searchModalComp = createSearchModal({
           searchResults,
-          onSearch: (query: string) => {
-            if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
-            const url = this.adapter.getSearchUrl(query);
-            fetch(url)
-              .then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.text();
-              })
-              .then(html => {
-                const doc = new DOMParser().parseFromString(html, 'text/html');
-                const results = this.adapter.parseSearchResults!(doc);
-                this.store.setState({ searchResults: results });
-                this.searchModalComp?.updateResults(results);
-              })
-              .catch(error => {
-                console.error('Failed to fetch search results:', error);
-              });
-          },
+          searchQuery,
+          onSearch: (query: string) => this._performSearch(query),
           onClose: () => {
-            this.store.setState({ isSearchModalOpen: false, searchResults: null });
+            this.store.setState({ isSearchModalOpen: false });
           }
         });
         document.body.appendChild(this.searchModalComp.el);
+
+        // SWR logic
+        if (searchCache) {
+          // If query matches cache, show it immediately
+          if (searchCache.query === searchQuery) {
+            this.store.setState({ searchResults: searchCache.results });
+            this.searchModalComp.updateResults(searchCache.results);
+
+            // Check if expired (1 hour)
+            const TTL = 3600000;
+            if (Date.now() - searchCache.fetchedAt > TTL) {
+              void this._performSearch(searchQuery, true);
+            }
+          } else if (searchQuery) {
+            // Different query or no cache for current query
+            void this._performSearch(searchQuery);
+          }
+        } else if (searchQuery) {
+          // No cache at all but has query
+          void this._performSearch(searchQuery);
+        }
       }
     } else {
       if (this.searchModalComp) {
@@ -292,5 +298,43 @@ export class UIManager {
       }
     }
     return modalEl;
+  }
+
+  /**
+   * Perform search and update store/cache
+   */
+  private async _performSearch(query: string, silent = false): Promise<void> {
+    if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
+
+    if (!silent) {
+      this.store.setState({ searchQuery: query });
+    } else {
+      this.searchModalComp?.setUpdating(true);
+    }
+
+    const url = this.adapter.getSearchUrl(query);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const results = this.adapter.parseSearchResults!(doc);
+
+      this.store.setState({
+        searchResults: results,
+        searchCache: {
+          query,
+          results,
+          fetchedAt: Date.now()
+        }
+      });
+      this.searchModalComp?.updateResults(results);
+    } catch (error) {
+      console.error('Failed to fetch search results:', error);
+    } finally {
+      if (silent) {
+        this.searchModalComp?.setUpdating(false);
+      }
+    }
   }
 }

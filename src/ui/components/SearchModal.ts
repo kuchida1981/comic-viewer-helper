@@ -6,12 +6,14 @@ export interface SearchModalProps {
   onSearch: (query: string) => void;
   onClose: () => void;
   searchResults: SearchResultsState | null;
+  searchQuery?: string;
 }
 
 export interface SearchModalComponent {
   el: HTMLElement;
   input: HTMLInputElement;
   updateResults: (searchResults: SearchResultsState | null) => void;
+  setUpdating: (updating: boolean) => void;
 }
 
 function createResultsSection(searchResults: SearchResultsState | null): HTMLElement {
@@ -73,13 +75,14 @@ function createResultsSection(searchResults: SearchResultsState | null): HTMLEle
   return section;
 }
 
-export function createSearchModal({ onSearch, onClose, searchResults }: SearchModalProps): SearchModalComponent {
+export function createSearchModal({ onSearch, onClose, searchResults, searchQuery }: SearchModalProps): SearchModalComponent {
   const input = createElement('input', {
     className: 'comic-helper-search-input',
     attributes: {
       type: 'text',
       placeholder: t('ui.searchPlaceholder'),
-      autofocus: 'true'
+      autofocus: 'true',
+      value: searchQuery || ''
     }
   }) as HTMLInputElement;
 
@@ -129,6 +132,13 @@ export function createSearchModal({ onSearch, onClose, searchResults }: SearchMo
     textContent: t('ui.search')
   });
 
+  const updatingIndicator = createElement('span', {
+    className: 'comic-helper-search-updating',
+    textContent: '...',
+    style: 'display: none; margin-left: 8px; font-size: 0.8em; color: #888;'
+  });
+  title.appendChild(updatingIndicator);
+
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
     events: {
@@ -155,6 +165,9 @@ export function createSearchModal({ onSearch, onClose, searchResults }: SearchMo
       const newSection = createResultsSection(newResults);
       container.replaceChild(newSection, resultsSection);
       resultsSection = newSection;
+    },
+    setUpdating: (updating: boolean) => {
+      updatingIndicator.style.display = updating ? 'inline' : 'none';
     }
   };
 }
