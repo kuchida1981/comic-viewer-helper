@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.44aed67
+// @version         1.3.0-unstable.f734372
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1063,6 +1063,33 @@
     padding: 4px 12px;
   }
 
+  .comic-helper-search-results-wrapper {
+    position: relative;
+    min-height: 100px;
+  }
+
+  .comic-helper-search-spinner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    border-radius: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  .comic-helper-search-spinner-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .comic-helper-search-updating {
     margin-left: 8px;
     font-size: 0.8em;
@@ -1617,7 +1644,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.44aed67"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.f734372"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1818,6 +1845,7 @@
           events: {
             click: (e) => {
               e.preventDefault();
+              e.stopPropagation();
               if (item.url) onPageChange(item.url);
             }
           }
@@ -1854,6 +1882,7 @@
       events: {
         submit: (e) => {
           e.preventDefault();
+          e.stopPropagation();
           handleSubmit();
         }
       }
@@ -1883,12 +1912,17 @@
       style: { display: "none" }
     });
     title.appendChild(updatingIndicator);
+    const spinner = createElement("div", { className: "comic-helper-spinner" });
+    const spinnerOverlay = createElement("div", {
+      className: "comic-helper-search-spinner-overlay"
+    }, [spinner]);
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
         click: (e) => e.stopPropagation()
       }
-    }, [closeBtn, title, container]);
+    }, [closeBtn, title, container, spinnerOverlay]);
+    content.addEventListener("click", (e) => e.stopPropagation());
     content.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
     const overlay = createElement("div", {
       className: "comic-helper-modal-overlay",
@@ -1901,6 +1935,10 @@
       e.stopPropagation();
     }, { passive: false });
     setTimeout(() => input.focus(), 50);
+    let loadingTimeout = null;
+    let loadingStartTime = 0;
+    const SHOW_DELAY_MS = 200;
+    const MIN_SHOW_TIME_MS = 400;
     return {
       el: overlay,
       input,
@@ -1912,6 +1950,32 @@
       },
       setUpdating: (updating) => {
         updatingIndicator.style.display = updating ? "inline" : "none";
+        if (loadingTimeout) {
+          clearTimeout(loadingTimeout);
+          loadingTimeout = null;
+        }
+        if (updating) {
+          input.disabled = true;
+          submitBtn.disabled = true;
+          loadingTimeout = window.setTimeout(() => {
+            spinnerOverlay.classList.add("visible");
+            loadingStartTime = Date.now();
+            loadingTimeout = null;
+          }, SHOW_DELAY_MS);
+        } else {
+          const hide = () => {
+            spinnerOverlay.classList.remove("visible");
+            input.disabled = false;
+            submitBtn.disabled = false;
+          };
+          const shownDuration = Date.now() - loadingStartTime;
+          if (loadingStartTime > 0 && shownDuration < MIN_SHOW_TIME_MS) {
+            window.setTimeout(hide, MIN_SHOW_TIME_MS - shownDuration);
+          } else {
+            hide();
+          }
+          loadingStartTime = 0;
+        }
       }
     };
   }
@@ -2337,9 +2401,7 @@
           this.store.setState({ searchQuery: query });
         }
       }
-      if (silent || isUrl) {
-        this.searchModalComp?.setUpdating(true);
-      }
+      this.searchModalComp?.setUpdating(true);
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2401,9 +2463,9 @@
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
     }
     handleWheel(e) {
-      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
       if (!enabled) return;
-      if (isMetadataModalOpen || isHelpModalOpen) {
+      if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
         const modalContent = document.querySelector(".comic-helper-modal-content");
         if (modalContent && modalContent.contains(e.target)) {
           return;
@@ -2526,8 +2588,8 @@
       const dx = e.clientX - startPos.x;
       const dy = e.clientY - startPos.y;
       if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
-      const { enabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-      if (!enabled || isMetadataModalOpen || isHelpModalOpen) return;
+      const { enabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+      if (!enabled || isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) return;
       const direction = getClickNavigationDirection(target);
       this.navigator.scrollToImage(direction === "next" ? 1 : -1);
     }
