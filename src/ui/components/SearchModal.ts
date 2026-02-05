@@ -135,6 +135,7 @@ export function createSearchModal({ onSearch, onClose, searchResults }: SearchMo
       click: (e) => e.stopPropagation()
     }
   }, [closeBtn, title, container]);
+  content.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
 
   const overlay = createElement('div', {
     className: 'comic-helper-modal-overlay',
@@ -142,6 +143,7 @@ export function createSearchModal({ onSearch, onClose, searchResults }: SearchMo
       click: onClose
     }
   }, [content]);
+  overlay.addEventListener('wheel', (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
 
   // Autofocus doesn't always work when dynamically added
   setTimeout(() => input.focus(), 50);

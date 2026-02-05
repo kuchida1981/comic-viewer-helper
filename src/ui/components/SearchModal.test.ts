@@ -131,6 +131,22 @@ describe('SearchModal', () => {
       expect(grid!.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(2);
     });
 
+    it('should stop click propagation on result items', () => {
+      const onClose = vi.fn();
+      const { el } = createSearchModal({ ...defaultProps, onClose, searchResults: sampleResults });
+      const item = el.querySelector('.comic-helper-search-result-item') as HTMLElement;
+      item.click();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('should stop click propagation on もっと見る link', () => {
+      const onClose = vi.fn();
+      const { el } = createSearchModal({ ...defaultProps, onClose, searchResults: sampleResults });
+      const moreLink = el.querySelector('.comic-helper-search-more-link') as HTMLElement;
+      moreLink.click();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
     it('should replace previous results when updateResults() is called again', () => {
       const { el, updateResults } = createSearchModal({ ...defaultProps, searchResults: sampleResults });
       expect(el.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(2);
@@ -143,6 +159,27 @@ describe('SearchModal', () => {
       updateResults(newResults);
       expect(el.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(1);
       expect(el.querySelector('.comic-helper-search-more-link')).toBeNull();
+    });
+  });
+
+  describe('scroll isolation', () => {
+    it('should prevent wheel event on overlay from propagating', () => {
+      const { el } = createSearchModal(defaultProps);
+      const wheelEvent = new WheelEvent('wheel', { bubbles: true, cancelable: true });
+      const propagateSpy = vi.spyOn(wheelEvent, 'stopPropagation');
+      el.dispatchEvent(wheelEvent);
+      expect(propagateSpy).toHaveBeenCalled();
+      expect(wheelEvent.defaultPrevented).toBe(true);
+    });
+
+    it('should stop wheel propagation on content but allow default scroll', () => {
+      const { el } = createSearchModal(defaultProps);
+      const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
+      const wheelEvent = new WheelEvent('wheel', { bubbles: true, cancelable: true });
+      const propagateSpy = vi.spyOn(wheelEvent, 'stopPropagation');
+      content.dispatchEvent(wheelEvent);
+      expect(propagateSpy).toHaveBeenCalled();
+      expect(wheelEvent.defaultPrevented).toBe(false);
     });
   });
 });

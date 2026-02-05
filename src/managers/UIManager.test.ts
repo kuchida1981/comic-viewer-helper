@@ -183,7 +183,7 @@ describe('UIManager', () => {
     adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com?q=test');
     adapter.parseSearchResults = vi.fn().mockReturnValue(mockResults);
 
-    const fetchMock = vi.fn().mockResolvedValue({ text: vi.fn().mockResolvedValue('<html></html>') });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('<html></html>') });
     vi.stubGlobal('fetch', fetchMock);
 
     (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0, searchResults: null });
@@ -195,8 +195,11 @@ describe('UIManager', () => {
     expect(adapter.getSearchUrl).toHaveBeenCalledWith('test');
     expect(fetchMock).toHaveBeenCalledWith('http://search.com?q=test');
 
-    await new Promise(resolve => setTimeout(resolve, 0));
-    await new Promise(resolve => setTimeout(resolve, 0));
+    // fetch → res.ok チェック+res.text() → パース の3段チェインを消費
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(adapter.parseSearchResults).toHaveBeenCalled();
     expect(store.setState).toHaveBeenCalledWith({ searchResults: mockResults });

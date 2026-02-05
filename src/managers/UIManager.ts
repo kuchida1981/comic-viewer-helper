@@ -186,12 +186,18 @@ export class UIManager {
             if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
             const url = this.adapter.getSearchUrl(query);
             fetch(url)
-              .then(res => res.text())
+              .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.text();
+              })
               .then(html => {
                 const doc = new DOMParser().parseFromString(html, 'text/html');
                 const results = this.adapter.parseSearchResults!(doc);
                 this.store.setState({ searchResults: results });
                 this.searchModalComp?.updateResults(results);
+              })
+              .catch(error => {
+                console.error('Failed to fetch search results:', error);
               });
           },
           onClose: () => {
