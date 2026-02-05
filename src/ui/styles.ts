@@ -435,6 +435,33 @@ export const styles = `
     padding: 4px 12px;
   }
 
+  .comic-helper-search-results-wrapper {
+    position: relative;
+    min-height: 100px;
+  }
+
+  .comic-helper-search-spinner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(26, 26, 26, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .comic-helper-search-spinner-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .comic-helper-search-updating {
     margin-left: 8px;
     font-size: 0.8em;

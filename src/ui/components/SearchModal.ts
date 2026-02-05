@@ -81,6 +81,7 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
         events: {
           click: (e) => {
             e.preventDefault();
+            e.stopPropagation();
             if (item.url) onPageChange(item.url);
           }
         }
@@ -122,6 +123,7 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     events: {
       submit: (e) => {
         e.preventDefault();
+        e.stopPropagation();
         handleSubmit();
       }
     }
@@ -129,9 +131,18 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
 
   let resultsSection = createResultsSection(searchResults, onPageChange);
 
+  const spinner = createElement('div', { className: 'comic-helper-spinner' });
+  const spinnerOverlay = createElement('div', {
+    className: 'comic-helper-search-spinner-overlay'
+  }, [spinner]);
+
+  const resultsWrapper = createElement('div', {
+    className: 'comic-helper-search-results-wrapper'
+  }, [resultsSection, spinnerOverlay]);
+
   const container = createElement('div', {
     className: 'comic-helper-search-container'
-  }, [form, resultsSection]);
+  }, [form, resultsWrapper]);
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -163,6 +174,7 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
       click: (e) => e.stopPropagation()
     }
   }, [closeBtn, title, container]);
+  content.addEventListener('click', (e) => e.stopPropagation());
   content.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
 
   const overlay = createElement('div', {
@@ -181,12 +193,21 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     input,
     updateResults: (newResults: SearchResultsState | null) => {
       const newSection = createResultsSection(newResults, onPageChange);
-      container.replaceChild(newSection, resultsSection);
+      resultsWrapper.replaceChild(newSection, resultsSection);
       resultsSection = newSection;
       content.scrollTop = 0;
     },
     setUpdating: (updating: boolean) => {
       updatingIndicator.style.display = updating ? 'inline' : 'none';
+      if (updating) {
+        spinnerOverlay.classList.add('visible');
+        input.disabled = true;
+        submitBtn.disabled = true;
+      } else {
+        spinnerOverlay.classList.remove('visible');
+        input.disabled = false;
+        submitBtn.disabled = false;
+      }
     }
   };
 }
