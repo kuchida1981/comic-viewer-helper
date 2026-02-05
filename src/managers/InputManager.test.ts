@@ -198,27 +198,27 @@ describe('InputManager', () => {
     ];
     (store.getState as Mock).mockReturnValue({ 
       enabled: true, 
-      metadata: { relatedWorks } 
+      metadata: { title: '', tags: [], relatedWorks } 
     });
 
     const event = { key: 'p', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks });
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks });
   });
 
   it('onKeyDown should not navigate if no related works', () => {
     (store.getState as Mock).mockReturnValue({ 
       enabled: true, 
-      metadata: { relatedWorks: [] } 
+      metadata: { title: '', tags: [], relatedWorks: [] } 
     });
 
     const event = { key: 'p', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks: [] });
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks: [] });
   });
 
   it('onKeyDown should not navigate if all related works are private', () => {
@@ -228,14 +228,14 @@ describe('InputManager', () => {
     ];
     (store.getState as Mock).mockReturnValue({ 
       enabled: true, 
-      metadata: { relatedWorks } 
+      metadata: { title: '', tags: [], relatedWorks } 
     });
 
     const event = { key: 'p', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ relatedWorks });
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks });
   });
 
   it('onKeyDown should enter fullscreen when not in fullscreen', async () => {
