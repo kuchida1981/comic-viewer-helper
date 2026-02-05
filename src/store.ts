@@ -52,7 +52,7 @@ export class Store {
       isSearchModalOpen: false,
       isLoading: false,
       searchResults: null,
-      searchQuery: localStorage.getItem(STORAGE_KEYS.SEARCH_QUERY) || '',
+      searchQuery: this._loadSearchQuery(),
       searchCache: this._loadSearchCache()
     };
     this.listeners = [];
@@ -83,11 +83,17 @@ export class Store {
     if ('guiPos' in patch) {
       localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
     }
+
+    const host = window.location.hostname;
     if ('searchQuery' in patch) {
-      localStorage.setItem(STORAGE_KEYS.SEARCH_QUERY, patch.searchQuery!);
+      localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery!);
     }
     if ('searchCache' in patch) {
-      localStorage.setItem(STORAGE_KEYS.SEARCH_CACHE, JSON.stringify(patch.searchCache));
+      try {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
+      } catch (e) {
+        console.warn('Failed to save search cache to localStorage:', e);
+      }
     }
 
     this._notify();
@@ -110,11 +116,17 @@ export class Store {
 
   private _loadSearchCache(): SearchCache | null {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.SEARCH_CACHE);
+      const host = window.location.hostname;
+      const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
+  }
+
+  private _loadSearchQuery(): string {
+    const host = window.location.hostname;
+    return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || '';
   }
 
   private _loadGuiPos(): GuiPos | null {

@@ -135,12 +135,7 @@ export function createSearchModal({ onSearch, onClose, searchResults, searchQuer
   const updatingIndicator = createElement('span', {
     className: 'comic-helper-search-updating',
     textContent: '...',
-    style: {
-      display: 'none',
-      marginLeft: '8px',
-      fontSize: '0.8em',
-      color: '#888'
-    }
+    style: { display: 'none' }
   });
   title.appendChild(updatingIndicator);
 

@@ -17,6 +17,8 @@ import { Navigator } from './Navigator';
 import { SiteAdapter } from '../types';
 
 
+const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
+
 export class UIManager {
   private adapter: SiteAdapter;
   private store: Store;
@@ -192,23 +194,17 @@ export class UIManager {
         document.body.appendChild(this.searchModalComp.el);
 
         // SWR logic
-        if (searchCache) {
+        if (searchCache && searchCache.query === searchQuery) {
           // If query matches cache, show it immediately
-          if (searchCache.query === searchQuery) {
-            this.store.setState({ searchResults: searchCache.results });
-            this.searchModalComp.updateResults(searchCache.results);
+          this.store.setState({ searchResults: searchCache.results });
+          this.searchModalComp.updateResults(searchCache.results);
 
-            // Check if expired (1 hour)
-            const TTL = 3600000;
-            if (Date.now() - searchCache.fetchedAt > TTL) {
-              void this._performSearch(searchQuery, true);
-            }
-          } else if (searchQuery) {
-            // Different query or no cache for current query
-            void this._performSearch(searchQuery);
+          // Check if expired
+          if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
+            void this._performSearch(searchQuery, true);
           }
         } else if (searchQuery) {
-          // No cache at all but has query
+          // Perform search if cache doesn't exist or query is different
           void this._performSearch(searchQuery);
         }
       }

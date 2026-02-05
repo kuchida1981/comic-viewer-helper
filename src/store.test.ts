@@ -68,8 +68,9 @@ describe('Store', () => {
     };
     store.setState({ searchQuery: 'test', searchCache: cache });
 
-    expect(localStorage.getItem(STORAGE_KEYS.SEARCH_QUERY)).toBe('test');
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.SEARCH_CACHE) || '{}')).toEqual(cache);
+    const host = window.location.hostname;
+    expect(localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`)).toBe('test');
+    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`) || '{}')).toEqual(cache);
     
     const store2 = new Store();
     expect(store2.getState().searchQuery).toBe('test');
