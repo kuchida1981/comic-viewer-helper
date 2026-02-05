@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.d8d52f0
+// @version         1.3.0-unstable.44aed67
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -194,7 +194,31 @@
       });
       const totalCount = doc.querySelector("div.page-h > span")?.textContent?.trim() || null;
       const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
-      return { results, totalCount, nextPageUrl };
+      const pagination = [];
+      const pagenavi = doc.querySelector(".wp-pagenavi");
+      if (pagenavi) {
+        pagenavi.childNodes.forEach((node) => {
+          if (node.nodeType === 1) {
+            const el = node;
+            if (el.classList.contains("pages")) return;
+            const isCurrent = el.classList.contains("current");
+            const isNext = el.classList.contains("nextpostslink");
+            const isPrev = el.classList.contains("previouspostslink");
+            const isExtend = el.classList.contains("extend");
+            let type = "page";
+            if (isNext) type = "next";
+            else if (isPrev) type = "prev";
+            else if (isExtend) type = "extend";
+            pagination.push({
+              label: el.textContent?.trim() || "",
+              url: el.getAttribute("href") || null,
+              isCurrent,
+              type
+            });
+          }
+        });
+      }
+      return { results, totalCount, nextPageUrl, pagination };
     }
   };
   function calculateVisibleHeight(rect, windowHeight) {
@@ -993,19 +1017,50 @@
     line-height: 1.4;
   }
 
-  .comic-helper-search-more-link {
-    display: block;
-    margin-top: 16px;
-    color: #4CAF50;
-    font-size: 13px;
-    text-decoration: none;
-    text-align: center;
-    padding: 8px 0;
+  .comic-helper-search-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 20px;
+    padding-top: 16px;
     border-top: 1px solid #333;
-    transition: color 0.2s;
+    justify-content: center;
   }
-  .comic-helper-search-more-link:hover {
-    color: #6fcf73;
+
+  .comic-helper-search-page-btn {
+    background: #333;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    min-width: 32px;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-search-page-btn:hover:not(:disabled) {
+    background: #444;
+    color: #fff;
+    border-color: #666;
+  }
+
+  .comic-helper-search-page-btn.active {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+    cursor: default;
+  }
+
+  .comic-helper-search-page-btn:disabled:not(.active) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .comic-helper-search-page-btn.type-next,
+  .comic-helper-search-page-btn.type-prev {
+    font-weight: bold;
+    padding: 4px 12px;
   }
 
   .comic-helper-search-updating {
@@ -1562,7 +1617,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.d8d52f0"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.44aed67"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1709,12 +1764,12 @@
       }
     };
   }
-  function createResultsSection(searchResults) {
+  function createResultsSection(searchResults, onPageChange) {
     const section = createElement("div", {
       className: "comic-helper-search-results-section"
     });
     if (!searchResults) return section;
-    const { results, totalCount, nextPageUrl } = searchResults;
+    const { results, totalCount, pagination } = searchResults;
     const header = createElement("div", {
       className: "comic-helper-section-title"
     });
@@ -1747,17 +1802,33 @@
       grid.appendChild(link);
     });
     section.appendChild(grid);
-    if (nextPageUrl) {
-      section.appendChild(createElement("a", {
-        className: "comic-helper-search-more-link",
-        textContent: t("ui.searchMoreLink"),
-        attributes: { href: nextPageUrl, target: "_blank" },
-        events: { click: (e) => e.stopPropagation() }
-      }));
+    if (pagination && pagination.length > 0) {
+      const nav = createElement("div", {
+        className: "comic-helper-search-pagination"
+      });
+      pagination.forEach((item) => {
+        const label = item.type === "next" ? t("ui.goNext") : item.type === "prev" ? t("ui.goPrev") : item.label;
+        const btn = createElement("button", {
+          className: `comic-helper-search-page-btn${item.isCurrent ? " active" : ""} type-${item.type}`,
+          textContent: item.label,
+          attributes: {
+            title: label,
+            ...!item.url || item.isCurrent ? { disabled: "true" } : {}
+          },
+          events: {
+            click: (e) => {
+              e.preventDefault();
+              if (item.url) onPageChange(item.url);
+            }
+          }
+        });
+        nav.appendChild(btn);
+      });
+      section.appendChild(nav);
     }
     return section;
   }
-  function createSearchModal({ onSearch, onClose, searchResults, searchQuery }) {
+  function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery }) {
     const input = createElement("input", {
       className: "comic-helper-search-input",
       attributes: {
@@ -1787,7 +1858,7 @@
         }
       }
     }, [input, submitBtn]);
-    let resultsSection = createResultsSection(searchResults);
+    let resultsSection = createResultsSection(searchResults, onPageChange);
     const container = createElement("div", {
       className: "comic-helper-search-container"
     }, [form, resultsSection]);
@@ -1834,9 +1905,10 @@
       el: overlay,
       input,
       updateResults: (newResults) => {
-        const newSection = createResultsSection(newResults);
+        const newSection = createResultsSection(newResults, onPageChange);
         container.replaceChild(newSection, resultsSection);
         resultsSection = newSection;
+        content.scrollTop = 0;
       },
       setUpdating: (updating) => {
         updatingIndicator.style.display = updating ? "inline" : "none";
@@ -2159,6 +2231,7 @@
             searchResults,
             searchQuery,
             onSearch: (query) => this._performSearch(query),
+            onPageChange: (url) => this._performSearch(url),
             onClose: () => {
               this.store.setState({ isSearchModalOpen: false });
             }
@@ -2249,14 +2322,24 @@
     /**
      * Perform search and update store/cache
      */
-    async _performSearch(query, silent = false) {
+    async _performSearch(queryOrUrl, silent = false) {
       if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
-      if (!silent) {
-        this.store.setState({ searchQuery: query });
+      let url;
+      let query;
+      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
+      if (isUrl) {
+        url = queryOrUrl;
+        query = this.store.getState().searchQuery;
       } else {
+        query = queryOrUrl;
+        url = this.adapter.getSearchUrl(query);
+        if (!silent) {
+          this.store.setState({ searchQuery: query });
+        }
+      }
+      if (silent || isUrl) {
         this.searchModalComp?.setUpdating(true);
       }
-      const url = this.adapter.getSearchUrl(query);
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2275,9 +2358,7 @@
       } catch (error) {
         console.error("Failed to fetch search results:", error);
       } finally {
-        if (silent) {
-          this.searchModalComp?.setUpdating(false);
-        }
+        this.searchModalComp?.setUpdating(false);
       }
     }
   }
