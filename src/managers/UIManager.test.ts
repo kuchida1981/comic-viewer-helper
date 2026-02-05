@@ -1,6 +1,5 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { UIManager } from './UIManager';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { UIManager } from './UIManager.js';
 import { createPowerButton } from '../ui/components/PowerButton.js';
 import { injectStyles } from '../ui/styles.js';
 import { createPageCounter } from '../ui/components/PageCounter.js';
@@ -11,6 +10,9 @@ import { createMetadataModal } from '../ui/components/MetadataModal.js';
 import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
+import { Store } from '../store.js';
+import { Navigator } from './Navigator.js';
+import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
 
 // Mock components
 vi.mock('../ui/styles.js', () => ({ injectStyles: vi.fn() }));
@@ -19,9 +21,10 @@ vi.mock('../ui/utils.js', () => ({
 }));
 vi.mock('../ui/Draggable.js', () => ({
   Draggable: vi.fn().mockImplementation(function() {
-    // @ts-expect-error
-    this.clampToViewport = vi.fn().mockReturnValue({ top: 20, left: 30 });
-    return this;
+    return {
+      clampToViewport: vi.fn().mockReturnValue({ top: 20, left: 30 }),
+      destroy: vi.fn()
+    };
   })
 }));
 vi.mock('../ui/components/PowerButton.js', () => ({
@@ -44,34 +47,30 @@ vi.mock('../ui/components/LoadingIndicator.js', () => ({
   createLoadingIndicator: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/NavigationButtons.js', () => ({
-  createNavigationButtons: vi.fn(() => ({ elements: [{ style: {}, querySelectorAll: vi.fn() }] }))
+  createNavigationButtons: vi.fn(() => ({ elements: [{ style: {}, querySelectorAll: vi.fn() }], update: vi.fn() }))
 }));
 vi.mock('../ui/components/MetadataModal.js', () => ({
-  createMetadataModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() } }))
+  createMetadataModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/HelpModal.js', () => ({
-  createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() } }))
+  createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/ProgressBar.js', () => ({
   createProgressBar: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
 }));
 
 describe('UIManager', () => {
-  /** @type {any} */
-  let adapter: any;
-  /** @type {any} */
-  let store: any;
-  /** @type {any} */
-  let navigator: any;
-  /** @type {any} */
-  let uiManager: any;
+  let adapter: typeof DefaultAdapter;
+  let store: Store;
+  let navigator: Navigator;
+  let uiManager: UIManager;
 
   beforeEach(() => {
     adapter = { 
       match: vi.fn().mockReturnValue(true),
       getContainer: vi.fn().mockReturnValue(null), // Default to null for container check
       getImages: vi.fn().mockReturnValue([])
-    };
+    } as unknown as typeof DefaultAdapter;
     
     store = {
       getState: vi.fn().mockReturnValue({ 
@@ -87,16 +86,16 @@ describe('UIManager', () => {
       }),
       setState: vi.fn(),
       subscribe: vi.fn()
-    };
+    } as unknown as Store;
     
     navigator = { 
         getImages: vi.fn().mockReturnValue([]), 
         jumpToPage: vi.fn(),
         scrollToEdge: vi.fn(),
         scrollToImage: vi.fn()
-    };
+    } as unknown as Navigator;
     
-    uiManager = new UIManager(/** @type {any} */ (adapter), /** @type {any} */ (store), /** @type {any} */ (navigator));
+    uiManager = new UIManager(adapter, store, navigator);
 
     vi.stubGlobal('document', {
         getElementById: vi.fn().mockReturnValue(null),
@@ -115,7 +114,7 @@ describe('UIManager', () => {
         appendChild: vi.fn(), 
         querySelectorAll: vi.fn().mockReturnValue([]) // Empty by default
     };
-    vi.mocked(createElement).mockReturnValue(/** @type {any} */ (mockContainer));
+    (createElement as unknown as Mock).mockReturnValue(mockContainer);
 
     vi.stubGlobal('window', { addEventListener: vi.fn(), innerWidth: 1000, innerHeight: 1000 });
   });
@@ -138,45 +137,46 @@ describe('UIManager', () => {
 
   it('updateUI should handle disabled state and toggling', () => {
     const mockBtn = { style: { display: '' } };
-    vi.mocked(createElement).mockReturnValue(/** @type {any} */ ({
+    (createElement as unknown as Mock).mockReturnValue({
         style: {}, appendChild: vi.fn(),
         querySelectorAll: vi.fn().mockImplementation(sel => sel === '.comic-helper-button' ? [mockBtn] : [])
-    }));
+    });
     
     // Disabled
-    store.getState.mockReturnValue({ enabled: false, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: false, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
     uiManager.updateUI();
     expect(mockBtn.style.display).toBe('none');
     
     // Enabled
-    store.getState.mockReturnValue({ enabled: true, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
     uiManager.updateUI();
     expect(mockBtn.style.display).toBe('inline-block');
   });
 
   it('should handle modals and their onClose callbacks', () => {
-    store.getState.mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: true, metadata: {}, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: true, metadata: {}, currentVisibleIndex: 0 });
     uiManager.updateUI();
     
     // Test onClose
-    vi.mocked(createHelpModal).mock.calls[0][0].onClose();
+    (createHelpModal as unknown as Mock).mock.calls[0][0].onClose();
     expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: false });
 
-    vi.mocked(createMetadataModal).mock.calls[0][0].onClose();
+    (createMetadataModal as unknown as Mock).mock.calls[0][0].onClose();
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false });
     
     // Close modals in state and update UI
-    store.getState.mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, metadata: {}, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, metadata: {}, currentVisibleIndex: 0 });
     uiManager.updateUI();
   });
 
   it('should handle resize for draggable', () => {
     uiManager.init();
-    const calls = vi.mocked(window.addEventListener).mock.calls;
+    const calls = (window.addEventListener as unknown as Mock).mock.calls;
     const resizeCall = calls.find(c => c[0] === 'resize');
     if (!resizeCall) throw new Error('Resize listener not found');
-    const resizeCb = /** @type {Function} */ (resizeCall[1]);
+    const resizeCb = resizeCall[1];
     
+    // @ts-expect-error - accessing private property
     uiManager.draggable = { clampToViewport: vi.fn().mockReturnValue({ top: 50, left: 50 }) };
     resizeCb();
     expect(store.setState).toHaveBeenCalledWith({ guiPos: { top: 50, left: 50 } });
@@ -184,7 +184,7 @@ describe('UIManager', () => {
 
   it('onDragEnd should update store', () => {
     uiManager.updateUI();
-    const onDragEnd = /** @type {Function} */ ((/** @type {any} */ (vi.mocked(Draggable).mock.calls[0][1])).onDragEnd);
+    const onDragEnd = (Draggable as unknown as Mock).mock.calls[0][1].onDragEnd;
     onDragEnd(100, 200);
     expect(store.setState).toHaveBeenCalledWith({ guiPos: { top: 100, left: 200 } });
   });
@@ -192,21 +192,21 @@ describe('UIManager', () => {
   it('component callbacks should work', () => {
     uiManager.updateUI();
     
-    const powerOnClick = vi.mocked(createPowerButton).mock.calls[0][0].onClick;
-    store.getState.mockReturnValue({ enabled: true });
+    const powerOnClick = (createPowerButton as unknown as Mock).mock.calls[0][0].onClick;
+    (store.getState as Mock).mockReturnValue({ enabled: true });
     powerOnClick();
     expect(store.setState).toHaveBeenCalledWith({ enabled: false });
 
-    const counterOnJump = vi.mocked(createPageCounter).mock.calls[0][0].onJump;
+    const counterOnJump = (createPageCounter as unknown as Mock).mock.calls[0][0].onJump;
     counterOnJump('5');
     expect(navigator.jumpToPage).toHaveBeenCalledWith('5');
 
-    const spreadOnToggle = vi.mocked(createSpreadControls).mock.calls[0][0].onToggle;
+    const spreadOnToggle = (createSpreadControls as unknown as Mock).mock.calls[0][0].onToggle;
     spreadOnToggle(true);
     expect(store.setState).toHaveBeenCalledWith({ isDualViewEnabled: true });
 
-    const spreadOnAdjust = vi.mocked(createSpreadControls).mock.calls[0][0].onAdjust;
-    store.getState.mockReturnValue({ spreadOffset: 0 });
+    const spreadOnAdjust = (createSpreadControls as unknown as Mock).mock.calls[0][0].onAdjust;
+    (store.getState as Mock).mockReturnValue({ spreadOffset: 0 });
     spreadOnAdjust();
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
   });
@@ -219,14 +219,14 @@ describe('UIManager', () => {
     }));
     expect(document.body.appendChild).toHaveBeenCalled();
 
-    const onResume = vi.mocked(createResumeNotification).mock.calls[0][0].onResume;
+    const onResume = (createResumeNotification as unknown as Mock).mock.calls[0][0].onResume;
     onResume();
     expect(navigator.jumpToPage).toHaveBeenCalledWith(6);
   });
 
   it('navigation button callbacks should work', () => {
     uiManager.updateUI();
-    const callbacks = vi.mocked(createNavigationButtons).mock.calls[0][0];
+    const callbacks = (createNavigationButtons as unknown as Mock).mock.calls[0][0];
     callbacks.onFirst();
     expect(navigator.scrollToEdge).toHaveBeenCalledWith('start');
     callbacks.onPrev();

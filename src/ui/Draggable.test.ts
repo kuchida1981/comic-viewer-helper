@@ -1,10 +1,8 @@
-// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Draggable } from './Draggable.js';
 
 describe('Draggable', () => {
-  /** @type {HTMLElement} */
-  let element: any;
+  let element: HTMLElement;
   
   beforeEach(() => {
     element = document.createElement('div');
@@ -14,7 +12,7 @@ describe('Draggable', () => {
     document.body.appendChild(element);
 
     // Mock getBoundingClientRect as jsdom doesn't do layout
-    element.getBoundingClientRect = vi.fn(() => (/** @type {DOMRect} */ ({
+    element.getBoundingClientRect = vi.fn(() => ({
       width: 100,
       height: 100,
       top: parseInt(element.style.top || '0'),
@@ -24,7 +22,7 @@ describe('Draggable', () => {
       x: parseInt(element.style.left || '0'),
       y: parseInt(element.style.top || '0'),
       toJSON: () => {}
-    })));
+    }));
 
     // Mock window dimensions
     vi.stubGlobal('innerWidth', 1000);
@@ -71,10 +69,12 @@ describe('Draggable', () => {
     const draggable = new Draggable(element, { onDragEnd });
     
     // Simulate drag and release outside bounds
+    // @ts-expect-error - accessing private property
     draggable.isDragging = true;
     element.style.top = '2000px';
     element.style.left = '2000px';
     
+    // @ts-expect-error - accessing private method
     draggable._onMouseUp();
     
     expect(onDragEnd).toHaveBeenCalledWith(890, 890);
@@ -84,6 +84,7 @@ describe('Draggable', () => {
     const draggable = new Draggable(element);
     const event = new MouseEvent('mousedown', { button: 2 });
     element.dispatchEvent(event);
+    // @ts-expect-error - accessing private property
     expect(draggable.isDragging).toBe(false);
   });
 
@@ -95,6 +96,7 @@ describe('Draggable', () => {
     Object.defineProperty(event, 'target', { value: button });
     
     element.dispatchEvent(event);
+    // @ts-expect-error - accessing private property
     expect(draggable.isDragging).toBe(false);
   });
 
@@ -106,6 +108,7 @@ describe('Draggable', () => {
     Object.defineProperty(event, 'target', { value: input });
     
     element.dispatchEvent(event);
+    // @ts-expect-error - accessing private property
     expect(draggable.isDragging).toBe(false);
   });
 
@@ -115,6 +118,7 @@ describe('Draggable', () => {
     // Simulate SVG or other non-HTMLElement if needed, or just null target
     Object.defineProperty(event, 'target', { value: document.createTextNode('text') });
     element.dispatchEvent(event);
+    // @ts-expect-error - accessing private property
     expect(draggable.isDragging).toBe(false);
   });
 
@@ -143,23 +147,29 @@ describe('Draggable', () => {
 
   it('should work without onDragEnd option', () => {
     const draggable = new Draggable(element);
+    // @ts-expect-error - accessing private property
     draggable.isDragging = true;
+    // @ts-expect-error - accessing private method
     draggable._onMouseUp();
     // Should not throw
   });
 
   it('should return early in onMouseMove if not dragging', () => {
     const draggable = new Draggable(element);
+    // @ts-expect-error - accessing private property
     draggable.isDragging = false;
     const initialTop = element.style.top;
     const event = new MouseEvent('mousemove');
+    // @ts-expect-error - accessing private method
     draggable._onMouseMove(event);
     expect(element.style.top).toBe(initialTop);
   });
 
   it('should return early in onMouseUp if not dragging', () => {
     const draggable = new Draggable(element);
+    // @ts-expect-error - accessing private property
     draggable.isDragging = false;
+    // @ts-expect-error - accessing private method
     const result = draggable._onMouseUp();
     expect(result).toBeUndefined();
   });
