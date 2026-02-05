@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.6d1bcd5
+// @version         1.3.0-unstable.7f3b0fc
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -28,6 +28,8 @@
     ENABLED: "comic-viewer-helper-enabled"
   };
   class Store {
+    state;
+    listeners;
     constructor() {
       this.state = {
         enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== "false",
@@ -46,22 +48,13 @@
       };
       this.listeners = [];
     }
-    /**
-     * @returns {StoreState}
-     */
     getState() {
       return { ...this.state };
     }
-    /**
-     * @param {Partial<StoreState>} patch 
-     */
     setState(patch) {
       let changed = false;
       for (const key in patch) {
-        const k = (
-          /** @type {keyof StoreState} */
-          key
-        );
+        const k = key;
         if (this.state[k] !== patch[k]) {
           this.state[k] = patch[k];
           changed = true;
@@ -79,9 +72,6 @@
       }
       this._notify();
     }
-    /**
-     * @param {Function} callback 
-     */
     subscribe(callback) {
       this.listeners.push(callback);
       return () => {
@@ -97,7 +87,7 @@
         if (!saved) return null;
         const pos = JSON.parse(saved);
         const buffer = 50;
-        if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
+        if (typeof pos.left !== "number" || typeof pos.top !== "number" || pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
           return null;
         }
         return pos;
@@ -125,21 +115,12 @@
   const DefaultAdapter = {
     // Always match as a fallback (should be checked last)
     match: () => true,
-    getContainer: () => (
-      /** @type {HTMLElement | null} */
-      document.querySelector(CONTAINER_SELECTOR)
-    ),
-    getImages: () => (
-      /** @type {HTMLImageElement[]} */
-      Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`))
-    ),
+    getContainer: () => document.querySelector(CONTAINER_SELECTOR),
+    getImages: () => Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`)),
     getMetadata: () => {
       const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
       const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
-        const href = (
-          /** @type {HTMLAnchorElement} */
-          a.href
-        );
+        const href = a.href;
         return {
           text: a.textContent?.trim() || "",
           href,
@@ -199,10 +180,7 @@
     return imgs[index];
   }
   function cleanupDOM(container) {
-    const allImages = (
-      /** @type {HTMLImageElement[]} */
-      Array.from(container.querySelectorAll("img"))
-    );
+    const allImages = Array.from(container.querySelectorAll("img"));
     const wrappers = container.querySelectorAll(".comic-row-wrapper");
     wrappers.forEach((w) => w.remove());
     allImages.forEach((img) => {
@@ -303,10 +281,7 @@
     if (!wrapper || !wrapper.classList.contains("comic-row-wrapper")) {
       return "next";
     }
-    const siblings = (
-      /** @type {HTMLImageElement[]} */
-      Array.from(wrapper.querySelectorAll("img"))
-    );
+    const siblings = Array.from(wrapper.querySelectorAll("img"));
     if (siblings.length < 2) {
       return "next";
     }
@@ -391,10 +366,13 @@
     }
   }
   class Navigator {
-    /**
-     * @param {import('../global').SiteAdapter} adapter 
-     * @param {import('../store.js').Store} store 
-     */
+    adapter;
+    store;
+    originalImages;
+    _lastEnabled;
+    _lastDualView;
+    _lastSpreadOffset;
+    pendingTargetIndex;
     constructor(adapter, store) {
       this.adapter = adapter;
       this.store = store;
@@ -441,9 +419,6 @@
         this.applyLayout();
       }
     }
-    /**
-     * @returns {HTMLImageElement[]}
-     */
     getImages() {
       if (this.originalImages.length > 0) return this.originalImages;
       this.originalImages = this.adapter.getImages();
@@ -460,10 +435,6 @@
         preloadImages(imgs, currentIndex);
       }
     }
-    /**
-     * @param {string | number} pageNumber 
-     * @returns {Promise<boolean>}
-     */
     async jumpToPage(pageNumber) {
       const imgs = this.getImages();
       const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
@@ -491,10 +462,6 @@
         return false;
       }
     }
-    /**
-     * @param {number} direction 
-     * @returns {Promise<void>}
-     */
     async scrollToImage(direction) {
       const imgs = this.getImages();
       if (imgs.length === 0) return;
@@ -537,10 +504,6 @@
         });
       }
     }
-    /**
-     * @param {'start' | 'end'} position
-     * @returns {Promise<void>}
-     */
     async scrollToEdge(position) {
       const imgs = this.getImages();
       if (imgs.length === 0) return;
@@ -558,9 +521,6 @@
         this.pendingTargetIndex = null;
       });
     }
-    /**
-     * @param {number} [forcedIndex] 
-     */
     applyLayout(forcedIndex) {
       const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
       const container = this.adapter.getContainer();
@@ -1186,7 +1146,7 @@
   };
   const getLanguage = () => {
     const lang = (navigator.language || "en").split("-")[0];
-    return MESSAGES[lang] ? lang : "en";
+    return lang in MESSAGES ? lang : "en";
   };
   const currentLang = getLanguage();
   function t(path) {
@@ -1197,7 +1157,11 @@
       result = result ? result[key] : void 0;
       fallback = fallback ? fallback[key] : void 0;
     }
-    return result ?? fallback ?? path;
+    const value = result ?? fallback ?? path;
+    if (typeof value === "object") {
+      return path;
+    }
+    return String(value);
   }
   function createPowerButton({ isEnabled, onClick }) {
     const el = createElement("button", {
@@ -1217,7 +1181,6 @@
     });
     return {
       el,
-      /** @param {boolean} enabled */
       update: (enabled) => {
         el.className = `comic-helper-icon-btn comic-helper-power-btn ${enabled ? "enabled" : "disabled"}`;
         el.title = enabled ? t("ui.disable") : t("ui.enable");
@@ -1226,25 +1189,22 @@
     };
   }
   function createPageCounter({ current, total, onJump }) {
-    const input = (
-      /** @type {HTMLInputElement} */
-      createElement("input", {
-        type: "number",
-        className: "comic-helper-page-input",
-        attributes: { min: 1 },
-        events: {
-          keydown: (e) => {
-            if (e instanceof KeyboardEvent && e.key === "Enter") {
-              e.preventDefault();
-              onJump(input.value);
-            }
-          },
-          focus: () => {
-            input.select();
+    const input = createElement("input", {
+      type: "number",
+      className: "comic-helper-page-input",
+      attributes: { min: 1 },
+      events: {
+        keydown: (e) => {
+          if (e instanceof KeyboardEvent && e.key === "Enter") {
+            e.preventDefault();
+            onJump(input.value);
           }
+        },
+        focus: () => {
+          input.select();
         }
-      })
-    );
+      }
+    });
     input.value = String(current);
     const totalLabel = createElement("span", {
       id: "comic-total-counter",
@@ -1256,40 +1216,34 @@
     return {
       el,
       input,
-      /** 
-       * @param {number} current 
-       * @param {number} total 
-       */
-      update: (current2, total2) => {
+      update: (newCurrent, newTotal) => {
         if (document.activeElement !== input) {
-          input.value = String(current2);
+          input.value = String(newCurrent);
         }
-        totalLabel.textContent = ` / ${total2}`;
+        totalLabel.textContent = ` / ${newTotal}`;
       }
     };
   }
   function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }) {
-    const checkbox = (
-      /** @type {HTMLInputElement} */
-      createElement("input", {
-        type: "checkbox",
-        checked: isDualViewEnabled,
-        events: {
-          change: (e) => {
-            if (e.target instanceof HTMLInputElement) {
-              onToggle(e.target.checked);
-              e.target.blur();
-            }
+    const checkbox = createElement("input", {
+      type: "checkbox",
+      checked: isDualViewEnabled,
+      events: {
+        change: (e) => {
+          const target = e.currentTarget;
+          onToggle(target.checked);
+          if (typeof target.blur === "function") {
+            target.blur();
           }
         }
-      })
-    );
+      }
+    });
     const label = createElement("label", {
       className: "comic-helper-label"
-    }, [checkbox, "Spread"]);
+    }, [checkbox, t("ui.spread")]);
     const createAdjustBtn = () => createElement("button", {
       className: "comic-helper-adjust-btn",
-      textContent: "Offset",
+      textContent: t("ui.offset"),
       title: t("ui.shiftOffset"),
       events: {
         click: (e) => {
@@ -1306,7 +1260,6 @@
     if (adjustBtn) el.appendChild(adjustBtn);
     return {
       el,
-      /** @param {boolean} enabled */
       update: (enabled) => {
         checkbox.checked = enabled;
         if (enabled) {
@@ -1323,7 +1276,15 @@
       }
     };
   }
-  function createNavigationButtons({ onFirst, onPrev, onNext, onLast, onInfo, onHelp, onLucky }) {
+  function createNavigationButtons({
+    onFirst,
+    onPrev,
+    onNext,
+    onLast,
+    onInfo,
+    onHelp,
+    onLucky
+  }) {
     const configs = [
       { text: "<<", title: t("ui.goLast"), action: onLast },
       { text: "<", title: t("ui.goNext"), action: onNext },
@@ -1342,7 +1303,10 @@
           e.preventDefault();
           e.stopPropagation();
           if (cfg.action) cfg.action();
-          if (e.target instanceof HTMLElement) e.target.blur();
+          const target = e.currentTarget;
+          if (target && typeof target.blur === "function") {
+            target.blur();
+          }
         }
       }
     }));
@@ -1416,7 +1380,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.6d1bcd5"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.7f3b0fc"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1519,7 +1483,14 @@
     });
     const shortcutRows = SHORTCUTS.map((sc) => {
       const keyLabels = sc.keys.map((k) => {
-        const label = k === " " ? t("ui.space") : k;
+        let label = k;
+        if (k === " ") label = t("ui.space");
+        else if (k.includes("Arrow")) {
+          if (k === "ArrowLeft") label = "←";
+          if (k === "ArrowRight") label = "→";
+          if (k === "ArrowUp") label = "↑";
+          if (k === "ArrowDown") label = "↓";
+        }
         return createElement("kbd", { className: "comic-helper-kbd", textContent: label });
       });
       const keyContainer = createElement("div", { className: "comic-helper-shortcut-keys" }, keyLabels);
@@ -1563,11 +1534,6 @@
   function createResumeNotification({ savedIndex, onResume, onSkip }) {
     let timeoutId = null;
     let scrollHandler = null;
-    const cleanup = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      if (scrollHandler) window.removeEventListener("scroll", scrollHandler);
-      el.remove();
-    };
     const message = t("ui.resumeNotification").replace("{page}", String(savedIndex + 1));
     const continueBtn = createElement("button", {
       className: "comic-helper-resume-btn comic-helper-resume-continue",
@@ -1592,7 +1558,7 @@
       className: "comic-helper-resume-btn comic-helper-resume-close",
       textContent: "×",
       events: {
-        click: cleanup
+        click: () => cleanup()
       }
     });
     const el = createElement("div", {
@@ -1604,8 +1570,13 @@
       skipBtn,
       closeBtn
     ]);
-    timeoutId = setTimeout(cleanup, 15e3);
-    setTimeout(() => {
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (scrollHandler) window.removeEventListener("scroll", scrollHandler);
+      el.remove();
+    };
+    timeoutId = window.setTimeout(cleanup, 15e3);
+    window.setTimeout(() => {
       scrollHandler = () => cleanup();
       window.addEventListener("scroll", scrollHandler, { once: true });
     }, 1e3);
@@ -1630,11 +1601,13 @@
     return { el, update };
   }
   class Draggable {
-    /**
-     * @param {HTMLElement} element 
-     * @param {Object} options
-     * @param {Function} [options.onDragEnd]
-     */
+    element;
+    onDragEnd;
+    isDragging;
+    dragStartX;
+    dragStartY;
+    initialTop;
+    initialLeft;
     constructor(element, options = {}) {
       this.element = element;
       this.onDragEnd = options.onDragEnd || (() => {
@@ -1649,9 +1622,6 @@
       this._onMouseUp = this._onMouseUp.bind(this);
       this.element.addEventListener("mousedown", this._onMouseDown);
     }
-    /**
-     * @param {MouseEvent} e 
-     */
     _onMouseDown(e) {
       if (e.button !== 0 || !(e.target instanceof HTMLElement)) return;
       if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
@@ -1694,9 +1664,6 @@
       });
       return { top, left };
     }
-    /**
-     * @param {MouseEvent} e 
-     */
     _onMouseMove(e) {
       if (!this.isDragging) return;
       const deltaX = e.clientX - this.dragStartX;
@@ -1720,11 +1687,18 @@
     }
   }
   class UIManager {
-    /**
-     * @param {import('../global').SiteAdapter} adapter 
-     * @param {import('../store.js').Store} store 
-     * @param {import('./Navigator.js').Navigator} navigator 
-     */
+    adapter;
+    store;
+    navigator;
+    // Component references
+    powerComp;
+    counterComp;
+    spreadComp;
+    progressComp;
+    loadingComp;
+    draggable;
+    modalEl;
+    helpModalEl;
     constructor(adapter, store, navigator2) {
       this.adapter = adapter;
       this.store = store;
@@ -1786,16 +1760,18 @@
           current: currentVisibleIndex + 1,
           total: imgs.length,
           onJump: (val) => {
-            const success = this.navigator.jumpToPage(val);
-            if (this.counterComp) {
-              this.counterComp.input.blur();
-              if (!success) {
-                this.counterComp.input.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
-                setTimeout(() => {
-                  if (this.counterComp) this.counterComp.input.style.backgroundColor = "";
-                }, 500);
+            (async () => {
+              const success = await this.navigator.jumpToPage(val);
+              if (this.counterComp) {
+                this.counterComp.input.blur();
+                if (!success) {
+                  this.counterComp.input.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
+                  setTimeout(() => {
+                    if (this.counterComp) this.counterComp.input.style.backgroundColor = "";
+                  }, 500);
+                }
               }
-            }
+            })();
           }
         });
         container.appendChild(this.counterComp.el);
@@ -1822,15 +1798,25 @@
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
         const { metadata: metadata2 } = state;
         const navBtns = createNavigationButtons({
-          onFirst: () => this.navigator.scrollToEdge("start"),
-          onPrev: () => this.navigator.scrollToImage(-1),
-          onNext: () => this.navigator.scrollToImage(1),
-          onLast: () => this.navigator.scrollToEdge("end"),
+          onFirst: () => {
+            void this.navigator.scrollToEdge("start");
+          },
+          onPrev: () => {
+            void this.navigator.scrollToImage(-1);
+          },
+          onNext: () => {
+            void this.navigator.scrollToImage(1);
+          },
+          onLast: () => {
+            void this.navigator.scrollToEdge("end");
+          },
           onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
           onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-          onLucky: () => jumpToRandomWork(metadata2)
+          onLucky: () => {
+            jumpToRandomWork(metadata2);
+          }
         });
-        navBtns.elements.forEach((btn) => container.appendChild(btn));
+        navBtns.elements.forEach((btn) => container?.appendChild(btn));
       }
       const { isMetadataModalOpen, isHelpModalOpen, metadata } = state;
       if (isHelpModalOpen) {
@@ -1890,7 +1876,6 @@
     }
     /**
      * Show resume notification
-     * @param {number} savedIndex
      */
     showResumeNotification(savedIndex) {
       const notification = createResumeNotification({
@@ -1906,16 +1891,19 @@
   }
   const CLICK_THRESHOLD_PX = 5;
   class InputManager {
-    /**
-     * @param {import('../store.js').Store} store 
-     * @param {import('./Navigator.js').Navigator} navigator 
-     */
+    store;
+    navigator;
+    lastWheelTime;
+    WHEEL_THROTTLE_MS = 500;
+    WHEEL_THRESHOLD = 1;
+    resizeReq;
+    scrollReq;
+    mouseDownPos;
+    mouseDownTarget;
     constructor(store, navigator2) {
       this.store = store;
       this.navigator = navigator2;
       this.lastWheelTime = 0;
-      this.WHEEL_THROTTLE_MS = 500;
-      this.WHEEL_THRESHOLD = 1;
       this.resizeReq = void 0;
       this.scrollReq = void 0;
       this.mouseDownPos = null;
@@ -1935,26 +1923,16 @@
       window.addEventListener("resize", this.handleResize);
       window.addEventListener("scroll", this.handleScroll);
     }
-    /**
-     * @param {EventTarget | null} target 
-     * @returns {boolean}
-     */
     isInputField(target) {
       if (!(target instanceof HTMLElement)) return false;
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
     }
-    /**
-     * @param {WheelEvent} e 
-     */
     handleWheel(e) {
       const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
       if (!enabled) return;
       if (isMetadataModalOpen || isHelpModalOpen) {
         const modalContent = document.querySelector(".comic-helper-modal-content");
-        if (modalContent && modalContent.contains(
-          /** @type {Node} */
-          e.target
-        )) {
+        if (modalContent && modalContent.contains(e.target)) {
           return;
         }
         e.preventDefault();
@@ -1978,9 +1956,6 @@
       const nextIndex = direction === "next" ? currentVisibleIndex + step : Math.max(currentVisibleIndex - step, 0);
       this.navigator.jumpToPage(nextIndex + 1);
     }
-    /**
-     * @param {KeyboardEvent} e 
-     */
     onKeyDown(e) {
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
       const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
@@ -2054,17 +2029,11 @@
       if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
       this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
     }
-    /**
-     * @param {MouseEvent} e
-     */
     onMouseDown(e) {
       if (!(e.target instanceof HTMLImageElement)) return;
       this.mouseDownPos = { x: e.clientX, y: e.clientY };
       this.mouseDownTarget = e.target;
     }
-    /**
-     * @param {MouseEvent} e
-     */
     onMouseUp(e) {
       const target = this.mouseDownTarget;
       const startPos = this.mouseDownPos;
@@ -2082,39 +2051,23 @@
     }
   }
   class ResumeManager {
-    /**
-     * @param {import('../store.js').Store} store 
-     */
+    store;
+    storageKey = "comic-viewer-helper-resume-data";
     constructor(store) {
       this.store = store;
-      this.storageKey = "comic-viewer-helper-resume-data";
     }
-    /**
-     * @returns {boolean}
-     */
     isEnabled() {
       return true;
     }
-    /**
-     * @param {string} url 
-     * @param {number} pageIndex 
-     */
     savePosition(url, pageIndex) {
       const data = this._loadData();
       data[url] = { pageIndex };
       localStorage.setItem(this.storageKey, JSON.stringify(data));
     }
-    /**
-     * @param {string} url 
-     * @returns {number|null}
-     */
     loadPosition(url) {
       const data = this._loadData();
       return data[url]?.pageIndex ?? null;
     }
-    /**
-     * @returns {Object.<string, any>}
-     */
     _loadData() {
       try {
         return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
@@ -2130,9 +2083,7 @@
     }
   }
   class PopUnderBlocker {
-    /**
-     * @param {import('../store.js').Store} store
-     */
+    store;
     constructor(store) {
       this.store = store;
       this.handleClick = this.handleClick.bind(this);
@@ -2140,15 +2091,10 @@
     init() {
       document.addEventListener("click", this.handleClick, true);
     }
-    /**
-     * @param {MouseEvent} e
-     */
     handleClick(e) {
       if (!this.store.getState().enabled) return;
-      const link = (
-        /** @type {HTMLElement} */
-        e.target?.closest?.("a")
-      );
+      const target = e.target;
+      const link = target.closest("a");
       if (!(link instanceof HTMLAnchorElement)) return;
       if (!link.hasAttribute("href")) return;
       if (e.ctrlKey || e.metaKey) return;
@@ -2161,6 +2107,13 @@
     }
   }
   class App {
+    store;
+    adapter;
+    navigator;
+    uiManager;
+    inputManager;
+    resumeManager;
+    popUnderBlocker;
     constructor() {
       this.store = new Store();
       const adapters = [DefaultAdapter];
