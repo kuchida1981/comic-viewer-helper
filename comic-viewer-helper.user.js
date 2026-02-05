@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.dad0393
+// @version         1.3.0-unstable.929473c
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1158,6 +1158,7 @@
         metadata: { label: "Metadata", desc: "Show metadata" },
         fullscreen: { label: "Fullscreen", desc: "Toggle Fullscreen" },
         help: { label: "Help", desc: "Show this help" },
+        search: { label: "Search", desc: "Start search" },
         closeModal: { label: "Close Modal", desc: "Close modal" },
         randomJump: { label: "Random Jump", desc: "Jump to a random related work" }
       }
@@ -1202,6 +1203,7 @@
         metadata: { label: "作品情報", desc: "作品情報（メタデータ）の表示" },
         fullscreen: { label: "フルスクリーン", desc: "フルスクリーンの切り替え" },
         help: { label: "ヘルプ", desc: "このヘルプの表示" },
+        search: { label: "検索", desc: "検索の開始" },
         closeModal: { label: "閉じる", desc: "モーダルを閉じる" },
         randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" }
       }
@@ -1445,7 +1447,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.dad0393"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.929473c"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1516,6 +1518,12 @@
       label: t("shortcuts.help.label"),
       keys: ["?"],
       description: t("shortcuts.help.desc")
+    },
+    {
+      id: "search",
+      label: t("shortcuts.search.label"),
+      keys: ["/"],
+      description: t("shortcuts.search.desc")
     },
     {
       id: "randomJump",
@@ -2108,11 +2116,15 @@
     }
     onKeyDown(e) {
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
+      const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
       if (e.key === "Escape") {
-        if (isMetadataModalOpen || isHelpModalOpen) {
+        if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
           e.preventDefault();
-          this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
+          this.store.setState({
+            isMetadataModalOpen: false,
+            isHelpModalOpen: false,
+            isSearchModalOpen: false
+          });
           return;
         }
       }
@@ -2132,7 +2144,12 @@
         this.store.setState({ isHelpModalOpen: false });
         return;
       }
-      if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
+      if (isKey("search")) {
+        e.preventDefault();
+        this.store.setState({ isSearchModalOpen: !isSearchModalOpen });
+        return;
+      }
+      if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || !enabled) return;
       if (isKey("nextPage")) {
         e.preventDefault();
         this.navigator.scrollToImage(1);
