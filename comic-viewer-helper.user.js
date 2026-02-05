@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.986f533
+// @version         1.3.0-unstable.dad0393
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -44,6 +44,7 @@
         },
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
+        isSearchModalOpen: false,
         isLoading: false
       };
       this.listeners = [];
@@ -119,6 +120,15 @@
     match: () => true,
     getContainer: () => document.querySelector(CONTAINER_SELECTOR),
     getImages: () => Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`)),
+    searchConfig: {
+      baseUrl: "/",
+      queryParam: "s"
+    },
+    getSearchUrl: function(query) {
+      const url = new URL(this.searchConfig?.baseUrl || "/", window.location.origin);
+      url.searchParams.set(this.searchConfig?.queryParam || "s", query);
+      return url.toString();
+    },
     getMetadata: () => {
       const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
       const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
@@ -850,6 +860,51 @@
     line-height: 1.4;
   }
 
+  /* Search Modal Styles */
+  .comic-helper-search-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .comic-helper-search-form {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .comic-helper-search-input {
+    flex: 1;
+    background: #222;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .comic-helper-search-input:focus {
+    border-color: #4CAF50;
+  }
+
+  .comic-helper-search-submit {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+
+  .comic-helper-search-submit:hover {
+    background: #45a049;
+  }
+
   /* Help Modal Styles */
   .comic-helper-shortcut-list {
     display: flex;
@@ -1083,6 +1138,9 @@
         lucky: "I'm feeling lucky",
         showMetadata: "Show Metadata",
         showHelp: "Show Help",
+        showSearch: "Show Search",
+        search: "Search",
+        searchPlaceholder: "Enter keyword...",
         shiftOffset: "Shift spread pairing by 1 page (Offset)",
         space: "Space",
         enable: "Enable Comic Viewer Helper",
@@ -1124,6 +1182,9 @@
         lucky: "おすすめ（ランダム）",
         showMetadata: "作品情報を表示",
         showHelp: "ヘルプを表示",
+        showSearch: "サイト内検索を表示",
+        search: "検索",
+        searchPlaceholder: "キーワードを入力...",
         shiftOffset: "見開きペアを1ページ分ずらす（オフセット）",
         space: "スペース",
         enable: "スクリプトを有効にする",
@@ -1285,6 +1346,7 @@
     onLast,
     onInfo,
     onHelp,
+    onSearch,
     onLucky
   }) {
     const configs = [
@@ -1294,7 +1356,8 @@
       { text: ">", title: t("ui.goPrev"), action: onPrev },
       { text: ">>", title: t("ui.goFirst"), action: onFirst },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
-      { text: "?", title: t("ui.showHelp"), action: onHelp }
+      { text: "?", title: t("ui.showHelp"), action: onHelp },
+      { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" }
     ];
     const elements = configs.map((cfg) => createElement("button", {
       className: cfg.className || "comic-helper-button",
@@ -1382,7 +1445,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.986f533"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.dad0393"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1521,6 +1584,71 @@
       el: overlay,
       update: () => {
       }
+    };
+  }
+  function createSearchModal({ onSearch, onClose }) {
+    const input = createElement("input", {
+      className: "comic-helper-search-input",
+      attributes: {
+        type: "text",
+        placeholder: t("ui.searchPlaceholder"),
+        autofocus: "true"
+      }
+    });
+    const submitBtn = createElement("button", {
+      className: "comic-helper-search-submit",
+      textContent: t("ui.search"),
+      attributes: {
+        type: "submit"
+      }
+    });
+    const handleSubmit = () => {
+      const query = input.value.trim();
+      if (query) onSearch(query);
+    };
+    const form = createElement("form", {
+      className: "comic-helper-search-form",
+      events: {
+        submit: (e) => {
+          e.preventDefault();
+          handleSubmit();
+        }
+      }
+    }, [input, submitBtn]);
+    const container = createElement("div", {
+      className: "comic-helper-search-container"
+    }, [form]);
+    const closeBtn = createElement("button", {
+      className: "comic-helper-modal-close",
+      textContent: "×",
+      title: t("ui.close"),
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onClose();
+        }
+      }
+    });
+    const title = createElement("h2", {
+      className: "comic-helper-modal-title",
+      textContent: t("ui.search")
+    });
+    const content = createElement("div", {
+      className: "comic-helper-modal-content",
+      events: {
+        click: (e) => e.stopPropagation()
+      }
+    }, [closeBtn, title, container]);
+    const overlay = createElement("div", {
+      className: "comic-helper-modal-overlay",
+      events: {
+        click: onClose
+      }
+    }, [content]);
+    setTimeout(() => input.focus(), 50);
+    return {
+      el: overlay,
+      input
     };
   }
   function createProgressBar() {
@@ -1701,6 +1829,7 @@
     draggable;
     modalEl;
     helpModalEl;
+    searchModalEl;
     constructor(adapter, store, navigator2) {
       this.adapter = adapter;
       this.store = store;
@@ -1713,6 +1842,7 @@
       this.draggable = null;
       this.modalEl = null;
       this.helpModalEl = null;
+      this.searchModalEl = null;
       this.updateUI = this.updateUI.bind(this);
       this.init = this.init.bind(this);
     }
@@ -1814,42 +1944,42 @@
           },
           onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
           onHelp: () => this.store.setState({ isHelpModalOpen: true }),
+          onSearch: () => this.store.setState({ isSearchModalOpen: true }),
           onLucky: () => {
             jumpToRandomWork(metadata2);
           }
         });
         navBtns.elements.forEach((btn) => container?.appendChild(btn));
       }
-      const { isMetadataModalOpen, isHelpModalOpen, metadata } = state;
-      if (isHelpModalOpen) {
-        if (!this.helpModalEl) {
-          const modal = createHelpModal({
-            onClose: () => this.store.setState({ isHelpModalOpen: false })
-          });
-          this.helpModalEl = modal.el;
-          document.body.appendChild(this.helpModalEl);
-        }
-      } else {
-        if (this.helpModalEl) {
-          this.helpModalEl.remove();
-          this.helpModalEl = null;
-        }
-      }
-      if (isMetadataModalOpen) {
-        if (!this.modalEl) {
-          const modal = createMetadataModal({
-            metadata,
-            onClose: () => this.store.setState({ isMetadataModalOpen: false })
-          });
-          this.modalEl = modal.el;
-          document.body.appendChild(this.modalEl);
-        }
-      } else {
-        if (this.modalEl) {
-          this.modalEl.remove();
-          this.modalEl = null;
-        }
-      }
+      const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, metadata } = state;
+      this.helpModalEl = this._manageModal(
+        isHelpModalOpen,
+        this.helpModalEl,
+        () => createHelpModal({
+          onClose: () => this.store.setState({ isHelpModalOpen: false })
+        })
+      );
+      this.searchModalEl = this._manageModal(
+        isSearchModalOpen,
+        this.searchModalEl,
+        () => createSearchModal({
+          onSearch: (query) => {
+            this.store.setState({ isSearchModalOpen: false });
+            if (this.adapter.getSearchUrl) {
+              window.location.href = this.adapter.getSearchUrl(query);
+            }
+          },
+          onClose: () => this.store.setState({ isSearchModalOpen: false })
+        })
+      );
+      this.modalEl = this._manageModal(
+        isMetadataModalOpen,
+        this.modalEl,
+        () => createMetadataModal({
+          metadata,
+          onClose: () => this.store.setState({ isMetadataModalOpen: false })
+        })
+      );
       this.powerComp.update(enabled);
       this.loadingComp.update(isLoading);
       document.documentElement.classList.toggle("comic-helper-enabled", enabled);
@@ -1889,6 +2019,24 @@
         }
       });
       document.body.appendChild(notification.el);
+    }
+    /**
+     * Private helper to manage modal lifecycle (creation and destruction)
+     */
+    _manageModal(isOpen, modalEl, createFn) {
+      if (isOpen) {
+        if (!modalEl) {
+          const newModal = createFn();
+          modalEl = newModal.el;
+          document.body.appendChild(modalEl);
+        }
+      } else {
+        if (modalEl) {
+          modalEl.remove();
+          modalEl = null;
+        }
+      }
+      return modalEl;
     }
   }
   const CLICK_THRESHOLD_PX = 5;
