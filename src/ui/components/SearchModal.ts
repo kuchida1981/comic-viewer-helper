@@ -18,32 +18,30 @@ export function createSearchModal({ onSearch, onClose }: SearchModalProps): Sear
       type: 'text',
       placeholder: t('ui.searchPlaceholder'),
       autofocus: 'true'
-    },
-    events: {
-      keydown: (e) => {
-        if (e instanceof KeyboardEvent && e.key === 'Enter') {
-          e.preventDefault();
-          const query = input.value.trim();
-          if (query) onSearch(query);
-        }
-      }
     }
   }) as HTMLInputElement;
 
   const submitBtn = createElement('button', {
     className: 'comic-helper-search-submit',
     textContent: t('ui.search'),
-    events: {
-      click: (e) => {
-        e.preventDefault();
-        const query = input.value.trim();
-        if (query) onSearch(query);
-      }
+    attributes: {
+      type: 'submit'
     }
   });
 
-  const form = createElement('div', {
-    className: 'comic-helper-search-form'
+  const handleSubmit = () => {
+    const query = input.value.trim();
+    if (query) onSearch(query);
+  };
+
+  const form = createElement('form', {
+    className: 'comic-helper-search-form',
+    events: {
+      submit: (e) => {
+        e.preventDefault();
+        handleSubmit();
+      }
+    }
   }, [input, submitBtn]);
 
   const container = createElement('div', {

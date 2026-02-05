@@ -19,30 +19,21 @@ describe('SearchModal', () => {
     expect(input.placeholder).toContain(t('ui.searchPlaceholder'));
   });
 
-  it('should call onSearch when clicking submit button', () => {
+  it('should call onSearch when submitting the form', () => {
     const onSearch = vi.fn();
     const { el, input } = createSearchModal({ onSearch, onClose: () => {} });
     input.value = 'test query';
-    const submitBtn = el.querySelector('.comic-helper-search-submit') as HTMLElement;
-    submitBtn.click();
+    const form = el.querySelector('form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     expect(onSearch).toHaveBeenCalledWith('test query');
-  });
-
-  it('should call onSearch when pressing Enter key', () => {
-    const onSearch = vi.fn();
-    const { input } = createSearchModal({ onSearch, onClose: () => {} });
-    input.value = 'enter query';
-    const event = new KeyboardEvent('keydown', { key: 'Enter' });
-    input.dispatchEvent(event);
-    expect(onSearch).toHaveBeenCalledWith('enter query');
   });
 
   it('should not call onSearch if query is empty', () => {
     const onSearch = vi.fn();
     const { el, input } = createSearchModal({ onSearch, onClose: () => {} });
     input.value = '   ';
-    const submitBtn = el.querySelector('.comic-helper-search-submit') as HTMLElement;
-    submitBtn.click();
+    const form = el.querySelector('form') as HTMLFormElement;
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     expect(onSearch).not.toHaveBeenCalled();
   });
 

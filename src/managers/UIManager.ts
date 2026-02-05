@@ -166,61 +166,39 @@ export class UIManager {
       navBtns.elements.forEach(btn => container?.appendChild(btn));
     }
 
-    // Handle Help Modal
     const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, metadata } = state;
-    if (isHelpModalOpen) {
-      if (!this.helpModalEl) {
-        const modal = createHelpModal({
-          onClose: () => this.store.setState({ isHelpModalOpen: false })
-        });
-        this.helpModalEl = modal.el;
-        document.body.appendChild(this.helpModalEl);
-      }
-    } else {
-      if (this.helpModalEl) {
-        this.helpModalEl.remove();
-        this.helpModalEl = null;
-      }
-    }
 
-    // Handle Search Modal
-    if (isSearchModalOpen) {
-      if (!this.searchModalEl) {
-        const modal = createSearchModal({
-          onSearch: (query: string) => {
-            this.store.setState({ isSearchModalOpen: false });
-            if (this.adapter.getSearchUrl) {
-              window.location.href = this.adapter.getSearchUrl(query);
-            }
-          },
-          onClose: () => this.store.setState({ isSearchModalOpen: false })
-        });
-        this.searchModalEl = modal.el;
-        document.body.appendChild(this.searchModalEl);
-      }
-    } else {
-      if (this.searchModalEl) {
-        this.searchModalEl.remove();
-        this.searchModalEl = null;
-      }
-    }
+    // Handle Modals
+    this.helpModalEl = this._manageModal(
+      isHelpModalOpen,
+      this.helpModalEl,
+      () => createHelpModal({
+        onClose: () => this.store.setState({ isHelpModalOpen: false })
+      })
+    );
 
-    // Handle Metadata Modal
-    if (isMetadataModalOpen) {
-      if (!this.modalEl) {
-        const modal = createMetadataModal({
-          metadata,
-          onClose: () => this.store.setState({ isMetadataModalOpen: false })
-        });
-        this.modalEl = modal.el;
-        document.body.appendChild(this.modalEl);
-      }
-    } else {
-      if (this.modalEl) {
-        this.modalEl.remove();
-        this.modalEl = null;
-      }
-    }
+    this.searchModalEl = this._manageModal(
+      isSearchModalOpen,
+      this.searchModalEl,
+      () => createSearchModal({
+        onSearch: (query: string) => {
+          this.store.setState({ isSearchModalOpen: false });
+          if (this.adapter.getSearchUrl) {
+            window.location.href = this.adapter.getSearchUrl(query);
+          }
+        },
+        onClose: () => this.store.setState({ isSearchModalOpen: false })
+      })
+    );
+
+    this.modalEl = this._manageModal(
+      isMetadataModalOpen,
+      this.modalEl,
+      () => createMetadataModal({
+        metadata,
+        onClose: () => this.store.setState({ isMetadataModalOpen: false })
+      })
+    );
 
     this.powerComp.update(enabled);
     this.loadingComp.update(isLoading);
@@ -269,5 +247,28 @@ export class UIManager {
       }
     });
     document.body.appendChild(notification.el);
+  }
+
+  /**
+   * Private helper to manage modal lifecycle (creation and destruction)
+   */
+  private _manageModal(
+    isOpen: boolean,
+    modalEl: HTMLElement | null,
+    createFn: () => { el: HTMLElement }
+  ): HTMLElement | null {
+    if (isOpen) {
+      if (!modalEl) {
+        const newModal = createFn();
+        modalEl = newModal.el;
+        document.body.appendChild(modalEl);
+      }
+    } else {
+      if (modalEl) {
+        modalEl.remove();
+        modalEl = null;
+      }
+    }
+    return modalEl;
   }
 }
