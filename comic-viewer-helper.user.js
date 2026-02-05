@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.929473c
+// @version         1.3.0-unstable.17d426c
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -45,7 +45,8 @@
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
         isSearchModalOpen: false,
-        isLoading: false
+        isLoading: false,
+        searchResults: null
       };
       this.listeners = [];
     }
@@ -152,6 +153,20 @@
         };
       });
       return { title, tags, relatedWorks };
+    },
+    parseSearchResults: (doc) => {
+      const results = Array.from(doc.querySelectorAll("div.post-list > a")).map((a) => {
+        const img = a.querySelector(".post-list-image img");
+        const titleEl = a.querySelector(":scope > span");
+        return {
+          title: titleEl?.textContent?.trim() || "",
+          href: a.getAttribute("href") || "",
+          thumb: img?.getAttribute("src") || ""
+        };
+      });
+      const totalCount = doc.querySelector("div.page-h > span")?.textContent?.trim() || null;
+      const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
+      return { results, totalCount, nextPageUrl };
     }
   };
   function calculateVisibleHeight(rect, windowHeight) {
@@ -905,6 +920,66 @@
     background: #45a049;
   }
 
+  /* Search Results Styles */
+  .comic-helper-search-results-section {
+    margin-top: 4px;
+  }
+
+  .comic-helper-search-no-results {
+    color: #888;
+    font-size: 14px;
+    padding: 12px 0;
+  }
+
+  .comic-helper-search-result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .comic-helper-search-result-item {
+    text-decoration: none;
+    color: #ccc;
+    font-size: 11px;
+    transition: transform 0.2s;
+  }
+  .comic-helper-search-result-item:hover {
+    transform: translateY(-4px);
+  }
+
+  .comic-helper-search-result-thumb {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 4px;
+    background: #222;
+    margin-bottom: 6px;
+  }
+
+  .comic-helper-search-result-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
+
+  .comic-helper-search-more-link {
+    display: block;
+    margin-top: 16px;
+    color: #4CAF50;
+    font-size: 13px;
+    text-decoration: none;
+    text-align: center;
+    padding: 8px 0;
+    border-top: 1px solid #333;
+    transition: color 0.2s;
+  }
+  .comic-helper-search-more-link:hover {
+    color: #6fcf73;
+  }
+
   /* Help Modal Styles */
   .comic-helper-shortcut-list {
     display: flex;
@@ -1141,6 +1216,9 @@
         showSearch: "Show Search",
         search: "Search",
         searchPlaceholder: "Enter keyword...",
+        searchResults: "Search Results",
+        searchNoResults: "No results found.",
+        searchMoreLink: "Show more →",
         shiftOffset: "Shift spread pairing by 1 page (Offset)",
         space: "Space",
         enable: "Enable Comic Viewer Helper",
@@ -1186,6 +1264,9 @@
         showSearch: "サイト内検索を表示",
         search: "検索",
         searchPlaceholder: "キーワードを入力...",
+        searchResults: "検索結果",
+        searchNoResults: "結果が見つかりませんでした。",
+        searchMoreLink: "もっと見る →",
         shiftOffset: "見開きペアを1ページ分ずらす（オフセット）",
         space: "スペース",
         enable: "スクリプトを有効にする",
@@ -1447,7 +1528,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.929473c"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.17d426c"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1594,7 +1675,55 @@
       }
     };
   }
-  function createSearchModal({ onSearch, onClose }) {
+  function createResultsSection(searchResults) {
+    const section = createElement("div", {
+      className: "comic-helper-search-results-section"
+    });
+    if (!searchResults) return section;
+    const { results, totalCount, nextPageUrl } = searchResults;
+    const header = createElement("div", {
+      className: "comic-helper-section-title"
+    });
+    header.textContent = totalCount ? `${t("ui.searchResults")} ${totalCount}` : t("ui.searchResults");
+    section.appendChild(header);
+    if (results.length === 0) {
+      section.appendChild(createElement("div", {
+        className: "comic-helper-search-no-results",
+        textContent: t("ui.searchNoResults")
+      }));
+      return section;
+    }
+    const grid = createElement("div", {
+      className: "comic-helper-search-result-grid"
+    });
+    results.forEach((item) => {
+      const thumb = createElement("img", {
+        className: "comic-helper-search-result-thumb",
+        attributes: { src: item.thumb, loading: "lazy" }
+      });
+      const title = createElement("div", {
+        className: "comic-helper-search-result-title",
+        textContent: item.title
+      });
+      const link = createElement("a", {
+        className: "comic-helper-search-result-item",
+        attributes: { href: item.href, target: "_blank" },
+        events: { click: (e) => e.stopPropagation() }
+      }, [thumb, title]);
+      grid.appendChild(link);
+    });
+    section.appendChild(grid);
+    if (nextPageUrl) {
+      section.appendChild(createElement("a", {
+        className: "comic-helper-search-more-link",
+        textContent: t("ui.searchMoreLink"),
+        attributes: { href: nextPageUrl, target: "_blank" },
+        events: { click: (e) => e.stopPropagation() }
+      }));
+    }
+    return section;
+  }
+  function createSearchModal({ onSearch, onClose, searchResults }) {
     const input = createElement("input", {
       className: "comic-helper-search-input",
       attributes: {
@@ -1623,9 +1752,10 @@
         }
       }
     }, [input, submitBtn]);
+    let resultsSection = createResultsSection(searchResults);
     const container = createElement("div", {
       className: "comic-helper-search-container"
-    }, [form]);
+    }, [form, resultsSection]);
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -1647,16 +1777,26 @@
         click: (e) => e.stopPropagation()
       }
     }, [closeBtn, title, container]);
+    content.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
     const overlay = createElement("div", {
       className: "comic-helper-modal-overlay",
       events: {
         click: onClose
       }
     }, [content]);
+    overlay.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
     setTimeout(() => input.focus(), 50);
     return {
       el: overlay,
-      input
+      input,
+      updateResults: (newResults) => {
+        const newSection = createResultsSection(newResults);
+        container.replaceChild(newSection, resultsSection);
+        resultsSection = newSection;
+      }
     };
   }
   function createProgressBar() {
@@ -1837,7 +1977,7 @@
     draggable;
     modalEl;
     helpModalEl;
-    searchModalEl;
+    searchModalComp;
     constructor(adapter, store, navigator2) {
       this.adapter = adapter;
       this.store = store;
@@ -1850,7 +1990,7 @@
       this.draggable = null;
       this.modalEl = null;
       this.helpModalEl = null;
-      this.searchModalEl = null;
+      this.searchModalComp = null;
       this.updateUI = this.updateUI.bind(this);
       this.init = this.init.bind(this);
     }
@@ -1967,19 +2107,38 @@
           onClose: () => this.store.setState({ isHelpModalOpen: false })
         })
       );
-      this.searchModalEl = this._manageModal(
-        isSearchModalOpen,
-        this.searchModalEl,
-        () => createSearchModal({
-          onSearch: (query) => {
-            this.store.setState({ isSearchModalOpen: false });
-            if (this.adapter.getSearchUrl) {
-              window.location.href = this.adapter.getSearchUrl(query);
+      if (isSearchModalOpen) {
+        if (!this.searchModalComp) {
+          const { searchResults } = state;
+          this.searchModalComp = createSearchModal({
+            searchResults,
+            onSearch: (query) => {
+              if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
+              const url = this.adapter.getSearchUrl(query);
+              fetch(url).then((res) => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.text();
+              }).then((html) => {
+                const doc = new DOMParser().parseFromString(html, "text/html");
+                const results = this.adapter.parseSearchResults(doc);
+                this.store.setState({ searchResults: results });
+                this.searchModalComp?.updateResults(results);
+              }).catch((error) => {
+                console.error("Failed to fetch search results:", error);
+              });
+            },
+            onClose: () => {
+              this.store.setState({ isSearchModalOpen: false, searchResults: null });
             }
-          },
-          onClose: () => this.store.setState({ isSearchModalOpen: false })
-        })
-      );
+          });
+          document.body.appendChild(this.searchModalComp.el);
+        }
+      } else {
+        if (this.searchModalComp) {
+          this.searchModalComp.el.remove();
+          this.searchModalComp = null;
+        }
+      }
       this.modalEl = this._manageModal(
         isMetadataModalOpen,
         this.modalEl,
