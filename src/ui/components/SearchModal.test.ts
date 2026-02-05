@@ -3,7 +3,7 @@ import { createSearchModal } from './SearchModal';
 import { t } from '../../i18n';
 import { SearchResultsState } from '../../types';
 
-const defaultProps = { onSearch: () => {}, onClose: () => {}, searchResults: null };
+const defaultProps = { onSearch: () => {}, onPageChange: () => {}, onClose: () => {}, searchResults: null };
 
 describe('SearchModal', () => {
   beforeEach(() => {
@@ -77,13 +77,18 @@ describe('SearchModal', () => {
         { title: 'Work B', href: '/fanzine/2/', thumb: '/thumb/2.webp' }
       ],
       totalCount: '100件',
-      nextPageUrl: '/page/2/?s=kw'
+      nextPageUrl: '/page/2/?s=kw',
+      pagination: [
+        { label: '1', url: null, isCurrent: true, type: 'page' },
+        { label: '2', url: '/page/2/?s=kw', isCurrent: false, type: 'page' },
+        { label: '›', url: '/page/2/?s=kw', isCurrent: false, type: 'next' }
+      ]
     };
 
     it('should not render results section content when searchResults is null', () => {
       const { el } = createSearchModal(defaultProps);
       expect(el.querySelector('.comic-helper-search-result-grid')).toBeNull();
-      expect(el.querySelector('.comic-helper-search-more-link')).toBeNull();
+      expect(el.querySelector('.comic-helper-search-pagination')).toBeNull();
     });
 
     it('should render results grid when searchResults is provided at creation', () => {
@@ -99,21 +104,34 @@ describe('SearchModal', () => {
       expect(header?.textContent).toContain('100件');
     });
 
-    it('should render "もっと見る" link when nextPageUrl exists', () => {
+    it('should render pagination buttons when pagination data exists', () => {
       const { el } = createSearchModal({ ...defaultProps, searchResults: sampleResults });
-      const moreLink = el.querySelector('.comic-helper-search-more-link') as HTMLAnchorElement;
-      expect(moreLink).not.toBeNull();
-      expect(moreLink.getAttribute('href')).toBe('/page/2/?s=kw');
+      const pagination = el.querySelector('.comic-helper-search-pagination');
+      expect(pagination).not.toBeNull();
+      const buttons = pagination!.querySelectorAll('.comic-helper-search-page-btn');
+      expect(buttons).toHaveLength(3);
+      expect(buttons[0].textContent).toBe('1');
+      expect(buttons[0].classList.contains('active')).toBe(true);
+      expect(buttons[1].textContent).toBe('2');
+      expect(buttons[2].textContent).toBe('›');
     });
 
-    it('should not render "もっと見る" link when nextPageUrl is null', () => {
-      const resultsNoNext: SearchResultsState = { ...sampleResults, nextPageUrl: null };
-      const { el } = createSearchModal({ ...defaultProps, searchResults: resultsNoNext });
-      expect(el.querySelector('.comic-helper-search-more-link')).toBeNull();
+    it('should call onPageChange when clicking a pagination button', () => {
+      const onPageChange = vi.fn();
+      const { el } = createSearchModal({ ...defaultProps, onPageChange, searchResults: sampleResults });
+      const btn2 = el.querySelectorAll('.comic-helper-search-page-btn')[1] as HTMLButtonElement;
+      btn2.click();
+      expect(onPageChange).toHaveBeenCalledWith('/page/2/?s=kw');
+    });
+
+    it('should not render pagination when pagination data is empty', () => {
+      const resultsNoPage: SearchResultsState = { ...sampleResults, pagination: [] };
+      const { el } = createSearchModal({ ...defaultProps, searchResults: resultsNoPage });
+      expect(el.querySelector('.comic-helper-search-pagination')).toBeNull();
     });
 
     it('should show no-results message when results array is empty', () => {
-      const emptyResults: SearchResultsState = { results: [], totalCount: '0件', nextPageUrl: null };
+      const emptyResults: SearchResultsState = { results: [], totalCount: '0件', nextPageUrl: null, pagination: [] };
       const { el } = createSearchModal({ ...defaultProps, searchResults: emptyResults });
       const msg = el.querySelector('.comic-helper-search-no-results');
       expect(msg).not.toBeNull();
@@ -139,11 +157,11 @@ describe('SearchModal', () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('should stop click propagation on もっと見る link', () => {
+    it('should stop click propagation on pagination buttons', () => {
       const onClose = vi.fn();
       const { el } = createSearchModal({ ...defaultProps, onClose, searchResults: sampleResults });
-      const moreLink = el.querySelector('.comic-helper-search-more-link') as HTMLElement;
-      moreLink.click();
+      const btn = el.querySelector('.comic-helper-search-page-btn') as HTMLElement;
+      btn.click();
       expect(onClose).not.toHaveBeenCalled();
     });
 
@@ -154,11 +172,12 @@ describe('SearchModal', () => {
       const newResults: SearchResultsState = {
         results: [{ title: 'Work C', href: '/fanzine/3/', thumb: '/thumb/3.webp' }],
         totalCount: '1件',
-        nextPageUrl: null
+        nextPageUrl: null,
+        pagination: []
       };
       updateResults(newResults);
       expect(el.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(1);
-      expect(el.querySelector('.comic-helper-search-more-link')).toBeNull();
+      expect(el.querySelector('.comic-helper-search-pagination')).toBeNull();
     });
   });
 

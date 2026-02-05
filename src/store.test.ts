@@ -63,7 +63,7 @@ describe('Store', () => {
     const store = new Store();
     const cache = {
       query: 'test',
-      results: { results: [], totalCount: '0', nextPageUrl: null },
+      results: { results: [], totalCount: '0', nextPageUrl: null, pagination: [] },
       fetchedAt: Date.now()
     };
     store.setState({ searchQuery: 'test', searchCache: cache });

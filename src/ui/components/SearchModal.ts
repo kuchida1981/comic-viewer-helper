@@ -4,6 +4,7 @@ import { SearchResultsState } from '../../types';
 
 export interface SearchModalProps {
   onSearch: (query: string) => void;
+  onPageChange: (url: string) => void;
   onClose: () => void;
   searchResults: SearchResultsState | null;
   searchQuery?: string;
@@ -16,14 +17,14 @@ export interface SearchModalComponent {
   setUpdating: (updating: boolean) => void;
 }
 
-function createResultsSection(searchResults: SearchResultsState | null): HTMLElement {
+function createResultsSection(searchResults: SearchResultsState | null, onPageChange: (url: string) => void): HTMLElement {
   const section = createElement('div', {
     className: 'comic-helper-search-results-section'
   });
 
   if (!searchResults) return section;
 
-  const { results, totalCount, nextPageUrl } = searchResults;
+  const { results, totalCount, pagination } = searchResults;
 
   const header = createElement('div', {
     className: 'comic-helper-section-title'
@@ -63,19 +64,36 @@ function createResultsSection(searchResults: SearchResultsState | null): HTMLEle
   });
   section.appendChild(grid);
 
-  if (nextPageUrl) {
-    section.appendChild(createElement('a', {
-      className: 'comic-helper-search-more-link',
-      textContent: t('ui.searchMoreLink'),
-      attributes: { href: nextPageUrl, target: '_blank' },
-      events: { click: (e) => e.stopPropagation() }
-    }));
+  if (pagination && pagination.length > 0) {
+    const nav = createElement('div', {
+      className: 'comic-helper-search-pagination'
+    });
+
+    pagination.forEach(item => {
+      const label = item.type === 'next' ? t('ui.goNext') : item.type === 'prev' ? t('ui.goPrev') : item.label;
+      const btn = createElement('button', {
+        className: `comic-helper-search-page-btn${item.isCurrent ? ' active' : ''} type-${item.type}`,
+        textContent: item.label,
+        attributes: {
+          title: label,
+          ...( (!item.url || item.isCurrent) ? { disabled: 'true' } : {} )
+        },
+        events: {
+          click: (e) => {
+            e.preventDefault();
+            if (item.url) onPageChange(item.url);
+          }
+        }
+      });
+      nav.appendChild(btn);
+    });
+    section.appendChild(nav);
   }
 
   return section;
 }
 
-export function createSearchModal({ onSearch, onClose, searchResults, searchQuery }: SearchModalProps): SearchModalComponent {
+export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery }: SearchModalProps): SearchModalComponent {
   const input = createElement('input', {
     className: 'comic-helper-search-input',
     attributes: {
@@ -109,7 +127,7 @@ export function createSearchModal({ onSearch, onClose, searchResults, searchQuer
     }
   }, [input, submitBtn]);
 
-  let resultsSection = createResultsSection(searchResults);
+  let resultsSection = createResultsSection(searchResults, onPageChange);
 
   const container = createElement('div', {
     className: 'comic-helper-search-container'
@@ -162,9 +180,10 @@ export function createSearchModal({ onSearch, onClose, searchResults, searchQuer
     el: overlay,
     input,
     updateResults: (newResults: SearchResultsState | null) => {
-      const newSection = createResultsSection(newResults);
+      const newSection = createResultsSection(newResults, onPageChange);
       container.replaceChild(newSection, resultsSection);
       resultsSection = newSection;
+      content.scrollTop = 0;
     },
     setUpdating: (updating: boolean) => {
       updatingIndicator.style.display = updating ? 'inline' : 'none';

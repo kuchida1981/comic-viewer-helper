@@ -114,6 +114,28 @@ describe('DefaultAdapter', () => {
       expect(result.nextPageUrl).toBeNull();
     });
 
+    it('should extract pagination information from wp-pagenavi', () => {
+      const html = `
+        <div class="post-list"></div>
+        <div class="wp-pagenavi" role="navigation">
+          <span class="pages">1 / 1,296</span>
+          <span aria-current="page" class="current">1</span>
+          <a class="page larger" href="/page/2/?s=kw">2</a>
+          <span class="extend">...</span>
+          <a class="nextpostslink" rel="next" href="/page/2/?s=kw">›</a>
+          <a class="last" href="/page/1296/?s=kw">最後 »</a>
+        </div>
+      `;
+      const result = parse(html);
+      expect(result.pagination).toEqual([
+        { label: '1', url: null, isCurrent: true, type: 'page' },
+        { label: '2', url: '/page/2/?s=kw', isCurrent: false, type: 'page' },
+        { label: '...', url: null, isCurrent: false, type: 'extend' },
+        { label: '›', url: '/page/2/?s=kw', isCurrent: false, type: 'next' },
+        { label: '最後 »', url: '/page/1296/?s=kw', isCurrent: false, type: 'page' }
+      ]);
+    });
+
     it('should return empty results array when post-list has no children', () => {
       const html = `<div class="post-list"></div>`;
       const result = parse(html);

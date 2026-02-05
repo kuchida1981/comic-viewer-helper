@@ -23,10 +23,18 @@ export interface SearchResult {
   thumb: string;
 }
 
+export interface PaginationItem {
+  label: string;
+  url: string | null;
+  isCurrent: boolean;
+  type: 'page' | 'prev' | 'next' | 'extend';
+}
+
 export interface SearchResultsState {
   results: SearchResult[];
   totalCount: string | null;
   nextPageUrl: string | null;
+  pagination: PaginationItem[];
 }
 
 export interface SearchCache {

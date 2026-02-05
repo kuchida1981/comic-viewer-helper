@@ -1,4 +1,4 @@
-import { SiteAdapter, Metadata, SearchResultsState } from '../types';
+import { SiteAdapter, Metadata, SearchResultsState, PaginationItem } from '../types';
 
 const CONTAINER_SELECTOR = '#post-comic';
 const TAG_TYPES = ['artist', 'character', 'circle', 'fanzine', 'genre', 'magazine', 'parody'];
@@ -84,6 +84,34 @@ export const DefaultAdapter: SiteAdapter = {
     const totalCount = doc.querySelector<HTMLElement>('div.page-h > span')?.textContent?.trim() || null;
     const nextPageUrl = doc.querySelector<HTMLAnchorElement>('div.wp-pagenavi a.nextpostslink')?.getAttribute('href') || null;
 
-    return { results, totalCount, nextPageUrl };
+    const pagination: PaginationItem[] = [];
+    const pagenavi = doc.querySelector('.wp-pagenavi');
+    if (pagenavi) {
+      pagenavi.childNodes.forEach(node => {
+        if (node.nodeType === 1) { // Node.ELEMENT_NODE
+          const el = node as HTMLElement;
+          if (el.classList.contains('pages')) return;
+
+          const isCurrent = el.classList.contains('current');
+          const isNext = el.classList.contains('nextpostslink');
+          const isPrev = el.classList.contains('previouspostslink');
+          const isExtend = el.classList.contains('extend');
+
+          let type: 'page' | 'prev' | 'next' | 'extend' = 'page';
+          if (isNext) type = 'next';
+          else if (isPrev) type = 'prev';
+          else if (isExtend) type = 'extend';
+
+          pagination.push({
+            label: el.textContent?.trim() || '',
+            url: el.getAttribute('href') || null,
+            isCurrent,
+            type
+          });
+        }
+      });
+    }
+
+    return { results, totalCount, nextPageUrl, pagination };
   }
 };
