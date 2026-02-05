@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createPowerButton } from './PowerButton.js';
 import { createPageCounter } from './PageCounter.js';
@@ -7,6 +6,7 @@ import { createNavigationButtons } from './NavigationButtons.js';
 import { createMetadataModal } from './MetadataModal.js';
 import { createHelpModal } from './HelpModal.js';
 import { createResumeNotification } from './ResumeNotification.js';
+import { Metadata } from '../../types.js';
 
 describe('UI Components', () => {
   describe('PowerButton', () => {
@@ -81,7 +81,7 @@ describe('UI Components', () => {
   describe('SpreadControls', () => {
     it('should render checkbox and label', () => {
       const { el } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust: () => {} });
-      const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
+      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
       expect(el.textContent).toContain('Spread');
     });
@@ -101,1393 +101,171 @@ describe('UI Components', () => {
       expect(adjustBtn).not.toBeNull();
     });
 
-        it('should call onToggle when checkbox changes', () => {
-
-          const onToggle = vi.fn();
-
-          const { el } = createSpreadControls({ isDualViewEnabled: false, onToggle, onAdjust: () => {} });
-
-          const checkbox = /** @type {HTMLInputElement} */ (el.querySelector('input[type="checkbox"]'));
-
-          checkbox.checked = true;
-
-          checkbox.dispatchEvent(new Event('change'));
-
-          expect(onToggle).toHaveBeenCalledWith(true);
-
-    
-
-          // Test branch with non-input target
-
-          const event = new Event('change');
-
-          Object.defineProperty(event, 'target', { value: {} });
-
-          checkbox.dispatchEvent(event);
-
-          // onToggle should NOT be called again with the new value
-
-        });
-
-    
-
-        it('should call onAdjust when button is clicked', () => {
-
-          const onAdjust = vi.fn();
-
-          const { el } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust });
-
-          const adjustBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-adjust-btn'));
-
-          adjustBtn.click();
-
-          expect(onAdjust).toHaveBeenCalled();
-
-        });
-
-      });
-
-    
-
-      describe('NavigationButtons', () => {
-
-        it('should render 7 navigation buttons', () => {
-
-          const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onLucky: () => {} });
-
-          expect(elements.length).toBe(7);
-
-          expect(elements[0].textContent).toBe('<<');
-
-          expect(elements[1].textContent).toBe('<');
-
-          expect(elements[2].textContent).toBe('🎲');
-
-          expect(elements[3].textContent).toBe('>');
-
-          expect(elements[4].textContent).toBe('>>');
-
-          expect(elements[5].textContent).toBe('Info');
-
-          expect(elements[6].textContent).toBe('?');
-
-        });
-
-    
-
-        it('should call correct actions and blur', () => {
-
-          const actions = {
-
-            onFirst: vi.fn(),
-
-            onPrev: vi.fn(),
-
-            onNext: vi.fn(),
-
-            onLast: vi.fn(),
-
-            onInfo: vi.fn(),
-
-            onHelp: vi.fn()
-
-          };
-
-          const { elements } = createNavigationButtons(actions);
-
-          
-
-          const blurSpy = vi.spyOn(elements[0], 'blur');
-
-          elements[0].click();
-
-          expect(actions.onLast).toHaveBeenCalled();
-
-          expect(blurSpy).toHaveBeenCalled();
-
-    
-
-          // Test branch where target is not HTMLElement
-
-          const event = new MouseEvent('click');
-
-          Object.defineProperty(event, 'target', { value: {} });
-
-          elements[1].dispatchEvent(event);
-
-          expect(actions.onNext).toHaveBeenCalled();
-
-        });
-
-    
-
-  
-
-      it('should have an empty update method', () => {
-
-        const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onLucky: () => {} });
-
-        expect(typeof update).toBe('function');
-
-        update();
-
-      });
-
+    it('should call onToggle when checkbox changes', () => {
+      const onToggle = vi.fn();
+      const { el } = createSpreadControls({ isDualViewEnabled: false, onToggle, onAdjust: () => {} });
+      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+      expect(onToggle).toHaveBeenCalledWith(true);
+
+      // Test branch with non-input target
+      const event = new Event('change');
+      Object.defineProperty(event, 'target', { value: {} });
+      checkbox.dispatchEvent(event);
+      // onToggle should NOT be called again with the new value
     });
 
-  
+    it('should call onAdjust when button is clicked', () => {
+      const onAdjust = vi.fn();
+      const { el } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust });
+      const adjustBtn = el.querySelector('.comic-helper-adjust-btn') as HTMLElement;
+      adjustBtn.click();
+      expect(onAdjust).toHaveBeenCalled();
+    });
+  });
 
-    describe('MetadataModal', () => {
+  describe('NavigationButtons', () => {
+    it('should render 7 navigation buttons', () => {
+      const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onLucky: () => {} });
+      expect(elements.length).toBe(7);
+      expect(elements[0].textContent).toBe('<<');
+      expect(elements[1].textContent).toBe('<');
+      expect(elements[2].textContent).toBe('🎲');
+      expect(elements[3].textContent).toBe('>');
+      expect(elements[4].textContent).toBe('>>');
+      expect(elements[5].textContent).toBe('Info');
+      expect(elements[6].textContent).toBe('?');
+    });
 
-      const mockMetadata = {
-
-        title: 'Test Manga',
-
-        tags: [{ text: 'Action', href: '#action', type: null }],
-
-        relatedWorks: [{ title: 'Manga B', href: '#b', thumb: 'b.jpg' }]
-
+    it('should call correct actions and blur', () => {
+      const actions = {
+        onFirst: vi.fn(),
+        onPrev: vi.fn(),
+        onNext: vi.fn(),
+        onLast: vi.fn(),
+        onInfo: vi.fn(),
+        onHelp: vi.fn(),
+        onLucky: vi.fn()
       };
-
-  
-
-      it('should render title and content', () => {
-
-        const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {} });
-
-        expect(el.textContent).toContain('Test Manga');
-
-        expect(el.textContent).toContain('Action');
-
-        expect(el.textContent).toContain('Manga B');
-
-      });
-
-  
-
-      it('should call onClose when clicking overlay', () => {
-
-        const onClose = vi.fn();
-
-        const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
-
-        el.click();
-
-        expect(onClose).toHaveBeenCalled();
-
-      });
-
-  
-
-      it('should call onClose when clicking close button', () => {
-
-        const onClose = vi.fn();
-
-        const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
-
-        const closeBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-modal-close'));
-
-        closeBtn.click();
-
-        expect(onClose).toHaveBeenCalled();
-
-      });
-
-  
-
-          it('should not call onClose when clicking content', () => {
-
-  
-
-            const onClose = vi.fn();
-
-  
-
-            const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
-
-  
-
-            const content = el.querySelector('.comic-helper-modal-content');
-
-  
-
-            /** @type {HTMLElement} */ (content).click();
-
-  
-
-            expect(onClose).not.toHaveBeenCalled();
-
-  
-
-          });
-
-  
-
-      
-
-  
-
-          it('should stop propagation when clicking tags or related items', () => {
-
-  
-
-            const onClose = vi.fn();
-
-  
-
-            const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
-
-  
-
-            
-
-  
-
-            const tag = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-tag-chip'));
-
-  
-
-            tag.click();
-
-  
-
-            expect(onClose).not.toHaveBeenCalled();
-
-  
-
-      
-
-  
-
-                  const related = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-related-item'));
-
-  
-
-      
-
-  
-
-                  related.click();
-
-  
-
-      
-
-  
-
-                  expect(onClose).not.toHaveBeenCalled();
-
-  
-
-      
-
-  
-
-                });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      it('should have an empty update method', () => {
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {} });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        expect(typeof update).toBe('function');
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        update();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                    });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        describe('HelpModal', () => {
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                          it('should render shortcut list and handle Space label', () => {
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                            const { el } = createHelpModal({ onClose: () => {} });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                            expect(el.textContent).toContain('Keyboard Shortcuts');
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                            expect(el.textContent).toContain('Next Page');
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                            expect(el.textContent).toContain('j');
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                            expect(el.textContent).toContain('Space');
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                          });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                    
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                          it('should have an empty update method', () => {
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                            const { update } = createHelpModal({ onClose: () => {} });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                            expect(typeof update).toBe('function');
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                            update();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                          });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                    
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                          it('should call onClose when clicking overlay', () => {
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const onClose = vi.fn();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const { el } = createHelpModal({ onClose });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        el.click();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        expect(onClose).toHaveBeenCalled();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      it('should call onClose when clicking close button', () => {
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const onClose = vi.fn();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const { el } = createHelpModal({ onClose });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const closeBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-modal-close'));
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        closeBtn.click();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        expect(onClose).toHaveBeenCalled();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      it('should not call onClose when clicking content', () => {
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const onClose = vi.fn();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const { el } = createHelpModal({ onClose });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        const content = el.querySelector('.comic-helper-modal-content');
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        /** @type {HTMLElement} */ (content).click();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        expect(onClose).not.toHaveBeenCalled();
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                        });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      });
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                    
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                      describe('ResumeNotification', () => {
-
-  
-
-      
-
-  
-
-            
-
-  
-
-      
-
-  
-
-                    
+      const { elements } = createNavigationButtons(actions);
+      
+      const blurSpy = vi.spyOn(elements[0], 'blur');
+      elements[0].click();
+      expect(actions.onLast).toHaveBeenCalled();
+      expect(blurSpy).toHaveBeenCalled();
+
+      // Test branch where target is not HTMLElement
+      const event = new MouseEvent('click');
+      Object.defineProperty(event, 'target', { value: {} });
+      elements[1].dispatchEvent(event);
+      expect(actions.onNext).toHaveBeenCalled();
+    });
+
+    it('should have an empty update method', () => {
+      const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onLucky: () => {} });
+      expect(typeof update).toBe('function');
+      update();
+    });
+  });
+
+  describe('MetadataModal', () => {
+    const mockMetadata: Metadata = {
+      title: 'Test Manga',
+      tags: [{ text: 'Action', href: '#action', type: null }],
+      relatedWorks: [{ title: 'Manga B', href: '#b', thumb: 'b.jpg', isPrivate: false }]
+    };
+
+    it('should render title and content', () => {
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {} });
+      expect(el.textContent).toContain('Test Manga');
+      expect(el.textContent).toContain('Action');
+      expect(el.textContent).toContain('Manga B');
+    });
+
+    it('should call onClose when clicking overlay', () => {
+      const onClose = vi.fn();
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
+      el.click();
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('should call onClose when clicking close button', () => {
+      const onClose = vi.fn();
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
+      const closeBtn = el.querySelector('.comic-helper-modal-close') as HTMLElement;
+      closeBtn.click();
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('should not call onClose when clicking content', () => {
+      const onClose = vi.fn();
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
+      const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
+      content.click();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('should stop propagation when clicking tags or related items', () => {
+      const onClose = vi.fn();
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose });
+      
+      const tag = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
+      tag.click();
+      expect(onClose).not.toHaveBeenCalled();
+
+      const related = el.querySelector('.comic-helper-related-item') as HTMLElement;
+      related.click();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('should have an empty update method', () => {
+      const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {} });
+      expect(typeof update).toBe('function');
+      update();
+    });
+  });
+
+  describe('HelpModal', () => {
+    it('should render shortcut list and handle Space label', () => {
+      const { el } = createHelpModal({ onClose: () => {} });
+      expect(el.textContent).toContain('Keyboard Shortcuts');
+      expect(el.textContent).toContain('Next Page');
+      expect(el.textContent).toContain('j');
+      expect(el.textContent).toContain('Space');
+    });
+
+    it('should have an empty update method', () => {
+      const { update } = createHelpModal({ onClose: () => {} });
+      expect(typeof update).toBe('function');
+      update();
+    });
+
+    it('should call onClose when clicking overlay', () => {
+      const onClose = vi.fn();
+      const { el } = createHelpModal({ onClose });
+      el.click();
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('should call onClose when clicking close button', () => {
+      const onClose = vi.fn();
+      const { el } = createHelpModal({ onClose });
+      const closeBtn = el.querySelector('.comic-helper-modal-close') as HTMLElement;
+      closeBtn.click();
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it('should not call onClose when clicking content', () => {
+      const onClose = vi.fn();
+      const { el } = createHelpModal({ onClose });
+      const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
+      content.click();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ResumeNotification', () => {
     beforeEach(() => {
       vi.useFakeTimers();
       // Mock console.log to suppress output during tests
@@ -1523,7 +301,7 @@ describe('UI Components', () => {
 
       document.body.appendChild(el);
 
-      const continueBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-resume-continue'));
+      const continueBtn = el.querySelector('.comic-helper-resume-continue') as HTMLElement;
       continueBtn.click();
 
       expect(onResume).toHaveBeenCalled();
@@ -1542,7 +320,7 @@ describe('UI Components', () => {
 
       document.body.appendChild(el);
 
-      const skipBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-resume-skip'));
+      const skipBtn = el.querySelector('.comic-helper-resume-skip') as HTMLElement;
       skipBtn.click();
 
       expect(onSkip).toHaveBeenCalled();
@@ -1561,7 +339,7 @@ describe('UI Components', () => {
 
       document.body.appendChild(el);
 
-      const closeBtn = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-resume-close'));
+      const closeBtn = el.querySelector('.comic-helper-resume-close') as HTMLElement;
       closeBtn.click();
 
       expect(onResume).not.toHaveBeenCalled();
@@ -1625,3 +403,4 @@ describe('UI Components', () => {
       expect(el2.textContent).toContain('10');
     });
   });
+});

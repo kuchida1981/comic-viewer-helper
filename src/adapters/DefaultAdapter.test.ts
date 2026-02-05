@@ -1,6 +1,5 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { DefaultAdapter } from './DefaultAdapter';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { DefaultAdapter } from './DefaultAdapter.js';
 
 describe('DefaultAdapter', () => {
   it('should match any URL', () => {
@@ -19,6 +18,8 @@ describe('DefaultAdapter', () => {
     expect(DefaultAdapter.getImages()).toEqual([mockImg]);
     expect(document.querySelector).toHaveBeenCalledWith('#post-comic');
     expect(document.querySelectorAll).toHaveBeenCalledWith('#post-comic img');
+
+    vi.unstubAllGlobals();
   });
 
   describe('getMetadata', () => {
@@ -34,24 +35,19 @@ describe('DefaultAdapter', () => {
     });
 
     it('should extract title from h1', () => {
-      // @ts-expect-error
-      document.querySelector.mockImplementation(sel => {
+      (document.querySelector as Mock).mockImplementation(sel => {
         if (sel === 'h1') return { textContent: ' My Manga Title ' };
         return null;
       });
-      // @ts-expect-error
-      document.querySelectorAll.mockReturnValue([]);
+      (document.querySelectorAll as Mock).mockReturnValue([]);
 
-      // @ts-expect-error - DefaultAdapter has getMetadata
-      const result = DefaultAdapter.getMetadata();
+      const result = DefaultAdapter.getMetadata!();
       expect(result.title).toBe('My Manga Title');
     });
 
     it('should extract tags from #post-tag a with type null for unknown paths', () => {
-      // @ts-expect-error
-      document.querySelector.mockReturnValue(null);
-      // @ts-expect-error
-      document.querySelectorAll.mockImplementation(sel => {
+      (document.querySelector as Mock).mockReturnValue(null);
+      (document.querySelectorAll as Mock).mockImplementation(sel => {
         if (sel === '#post-tag a') return [
           { textContent: 'Action', href: 'http://tags/action' },
           { textContent: 'Fantasy', href: 'http://tags/fantasy' }
@@ -59,8 +55,7 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      // @ts-expect-error
-      const result = DefaultAdapter.getMetadata();
+      const result = DefaultAdapter.getMetadata!();
       expect(result.tags).toEqual([
         { text: 'Action', href: 'http://tags/action', type: null },
         { text: 'Fantasy', href: 'http://tags/fantasy', type: null }
@@ -68,10 +63,8 @@ describe('DefaultAdapter', () => {
     });
 
     it('should detect tag type from URL path', () => {
-      // @ts-expect-error
-      document.querySelector.mockReturnValue(null);
-      // @ts-expect-error
-      document.querySelectorAll.mockImplementation(sel => {
+      (document.querySelector as Mock).mockReturnValue(null);
+      (document.querySelectorAll as Mock).mockImplementation(sel => {
         if (sel === '#post-tag a') return [
           { textContent: 'Artist A', href: 'http://example.com/artist/a' },
           { textContent: 'Character B', href: 'http://example.com/character/b' },
@@ -85,8 +78,7 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      // @ts-expect-error
-      const result = DefaultAdapter.getMetadata();
+      const result = DefaultAdapter.getMetadata!();
       expect(result.tags).toEqual([
         { text: 'Artist A', href: 'http://example.com/artist/a', type: 'artist' },
         { text: 'Character B', href: 'http://example.com/character/b', type: 'character' },
@@ -100,10 +92,8 @@ describe('DefaultAdapter', () => {
     });
 
     it('should extract related works from .post-list-image', () => {
-      // @ts-expect-error
-      document.querySelector.mockReturnValue(null);
-      // @ts-expect-error
-      document.querySelectorAll.mockImplementation(sel => {
+      (document.querySelector as Mock).mockReturnValue(null);
+      (document.querySelectorAll as Mock).mockImplementation(sel => {
         if (sel === '.post-list-image') {
           const mockEl = {
             closest: vi.fn().mockReturnValue({ href: 'http://work/1' }),
@@ -118,18 +108,15 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      // @ts-expect-error
-      const result = DefaultAdapter.getMetadata();
+      const result = DefaultAdapter.getMetadata!();
       expect(result.relatedWorks).toEqual([
         { title: 'Related Work 1', href: 'http://work/1', thumb: 'thumb1.jpg', isPrivate: false }
       ]);
     });
 
     it('should extract title from anchor span if not found in .post-list-image span', () => {
-      // @ts-expect-error
-      document.querySelector.mockReturnValue(null);
-      // @ts-expect-error
-      document.querySelectorAll.mockImplementation(sel => {
+      (document.querySelector as Mock).mockReturnValue(null);
+      (document.querySelectorAll as Mock).mockImplementation(sel => {
         if (sel === '.post-list-image') {
           const mockAnchor = { 
             href: 'http://work/2',
@@ -147,19 +134,15 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      // @ts-expect-error
-      const result = DefaultAdapter.getMetadata();
+      const result = DefaultAdapter.getMetadata!();
       expect(result.relatedWorks[0].title).toBe('Title from Anchor');
     });
 
     it('should provide default values if elements not found', () => {
-      // @ts-expect-error
-      document.querySelector.mockReturnValue(null);
-      // @ts-expect-error
-      document.querySelectorAll.mockReturnValue([]);
+      (document.querySelector as Mock).mockReturnValue(null);
+      (document.querySelectorAll as Mock).mockReturnValue([]);
 
-      // @ts-expect-error
-      const result = DefaultAdapter.getMetadata();
+      const result = DefaultAdapter.getMetadata!();
       expect(result).toEqual({
         title: 'Unknown Title',
         tags: [],

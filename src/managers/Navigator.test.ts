@@ -1,13 +1,14 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Navigator } from './Navigator';
-import * as logic from '../logic';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { Navigator } from './Navigator.js';
+import * as logic from '../logic.js';
+import { Store } from '../store.js';
+import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
 
 // Mock logic functions to isolate Navigator logic
-vi.mock('../logic', async (importOriginal) => {
-  const actual = await importOriginal();
+vi.mock('../logic.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../logic.js')>();
   return {
-    ...(/** @type {Object} */ (actual)),
+    ...actual,
     fitImagesToViewport: vi.fn(),
     getPrimaryVisibleImageIndex: vi.fn().mockReturnValue(0),
     getImageElementByIndex: vi.fn((imgs, idx) => imgs[idx]),
@@ -19,14 +20,10 @@ vi.mock('../logic', async (importOriginal) => {
 });
 
 describe('Navigator', () => {
-  /** @type {any} */
-  let adapter: any;
-  /** @type {any} */
-  let store: any;
-  /** @type {any} */
-  let navigator: any;
-  /** @type {any} */
-  let mockImages: any;
+  let adapter: typeof DefaultAdapter;
+  let store: Store;
+  let navigator: Navigator;
+  let mockImages: HTMLImageElement[];
 
   beforeEach(() => {
     mockImages = [
@@ -39,24 +36,24 @@ describe('Navigator', () => {
         addEventListener: vi.fn(), 
         getAttribute: vi.fn().mockReturnValue(null),
         setAttribute: vi.fn()
-      },
+      } as unknown as HTMLImageElement,
       { 
         id: 'img2', 
         scrollIntoView: vi.fn(), 
         parentElement: { classList: { contains: () => false } }, 
         complete: true, 
         naturalHeight: 100,
-        addEventListener: vi.fn(),
+        addEventListener: vi.fn(), 
         getAttribute: vi.fn().mockReturnValue(null),
         setAttribute: vi.fn()
-      }
+      } as unknown as HTMLImageElement
     ];
 
     adapter = {
       match: vi.fn().mockReturnValue(true),
       getContainer: vi.fn().mockReturnValue({ id: 'mock-container', style: {}, appendChild: vi.fn(), querySelectorAll: vi.fn().mockReturnValue([]) }),
       getImages: vi.fn().mockReturnValue(mockImages)
-    };
+    } as unknown as typeof DefaultAdapter;
     
     store = {
       getState: vi.fn().mockReturnValue({ 
@@ -67,17 +64,16 @@ describe('Navigator', () => {
       }),
       setState: vi.fn(),
       subscribe: vi.fn()
-    };
+    } as unknown as Store;
     
-    navigator = new Navigator(/** @type {any} */ (adapter), /** @type {any} */ (store));
+    navigator = new Navigator(adapter, store);
 
     vi.stubGlobal('window', {
         innerHeight: 1000,
-        requestAnimationFrame: vi.fn(cb => cb()),
+        requestAnimationFrame: vi.fn(cb => cb(0)),
         cancelAnimationFrame: vi.fn()
     });
-    vi.stubGlobal('requestAnimationFrame', vi.fn(cb => cb()));
-    // Don't stub document globally, use real one but spy if needed
+    vi.stubGlobal('requestAnimationFrame', vi.fn(cb => cb(0)));
   });
 
   afterEach(() => {
@@ -91,7 +87,7 @@ describe('Navigator', () => {
     expect(adapter.getImages).toHaveBeenCalled();
     
     // Test caching
-    adapter.getImages.mockClear();
+    (adapter.getImages as Mock).mockClear();
     navigator.getImages();
     expect(adapter.getImages).not.toHaveBeenCalled();
   });
@@ -103,7 +99,7 @@ describe('Navigator', () => {
   });
 
   it('should not update page counter if disabled', () => {
-    store.getState.mockReturnValue({ enabled: false });
+    (store.getState as Mock).mockReturnValue({ enabled: false });
     navigator.updatePageCounter();
     expect(logic.getPrimaryVisibleImageIndex).not.toHaveBeenCalled();
   });
@@ -127,19 +123,24 @@ describe('Navigator', () => {
   });
 
   it('should handle dual view scroll correctly', () => {
-    store.getState.mockReturnValue({ enabled: true, isDualViewEnabled: true, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isDualViewEnabled: true, currentVisibleIndex: 0 });
     // Mock same parent and row wrapper class
-    const parent = { classList: { contains: vi.fn().mockReturnValue(true) } };
-    const parent2 = { classList: { contains: vi.fn().mockReturnValue(true) } };
+    const parent = { classList: { contains: vi.fn().mockReturnValue(true) } } as unknown as HTMLElement;
+    const parent2 = { classList: { contains: vi.fn().mockReturnValue(true) } } as unknown as HTMLElement;
     
     const imgs = [
         { ...mockImages[0], parentElement: parent },
         { ...mockImages[1], parentElement: parent },
         { ...mockImages[0], id: 'img3', parentElement: parent2 },
         { ...mockImages[1], id: 'img4', parentElement: parent2 }
-    ];
+    ] as unknown as HTMLImageElement[];
     
-    adapter.getImages.mockReturnValue(imgs);
+    (adapter.getImages as Mock).mockReturnValue(imgs);
+    // Re-initialize to bust cache or mock getImages correctly if cache logic uses it
+    // Navigator usually caches, so we might need to recreate navigator or force clear cache.
+    // Based on implementation, getImages() caches.
+    // Let's create a new navigator instance for this test to be safe with new adapter return
+    navigator = new Navigator(adapter, store);
     
     navigator.scrollToImage(1);
     // Should skip index 1 and go to index 2 (next spread)
@@ -164,7 +165,9 @@ describe('Navigator', () => {
 
   it('should scroll to edge (unloaded image - waits for load)', async () => {
     // Simulate the last image being unloaded
+    // @ts-expect-error - writing to readonly property
     mockImages[1].complete = false;
+    // @ts-expect-error - writing to readonly property
     mockImages[1].naturalHeight = 0;
 
     const spy = vi.spyOn(navigator, 'applyLayout');
@@ -184,74 +187,59 @@ describe('Navigator', () => {
   });
 
   it('should revert when disabled via applyLayout', () => {
-    store.getState.mockReturnValue({ enabled: false });
+    (store.getState as Mock).mockReturnValue({ enabled: false });
     navigator.applyLayout();
     expect(logic.revertToOriginal).toHaveBeenCalled();
   });
 
     it('init should handle image load listeners', () => {
-
       const spy = vi.spyOn(navigator, 'applyLayout');
-
+      // @ts-expect-error - writing to readonly property
       mockImages[0].complete = false;
 
       navigator.init();
 
       expect(mockImages[0].addEventListener).toHaveBeenCalledWith('load', expect.any(Function));
 
-      
-
       // Trigger load
-
-      const loadCb = mockImages[0].addEventListener.mock.calls[0][1];
-
+      const loadCb = (mockImages[0].addEventListener as Mock).mock.calls[0][1];
       loadCb();
 
       expect(spy).toHaveBeenCalled();
-
     });
-
   
-
     it('should react to store changes after init', () => {
-
       navigator.init();
-
       const spy = vi.spyOn(navigator, 'applyLayout');
-
       
-
       // Simulate store update
-
-      const subscribeCb = vi.mocked(store.subscribe).mock.calls[0][0];
-
+      const subscribeCb = (store.subscribe as Mock).mock.calls[0][0];
       subscribeCb({ enabled: true, isDualViewEnabled: true, spreadOffset: 0 });
-
       
-
       expect(spy).toHaveBeenCalled();
-
     });
 
     it('should open metadata modal when navigating past last page in dual view spread', () => {
-        store.getState.mockReturnValue({ 
+        (store.getState as Mock).mockReturnValue({ 
           enabled: true, 
           isDualViewEnabled: true, 
           isMetadataModalOpen: false,
           currentVisibleIndex: 1 
         });
     
-        const parent = { classList: { contains: vi.fn().mockReturnValue(true) } };
+        const parent = { classList: { contains: vi.fn().mockReturnValue(true) } } as unknown as HTMLElement;
         
         // 3 images. Index 1 and 2 are a spread.
         const imgs = [
             { ...mockImages[0] }, // index 0
             { ...mockImages[0], parentElement: parent }, // index 1
             { ...mockImages[0], parentElement: parent }  // index 2
-        ];
+        ] as unknown as HTMLImageElement[];
         
         // Mock getImages to return 3 images
-        adapter.getImages.mockReturnValue(imgs);
+        (adapter.getImages as Mock).mockReturnValue(imgs);
+        navigator = new Navigator(adapter, store);
+
         // Mock visible index to be 1
         vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(1);
     
@@ -261,7 +249,4 @@ describe('Navigator', () => {
         // Should NOT scroll to any image (early return)
         expect(imgs[2].scrollIntoView).not.toHaveBeenCalled();
       });
-
-  });
-
-  
+});

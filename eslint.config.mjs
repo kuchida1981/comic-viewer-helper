@@ -51,7 +51,7 @@ export default [
         "caughtErrorsIgnorePattern": "^_"
       }],
       "no-console": "off",
-      "@typescript-eslint/ban-ts-comment": "off", // Allow @ts-ignore for migration
+      "@typescript-eslint/ban-ts-comment": "warn", // Warn for @ts-ignore/@ts-nocheck
       "@typescript-eslint/no-explicit-any": "warn"
     }
   },

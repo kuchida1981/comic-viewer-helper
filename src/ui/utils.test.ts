@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect } from 'vitest';
 import { createElement } from './utils.js';
 
@@ -29,20 +28,19 @@ describe('ui/utils.js', () => {
     const el = createElement('div', {}, [child, 'text node']);
     expect(el.childNodes.length).toBe(2);
     expect(el.firstChild).toBe(child);
-    if (!el.lastChild) throw new Error('lastChild should exist');
-    expect(el.lastChild.textContent).toBe('text node');
+    expect(el.lastChild).not.toBeNull();
+    expect(el.lastChild!.textContent).toBe('text node');
   });
 
   it('should handle input specific options', () => {
-    const input = /** @type {HTMLInputElement} */ (createElement('input', { type: 'checkbox', checked: true }));
-        expect(input.type).toBe('checkbox');
-        expect(input.checked).toBe(true);
-      });
-    
-      it('should set attributes', () => {
-        const el = createElement('div', { attributes: { 'data-test': 'value', 'aria-label': 'test' } });
-        expect(el.getAttribute('data-test')).toBe('value');
-        expect(el.getAttribute('aria-label')).toBe('test');
-      });
-    });
-    
+    const input = createElement('input', { type: 'checkbox', checked: true });
+    expect(input.type).toBe('checkbox');
+    expect(input.checked).toBe(true);
+  });
+
+  it('should set attributes', () => {
+    const el = createElement('div', { attributes: { 'data-test': 'value', 'aria-label': 'test' } });
+    expect(el.getAttribute('data-test')).toBe('value');
+    expect(el.getAttribute('aria-label')).toBe('test');
+  });
+});

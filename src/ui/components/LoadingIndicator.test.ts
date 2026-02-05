@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, vi } from 'vitest';
 import { createLoadingIndicator } from './LoadingIndicator.js';
 import { createElement } from '../utils.js';
@@ -10,7 +9,7 @@ vi.mock('../utils.js', () => ({
       classList: {
         add: vi.fn(),
         remove: vi.fn(),
-        contains: vi.fn(c => el.className.includes(c))
+        contains: vi.fn(c => (el.className || '').includes(c))
       },
       appendChild: vi.fn(),
       ...props,

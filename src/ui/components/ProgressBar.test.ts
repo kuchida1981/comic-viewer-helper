@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect } from 'vitest';
 import { createProgressBar } from './ProgressBar.js';
 
@@ -12,7 +11,7 @@ describe('ProgressBar', () => {
 
   it('should update progress width', () => {
     const { el, update } = createProgressBar();
-    const bar = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-progress-fill'));
+    const bar = el.querySelector('.comic-helper-progress-fill') as HTMLElement;
 
     update(0, 10);
     expect(bar.style.width).toBe('10%');
@@ -29,7 +28,7 @@ describe('ProgressBar', () => {
 
   it('should handle zero total', () => {
     const { el, update } = createProgressBar();
-    const bar = /** @type {HTMLElement} */ (el.querySelector('.comic-helper-progress-fill'));
+    const bar = el.querySelector('.comic-helper-progress-fill') as HTMLElement;
     
     update(0, 0);
     expect(bar.style.width).toBe('');

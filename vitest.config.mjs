@@ -18,7 +18,8 @@ export default defineConfig({
         'src/main.js',
         'src/main.ts',
         'src/ui/styles.js',
-        'src/ui/styles.ts'
+        'src/ui/styles.ts',
+        'src/test/mocks/**'
       ],
       thresholds: {
         lines: 95,

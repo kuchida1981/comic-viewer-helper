@@ -1,26 +1,14 @@
-// @ts-nocheck
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ResumeManager } from './ResumeManager.js';
 import { Store } from '../store.js';
+import { setupLocalStorageMock } from '../test/mocks/storage.js';
 
 describe('ResumeManager', () => {
-  /** @type {Store} */
-  let store: any;
-  /** @type {ResumeManager} */
-  let resumeManager: any;
+  let store: Store;
+  let resumeManager: ResumeManager;
 
   beforeEach(() => {
-    // Mock localStorage
-    /** @type {Record<string, string>} */
-    let storage = {};
-    vi.stubGlobal('localStorage', {
-      getItem: (/** @type {string} */ key) => storage[key] || null,
-      setItem: (/** @type {string} */ key, /** @type {string} */ value) => { storage[key] = String(value); },
-      clear: () => { storage = {}; },
-      removeItem: (/** @type {string} */ key) => { delete storage[key]; }
-    });
-
-    localStorage.clear();
+    setupLocalStorageMock();
     vi.stubGlobal('innerWidth', 1024);
     vi.stubGlobal('innerHeight', 768);
 
@@ -118,12 +106,14 @@ describe('ResumeManager', () => {
 
   describe('_loadData', () => {
     it('should return empty object when localStorage is empty', () => {
+      // @ts-expect-error - testing private method
       const data = resumeManager._loadData();
       expect(data).toEqual({});
     });
 
     it('should return empty object when JSON is invalid', () => {
       localStorage.setItem('comic-viewer-helper-resume-data', 'invalid-json');
+      // @ts-expect-error - testing private method
       const data = resumeManager._loadData();
       expect(data).toEqual({});
     });
@@ -131,6 +121,7 @@ describe('ResumeManager', () => {
     it('should return parsed data when valid', () => {
       const testData = { 'https://example.com/page': { pageIndex: 42 } };
       localStorage.setItem('comic-viewer-helper-resume-data', JSON.stringify(testData));
+      // @ts-expect-error - testing private method
       const data = resumeManager._loadData();
       expect(data).toEqual(testData);
     });

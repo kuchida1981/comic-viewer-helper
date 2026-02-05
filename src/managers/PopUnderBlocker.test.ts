@@ -1,26 +1,26 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { PopUnderBlocker } from './PopUnderBlocker';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { PopUnderBlocker } from './PopUnderBlocker.js';
+import { Store } from '../store.js';
 
 describe('PopUnderBlocker', () => {
-  /** @type {any} */
-  let store: any;
-  /** @type {PopUnderBlocker} */
-  let blocker: any;
+  let store: Store;
+  let blocker: PopUnderBlocker;
 
   beforeEach(() => {
     store = {
       getState: vi.fn().mockReturnValue({ enabled: true }),
-      setState: vi.fn()
-    };
-    blocker = new PopUnderBlocker(/** @type {any} */ (store));
+      setState: vi.fn(),
+      subscribe: vi.fn(),
+    } as unknown as Store;
+    blocker = new PopUnderBlocker(store);
 
     vi.spyOn(document, 'addEventListener');
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete /** @type {any} */ (window).location;
+    // @ts-expect-error - testing purpose
+    delete window.location;
     Object.defineProperty(window, 'location', {
       value: { href: 'http://localhost/' },
       writable: true,
@@ -34,8 +34,7 @@ describe('PopUnderBlocker', () => {
   });
 
   describe('通常リンクへのクリック', () => {
-    /** @type {HTMLAnchorElement} */
-    let link: any;
+    let link: HTMLAnchorElement;
 
     beforeEach(() => {
       link = document.createElement('a');
@@ -60,8 +59,9 @@ describe('PopUnderBlocker', () => {
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).toHaveBeenCalled();
       expect(event.preventDefault).toHaveBeenCalled();
@@ -70,8 +70,7 @@ describe('PopUnderBlocker', () => {
   });
 
   describe('除外条件', () => {
-    /** @type {HTMLAnchorElement} */
-    let link: any;
+    let link: HTMLAnchorElement;
 
     beforeEach(() => {
       link = document.createElement('a');
@@ -97,8 +96,9 @@ describe('PopUnderBlocker', () => {
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -114,8 +114,9 @@ describe('PopUnderBlocker', () => {
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).toHaveBeenCalled();
       expect(event.preventDefault).toHaveBeenCalled();
@@ -129,8 +130,9 @@ describe('PopUnderBlocker', () => {
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -144,8 +146,9 @@ describe('PopUnderBlocker', () => {
         metaKey: true,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -155,7 +158,7 @@ describe('PopUnderBlocker', () => {
     it('href 属性なしの <a> タグはインターセプトしない', () => {
       const anchor = document.createElement('a');
       anchor.setAttribute('name', 'section');
-      document.body.appendChild(link);
+      document.body.appendChild(anchor);
 
       const event = {
         target: anchor,
@@ -163,8 +166,9 @@ describe('PopUnderBlocker', () => {
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -181,8 +185,9 @@ describe('PopUnderBlocker', () => {
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -191,8 +196,7 @@ describe('PopUnderBlocker', () => {
   });
 
   describe('enabled フラグによる制御', () => {
-    /** @type {HTMLAnchorElement} */
-    let link: any;
+    let link: HTMLAnchorElement;
 
     beforeEach(() => {
       link = document.createElement('a');
@@ -211,15 +215,16 @@ describe('PopUnderBlocker', () => {
     });
 
     it('enabled が false の場合はインターセプトしない', () => {
-      store.getState.mockReturnValue({ enabled: false });
+      (store.getState as Mock).mockReturnValue({ enabled: false });
       const event = {
         target: link,
         ctrlKey: false,
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -244,8 +249,9 @@ describe('PopUnderBlocker', () => {
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).not.toHaveBeenCalled();
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -273,8 +279,9 @@ describe('PopUnderBlocker', () => {
         metaKey: false,
         stopImmediatePropagation: vi.fn(),
         preventDefault: vi.fn()
-      };
-      blocker.handleClick(/** @type {any} */ (event));
+      } as unknown as MouseEvent;
+      
+      blocker.handleClick(event);
 
       expect(event.stopImmediatePropagation).toHaveBeenCalled();
       expect(event.preventDefault).toHaveBeenCalled();
