@@ -8,6 +8,7 @@ export interface NavigationButtonsProps {
   onLast: () => void;
   onInfo: () => void;
   onHelp: () => void;
+  onSearch: () => void;
   onLucky: () => void;
 }
 
@@ -17,7 +18,7 @@ export interface NavigationButtonsComponent {
 }
 
 export function createNavigationButtons({
-  onFirst, onPrev, onNext, onLast, onInfo, onHelp, onLucky
+  onFirst, onPrev, onNext, onLast, onInfo, onHelp, onSearch, onLucky
 }: NavigationButtonsProps): NavigationButtonsComponent {
   const configs = [
     { text: '<<', title: t('ui.goLast'), action: onLast },
@@ -26,7 +27,8 @@ export function createNavigationButtons({
     { text: '>', title: t('ui.goPrev'), action: onPrev },
     { text: '>>', title: t('ui.goFirst'), action: onFirst },
     { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
-    { text: '?', title: t('ui.showHelp'), action: onHelp }
+    { text: '?', title: t('ui.showHelp'), action: onHelp },
+    { text: '🔍', title: t('ui.showSearch'), action: onSearch, className: 'comic-helper-button comic-helper-icon-btn' }
   ];
 
   const elements = configs

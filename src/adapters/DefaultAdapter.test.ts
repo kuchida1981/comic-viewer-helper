@@ -22,6 +22,37 @@ describe('DefaultAdapter', () => {
     vi.unstubAllGlobals();
   });
 
+  describe('getSearchUrl', () => {
+    it('should return correct search URL with default config', () => {
+      // Set default window.location.origin
+      vi.stubGlobal('location', { origin: 'http://example.com' });
+      
+      const query = 'test keyword';
+      const result = DefaultAdapter.getSearchUrl!(query);
+      
+      const url = new URL(result);
+      expect(url.origin).toBe('http://example.com');
+      expect(url.pathname).toBe('/');
+      expect(url.searchParams.get('s')).toBe('test keyword');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('should use custom searchConfig if provided', () => {
+      const originalConfig = DefaultAdapter.searchConfig;
+      DefaultAdapter.searchConfig = {
+        baseUrl: 'https://search.com/find',
+        queryParam: 'q'
+      };
+
+      const result = DefaultAdapter.getSearchUrl!('hello');
+      expect(result).toBe('https://search.com/find?q=hello');
+
+      // Restore
+      DefaultAdapter.searchConfig = originalConfig;
+    });
+  });
+
   describe('getMetadata', () => {
     beforeEach(() => {
       vi.stubGlobal('document', {

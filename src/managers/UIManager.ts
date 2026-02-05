@@ -5,6 +5,7 @@ import { createSpreadControls, SpreadControlsComponent } from '../ui/components/
 import { createNavigationButtons } from '../ui/components/NavigationButtons';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
+import { createSearchModal } from '../ui/components/SearchModal';
 import { createProgressBar, ProgressBarComponent } from '../ui/components/ProgressBar';
 import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
@@ -30,6 +31,7 @@ export class UIManager {
   private draggable: Draggable | null;
   private modalEl: HTMLElement | null;
   private helpModalEl: HTMLElement | null;
+  private searchModalEl: HTMLElement | null;
 
   constructor(adapter: SiteAdapter, store: Store, navigator: Navigator) {
     this.adapter = adapter;
@@ -45,6 +47,7 @@ export class UIManager {
     this.draggable = null;
     this.modalEl = null;
     this.helpModalEl = null;
+    this.searchModalEl = null;
 
     this.updateUI = this.updateUI.bind(this);
     this.init = this.init.bind(this);
@@ -157,44 +160,45 @@ export class UIManager {
         onLast: () => { void this.navigator.scrollToEdge('end'); },
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
+        onSearch: () => this.store.setState({ isSearchModalOpen: true }),
         onLucky: () => { jumpToRandomWork(metadata); }
       });
       navBtns.elements.forEach(btn => container?.appendChild(btn));
     }
 
-    // Handle Help Modal
-    const { isMetadataModalOpen, isHelpModalOpen, metadata } = state;
-    if (isHelpModalOpen) {
-      if (!this.helpModalEl) {
-        const modal = createHelpModal({
-          onClose: () => this.store.setState({ isHelpModalOpen: false })
-        });
-        this.helpModalEl = modal.el;
-        document.body.appendChild(this.helpModalEl);
-      }
-    } else {
-      if (this.helpModalEl) {
-        this.helpModalEl.remove();
-        this.helpModalEl = null;
-      }
-    }
+    const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, metadata } = state;
 
-    // Handle Metadata Modal
-    if (isMetadataModalOpen) {
-      if (!this.modalEl) {
-        const modal = createMetadataModal({
-          metadata,
-          onClose: () => this.store.setState({ isMetadataModalOpen: false })
-        });
-        this.modalEl = modal.el;
-        document.body.appendChild(this.modalEl);
-      }
-    } else {
-      if (this.modalEl) {
-        this.modalEl.remove();
-        this.modalEl = null;
-      }
-    }
+    // Handle Modals
+    this.helpModalEl = this._manageModal(
+      isHelpModalOpen,
+      this.helpModalEl,
+      () => createHelpModal({
+        onClose: () => this.store.setState({ isHelpModalOpen: false })
+      })
+    );
+
+    this.searchModalEl = this._manageModal(
+      isSearchModalOpen,
+      this.searchModalEl,
+      () => createSearchModal({
+        onSearch: (query: string) => {
+          this.store.setState({ isSearchModalOpen: false });
+          if (this.adapter.getSearchUrl) {
+            window.location.href = this.adapter.getSearchUrl(query);
+          }
+        },
+        onClose: () => this.store.setState({ isSearchModalOpen: false })
+      })
+    );
+
+    this.modalEl = this._manageModal(
+      isMetadataModalOpen,
+      this.modalEl,
+      () => createMetadataModal({
+        metadata,
+        onClose: () => this.store.setState({ isMetadataModalOpen: false })
+      })
+    );
 
     this.powerComp.update(enabled);
     this.loadingComp.update(isLoading);
@@ -243,5 +247,28 @@ export class UIManager {
       }
     });
     document.body.appendChild(notification.el);
+  }
+
+  /**
+   * Private helper to manage modal lifecycle (creation and destruction)
+   */
+  private _manageModal(
+    isOpen: boolean,
+    modalEl: HTMLElement | null,
+    createFn: () => { el: HTMLElement }
+  ): HTMLElement | null {
+    if (isOpen) {
+      if (!modalEl) {
+        const newModal = createFn();
+        modalEl = newModal.el;
+        document.body.appendChild(modalEl);
+      }
+    } else {
+      if (modalEl) {
+        modalEl.remove();
+        modalEl = null;
+      }
+    }
+    return modalEl;
   }
 }

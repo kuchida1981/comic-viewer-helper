@@ -10,6 +10,7 @@ const DEFAULT_STATE: StoreState = {
   metadata: { title: '', tags: [], relatedWorks: [] },
   isMetadataModalOpen: false,
   isHelpModalOpen: false,
+  isSearchModalOpen: false,
   isLoading: false,
 };
 

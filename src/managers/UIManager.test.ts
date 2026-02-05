@@ -7,6 +7,7 @@ import { createSpreadControls } from '../ui/components/SpreadControls.js';
 import { createNavigationButtons } from '../ui/components/NavigationButtons.js';
 import { createHelpModal } from '../ui/components/HelpModal.js';
 import { createMetadataModal } from '../ui/components/MetadataModal.js';
+import { createSearchModal } from '../ui/components/SearchModal.js';
 import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
@@ -55,6 +56,9 @@ vi.mock('../ui/components/MetadataModal.js', () => ({
 vi.mock('../ui/components/HelpModal.js', () => ({
   createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
+vi.mock('../ui/components/SearchModal.js', () => ({
+  createSearchModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
+}));
 vi.mock('../ui/components/ProgressBar.js', () => ({
   createProgressBar: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
 }));
@@ -81,6 +85,7 @@ describe('UIManager', () => {
         metadata: {},
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
+        isSearchModalOpen: false,
         spreadOffset: 0,
         isLoading: false
       }),
@@ -154,7 +159,7 @@ describe('UIManager', () => {
   });
 
   it('should handle modals and their onClose callbacks', () => {
-    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: true, metadata: {}, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0 });
     uiManager.updateUI();
     
     // Test onClose
@@ -163,10 +168,33 @@ describe('UIManager', () => {
 
     (createMetadataModal as unknown as Mock).mock.calls[0][0].onClose();
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false });
+
+    (createSearchModal as unknown as Mock).mock.calls[0][0].onClose();
+    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
     
     // Close modals in state and update UI
-    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, metadata: {}, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, metadata: {}, currentVisibleIndex: 0 });
     uiManager.updateUI();
+  });
+
+  it('should handle search modal redirect', () => {
+    adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com?q=test');
+    
+    // Mock window.location properly
+    const locationMock = { href: '' };
+    vi.stubGlobal('location', locationMock);
+    // Also stub window.location to be safe
+    vi.stubGlobal('window', { ...window, location: locationMock });
+
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0 });
+    uiManager.updateUI();
+
+    const onSearch = (createSearchModal as unknown as Mock).mock.calls[0][0].onSearch;
+    onSearch('test');
+
+    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
+    expect(adapter.getSearchUrl).toHaveBeenCalledWith('test');
+    expect(window.location.href).toBe('http://search.com?q=test');
   });
 
   it('should handle resize for draggable', () => {
@@ -237,7 +265,10 @@ describe('UIManager', () => {
     expect(navigator.scrollToEdge).toHaveBeenCalledWith('end');
     callbacks.onInfo();
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
-    callbacks.onHelp();
-    expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: true });
-  });
-});
+        callbacks.onHelp();
+        expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: true });
+        callbacks.onSearch();
+        expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: true });
+      });
+    });
+    

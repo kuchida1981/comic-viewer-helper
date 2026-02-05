@@ -126,9 +126,9 @@ describe('UI Components', () => {
   });
 
   describe('NavigationButtons', () => {
-    it('should render 7 navigation buttons', () => {
-      const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onLucky: () => {} });
-      expect(elements.length).toBe(7);
+    it('should render 8 navigation buttons', () => {
+      const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {} });
+      expect(elements.length).toBe(8);
       expect(elements[0].textContent).toBe('<<');
       expect(elements[1].textContent).toBe('<');
       expect(elements[2].textContent).toBe('🎲');
@@ -136,6 +136,7 @@ describe('UI Components', () => {
       expect(elements[4].textContent).toBe('>>');
       expect(elements[5].textContent).toBe('Info');
       expect(elements[6].textContent).toBe('?');
+      expect(elements[7].textContent).toBe('🔍');
     });
 
     it('should call correct actions and blur', () => {
@@ -146,6 +147,7 @@ describe('UI Components', () => {
         onLast: vi.fn(),
         onInfo: vi.fn(),
         onHelp: vi.fn(),
+        onSearch: vi.fn(),
         onLucky: vi.fn()
       };
       const { elements } = createNavigationButtons(actions);
@@ -163,7 +165,7 @@ describe('UI Components', () => {
     });
 
     it('should have an empty update method', () => {
-      const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onLucky: () => {} });
+      const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {} });
       expect(typeof update).toBe('function');
       update();
     });

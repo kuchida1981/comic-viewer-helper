@@ -32,6 +32,15 @@ export const DefaultAdapter: SiteAdapter = {
   getContainer: () => document.querySelector<HTMLElement>(CONTAINER_SELECTOR),
   getImages: () =>
     Array.from(document.querySelectorAll<HTMLImageElement>(`${CONTAINER_SELECTOR} img`)),
+  searchConfig: {
+    baseUrl: '/',
+    queryParam: 's'
+  },
+  getSearchUrl: function (query: string) {
+    const url = new URL(this.searchConfig?.baseUrl || '/', window.location.origin);
+    url.searchParams.set(this.searchConfig?.queryParam || 's', query);
+    return url.toString();
+  },
   getMetadata: (): Metadata => {
     const title = document.querySelector('h1')?.textContent?.trim() || 'Unknown Title';
 
