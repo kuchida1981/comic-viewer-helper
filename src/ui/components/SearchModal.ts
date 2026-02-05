@@ -130,19 +130,9 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
   }, [input, submitBtn]);
 
   let resultsSection = createResultsSection(searchResults, onPageChange);
-
-  const spinner = createElement('div', { className: 'comic-helper-spinner' });
-  const spinnerOverlay = createElement('div', {
-    className: 'comic-helper-search-spinner-overlay'
-  }, [spinner]);
-
-  const resultsWrapper = createElement('div', {
-    className: 'comic-helper-search-results-wrapper'
-  }, [resultsSection, spinnerOverlay]);
-
   const container = createElement('div', {
     className: 'comic-helper-search-container'
-  }, [form, resultsWrapper]);
+  }, [form, resultsSection]);
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -168,12 +158,17 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
   });
   title.appendChild(updatingIndicator);
 
+  const spinner = createElement('div', { className: 'comic-helper-spinner' });
+  const spinnerOverlay = createElement('div', {
+    className: 'comic-helper-search-spinner-overlay'
+  }, [spinner]);
+
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
     events: {
       click: (e) => e.stopPropagation()
     }
-  }, [closeBtn, title, container]);
+  }, [closeBtn, title, container, spinnerOverlay]);
   content.addEventListener('click', (e) => e.stopPropagation());
   content.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
 
@@ -193,7 +188,7 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     input,
     updateResults: (newResults: SearchResultsState | null) => {
       const newSection = createResultsSection(newResults, onPageChange);
-      resultsWrapper.replaceChild(newSection, resultsSection);
+      container.replaceChild(newSection, resultsSection);
       resultsSection = newSection;
       content.scrollTop = 0;
     },

@@ -446,12 +446,12 @@ export const styles = `
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(26, 26, 26, 0.7);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 100;
-    border-radius: 8px;
+    z-index: 1000;
+    border-radius: 12px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s;
