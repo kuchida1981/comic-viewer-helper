@@ -55,11 +55,11 @@ export default [
       "@typescript-eslint/no-explicit-any": "warn"
     }
   },
-  // Allow 'any' in test files during migration
+  // Test files: same 'any' strictness as production
   {
     files: ["**/*.test.ts"],
     rules: {
-      "@typescript-eslint/no-explicit-any": "off"
+      "@typescript-eslint/no-explicit-any": "warn"
     }
   }
 ];
