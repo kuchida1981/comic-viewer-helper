@@ -238,7 +238,7 @@ describe('InputManager', () => {
     inputManager.onKeyDown(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks });
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks }, undefined);
   });
 
   it('onKeyDown should not navigate if no related works', () => {
@@ -251,7 +251,7 @@ describe('InputManager', () => {
     inputManager.onKeyDown(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks: [] });
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks: [] }, undefined);
   });
 
   it('onKeyDown should not navigate if all related works are private', () => {
@@ -268,7 +268,7 @@ describe('InputManager', () => {
     inputManager.onKeyDown(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks });
+    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks }, undefined);
   });
 
   it('onKeyDown should enter fullscreen when not in fullscreen', async () => {

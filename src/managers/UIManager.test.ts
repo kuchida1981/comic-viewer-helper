@@ -14,6 +14,16 @@ import { createElement } from '../ui/utils.js';
 import { Store } from '../store.js';
 import { Navigator } from './Navigator.js';
 import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
+import * as logic from '../logic.js';
+
+// Mock logic
+vi.mock('../logic.js', async () => {
+  const actual = await vi.importActual('../logic.js') as any;
+  return {
+    ...actual,
+    jumpToRandomWork: vi.fn()
+  };
+});
 
 // Mock components
 vi.mock('../ui/styles.js', () => ({ injectStyles: vi.fn() }));
@@ -333,8 +343,11 @@ describe('UIManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
         callbacks.onHelp();
         expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: true });
-        callbacks.onSearch();
-        expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: true });
-      });
-    });
-    
+            callbacks.onSearch();
+            expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: true });
+            
+            callbacks.onLucky();
+            expect(logic.jumpToRandomWork).toHaveBeenCalled();
+          });
+        });
+        
