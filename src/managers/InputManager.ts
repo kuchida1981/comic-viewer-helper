@@ -171,8 +171,8 @@ export class InputManager {
       }
     } else if (isKey('randomJump')) {
       e.preventDefault();
-      const { metadata } = this.store.getState();
-      jumpToRandomWork(metadata);
+      const { metadata, searchCache } = this.store.getState();
+      jumpToRandomWork(metadata, searchCache);
     }
   }
 

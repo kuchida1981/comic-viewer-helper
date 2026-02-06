@@ -1,4 +1,4 @@
-import { Metadata } from './types';
+import { Metadata, SearchCache } from './types';
 
 export interface ImageInfo {
   isLandscape: boolean;
@@ -299,12 +299,29 @@ export function preloadImages(images: HTMLImageElement[], currentIndex: number, 
 }
 
 /**
- * Select a random non-private work from related works and jump to it
+ * Select a random non-private work from related works and search cache, and jump to it
  */
-export function jumpToRandomWork(metadata: Metadata): void {
-  if (!metadata?.relatedWorks) return;
-  const works = metadata.relatedWorks.filter(w => !w.isPrivate);
-  const randomWork = works[Math.floor(Math.random() * works.length)];
+export function jumpToRandomWork(metadata: Metadata, searchCache?: SearchCache | null): void {
+  const sources: { href: string }[] = [];
+
+  // 1. Related Works (filter private)
+  if (metadata?.relatedWorks) {
+    sources.push(...metadata.relatedWorks.filter(w => !w.isPrivate));
+  }
+
+  // 2. Search Cache Results
+  if (searchCache?.results?.results) {
+    sources.push(...searchCache.results.results);
+  }
+
+  if (sources.length === 0) return;
+
+  // 3. Deduplicate by href
+  const uniqueWorks = Array.from(
+    new Map(sources.map(w => [w.href, w])).values()
+  );
+
+  const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];
   if (randomWork?.href) {
     window.location.href = randomWork.href;
   }
