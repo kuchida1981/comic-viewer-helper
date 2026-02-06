@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.15d8afd
+// @version         1.3.0-unstable.007d008
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -255,12 +255,15 @@
     return true;
   }
   function getPrimaryVisibleImageIndex(imgs, windowHeight) {
-    if (imgs.length === 0) return -1;
+    if (!imgs || !Array.isArray(imgs) || imgs.length === 0) return -1;
     let maxVisibleHeight = 0;
     let minDistanceToCenter = Infinity;
     let primaryIndex = -1;
     const viewportCenter = windowHeight / 2;
     imgs.forEach((img, index) => {
+      if (!img || typeof img.getBoundingClientRect !== "function") {
+        return;
+      }
       const rect = img.getBoundingClientRect();
       const visibleHeight = calculateVisibleHeight(rect, windowHeight);
       if (visibleHeight > 0) {
@@ -280,11 +283,14 @@
     return imgs[index];
   }
   function cleanupDOM(container) {
+    if (!container) return [];
     const allImages = Array.from(container.querySelectorAll("img"));
     const wrappers = container.querySelectorAll(".comic-row-wrapper");
     wrappers.forEach((w) => w.remove());
     allImages.forEach((img) => {
-      img.style.cssText = "";
+      if (img && img.style) {
+        img.style.cssText = "";
+      }
     });
     return allImages;
   }
@@ -304,6 +310,9 @@
     });
     for (let i = 0; i < allImages.length; i++) {
       const img = allImages[i];
+      if (!img || typeof img.naturalWidth !== "number" || typeof img.naturalHeight !== "number") {
+        continue;
+      }
       const isLandscape = img.naturalWidth > img.naturalHeight;
       let pairWithNext = false;
       const effectiveIndex = i - spreadOffset;
@@ -312,9 +321,11 @@
       const isNextLastPage = i + 1 === allImages.length - 1;
       if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
         const nextImg = allImages[i + 1];
-        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
-        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
-          pairWithNext = true;
+        if (nextImg && typeof nextImg.naturalWidth === "number" && typeof nextImg.naturalHeight === "number") {
+          const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
+          if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
+            pairWithNext = true;
+          }
         }
       }
       const row = document.createElement("div");
@@ -368,10 +379,17 @@
   }
   function revertToOriginal(originalImages, container) {
     if (!container) return;
-    container.style.cssText = "";
+    if (container.style) {
+      container.style.cssText = "";
+    }
+    if (!originalImages || !Array.isArray(originalImages)) return;
     originalImages.forEach((img) => {
-      img.style.cssText = "";
-      container.appendChild(img);
+      if (img && img.style) {
+        img.style.cssText = "";
+      }
+      if (img instanceof Node) {
+        container.appendChild(img);
+      }
     });
     const wrappers = container.querySelectorAll(".comic-row-wrapper");
     wrappers.forEach((w) => w.remove());
@@ -394,6 +412,7 @@
     return event.deltaY > 0 ? "next" : "prev";
   }
   async function waitForImageLoad(img, timeout = 5e3) {
+    if (!img) return Promise.resolve();
     if (img.complete && img.naturalHeight !== 0) {
       return;
     }
@@ -412,31 +431,39 @@
       };
       const cleanup = () => {
         clearTimeout(timer);
-        img.removeEventListener("load", onLoad);
-        img.removeEventListener("error", onError);
+        if (img && typeof img.removeEventListener === "function") {
+          img.removeEventListener("load", onLoad);
+          img.removeEventListener("error", onError);
+        }
       };
-      img.addEventListener("load", onLoad);
-      img.addEventListener("error", onError);
+      if (img && typeof img.addEventListener === "function") {
+        img.addEventListener("load", onLoad);
+        img.addEventListener("error", onError);
+      } else {
+        clearTimeout(timer);
+        resolve();
+      }
     });
   }
   function forceImageLoad(img) {
-    if (img.getAttribute("loading") === "lazy") {
+    if (!img) return;
+    if (typeof img.getAttribute === "function" && img.getAttribute("loading") === "lazy") {
       img.setAttribute("loading", "eager");
     }
-    if ("decode" in img) {
+    if ("decode" in img && typeof img.decode === "function") {
       img.decode().catch(() => {
       });
     }
   }
   function preloadImages(images, currentIndex, count = 3) {
-    if (images.length === 0) return;
+    if (!images || !Array.isArray(images) || images.length === 0) return;
     for (let i = 1; i <= count; i++) {
       const nextIndex = currentIndex + i;
       if (nextIndex < images.length) {
         const img = images[nextIndex];
-        if (!img.complete) {
+        if (img && !img.complete) {
           img.loading = "eager";
-          if ("decode" in img) {
+          if ("decode" in img && typeof img.decode === "function") {
             img.decode().catch(() => {
             });
           }
@@ -447,9 +474,9 @@
       const prevIndex = currentIndex - i;
       if (prevIndex >= 0) {
         const img = images[prevIndex];
-        if (!img.complete) {
+        if (img && !img.complete) {
           img.loading = "eager";
-          if ("decode" in img) {
+          if ("decode" in img && typeof img.decode === "function") {
             img.decode().catch(() => {
             });
           }
@@ -1342,34 +1369,41 @@
   }
   function createElement(tag, options = {}, children = []) {
     const el = document.createElement(tag);
-    if (options.id) el.id = options.id;
-    if (options.className) el.className = options.className;
-    if (options.textContent) el.textContent = options.textContent;
-    if (options.title) el.title = options.title;
+    const opts = options || {};
+    if (opts.id) el.id = opts.id;
+    if (opts.className) el.className = opts.className;
+    if (opts.textContent) el.textContent = opts.textContent;
+    if (opts.title) el.title = opts.title;
     if (el instanceof HTMLInputElement) {
-      if (options.type) el.type = options.type;
-      if (options.checked !== void 0) el.checked = options.checked;
+      if (opts.type) el.type = opts.type;
+      if (opts.checked !== void 0) el.checked = opts.checked;
     }
-    if (options.style) {
-      Object.assign(el.style, options.style);
+    if (opts.style) {
+      Object.assign(el.style, opts.style);
     }
-    if (options.attributes) {
-      for (const [key, value] of Object.entries(options.attributes)) {
-        el.setAttribute(key, String(value));
+    if (opts.attributes) {
+      for (const [key, value] of Object.entries(opts.attributes)) {
+        if (value !== null && value !== void 0) {
+          el.setAttribute(key, String(value));
+        }
       }
     }
-    if (options.events) {
-      for (const [type, listener] of Object.entries(options.events)) {
-        el.addEventListener(type, listener);
+    if (opts.events) {
+      for (const [type, listener] of Object.entries(opts.events)) {
+        if (listener) {
+          el.addEventListener(type, listener);
+        }
       }
     }
-    children.forEach((child) => {
-      if (typeof child === "string") {
-        el.appendChild(document.createTextNode(child));
-      } else if (child instanceof HTMLElement) {
-        el.appendChild(child);
-      }
-    });
+    if (children && Array.isArray(children)) {
+      children.forEach((child) => {
+        if (typeof child === "string") {
+          el.appendChild(document.createTextNode(child));
+        } else if (child instanceof HTMLElement) {
+          el.appendChild(child);
+        }
+      });
+    }
     return el;
   }
   const MESSAGES = {
@@ -1710,7 +1744,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.15d8afd"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.007d008"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2418,13 +2452,13 @@
           onClose: () => this.store.setState({ isMetadataModalOpen: false })
         })
       );
-      this.powerComp.update(enabled);
-      this.loadingComp.update(isLoading);
+      this.powerComp?.update(enabled);
+      this.loadingComp?.update(isLoading);
       document.documentElement.classList.toggle("comic-helper-enabled", enabled);
       if (!enabled) {
         container.style.padding = "4px 8px";
-        this.counterComp.el.style.display = "none";
-        this.spreadComp.el.style.display = "none";
+        if (this.counterComp) this.counterComp.el.style.display = "none";
+        if (this.spreadComp) this.spreadComp.el.style.display = "none";
         if (this.progressComp) this.progressComp.el.style.display = "none";
         container.querySelectorAll(".comic-helper-button").forEach((btn) => {
           btn.style.display = "none";
@@ -2432,8 +2466,8 @@
         return;
       }
       container.style.padding = "8px";
-      this.counterComp.el.style.display = "flex";
-      this.spreadComp.el.style.display = "flex";
+      if (this.counterComp) this.counterComp.el.style.display = "flex";
+      if (this.spreadComp) this.spreadComp.el.style.display = "flex";
       if (this.progressComp) {
         this.progressComp.el.style.display = "block";
         this.progressComp.update(currentVisibleIndex, imgs.length);
@@ -2441,8 +2475,8 @@
       container.querySelectorAll(".comic-helper-button").forEach((btn) => {
         btn.style.display = "inline-block";
       });
-      this.counterComp.update(currentVisibleIndex + 1, imgs.length);
-      this.spreadComp.update(isDualViewEnabled);
+      this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
+      this.spreadComp?.update(isDualViewEnabled);
     }
     /**
      * Show resume notification
