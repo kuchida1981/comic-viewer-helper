@@ -218,16 +218,17 @@ export class Navigator {
     console.log(`[Navigator] applyLayout: current=${currentIndex}, pending=${this.pendingTargetIndex}, forced=${forcedIndex}, viewport=${viewportIndex}`);
 
     fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
-    this.updatePageCounter();
 
     if (currentIndex !== -1) {
       const targetImg = imgs[currentIndex];
       if (targetImg) {
         // DOM update might take a moment to be reflected in layout.
-        // Wait for next frame before scrolling.
+        // Wait for next frames before scrolling to ensure layout is stable.
         requestAnimationFrame(() => {
-          console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
-          targetImg.scrollIntoView({ block: 'center' });
+          requestAnimationFrame(() => {
+            console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
+            targetImg.scrollIntoView({ block: 'center' });
+          });
         });
         preloadImages(imgs, currentIndex);
       }

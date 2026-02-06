@@ -2,9 +2,7 @@
 
 ## Purpose
 作品ごとの読書位置をブラウザのlocalStorageへ永続化し、ユーザーが再訪問した際に前回の続きから読めるようにするための基盤機能を提供します。これにより長編作品の閲覧体験を向上させます。
-
 ## Requirements
-
 ### Requirement: 作品URLから一意なキーを生成できる
 システムは、現在閲覧中の作品を一意に識別するため、URLから決定的なキーを生成しなければならない（SHALL）。
 
@@ -71,3 +69,12 @@
 #### Scenario: 削除後の読み込み
 - **WHEN** clearAll() 実行後に読み込みを試行した
 - **THEN** システムは null を返す
+
+### Requirement: Resize Resilience
+ブラウザのリサイズ中、システムは現在の `currentVisibleIndex` を正確に維持しなければならない（SHALL）。
+
+#### Scenario: Maintaining position during continuous resize
+- **WHEN** ユーザーがブラウザのウィンドウサイズを連続的に変更する
+- **THEN** `currentVisibleIndex` はリサイズ開始時の値を維持し、勝手に他のページ番号に書き換わらないこと
+- **THEN** リサイズ完了（または各フレームの描画）後、維持されたインデックスに対応する画像がビューポートの中央に正しく表示されること
+
