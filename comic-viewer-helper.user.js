@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.573d833
+// @version         1.3.0-unstable.4d913bd
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -436,10 +436,19 @@
       }
     }
   }
-  function jumpToRandomWork(metadata) {
-    if (!metadata?.relatedWorks) return;
-    const works = metadata.relatedWorks.filter((w) => !w.isPrivate);
-    const randomWork = works[Math.floor(Math.random() * works.length)];
+  function jumpToRandomWork(metadata, searchCache) {
+    const sources = [];
+    if (metadata?.relatedWorks) {
+      sources.push(...metadata.relatedWorks.filter((w) => !w.isPrivate));
+    }
+    if (searchCache?.results?.results) {
+      sources.push(...searchCache.results.results);
+    }
+    if (sources.length === 0) return;
+    const uniqueWorks = Array.from(
+      new Map(sources.map((w) => [w.href, w])).values()
+    );
+    const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];
     if (randomWork?.href) {
       window.location.href = randomWork.href;
     }
@@ -1645,7 +1654,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.573d833"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.4d913bd"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2276,7 +2285,7 @@
           onHelp: () => this.store.setState({ isHelpModalOpen: true }),
           onSearch: () => this.store.setState({ isSearchModalOpen: true }),
           onLucky: () => {
-            jumpToRandomWork(metadata2);
+            jumpToRandomWork(metadata2, state.searchCache);
           }
         });
         navBtns.elements.forEach((btn) => container?.appendChild(btn));
@@ -2561,8 +2570,8 @@
         }
       } else if (isKey("randomJump")) {
         e.preventDefault();
-        const { metadata } = this.store.getState();
-        jumpToRandomWork(metadata);
+        const { metadata, searchCache } = this.store.getState();
+        jumpToRandomWork(metadata, searchCache);
       }
     }
     handleResize() {
