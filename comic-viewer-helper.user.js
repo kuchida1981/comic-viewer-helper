@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.4d913bd
+// @version         1.3.0-unstable.c4d9ee4
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -27,8 +27,10 @@
     GUI_POS: "comic-viewer-helper-gui-pos",
     ENABLED: "comic-viewer-helper-enabled",
     SEARCH_QUERY: "comic-viewer-helper-search-query",
-    SEARCH_CACHE: "comic-viewer-helper-search-cache"
+    SEARCH_CACHE: "comic-viewer-helper-search-cache",
+    SEARCH_HISTORY: "comic-viewer-helper-search-history"
   };
+  const MAX_SEARCH_HISTORY = 3;
   class Store {
     state;
     listeners;
@@ -50,7 +52,8 @@
         isLoading: false,
         searchResults: null,
         searchQuery: this._loadSearchQuery(),
-        searchCache: this._loadSearchCache()
+        searchCache: this._loadSearchCache(),
+        searchHistory: this._loadSearchHistory()
       };
       this.listeners = [];
     }
@@ -86,6 +89,9 @@
           console.warn("Failed to save search cache to localStorage:", e);
         }
       }
+      if ("searchHistory" in patch) {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+      }
       this._notify();
     }
     subscribe(callback) {
@@ -99,6 +105,21 @@
     }
     _applyPatch(key, value) {
       this.state[key] = value;
+    }
+    _loadSearchHistory() {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+            return parsed;
+          }
+        }
+        return [];
+      } catch {
+        return [];
+      }
     }
     _loadSearchCache() {
       try {
@@ -982,6 +1003,39 @@
     background: #45a049;
   }
 
+  /* Search History Styles */
+  .comic-helper-search-history {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: -8px;
+    align-items: center;
+    min-height: 24px;
+  }
+
+  .comic-helper-search-history-label {
+    font-size: 12px;
+    color: #888;
+    margin-right: 4px;
+  }
+
+  .comic-helper-search-history-item {
+    background: #333;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-search-history-item:hover {
+    background: #444;
+    color: #fff;
+    border-color: #666;
+  }
+
   /* Search Results Styles */
   .comic-helper-search-results-section {
     margin-top: 4px;
@@ -1342,6 +1396,7 @@
         showSearch: "Show Search",
         search: "Search",
         searchPlaceholder: "Enter keyword...",
+        searchHistory: "Recent",
         searchResults: "Search Results",
         searchNoResults: "No results found.",
         searchMoreLink: "Show more →",
@@ -1390,6 +1445,7 @@
         showSearch: "サイト内検索を表示",
         search: "検索",
         searchPlaceholder: "キーワードを入力...",
+        searchHistory: "最近の検索",
         searchResults: "検索結果",
         searchNoResults: "結果が見つかりませんでした。",
         searchMoreLink: "もっと見る →",
@@ -1654,7 +1710,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.4d913bd"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.c4d9ee4"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1866,7 +1922,7 @@
     }
     return section;
   }
-  function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery }) {
+  function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchHistory }) {
     const input = createElement("input", {
       className: "comic-helper-search-input",
       attributes: {
@@ -1897,10 +1953,33 @@
         }
       }
     }, [input, submitBtn]);
+    const historySection = createElement("div", {
+      className: "comic-helper-search-history"
+    });
+    if (searchHistory.length > 0) {
+      historySection.appendChild(createElement("span", {
+        className: "comic-helper-search-history-label",
+        textContent: `${t("ui.searchHistory")}:`
+      }));
+      searchHistory.forEach((historyItem) => {
+        const btn = createElement("button", {
+          className: "comic-helper-search-history-item",
+          textContent: historyItem,
+          events: {
+            click: (e) => {
+              e.preventDefault();
+              input.value = historyItem;
+              onSearch(historyItem);
+            }
+          }
+        });
+        historySection.appendChild(btn);
+      });
+    }
     let resultsSection = createResultsSection(searchResults, onPageChange);
     const container = createElement("div", {
       className: "comic-helper-search-container"
-    }, [form, resultsSection]);
+    }, [form, historySection, resultsSection]);
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -2155,6 +2234,9 @@
     }
   }
   const SEARCH_TTL = 60 * 60 * 1e3;
+  function normalizeQuery(query) {
+    return query.trim().toLowerCase().split(/\s+/).sort().join(" ");
+  }
   class UIManager {
     adapter;
     store;
@@ -2300,10 +2382,11 @@
       );
       if (isSearchModalOpen) {
         if (!this.searchModalComp) {
-          const { searchResults, searchQuery, searchCache } = state;
+          const { searchResults, searchQuery, searchCache, searchHistory } = state;
           this.searchModalComp = createSearchModal({
             searchResults,
             searchQuery,
+            searchHistory,
             onSearch: (query) => this._performSearch(query),
             onPageChange: (url) => this._performSearch(url),
             onClose: () => {
@@ -2409,6 +2492,7 @@
         url = this.adapter.getSearchUrl(query);
         if (!silent) {
           this.store.setState({ searchQuery: query });
+          this._updateSearchHistory(query);
         }
       }
       this.searchModalComp?.setUpdating(true);
@@ -2432,6 +2516,16 @@
       } finally {
         this.searchModalComp?.setUpdating(false);
       }
+    }
+    /**
+     * Update search history with normalization and limit
+     */
+    _updateSearchHistory(query) {
+      const { searchHistory } = this.store.getState();
+      const normalizedNew = normalizeQuery(query);
+      const filtered = searchHistory.filter((h) => normalizeQuery(h) !== normalizedNew);
+      const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
+      this.store.setState({ searchHistory: newHistory });
     }
   }
   const CLICK_THRESHOLD_PX = 5;
