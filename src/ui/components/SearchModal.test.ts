@@ -72,14 +72,67 @@ describe('SearchModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('should focus input after a delay', () => {
-    const { input } = createSearchModal(defaultProps);
-    const focusSpy = vi.spyOn(input, 'focus');
-    vi.advanceTimersByTime(50);
-    expect(focusSpy).toHaveBeenCalled();
-  });
+      it('should focus input after a delay', () => {
 
-  describe('search results display', () => {
+        const { input } = createSearchModal(defaultProps);
+
+        const focusSpy = vi.spyOn(input, 'focus');
+
+        vi.advanceTimersByTime(50);
+
+        expect(focusSpy).toHaveBeenCalled();
+
+      });
+
+  
+
+      it('should render search history chips when provided', () => {
+
+        const history = ['query 1', 'query 2'];
+
+        const { el } = createSearchModal({ ...defaultProps, searchHistory: history });
+
+        
+
+        const chips = el.querySelectorAll('.comic-helper-search-history-item');
+
+        expect(chips).toHaveLength(2);
+
+        expect(chips[0].textContent).toBe('query 1');
+
+        expect(chips[1].textContent).toBe('query 2');
+
+      });
+
+  
+
+      it('should call onSearch when a history chip is clicked', () => {
+
+        const onSearch = vi.fn();
+
+        const history = ['history query'];
+
+        const { el, input } = createSearchModal({ ...defaultProps, onSearch, searchHistory: history });
+
+        
+
+        const chip = el.querySelector('.comic-helper-search-history-item') as HTMLButtonElement;
+
+        chip.click();
+
+        
+
+        expect(input.value).toBe('history query');
+
+        expect(onSearch).toHaveBeenCalledWith('history query');
+
+      });
+
+  
+
+      describe('search results display', () => {
+
+  
     const sampleResults: SearchResultsState = {
       results: [
         { title: 'Work A', href: '/fanzine/1/', thumb: '/thumb/1.webp' },
