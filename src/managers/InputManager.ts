@@ -188,10 +188,10 @@ export class InputManager {
     const { enabled, currentVisibleIndex } = this.store.getState();
     if (!enabled) return;
 
-    // Wait for the fullscreen transition to complete and layout to stabilize
-    setTimeout(() => {
+    // Wait for the next frame to ensure layout is stable after the transition.
+    requestAnimationFrame(() => {
       this.navigator.applyLayout(currentVisibleIndex);
-    }, 100);
+    });
   }
 
   handleScroll(): void {
