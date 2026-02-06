@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0-unstable.f734372
+// @version         1.3.0-unstable.573d833
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -613,13 +613,14 @@
       const currentIndex = this.pendingTargetIndex !== null ? this.pendingTargetIndex : forcedIndex !== void 0 ? forcedIndex : viewportIndex;
       console.log(`[Navigator] applyLayout: current=${currentIndex}, pending=${this.pendingTargetIndex}, forced=${forcedIndex}, viewport=${viewportIndex}`);
       fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
-      this.updatePageCounter();
       if (currentIndex !== -1) {
         const targetImg = imgs[currentIndex];
         if (targetImg) {
           requestAnimationFrame(() => {
-            console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
-            targetImg.scrollIntoView({ block: "center" });
+            requestAnimationFrame(() => {
+              console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
+              targetImg.scrollIntoView({ block: "center" });
+            });
           });
           preloadImages(imgs, currentIndex);
         }
@@ -1644,7 +1645,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0-unstable.f734372"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.3.0-unstable.573d833"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2446,6 +2447,7 @@
       this.handleWheel = this.handleWheel.bind(this);
       this.onKeyDown = this.onKeyDown.bind(this);
       this.handleResize = this.handleResize.bind(this);
+      this.handleFullscreenChange = this.handleFullscreenChange.bind(this);
       this.handleScroll = this.handleScroll.bind(this);
       this.onMouseDown = this.onMouseDown.bind(this);
       this.onMouseUp = this.onMouseUp.bind(this);
@@ -2456,6 +2458,7 @@
       document.addEventListener("mousedown", this.onMouseDown);
       document.addEventListener("mouseup", this.onMouseUp);
       window.addEventListener("resize", this.handleResize);
+      document.addEventListener("fullscreenchange", this.handleFullscreenChange);
       window.addEventListener("scroll", this.handleScroll);
     }
     isInputField(target) {
@@ -2567,6 +2570,13 @@
       if (!enabled) return;
       if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
       this.resizeReq = requestAnimationFrame(() => this.navigator.applyLayout(currentVisibleIndex));
+    }
+    handleFullscreenChange() {
+      const { enabled, currentVisibleIndex } = this.store.getState();
+      if (!enabled) return;
+      requestAnimationFrame(() => {
+        this.navigator.applyLayout(currentVisibleIndex);
+      });
     }
     handleScroll() {
       if (!this.store.getState().enabled) return;
