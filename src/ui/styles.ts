@@ -344,6 +344,39 @@ export const styles = `
     background: #45a049;
   }
 
+  /* Search History Styles */
+  .comic-helper-search-history {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: -8px;
+    align-items: center;
+    min-height: 24px;
+  }
+
+  .comic-helper-search-history-label {
+    font-size: 12px;
+    color: #888;
+    margin-right: 4px;
+  }
+
+  .comic-helper-search-history-item {
+    background: #333;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-search-history-item:hover {
+    background: #444;
+    color: #fff;
+    border-color: #666;
+  }
+
   /* Search Results Styles */
   .comic-helper-search-results-section {
     margin-top: 4px;

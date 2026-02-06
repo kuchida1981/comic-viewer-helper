@@ -12,12 +12,24 @@ import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/compone
 import { Draggable } from '../ui/Draggable';
 import { createElement } from '../ui/utils';
 import { jumpToRandomWork } from '../logic';
-import { Store } from '../store';
+import { Store, MAX_SEARCH_HISTORY } from '../store';
 import { Navigator } from './Navigator';
 import { SiteAdapter } from '../types';
 
 
 const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Normalize query for comparison (lowercase, trim, sort tokens)
+ */
+function normalizeQuery(query: string): string {
+  return query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .sort()
+    .join(' ');
+}
 
 export class UIManager {
   private adapter: SiteAdapter;
@@ -181,11 +193,12 @@ export class UIManager {
 
     if (isSearchModalOpen) {
       if (!this.searchModalComp) {
-        const { searchResults, searchQuery, searchCache } = state;
+        const { searchResults, searchQuery, searchCache, searchHistory } = state;
 
         this.searchModalComp = createSearchModal({
           searchResults,
           searchQuery,
+          searchHistory,
           onSearch: (query: string) => this._performSearch(query),
           onPageChange: (url: string) => this._performSearch(url),
           onClose: () => {
@@ -316,6 +329,7 @@ export class UIManager {
       url = this.adapter.getSearchUrl(query);
       if (!silent) {
         this.store.setState({ searchQuery: query });
+        this._updateSearchHistory(query);
       }
     }
 
@@ -342,5 +356,19 @@ export class UIManager {
     } finally {
       this.searchModalComp?.setUpdating(false);
     }
+  }
+
+  /**
+   * Update search history with normalization and limit
+   */
+  private _updateSearchHistory(query: string): void {
+    const { searchHistory } = this.store.getState();
+    const normalizedNew = normalizeQuery(query);
+
+    // Remove duplicates (normalized) and add to front
+    const filtered = searchHistory.filter(h => normalizeQuery(h) !== normalizedNew);
+    const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
+
+    this.store.setState({ searchHistory: newHistory });
   }
 }

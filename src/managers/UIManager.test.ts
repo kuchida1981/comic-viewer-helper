@@ -86,25 +86,34 @@ describe('UIManager', () => {
       getImages: vi.fn().mockReturnValue([])
     } as unknown as typeof DefaultAdapter;
     
+    const defaultState = {
+      enabled: true, 
+      isDualViewEnabled: false, 
+      guiPos: { top: 10, left: 10 },
+      currentVisibleIndex: 0,
+      metadata: { title: '', tags: [], relatedWorks: [] },
+      isMetadataModalOpen: false,
+      isHelpModalOpen: false,
+      isSearchModalOpen: false,
+      spreadOffset: 0,
+      isLoading: false,
+      searchResults: null,
+      searchQuery: '',
+      searchCache: null,
+      searchHistory: []
+    };
+
     store = {
-      getState: vi.fn().mockReturnValue({ 
-        enabled: true, 
-        isDualViewEnabled: false, 
-        guiPos: { top: 10, left: 10 },
-        currentVisibleIndex: 0,
-        metadata: {},
-        isMetadataModalOpen: false,
-        isHelpModalOpen: false,
-        isSearchModalOpen: false,
-        spreadOffset: 0,
-        isLoading: false,
-        searchResults: null,
-        searchQuery: '',
-        searchCache: null
-      }),
+      getState: vi.fn().mockReturnValue(defaultState),
       setState: vi.fn(),
       subscribe: vi.fn()
     } as unknown as Store;
+
+    // Use mockImplementation to allow partial overrides while keeping defaults
+    (store.getState as Mock).mockImplementation(() => {
+      const lastResult = (store.getState as Mock).mock.results.at(-2)?.value || defaultState;
+      return { ...defaultState, ...lastResult };
+    });
     
     navigator = { 
         getImages: vi.fn().mockReturnValue([]), 
@@ -198,7 +207,15 @@ describe('UIManager', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('<html></html>') });
     vi.stubGlobal('fetch', fetchMock);
 
-    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0, searchResults: null });
+    (store.getState as Mock).mockReturnValue({
+      enabled: true,
+      isSearchModalOpen: true,
+      metadata: { title: '', tags: [], relatedWorks: [] },
+      currentVisibleIndex: 0,
+      searchResults: null,
+      searchQuery: '',
+      searchHistory: []
+    });
     uiManager.updateUI();
 
     const onSearch = (createSearchModal as unknown as Mock).mock.calls[0][0].onSearch;
@@ -227,6 +244,65 @@ describe('UIManager', () => {
     vi.unstubAllGlobals();
   });
 
+  it('should update search history with normalization and limit', async () => {
+    adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com');
+    adapter.parseSearchResults = vi.fn().mockReturnValue({ results: [] });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('') }));
+
+    // Initial state: 2 items
+    (store.getState as Mock).mockReturnValue({
+      enabled: true,
+      isSearchModalOpen: true,
+      metadata: {},
+      currentVisibleIndex: 0,
+      searchHistory: ['key 1', 'key 2'],
+      searchResults: null,
+      searchQuery: ''
+    });
+
+    uiManager.updateUI(); // Initialize components
+
+    const onSearch = (createSearchModal as unknown as Mock).mock.calls[0][0].onSearch;
+
+    // 1. Add new item
+    onSearch('new key');
+    expect(store.setState).toHaveBeenCalledWith({
+      searchHistory: ['new key', 'key 1', 'key 2']
+    });
+
+    // 2. Add duplicate item (with different order and case)
+    (store.getState as Mock).mockReturnValue({
+      enabled: true,
+      searchHistory: ['new key', 'key 1', 'key 2']
+    });
+    onSearch('KEY 1'); // Same as 'key 1'
+    expect(store.setState).toHaveBeenCalledWith({
+      searchHistory: ['KEY 1', 'new key', 'key 2']
+    });
+
+    // 3. Normalized duplicate: "key 1 a" vs "a KEY 1"
+    (store.getState as Mock).mockReturnValue({
+      enabled: true,
+      searchHistory: ['key 1 a', 'new key', 'key 2']
+    });
+    onSearch('a KEY 1');
+    expect(store.setState).toHaveBeenCalledWith({
+      searchHistory: ['a KEY 1', 'new key', 'key 2']
+    });
+
+    // 4. Hit limit (3)
+    (store.getState as Mock).mockReturnValue({
+      enabled: true,
+      searchHistory: ['c', 'b', 'a']
+    });
+    onSearch('d');
+    expect(store.setState).toHaveBeenCalledWith({
+      searchHistory: ['d', 'c', 'b']
+    });
+
+    vi.unstubAllGlobals();
+  });
+
   it('should handle SWR: show cache immediately and fetch if expired', async () => {
     const oldCache = {
       query: 'test',
@@ -243,11 +319,12 @@ describe('UIManager', () => {
     (store.getState as Mock).mockReturnValue({ 
       enabled: true, 
       isSearchModalOpen: true, 
-      metadata: {}, 
+      metadata: { title: '', tags: [], relatedWorks: [] }, 
       currentVisibleIndex: 0, 
       searchResults: null,
       searchQuery: 'test',
-      searchCache: oldCache
+      searchCache: oldCache,
+      searchHistory: []
     });
     
     uiManager.updateUI();

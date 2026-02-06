@@ -8,6 +8,7 @@ export interface SearchModalProps {
   onClose: () => void;
   searchResults: SearchResultsState | null;
   searchQuery?: string;
+  searchHistory: string[];
 }
 
 export interface SearchModalComponent {
@@ -129,10 +130,36 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     }
   }, [input, submitBtn]);
 
+  const historySection = createElement('div', {
+    className: 'comic-helper-search-history'
+  });
+
+  if (searchHistory.length > 0) {
+    historySection.appendChild(createElement('span', {
+      className: 'comic-helper-search-history-label',
+      textContent: `${t('ui.searchHistory')}:`
+    }));
+
+    searchHistory.forEach(historyItem => {
+      const btn = createElement('button', {
+        className: 'comic-helper-search-history-item',
+        textContent: historyItem,
+        events: {
+          click: (e) => {
+            e.preventDefault();
+            input.value = historyItem;
+            onSearch(historyItem);
+          }
+        }
+      });
+      historySection.appendChild(btn);
+    });
+  }
+
   let resultsSection = createResultsSection(searchResults, onPageChange);
   const container = createElement('div', {
     className: 'comic-helper-search-container'
-  }, [form, resultsSection]);
+  }, [form, historySection, resultsSection]);
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
