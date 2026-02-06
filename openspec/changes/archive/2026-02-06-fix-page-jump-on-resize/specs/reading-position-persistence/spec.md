@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Resize Resilience
-ブラウザのリサイズ中、システムは現在の `currentVisibleIndex` を正確に維持しなければならない。
+ブラウザのリサイズ中、システムは現在の `currentVisibleIndex` を正確に維持しなければならない（SHALL）。
 
 #### Scenario: Maintaining position during continuous resize
 - **WHEN** ユーザーがブラウザのウィンドウサイズを連続的に変更する
