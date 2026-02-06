@@ -31,6 +31,7 @@ export class InputManager {
     this.handleWheel = this.handleWheel.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
     this.handleResize = this.handleResize.bind(this);
+    this.handleFullscreenChange = this.handleFullscreenChange.bind(this);
     this.handleScroll = this.handleScroll.bind(this);
     this.onMouseDown = this.onMouseDown.bind(this);
     this.onMouseUp = this.onMouseUp.bind(this);
@@ -42,6 +43,7 @@ export class InputManager {
     document.addEventListener('mousedown', this.onMouseDown);
     document.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('resize', this.handleResize);
+    document.addEventListener('fullscreenchange', this.handleFullscreenChange);
     window.addEventListener('scroll', this.handleScroll);
   }
 
@@ -180,6 +182,16 @@ export class InputManager {
 
     if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
     this.resizeReq = requestAnimationFrame(() => this.navigator.applyLayout(currentVisibleIndex));
+  }
+
+  handleFullscreenChange(): void {
+    const { enabled, currentVisibleIndex } = this.store.getState();
+    if (!enabled) return;
+
+    // Wait for the fullscreen transition to complete and layout to stabilize
+    setTimeout(() => {
+      this.navigator.applyLayout(currentVisibleIndex);
+    }, 100);
   }
 
   handleScroll(): void {
