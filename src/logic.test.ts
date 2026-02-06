@@ -210,10 +210,13 @@ describe('logic.js', () => {
         querySelectorAll: vi.fn()
       } as unknown as HTMLElement;
       
-      originalImages = [
-        createMockImage({ style: { cssText: 'img-style' } }),
-        createMockImage({ style: { cssText: 'img-style-2' } })
-      ];
+      // Use real nodes so instanceof Node check passes
+      const img1 = document.createElement('img');
+      img1.style.cssText = 'img-style';
+      const img2 = document.createElement('img');
+      img2.style.cssText = 'img-style-2';
+      
+      originalImages = [img1, img2];
 
       wrappers = [
         { remove: vi.fn() }
