@@ -18,7 +18,7 @@ import * as logic from '../logic.js';
 
 // Mock logic
 vi.mock('../logic.js', async () => {
-  const actual = await vi.importActual('../logic.js') as any;
+  const actual = await vi.importActual('../logic.js') as typeof logic;
   return {
     ...actual,
     jumpToRandomWork: vi.fn()
