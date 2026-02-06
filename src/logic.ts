@@ -34,7 +34,7 @@ export function shouldPairWithNext(current: ImageInfo, next: ImageInfo | null, i
  * Get primary visible image index based on visible height and proximity to center
  */
 export function getPrimaryVisibleImageIndex(imgs: (HTMLImageElement | { getBoundingClientRect: () => Rect })[], windowHeight: number): number {
-  if (imgs.length === 0) return -1;
+  if (!imgs || !Array.isArray(imgs) || imgs.length === 0) return -1;
 
   let maxVisibleHeight = 0;
   let minDistanceToCenter = Infinity;
@@ -42,6 +42,11 @@ export function getPrimaryVisibleImageIndex(imgs: (HTMLImageElement | { getBound
   const viewportCenter = windowHeight / 2;
 
   imgs.forEach((img, index) => {
+    // Safety check: skip if img is null/undefined or getBoundingClientRect is missing
+    if (!img || typeof img.getBoundingClientRect !== 'function') {
+      return;
+    }
+
     const rect = img.getBoundingClientRect();
     const visibleHeight = calculateVisibleHeight(rect, windowHeight);
 
@@ -75,13 +80,17 @@ export function getImageElementByIndex(imgs: HTMLImageElement[], index: number):
  * Returns the list of images in their current DOM order.
  */
 export function cleanupDOM(container: HTMLElement): HTMLImageElement[] {
+  if (!container) return [];
+
   const allImages = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
   const wrappers = container.querySelectorAll('.comic-row-wrapper');
 
   wrappers.forEach(w => w.remove());
 
   allImages.forEach(img => {
-    img.style.cssText = '';
+    if (img && img.style) {
+      img.style.cssText = '';
+    }
   });
 
   return allImages;
@@ -106,6 +115,12 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
 
   for (let i = 0; i < allImages.length; i++) {
     const img = allImages[i];
+    
+    // Safety check: skip invalid images
+    if (!img || typeof img.naturalWidth !== 'number' || typeof img.naturalHeight !== 'number') {
+      continue;
+    }
+
     const isLandscape = img.naturalWidth > img.naturalHeight;
 
     let pairWithNext = false;
@@ -120,10 +135,14 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
 
     if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
       const nextImg = allImages[i + 1];
-      const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
+      
+      // Safety check for next pairing candidate
+      if (nextImg && typeof nextImg.naturalWidth === 'number' && typeof nextImg.naturalHeight === 'number') {
+        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
 
-      if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
-        pairWithNext = true;
+        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
+          pairWithNext = true;
+        }
       }
     }
 
@@ -167,12 +186,21 @@ export function revertToOriginal(originalImages: HTMLImageElement[], container: 
   if (!container) return;
 
   // Clear container styles
-  container.style.cssText = '';
+  if (container.style) {
+    container.style.cssText = '';
+  }
+
+  if (!originalImages || !Array.isArray(originalImages)) return;
 
   // Remove wrappers and restore images
   originalImages.forEach(img => {
-    img.style.cssText = '';
-    container.appendChild(img);
+    if (img && img.style) {
+      img.style.cssText = '';
+    }
+    // Only append if it's a node
+    if (img instanceof Node) {
+      container.appendChild(img);
+    }
   });
 
   // Remove any remaining wrappers
@@ -215,6 +243,8 @@ export function getNavigationDirection(event: WheelEvent, threshold = 50): 'next
  * Wait for an image to load or timeout
  */
 export async function waitForImageLoad(img: HTMLImageElement, timeout = 5000): Promise<void> {
+  if (!img) return Promise.resolve();
+
   if (img.complete && img.naturalHeight !== 0) {
     return;
   }
@@ -237,12 +267,20 @@ export async function waitForImageLoad(img: HTMLImageElement, timeout = 5000): P
 
     const cleanup = () => {
       clearTimeout(timer);
-      img.removeEventListener('load', onLoad);
-      img.removeEventListener('error', onError);
+      if (img && typeof img.removeEventListener === 'function') {
+        img.removeEventListener('load', onLoad);
+        img.removeEventListener('error', onError);
+      }
     };
 
-    img.addEventListener('load', onLoad);
-    img.addEventListener('error', onError);
+    if (img && typeof img.addEventListener === 'function') {
+      img.addEventListener('load', onLoad);
+      img.addEventListener('error', onError);
+    } else {
+      // If addEventListener is missing, just resolve immediately to avoid hanging
+      clearTimeout(timer);
+      resolve();
+    }
   });
 }
 
@@ -250,14 +288,16 @@ export async function waitForImageLoad(img: HTMLImageElement, timeout = 5000): P
  * Force image to start loading by setting loading='eager' and trying to decode
  */
 export function forceImageLoad(img: HTMLImageElement): void {
+  if (!img) return;
+
   // If the image is lazy loaded, force it to be eager so the browser starts downloading immediately
   // even if it's off-screen (which it is during jump).
-  if (img.getAttribute('loading') === 'lazy') {
+  if (typeof img.getAttribute === 'function' && img.getAttribute('loading') === 'lazy') {
     img.setAttribute('loading', 'eager');
   }
 
   // Trigger decode to hint the browser
-  if ('decode' in img) {
+  if ('decode' in img && typeof img.decode === 'function') {
     img.decode().catch(() => { });
   }
 }
@@ -266,17 +306,17 @@ export function forceImageLoad(img: HTMLImageElement): void {
  * Preload images around current index
  */
 export function preloadImages(images: HTMLImageElement[], currentIndex: number, count = 3): void {
-  if (images.length === 0) return;
+  if (!images || !Array.isArray(images) || images.length === 0) return;
 
   // Preload next images
   for (let i = 1; i <= count; i++) {
     const nextIndex = currentIndex + i;
     if (nextIndex < images.length) {
       const img = images[nextIndex];
-      if (!img.complete) {
+      if (img && !img.complete) {
         img.loading = 'eager';
         // Use decode() to trigger decoding in the background
-        if ('decode' in img) {
+        if ('decode' in img && typeof img.decode === 'function') {
           img.decode().catch(() => { });
         }
       }
@@ -288,9 +328,9 @@ export function preloadImages(images: HTMLImageElement[], currentIndex: number, 
     const prevIndex = currentIndex - i;
     if (prevIndex >= 0) {
       const img = images[prevIndex];
-      if (!img.complete) {
+      if (img && !img.complete) {
         img.loading = 'eager';
-        if ('decode' in img) {
+        if ('decode' in img && typeof img.decode === 'function') {
           img.decode().catch(() => { });
         }
       }

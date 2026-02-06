@@ -1,4 +1,9 @@
-## ADDED Requirements
+# dom-operation-safety
+
+## Purpose
+外部サイトのDOM操作や要素生成におけるランタイム安全性を確保します。
+
+## Requirements
 
 ### Requirement: DOM要素の存在確認
 DOMから要素を取得したり、引数として要素を受け取る関数は、操作を行う前に要素が null または undefined でないことを確認しなければならない（SHALL）。

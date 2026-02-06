@@ -238,8 +238,8 @@ export class UIManager {
       })
     );
 
-    this.powerComp.update(enabled);
-    this.loadingComp.update(isLoading);
+    this.powerComp?.update(enabled);
+    this.loadingComp?.update(isLoading);
 
     // Toggle global scrollbar visibility
     document.documentElement.classList.toggle('comic-helper-enabled', enabled);
@@ -247,8 +247,8 @@ export class UIManager {
 
     if (!enabled) {
       container.style.padding = '4px 8px';
-      this.counterComp.el.style.display = 'none';
-      this.spreadComp.el.style.display = 'none';
+      if (this.counterComp) this.counterComp.el.style.display = 'none';
+      if (this.spreadComp) this.spreadComp.el.style.display = 'none';
       if (this.progressComp) this.progressComp.el.style.display = 'none';
       container.querySelectorAll('.comic-helper-button').forEach(btn => {
         (btn as HTMLElement).style.display = 'none';
@@ -257,8 +257,8 @@ export class UIManager {
     }
 
     container.style.padding = '8px';
-    this.counterComp.el.style.display = 'flex';
-    this.spreadComp.el.style.display = 'flex';
+    if (this.counterComp) this.counterComp.el.style.display = 'flex';
+    if (this.spreadComp) this.spreadComp.el.style.display = 'flex';
     if (this.progressComp) {
       this.progressComp.el.style.display = 'block';
       this.progressComp.update(currentVisibleIndex, imgs.length);
@@ -267,8 +267,8 @@ export class UIManager {
       (btn as HTMLElement).style.display = 'inline-block';
     });
 
-    this.counterComp.update(currentVisibleIndex + 1, imgs.length);
-    this.spreadComp.update(isDualViewEnabled);
+    this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
+    this.spreadComp?.update(isDualViewEnabled);
   }
 
   /**
