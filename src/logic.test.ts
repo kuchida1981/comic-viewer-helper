@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, waitForImageLoad, preloadImages, getClickNavigationDirection, jumpToRandomWork } from './logic.js';
-import { Metadata } from './types.js';
+import { Metadata, SearchCache } from './types.js';
 import { createMockImage, asNodeList, setupLocationMock } from './test/mocks/dom.js';
 
 describe('logic.js', () => {
@@ -511,50 +511,95 @@ describe('logic.js', () => {
   });
 
   describe('jumpToRandomWork', () => {
-    it('should update window.location.href with a random non-private work', () => {
+    beforeEach(() => {
+      setupLocationMock('current-page');
+    });
+
+    afterEach(() => {
+      vi.spyOn(Math, 'random').mockRestore();
+    });
+
+    it('should update window.location.href with a random non-private work from relatedWorks', () => {
       const metadata = {
-        title: '',
-        tags: [],
         relatedWorks: [
-          { href: 'http://example.com/1', isPrivate: false, title: 't1', thumb: 't1.jpg' },
-          { href: 'http://example.com/2', isPrivate: true, title: 't2', thumb: 't2.jpg' },
-          { href: 'http://example.com/3', isPrivate: false, title: 't3', thumb: 't3.jpg' }
+          { href: 'http://example.com/1', isPrivate: false },
+          { href: 'http://example.com/2', isPrivate: true },
+          { href: 'http://example.com/3', isPrivate: false }
         ]
       } as Metadata;
 
-      vi.spyOn(Math, 'random').mockReturnValue(0.99); // Selects the last available (index 2 in filtered list)
-      setupLocationMock('');
+      vi.spyOn(Math, 'random').mockReturnValue(0.99); // Selects index 1 of [1, 3]
 
       jumpToRandomWork(metadata);
 
       expect(window.location.href).toBe('http://example.com/3');
-
-      vi.spyOn(Math, 'random').mockRestore();
     });
 
-    it('should do nothing if no related works are available', () => {
-      const metadata = { title: '', tags: [], relatedWorks: [] } as Metadata;
-      setupLocationMock('stay');
+    it('should include works from searchCache', () => {
+      const metadata = { relatedWorks: [] } as unknown as Metadata;
+      const searchCache = {
+        results: {
+          results: [
+            { href: 'http://example.com/search1' },
+            { href: 'http://example.com/search2' }
+          ]
+        }
+      } as unknown as SearchCache;
 
-      jumpToRandomWork(metadata);
-      expect(window.location.href).toBe('stay');
+      vi.spyOn(Math, 'random').mockReturnValue(0); // Selects first
+
+      jumpToRandomWork(metadata, searchCache);
+
+      expect(window.location.href).toBe('http://example.com/search1');
     });
 
-    it('should do nothing if all related works are private', () => {
+    it('should deduplicate works by href when merging both sources', () => {
       const metadata = {
-        title: '', tags: [], relatedWorks: [{ href: 'p1', isPrivate: true, title: 't1', thumb: 't1.jpg' }]
-      } as Metadata;
-      setupLocationMock('stay');
+        relatedWorks: [{ href: 'http://example.com/common', isPrivate: false }]
+      } as unknown as Metadata;
+      const searchCache = {
+        results: {
+          results: [{ href: 'http://example.com/common' }]
+        }
+      } as unknown as SearchCache;
 
-      jumpToRandomWork(metadata);
-      expect(window.location.href).toBe('stay');
+      // If deduplication works, there's only 1 item in the pool
+      jumpToRandomWork(metadata, searchCache);
+
+      expect(window.location.href).toBe('http://example.com/common');
     });
 
-    it('should do nothing if metadata is null', () => {
-      setupLocationMock('stay');
+    it('should filter private works from relatedWorks but not affecting search results', () => {
+      const metadata = {
+        relatedWorks: [{ href: 'http://example.com/private', isPrivate: true }]
+      } as unknown as Metadata;
+      const searchCache = {
+        results: {
+          results: [{ href: 'http://example.com/search' }]
+        }
+      } as unknown as SearchCache;
 
-      jumpToRandomWork(null as unknown as Metadata);
-      expect(window.location.href).toBe('stay');
+      jumpToRandomWork(metadata, searchCache);
+
+      // Should skip private and pick the only search result
+      expect(window.location.href).toBe('http://example.com/search');
+    });
+
+    it('should do nothing if no works are available after filtering and merging', () => {
+      const metadata = { relatedWorks: [{ isPrivate: true }] } as unknown as Metadata;
+      const searchCache = { results: { results: [] } } as unknown as SearchCache;
+
+      jumpToRandomWork(metadata, searchCache);
+      expect(window.location.href).toBe('current-page');
+    });
+
+    it('should handle null searchCache gracefully', () => {
+      const metadata = {
+        relatedWorks: [{ href: 'http://example.com/1', isPrivate: false }]
+      } as Metadata;
+
+      jumpToRandomWork(metadata, null);
+      expect(window.location.href).toBe('http://example.com/1');
     });
   });
 });

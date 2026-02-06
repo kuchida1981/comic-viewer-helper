@@ -163,7 +163,7 @@ export class UIManager {
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
         onSearch: () => this.store.setState({ isSearchModalOpen: true }),
-        onLucky: () => { jumpToRandomWork(metadata); }
+        onLucky: () => { jumpToRandomWork(metadata, state.searchCache); }
       });
       navBtns.elements.forEach(btn => container?.appendChild(btn));
     }
