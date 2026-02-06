@@ -5,8 +5,11 @@ export const STORAGE_KEYS = {
   GUI_POS: 'comic-viewer-helper-gui-pos',
   ENABLED: 'comic-viewer-helper-enabled',
   SEARCH_QUERY: 'comic-viewer-helper-search-query',
-  SEARCH_CACHE: 'comic-viewer-helper-search-cache'
+  SEARCH_CACHE: 'comic-viewer-helper-search-cache',
+  SEARCH_HISTORY: 'comic-viewer-helper-search-history'
 } as const;
+
+export const MAX_SEARCH_HISTORY = 3;
 
 export interface GuiPos {
   top: number;
@@ -27,6 +30,7 @@ export interface StoreState {
   searchResults: SearchResultsState | null;
   searchQuery: string;
   searchCache: SearchCache | null;
+  searchHistory: string[];
 }
 
 export type StoreListener = (state: StoreState) => void;
@@ -53,7 +57,8 @@ export class Store {
       isLoading: false,
       searchResults: null,
       searchQuery: this._loadSearchQuery(),
-      searchCache: this._loadSearchCache()
+      searchCache: this._loadSearchCache(),
+      searchHistory: this._loadSearchHistory()
     };
     this.listeners = [];
   }
@@ -95,6 +100,9 @@ export class Store {
         console.warn('Failed to save search cache to localStorage:', e);
       }
     }
+    if ('searchHistory' in patch) {
+      localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+    }
 
     this._notify();
   }
@@ -112,6 +120,22 @@ export class Store {
 
   private _applyPatch<K extends keyof StoreState>(key: K, value: StoreState[K]): void {
     this.state[key] = value;
+  }
+
+  private _loadSearchHistory(): string[] {
+    try {
+      const host = window.location.hostname;
+      const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          return parsed;
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
   }
 
   private _loadSearchCache(): SearchCache | null {
