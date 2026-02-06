@@ -3,7 +3,13 @@ import { createSearchModal } from './SearchModal';
 import { t } from '../../i18n';
 import { SearchResultsState } from '../../types';
 
-const defaultProps = { onSearch: () => {}, onPageChange: () => {}, onClose: () => {}, searchResults: null };
+const defaultProps = { 
+  onSearch: () => {}, 
+  onPageChange: () => {}, 
+  onClose: () => {}, 
+  searchResults: null,
+  searchHistory: []
+};
 
 describe('SearchModal', () => {
   beforeEach(() => {

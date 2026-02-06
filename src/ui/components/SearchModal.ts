@@ -95,7 +95,7 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
   return section;
 }
 
-export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery }: SearchModalProps): SearchModalComponent {
+export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchHistory }: SearchModalProps): SearchModalComponent {
   const input = createElement('input', {
     className: 'comic-helper-search-input',
     attributes: {

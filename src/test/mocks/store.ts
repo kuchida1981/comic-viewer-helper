@@ -15,6 +15,7 @@ const DEFAULT_STATE: StoreState = {
   searchResults: null,
   searchQuery: '',
   searchCache: null,
+  searchHistory: [],
 };
 
 /**

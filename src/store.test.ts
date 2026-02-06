@@ -33,7 +33,8 @@ describe('Store', () => {
       isLoading: false,
       searchResults: null,
       searchQuery: '',
-      searchCache: null
+      searchCache: null,
+      searchHistory: []
     });
   });
 
@@ -75,6 +76,18 @@ describe('Store', () => {
     const store2 = new Store();
     expect(store2.getState().searchQuery).toBe('test');
     expect(store2.getState().searchCache).toEqual(cache);
+  });
+
+  it('should persist search history', () => {
+    const store = new Store();
+    const history = ['a', 'b', 'c'];
+    store.setState({ searchHistory: history });
+
+    const host = window.location.hostname;
+    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`) || '[]')).toEqual(history);
+    
+    const store2 = new Store();
+    expect(store2.getState().searchHistory).toEqual(history);
   });
 
   it('should notify subscribers on state change', () => {
