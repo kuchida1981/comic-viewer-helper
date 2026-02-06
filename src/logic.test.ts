@@ -526,7 +526,7 @@ describe('logic.js', () => {
           { href: 'http://example.com/2', isPrivate: true },
           { href: 'http://example.com/3', isPrivate: false }
         ]
-      } as Metadata;
+      } as unknown as Metadata;
 
       vi.spyOn(Math, 'random').mockReturnValue(0.99); // Selects index 1 of [1, 3]
 
@@ -596,7 +596,7 @@ describe('logic.js', () => {
     it('should handle null searchCache gracefully', () => {
       const metadata = {
         relatedWorks: [{ href: 'http://example.com/1', isPrivate: false }]
-      } as Metadata;
+      } as unknown as Metadata;
 
       jumpToRandomWork(metadata, null);
       expect(window.location.href).toBe('http://example.com/1');
