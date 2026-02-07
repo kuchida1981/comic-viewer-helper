@@ -182,13 +182,9 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
         });
       });
 
-      // Only append if not already in correct position to avoid layout thrashing
-      if (wrapper.children[0] !== img) wrapper.appendChild(img);
-      if (wrapper.children[1] !== nextImg) wrapper.appendChild(nextImg);
-      
-      // Remove any extra children (garbage collection for the wrapper)
-      while (wrapper.children.length > 2) {
-        wrapper.lastChild?.remove();
+      // Only update children if state is different to avoid layout thrashing
+      if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
+        wrapper.replaceChildren(img, nextImg);
       }
 
       i++; // Skip next image
@@ -200,10 +196,8 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
         display: 'block', margin: '0 auto', flexShrink: '0', objectFit: 'contain'
       });
 
-      if (wrapper.children[0] !== img) wrapper.appendChild(img);
-      
-      while (wrapper.children.length > 1) {
-        wrapper.lastChild?.remove();
+      if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
+        wrapper.replaceChildren(img);
       }
     }
     

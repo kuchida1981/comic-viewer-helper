@@ -359,6 +359,14 @@ describe('logic.js', () => {
                  const idx = this.parentElement.children.indexOf(this);
                  if (idx > -1) this.parentElement.children.splice(idx, 1);
                }
+            }),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            replaceChildren: vi.fn(function(this: any, ...newChildren: any[]) {
+               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               this.children.forEach((c: any) => { c.parentElement = null; });
+               this.children = [...newChildren];
+               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               this.children.forEach((c: any) => { c.parentElement = this; });
             })
           };
           Object.defineProperty(el, 'lastChild', {
@@ -397,10 +405,10 @@ describe('logic.js', () => {
       
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(4);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]);
-      expect(wrappers[2].appendChild).toHaveBeenCalledWith(images[2]);
-      expect(wrappers[3].appendChild).toHaveBeenCalledWith(images[3]);
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(images[0]);
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(images[1]);
+      expect(wrappers[2].replaceChildren).toHaveBeenCalledWith(images[2]);
+      expect(wrappers[3].replaceChildren).toHaveBeenCalledWith(images[3]);
     });
 
     it('should show first page (index 0) and last page as solo with offset 1', () => {
@@ -413,10 +421,9 @@ describe('logic.js', () => {
 
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(3);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[2]);
-      expect(wrappers[2].appendChild).toHaveBeenCalledWith(images[3]);
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(images[0]);
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(images[1], images[2]);
+      expect(wrappers[2].replaceChildren).toHaveBeenCalledWith(images[3]);
     });
 
     it('should show all pages as solo when there are only 2 pages', () => {
@@ -432,8 +439,8 @@ describe('logic.js', () => {
       
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(2);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]); // First page solo
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]); // Last page solo
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(images[0]); // First page solo
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(images[1]); // Last page solo
     });
 
     it('should pair 1-2 when offset is 1 but 0 and last are solo', () => {
@@ -455,11 +462,10 @@ describe('logic.js', () => {
 
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(4);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(fiveImages[0]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(fiveImages[1]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(fiveImages[2]);
-      expect(wrappers[2].appendChild).toHaveBeenCalledWith(fiveImages[3]);
-      expect(wrappers[3].appendChild).toHaveBeenCalledWith(fiveImages[4]);
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(fiveImages[0]);
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(fiveImages[1], fiveImages[2]);
+      expect(wrappers[2].replaceChildren).toHaveBeenCalledWith(fiveImages[3]);
+      expect(wrappers[3].replaceChildren).toHaveBeenCalledWith(fiveImages[4]);
     });
 
     it('should maintain global order even when some images are paired and some are solo', () => {
@@ -498,9 +504,9 @@ describe('logic.js', () => {
       // Expected: 0 solo (first), 1 solo (next is last), 2 solo (last) -> 3 rows
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(3);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(threeImages[0]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(threeImages[1]);
-      expect(wrappers[2].appendChild).toHaveBeenCalledWith(threeImages[2]);
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(threeImages[0]);
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(threeImages[1]);
+      expect(wrappers[2].replaceChildren).toHaveBeenCalledWith(threeImages[2]);
     });
 
     it('should remove unused wrappers', () => {
@@ -565,7 +571,7 @@ describe('logic.js', () => {
       // Since we are mocking everything, we can check if 'remove' was called on the wrappers.
       // In the optimized version, it should NOT be called for wrappers that are still valid.
       wrappersAfterFirstCall.forEach(_w => {
-        // expect(w.remove).not.toHaveBeenCalled(); // This will be the assertion for the new implementation
+        expect(_w.remove).not.toHaveBeenCalled();
       });
     });
   });
