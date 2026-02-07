@@ -208,15 +208,16 @@ describe('UI Components', () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('should stop propagation when clicking tags or related items', () => {
+    it('should stop propagation and close modal when clicking tags', () => {
       const onClose = vi.fn();
       const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
       
       const tag = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
       tag.click();
-      expect(onClose).not.toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
 
       const related = el.querySelector('.comic-helper-related-item') as HTMLElement;
+      onClose.mockClear();
       related.click();
       expect(onClose).not.toHaveBeenCalled();
     });

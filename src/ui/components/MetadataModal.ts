@@ -40,12 +40,13 @@ export function createMetadataModal({ metadata, onClose, onTagClick }: MetadataM
     return createElement('a', {
       className,
       textContent: tag.text,
-      attributes: { href: tag.href, target: '_blank' },
+      style: { cursor: 'pointer' },
       events: {
         click: (e) => {
           e.preventDefault();
           e.stopPropagation();
           onTagClick(tag);
+          onClose(); // Explicitly close metadata modal
         }
       }
     });
