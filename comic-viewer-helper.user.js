@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.5ab2ade
+// @version         1.4.0-unstable.a1cfc7a
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -27,6 +27,7 @@
     GUI_POS: "comic-viewer-helper-gui-pos",
     ENABLED: "comic-viewer-helper-enabled",
     SEARCH_QUERY: "comic-viewer-helper-search-query",
+    SEARCH_CONTEXT: "comic-viewer-helper-search-context",
     SEARCH_CACHE: "comic-viewer-helper-search-cache",
     SEARCH_HISTORY: "comic-viewer-helper-search-history"
   };
@@ -52,6 +53,7 @@
         isLoading: false,
         searchResults: null,
         searchQuery: this._loadSearchQuery(),
+        searchContext: this._loadSearchContext(),
         searchCache: this._loadSearchCache(),
         searchHistory: this._loadSearchHistory()
       };
@@ -81,6 +83,13 @@
       const host = window.location.hostname;
       if ("searchQuery" in patch) {
         localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
+      }
+      if ("searchContext" in patch) {
+        if (patch.searchContext) {
+          localStorage.setItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, JSON.stringify(patch.searchContext));
+        } else {
+          localStorage.removeItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+        }
       }
       if ("searchCache" in patch) {
         try {
@@ -133,6 +142,15 @@
     _loadSearchQuery() {
       const host = window.location.hostname;
       return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
+    }
+    _loadSearchContext() {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+        return saved ? JSON.parse(saved) : void 0;
+      } catch {
+        return void 0;
+      }
     }
     _loadGuiPos() {
       try {
@@ -1681,7 +1699,7 @@
       // No dynamic state for these buttons yet
     };
   }
-  function createMetadataModal({ metadata, onClose }) {
+  function createMetadataModal({ metadata, onClose, onTagClick }) {
     const { title, tags, relatedWorks } = metadata;
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
@@ -1703,9 +1721,14 @@
       return createElement("a", {
         className,
         textContent: tag.text,
-        attributes: { href: tag.href, target: "_blank" },
+        style: { cursor: "pointer" },
         events: {
-          click: (e) => e.stopPropagation()
+          click: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onTagClick(tag);
+            onClose();
+          }
         }
       });
     });
@@ -1744,7 +1767,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.5ab2ade"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.a1cfc7a"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1896,11 +1919,16 @@
       className: "comic-helper-search-results-section"
     });
     if (!searchResults) return section;
-    const { results, totalCount, pagination } = searchResults;
+    const { results, totalCount, pagination, searchContext } = searchResults;
     const header = createElement("div", {
       className: "comic-helper-section-title"
     });
-    header.textContent = totalCount ? `${t("ui.searchResults")} ${totalCount}` : t("ui.searchResults");
+    let titleText = t("ui.searchResults");
+    if (searchContext && searchContext.label) {
+      const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
+      titleText = `${prefix}: ${searchContext.label}`;
+    }
+    header.textContent = totalCount ? `${titleText} (${totalCount})` : titleText;
     section.appendChild(header);
     if (results.length === 0) {
       section.appendChild(createElement("div", {
@@ -2449,7 +2477,15 @@
         this.modalEl,
         () => createMetadataModal({
           metadata,
-          onClose: () => this.store.setState({ isMetadataModalOpen: false })
+          onClose: () => this.store.setState({ isMetadataModalOpen: false }),
+          onTagClick: (tag) => {
+            this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true });
+            const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
+            return this._performSearch(tag.href, false, {
+              type: contextType,
+              label: tag.text
+            });
+          }
         })
       );
       this.powerComp?.update(enabled);
@@ -2513,22 +2549,38 @@
     /**
      * Perform search and update store/cache
      */
-    async _performSearch(queryOrUrl, silent = false) {
+    async _performSearch(queryOrUrl, silent = false, context) {
       if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
       let url;
       let query;
+      let searchContext = context;
       const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
       if (isUrl) {
         url = queryOrUrl;
-        query = this.store.getState().searchQuery;
+        if (context) {
+          query = context.label || "";
+          if (!silent) {
+            this.store.setState({ searchQuery: query });
+          }
+          searchContext = context;
+        } else {
+          query = this.store.getState().searchQuery;
+          searchContext = this.store.getState().searchContext;
+        }
       } else {
         query = queryOrUrl;
         url = this.adapter.getSearchUrl(query);
+        if (!searchContext) {
+          searchContext = { type: "keyword", label: query };
+        }
         if (!silent) {
           this.store.setState({ searchQuery: query });
-          this._updateSearchHistory(query);
+          if (searchContext.type === "keyword") {
+            this._updateSearchHistory(query);
+          }
         }
       }
+      this.store.setState({ searchContext });
       this.searchModalComp?.setUpdating(true);
       try {
         const res = await fetch(url);
@@ -2536,12 +2588,14 @@
         const html = await res.text();
         const doc = new DOMParser().parseFromString(html, "text/html");
         const results = this.adapter.parseSearchResults(doc);
+        results.searchContext = searchContext;
         this.store.setState({
           searchResults: results,
           searchCache: {
             query,
             results,
-            fetchedAt: Date.now()
+            fetchedAt: Date.now(),
+            context: searchContext
           }
         });
         this.searchModalComp?.updateResults(results);
