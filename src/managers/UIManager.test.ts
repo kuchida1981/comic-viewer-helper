@@ -357,6 +357,38 @@ describe('UIManager', () => {
     vi.unstubAllGlobals();
   });
 
+  it('should ignore cache if context does not match even if query is the same', async () => {
+    const cacheForKeyword = {
+      query: 'Action',
+      results: { results: [{ title: 'Keyword Result' }], totalCount: '1', nextPageUrl: null },
+      fetchedAt: Date.now(),
+      context: { type: 'keyword', label: 'Action' }
+    };
+    
+    adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com?q=Action');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('') }));
+
+    // Current state: Tag search for 'Action', but cache is for keyword 'Action'
+    (store.getState as Mock).mockReturnValue({ 
+      enabled: true, 
+      isSearchModalOpen: true, 
+      metadata: { title: '', tags: [], relatedWorks: [] }, 
+      currentVisibleIndex: 0, 
+      searchResults: null,
+      searchQuery: 'Action', // Same string
+      searchContext: { type: 'tag', label: 'Action' }, // Different context!
+      searchCache: cacheForKeyword,
+      searchHistory: []
+    });
+    
+    uiManager.updateUI();
+
+    // Should NOT show cache because context differs
+    expect(store.setState).not.toHaveBeenCalledWith({ searchResults: cacheForKeyword.results });
+    
+    vi.unstubAllGlobals();
+  });
+
   it('should clear searchResults on search start and not update searchQuery for tag searches', async () => {
     adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com/tags/test');
     adapter.parseSearchResults = vi.fn().mockReturnValue({ results: [], totalCount: '0' });

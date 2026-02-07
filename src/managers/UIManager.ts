@@ -208,17 +208,23 @@ export class UIManager {
         document.body.appendChild(this.searchModalComp.el);
 
         // SWR logic
-        if (searchCache && searchCache.query === searchQuery) {
-          // If query matches cache, show it immediately
+        const currentContext = state.searchContext;
+        const isContextMatch = (!searchCache?.context && !currentContext) || 
+                               (searchCache?.context?.type === currentContext?.type && 
+                                searchCache?.context?.label === currentContext?.label);
+
+        if (searchCache && searchCache.query === searchQuery && isContextMatch) {
+          // If query and context match cache, show it immediately
           this.store.setState({ searchResults: searchCache.results });
           this.searchModalComp.updateResults(searchCache.results);
 
           // Check if expired
           if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
-            void this._performSearch(searchQuery, true);
+            void this._performSearch(searchQuery, true, currentContext);
           }
-        } else if (searchQuery) {
+        } else if (searchQuery && currentContext?.type === 'keyword') {
           // Perform search if cache doesn't exist or query is different
+          // Only auto-trigger for keyword searches to avoid double-searching on tags
           void this._performSearch(searchQuery);
         }
       }
