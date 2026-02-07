@@ -193,11 +193,12 @@ export class UIManager {
 
     if (isSearchModalOpen) {
       if (!this.searchModalComp) {
-        const { searchResults, searchQuery, searchCache, searchHistory } = state;
+        const { searchResults, searchQuery, searchCache, searchHistory, searchContext } = state;
 
         this.searchModalComp = createSearchModal({
           searchResults,
           searchQuery,
+          searchContext,
           searchHistory,
           onSearch: (query: string, context?: SearchContext) => this._performSearch(query, false, context),
           onPageChange: (url: string) => this._performSearch(url),

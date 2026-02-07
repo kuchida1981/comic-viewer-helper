@@ -564,10 +564,11 @@ describe('UIManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
                     callbacks.onHelp();
                     expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: true });
-                    callbacks.onSearch();
-                    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: true, searchResults: null });
-                    
-                    callbacks.onLucky();            expect(logic.jumpToRandomWork).toHaveBeenCalled();
-          });
+                                callbacks.onSearch();
+                                expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: true, searchResults: null });
+                                
+                                callbacks.onLucky();
+                                expect(logic.jumpToRandomWork).toHaveBeenCalled();
+                            });
         });
         

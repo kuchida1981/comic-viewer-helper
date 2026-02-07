@@ -8,6 +8,7 @@ export interface SearchModalProps {
   onClose: () => void;
   searchResults: SearchResultsState | null;
   searchQuery?: string;
+  searchContext?: SearchContext;
   searchHistory: string[];
 }
 
@@ -102,9 +103,8 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
   return section;
 }
 
-export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchHistory }: SearchModalProps): SearchModalComponent {
-  const context = searchResults?.searchContext;
-  const displayValue = (context?.type === 'keyword') ? (searchQuery || '') : '';
+export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchContext, searchHistory }: SearchModalProps): SearchModalComponent {
+  const displayValue = (searchContext?.type === 'keyword') ? (searchQuery || '') : '';
 
   const input = createElement('input', {
     className: 'comic-helper-search-input',
