@@ -1,5 +1,11 @@
 # Project Instructions for Gemini CLI
 
+## Project Information
+
+- **Remote Repository**: `git@github.com:kuchida1981/comic-viewer-helper.git`
+- **Owner**: `kuchida1981`
+- **Repo Name**: `comic-viewer-helper`
+
 ## Language
 
 The user is a Japanese speaker.
@@ -39,7 +45,7 @@ Do not skip steps unless the user explicitly instructs otherwise.
    - Consider if README or documentation updates are needed
 
 5. **Create Pull Request**
-   - Push the topic branch and create a pull request
+   - Push the topic branch and create a pull request as a **draft**.
    - Include a TODO checklist for user verification in the PR body
    - Present the PR to the user and request verification
    - Link the issue to the PR
@@ -57,3 +63,9 @@ Do not skip steps unless the user explicitly instructs otherwise.
 - **Do NOT write production code before reaching the "implementation" step**
 - **Always include a TODO checklist for user verification in PR descriptions**
 - **Never skip user verification**
+- **Run all checks before PR**: Before creating a pull request or reporting implementation completion, you MUST run and pass all of the following checks locally:
+  - `npm run test` (Tests & Coverage)
+  - `npm run lint` (Linting)
+  - `npm run check-types` (Type Checking)
+  - `npm run build` (Build process)
+  - `npx openspec validate --strict --all` (OpenSpec verification)

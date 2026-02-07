@@ -2,11 +2,12 @@ name: PR TODO completion check
 
 on:
   pull_request:
-    types: [opened, edited, synchronize]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
     branches: [ main, master ]
 
 jobs:
   check-todo:
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - name: Check for unchecked TODOs in PR description
