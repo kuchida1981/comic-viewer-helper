@@ -221,6 +221,16 @@ describe('UI Components', () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
+    it('should call onTagClick when a tag is clicked', () => {
+      const onTagClick = vi.fn();
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick });
+      
+      const tag = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
+      tag.click();
+      
+      expect(onTagClick).toHaveBeenCalledWith(mockMetadata.tags[0]);
+    });
+
     it('should have an empty update method', () => {
       const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => {} });
       expect(typeof update).toBe('function');
