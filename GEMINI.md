@@ -2,7 +2,7 @@
 
 ## Project Information
 
-- **Remote Repository**: `git@github.com:kuchida1981/comic-viewer-helper.git`
+- **Remote Repository**: `https://github.com/kuchida1981/comic-viewer-helper.git`
 - **Owner**: `kuchida1981`
 - **Repo Name**: `comic-viewer-helper`
 
