@@ -118,10 +118,14 @@ describe('UIManager - Internal Tag Search', () => {
         searchContext: { type: 'tag', label: 'Test Tag' }
     }));
     
-    // Check search query update (should be tag label for display)
+    // Check context update
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({
-        searchQuery: 'Test Tag'
+        searchContext: { type: 'tag', label: 'Test Tag' }
     }));
+    
+    // Check that searchQuery was NOT updated
+    const searchQueryCalls = (store.setState as Mock).mock.calls.filter(call => 'searchQuery' in call[0]);
+    expect(searchQueryCalls).toHaveLength(0);
 
     // Check history NOT updated for tag search
     // We can't easily check private _updateSearchHistory, but we can check store state if mock worked fully
@@ -171,8 +175,12 @@ describe('UIManager - Internal Tag Search', () => {
 
     // Verify context updated
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({
-        searchQuery: 'Tag1'
+        searchContext: { type: 'tag', label: 'Tag1' }
     }));
+
+    // searchQuery should not be updated for tags
+    const tagSearchQueryCalls = (store.setState as Mock).mock.calls.filter(call => 'searchQuery' in call[0]);
+    expect(tagSearchQueryCalls).toHaveLength(0);
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({
         searchContext: { type: 'tag', label: 'Tag1' }
     }));

@@ -174,7 +174,7 @@ export class UIManager {
         onLast: () => { void this.navigator.scrollToEdge('end'); },
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-        onSearch: () => this.store.setState({ isSearchModalOpen: true }),
+        onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
         onLucky: () => { jumpToRandomWork(metadata, state.searchCache); }
       });
       navBtns.elements.forEach(btn => container?.appendChild(btn));
@@ -199,7 +199,7 @@ export class UIManager {
           searchResults,
           searchQuery,
           searchHistory,
-          onSearch: (query: string) => this._performSearch(query),
+          onSearch: (query: string, context?: SearchContext) => this._performSearch(query, false, context),
           onPageChange: (url: string) => this._performSearch(url),
           onClose: () => {
             this.store.setState({ isSearchModalOpen: false });
@@ -236,7 +236,11 @@ export class UIManager {
         metadata,
         onClose: () => this.store.setState({ isMetadataModalOpen: false }),
         onTagClick: (tag) => {
-          this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true });
+          this.store.setState({ 
+            isMetadataModalOpen: false, 
+            isSearchModalOpen: true,
+            searchResults: null
+          });
           // Map tag type to SearchContext type
           const contextType: 'tag' | 'artist' | 'genre' = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
           
@@ -326,6 +330,11 @@ export class UIManager {
   private async _performSearch(queryOrUrl: string, silent = false, context?: SearchContext): Promise<void> {
     if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
 
+    // Clear previous results to avoid flicker
+    if (!silent) {
+      this.store.setState({ searchResults: null });
+    }
+
     let url: string;
     let query: string;
     let searchContext: SearchContext | undefined = context;
@@ -337,10 +346,9 @@ export class UIManager {
       
       if (context) {
         // Explicit context provided (e.g. Tag Search) -> New Search
+        // We use label as query for internal logic (cache key etc.), 
+        // but we DON'T update the store's searchQuery to keep the user's last typed query
         query = context.label || '';
-        if (!silent) {
-          this.store.setState({ searchQuery: query });
-        }
         searchContext = context;
       } else {
         // No context provided (e.g. Pagination) -> Continue current search

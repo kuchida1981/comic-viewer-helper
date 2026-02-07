@@ -1,9 +1,9 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
-import { SearchResultsState } from '../../types';
+import { SearchResultsState, SearchContext } from '../../types';
 
 export interface SearchModalProps {
-  onSearch: (query: string) => void;
+  onSearch: (query: string, context?: SearchContext) => void;
   onPageChange: (url: string) => void;
   onClose: () => void;
   searchResults: SearchResultsState | null;
@@ -103,13 +103,16 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
 }
 
 export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchHistory }: SearchModalProps): SearchModalComponent {
+  const context = searchResults?.searchContext;
+  const displayValue = (context?.type === 'keyword') ? (searchQuery || '') : '';
+
   const input = createElement('input', {
     className: 'comic-helper-search-input',
     attributes: {
       type: 'text',
       placeholder: t('ui.searchPlaceholder'),
       autofocus: 'true',
-      value: searchQuery || ''
+      value: displayValue
     }
   }) as HTMLInputElement;
 

@@ -357,6 +357,88 @@ describe('UIManager', () => {
     vi.unstubAllGlobals();
   });
 
+  it('should clear searchResults on search start and not update searchQuery for tag searches', async () => {
+    adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com/tags/test');
+    adapter.parseSearchResults = vi.fn().mockReturnValue({ results: [], totalCount: '0' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('') }));
+
+    (store.getState as Mock).mockReturnValue({
+      enabled: true,
+      isSearchModalOpen: true,
+      metadata: { title: '', tags: [], relatedWorks: [] },
+      currentVisibleIndex: 0,
+      searchQuery: 'previous keyword',
+      searchResults: { results: [{ title: 'Previous' }] },
+      searchHistory: []
+    });
+
+    uiManager.updateUI();
+    const props = (createSearchModal as unknown as Mock).mock.calls[0][0];
+    (store.setState as Mock).mockClear();
+
+    // 1. Tag Search (Explicit context)
+    const context = { type: 'tag', label: 'Tag1' } as const;
+    const searchPromise = props.onSearch('http://search.com/tags/tag1', context);
+
+    // Should clear searchResults immediately to avoid flicker
+    expect(store.setState).toHaveBeenCalledWith({ searchResults: null });
+
+    // Should NOT update searchQuery with tag name in any call
+    const searchQueryCalls = (store.setState as Mock).mock.calls.filter(call => 'searchQuery' in call[0]);
+    expect(searchQueryCalls).toHaveLength(0);
+    
+    // Should update searchContext
+    expect(store.setState).toHaveBeenCalledWith({ searchContext: context });
+
+    await searchPromise;
+
+    // 2. Keyword Search
+    (store.setState as Mock).mockClear();
+    await props.onSearch('new keyword');
+
+    // Should clear searchResults immediately
+    expect(store.setState).toHaveBeenCalledWith({ searchResults: null });
+
+    // Should update searchQuery for keyword search
+    expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({ 
+      searchQuery: 'new keyword' 
+    }));
+
+    vi.unstubAllGlobals();
+  });
+
+  it('should handle pagination without context by preserving current searchQuery', async () => {
+    adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com/p/2');
+    adapter.parseSearchResults = vi.fn().mockReturnValue({ results: [], totalCount: '0' });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('') }));
+
+    (store.getState as Mock).mockReturnValue({
+      enabled: true,
+      isSearchModalOpen: true,
+      metadata: { title: '', tags: [], relatedWorks: [] },
+      currentVisibleIndex: 0,
+      searchQuery: 'active keyword',
+      searchContext: { type: 'keyword', label: 'active keyword' },
+      searchResults: { results: [] },
+      searchHistory: []
+    });
+
+    uiManager.updateUI();
+    const props = (createSearchModal as unknown as Mock).mock.calls[0][0];
+    (store.setState as Mock).mockClear();
+
+    await props.onPageChange('http://search.com/p/2');
+
+    // Should clear results
+    expect(store.setState).toHaveBeenCalledWith({ searchResults: null });
+    
+    // Should NOT change searchQuery (check all calls)
+    const searchQueryCalls = (store.setState as Mock).mock.calls.filter(call => 'searchQuery' in call[0]);
+    expect(searchQueryCalls).toHaveLength(0);
+
+    vi.unstubAllGlobals();
+  });
+
   it('should handle resize for draggable', () => {
     uiManager.init();
     const calls = (window.addEventListener as unknown as Mock).mock.calls;
@@ -448,13 +530,12 @@ describe('UIManager', () => {
     expect(navigator.scrollToEdge).toHaveBeenCalledWith('end');
     callbacks.onInfo();
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
-        callbacks.onHelp();
-        expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: true });
-            callbacks.onSearch();
-            expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: true });
-            
-            callbacks.onLucky();
-            expect(logic.jumpToRandomWork).toHaveBeenCalled();
+                    callbacks.onHelp();
+                    expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: true });
+                    callbacks.onSearch();
+                    expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: true, searchResults: null });
+                    
+                    callbacks.onLucky();            expect(logic.jumpToRandomWork).toHaveBeenCalled();
           });
         });
         
