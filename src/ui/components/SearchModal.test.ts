@@ -28,6 +28,31 @@ describe('SearchModal', () => {
     expect(input.placeholder).toContain(t('ui.searchPlaceholder'));
   });
 
+  it('should show searchQuery in input only if context is keyword', () => {
+    // 1. Keyword context
+    const { input: input1 } = createSearchModal({ 
+      ...defaultProps, 
+      searchQuery: 'my keyword',
+      searchContext: { type: 'keyword', label: 'my keyword' }
+    });
+    expect(input1.value).toBe('my keyword');
+
+    // 2. Tag context
+    const { input: input2 } = createSearchModal({ 
+      ...defaultProps, 
+      searchQuery: 'my keyword',
+      searchContext: { type: 'tag', label: 'SomeTag' }
+    });
+    expect(input2.value).toBe('');
+
+    // 3. No context (should default to empty if context.type is not keyword)
+    const { input: input3 } = createSearchModal({ 
+      ...defaultProps, 
+      searchQuery: 'my keyword'
+    });
+    expect(input3.value).toBe('');
+  });
+
   it('should call onSearch and stop propagation when submitting the form', () => {
     const onSearch = vi.fn();
     const { el, input } = createSearchModal({ ...defaultProps, onSearch });
