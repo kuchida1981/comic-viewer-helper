@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.a1cfc7a
+// @version         1.4.0-unstable.623d962
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1767,7 +1767,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.a1cfc7a"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.623d962"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1984,14 +1984,15 @@
     }
     return section;
   }
-  function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchHistory }) {
+  function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchContext, searchHistory }) {
+    const displayValue = searchContext?.type === "keyword" ? searchQuery || "" : "";
     const input = createElement("input", {
       className: "comic-helper-search-input",
       attributes: {
         type: "text",
         placeholder: t("ui.searchPlaceholder"),
         autofocus: "true",
-        value: searchQuery || ""
+        value: displayValue
       }
     });
     const submitBtn = createElement("button", {
@@ -2427,7 +2428,7 @@
           },
           onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
           onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-          onSearch: () => this.store.setState({ isSearchModalOpen: true }),
+          onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
           onLucky: () => {
             jumpToRandomWork(metadata2, state.searchCache);
           }
@@ -2444,25 +2445,28 @@
       );
       if (isSearchModalOpen) {
         if (!this.searchModalComp) {
-          const { searchResults, searchQuery, searchCache, searchHistory } = state;
+          const { searchResults, searchQuery, searchCache, searchHistory, searchContext } = state;
           this.searchModalComp = createSearchModal({
             searchResults,
             searchQuery,
+            searchContext,
             searchHistory,
-            onSearch: (query) => this._performSearch(query),
+            onSearch: (query, context) => this._performSearch(query, false, context),
             onPageChange: (url) => this._performSearch(url),
             onClose: () => {
               this.store.setState({ isSearchModalOpen: false });
             }
           });
           document.body.appendChild(this.searchModalComp.el);
-          if (searchCache && searchCache.query === searchQuery) {
+          const currentContext = state.searchContext;
+          const isContextMatch = !searchCache?.context && !currentContext || searchCache?.context?.type === currentContext?.type && searchCache?.context?.label === currentContext?.label;
+          if (searchCache && searchCache.query === searchQuery && isContextMatch) {
             this.store.setState({ searchResults: searchCache.results });
             this.searchModalComp.updateResults(searchCache.results);
             if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
-              void this._performSearch(searchQuery, true);
+              void this._performSearch(searchQuery, true, currentContext);
             }
-          } else if (searchQuery) {
+          } else if (searchQuery && currentContext?.type === "keyword") {
             void this._performSearch(searchQuery);
           }
         }
@@ -2479,7 +2483,11 @@
           metadata,
           onClose: () => this.store.setState({ isMetadataModalOpen: false }),
           onTagClick: (tag) => {
-            this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true });
+            this.store.setState({
+              isMetadataModalOpen: false,
+              isSearchModalOpen: true,
+              searchResults: null
+            });
             const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
             return this._performSearch(tag.href, false, {
               type: contextType,
@@ -2551,6 +2559,9 @@
      */
     async _performSearch(queryOrUrl, silent = false, context) {
       if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
+      if (!silent) {
+        this.store.setState({ searchResults: null });
+      }
       let url;
       let query;
       let searchContext = context;
@@ -2559,9 +2570,6 @@
         url = queryOrUrl;
         if (context) {
           query = context.label || "";
-          if (!silent) {
-            this.store.setState({ searchQuery: query });
-          }
           searchContext = context;
         } else {
           query = this.store.getState().searchQuery;
