@@ -420,7 +420,10 @@ describe('UIManager', () => {
 
   it('should handle window resize', () => {
     uiManager.init();
-    const resizeHandler = (window.addEventListener as Mock).mock.calls.find(c => c[0] === 'resize')[1];
+    const calls = (window.addEventListener as Mock).mock.calls;
+    const resizeCall = calls.find(c => c[0] === 'resize');
+    expect(resizeCall).toBeDefined();
+    const resizeHandler = resizeCall![1];
     
     const clampSpy = vi.fn().mockReturnValue({ top: 100, left: 200 });
     // @ts-expect-error - accessing private property for testing
