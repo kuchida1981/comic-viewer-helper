@@ -179,7 +179,7 @@ describe('UI Components', () => {
     };
 
     it('should render title and content', () => {
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => {} });
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => Promise.resolve() });
       expect(el.textContent).toContain('Test Manga');
       expect(el.textContent).toContain('Action');
       expect(el.textContent).toContain('Manga B');
@@ -187,14 +187,14 @@ describe('UI Components', () => {
 
     it('should call onClose when clicking overlay', () => {
       const onClose = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => {} });
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
       el.click();
       expect(onClose).toHaveBeenCalled();
     });
 
     it('should call onClose when clicking close button', () => {
       const onClose = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => {} });
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
       const closeBtn = el.querySelector('.comic-helper-modal-close') as HTMLElement;
       closeBtn.click();
       expect(onClose).toHaveBeenCalled();
@@ -202,7 +202,7 @@ describe('UI Components', () => {
 
     it('should not call onClose when clicking content', () => {
       const onClose = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => {} });
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
       const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
       content.click();
       expect(onClose).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('UI Components', () => {
 
     it('should stop propagation when clicking tags or related items', () => {
       const onClose = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => {} });
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
       
       const tag = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
       tag.click();
@@ -232,7 +232,7 @@ describe('UI Components', () => {
     });
 
     it('should have an empty update method', () => {
-      const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => {} });
+      const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => Promise.resolve() });
       expect(typeof update).toBe('function');
       update();
     });

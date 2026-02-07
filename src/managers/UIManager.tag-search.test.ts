@@ -101,7 +101,7 @@ describe('UIManager - Internal Tag Search', () => {
 
     // Simulate tag click
     const tag: Tag = { text: 'Test Tag', href: 'http://site.com/tags/test', type: 'tag' };
-    props.onTagClick(tag);
+    await props.onTagClick(tag);
 
     // Verify UI state updates
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({ 
@@ -113,12 +113,6 @@ describe('UIManager - Internal Tag Search', () => {
     // fetch should be called with tag href
     expect(fetchMock).toHaveBeenCalledWith('http://site.com/tags/test');
     
-    // Wait for async operations
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-
     // Check if searchContext was set in store
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({
         searchContext: { type: 'tag', label: 'Test Tag' }
@@ -144,11 +138,7 @@ describe('UIManager - Internal Tag Search', () => {
 
     const props = (createMetadataModal as unknown as Mock).mock.calls[0][0];
     const tag: Tag = { text: 'Action', href: 'http://site.com/genre/action', type: 'genre' };
-    props.onTagClick(tag);
-
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await props.onTagClick(tag);
 
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({
         searchContext: { type: 'genre', label: 'Action' }
@@ -162,11 +152,7 @@ describe('UIManager - Internal Tag Search', () => {
 
     const props = (createMetadataModal as unknown as Mock).mock.calls[0][0];
     const tag: Tag = { text: 'Artist Name', href: 'http://site.com/artist/name', type: 'artist' };
-    props.onTagClick(tag);
-
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await props.onTagClick(tag);
 
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({
         searchContext: { type: 'artist', label: 'Artist Name' }
@@ -181,8 +167,7 @@ describe('UIManager - Internal Tag Search', () => {
     // 1. Tag Search
     const props = (createMetadataModal as unknown as Mock).mock.calls[0][0];
     const tag: Tag = { text: 'Tag1', href: 'http://site.com/tags/tag1', type: 'tag' };
-    props.onTagClick(tag);
-    await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    await props.onTagClick(tag);
 
     // Verify context updated
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({

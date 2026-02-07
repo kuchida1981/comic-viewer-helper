@@ -5,7 +5,7 @@ import { Metadata, Tag } from '../../types';
 export interface MetadataModalProps {
   metadata: Metadata;
   onClose: () => void;
-  onTagClick: (tag: Tag) => void;
+  onTagClick: (tag: Tag) => Promise<void>;
 }
 
 export interface MetadataModalComponent {

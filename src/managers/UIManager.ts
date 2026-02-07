@@ -238,12 +238,9 @@ export class UIManager {
         onTagClick: (tag) => {
           this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true });
           // Map tag type to SearchContext type
-          let contextType: 'tag' | 'artist' | 'genre' = 'tag';
-          if (tag.type === 'artist' || tag.type === 'genre') {
-            contextType = tag.type;
-          }
+          const contextType: 'tag' | 'artist' | 'genre' = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
           
-          this._performSearch(tag.href, false, {
+          return this._performSearch(tag.href, false, {
             type: contextType,
             label: tag.text
           });
