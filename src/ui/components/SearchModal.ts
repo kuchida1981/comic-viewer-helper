@@ -25,14 +25,21 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
 
   if (!searchResults) return section;
 
-  const { results, totalCount, pagination } = searchResults;
+  const { results, totalCount, pagination, searchContext } = searchResults;
 
   const header = createElement('div', {
     className: 'comic-helper-section-title'
   });
+
+  let titleText = t('ui.searchResults');
+  if (searchContext && searchContext.label) {
+    const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
+    titleText = `${prefix}: ${searchContext.label}`;
+  }
+
   header.textContent = totalCount
-    ? `${t('ui.searchResults')} ${totalCount}`
-    : t('ui.searchResults');
+    ? `${titleText} (${totalCount})`
+    : titleText;
   section.appendChild(header);
 
   if (results.length === 0) {

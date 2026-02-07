@@ -1,10 +1,11 @@
-import { Metadata, SearchResultsState, SearchCache } from './types';
+import { Metadata, SearchResultsState, SearchCache, SearchContext } from './types';
 
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
   GUI_POS: 'comic-viewer-helper-gui-pos',
   ENABLED: 'comic-viewer-helper-enabled',
   SEARCH_QUERY: 'comic-viewer-helper-search-query',
+  SEARCH_CONTEXT: 'comic-viewer-helper-search-context',
   SEARCH_CACHE: 'comic-viewer-helper-search-cache',
   SEARCH_HISTORY: 'comic-viewer-helper-search-history'
 } as const;
@@ -29,6 +30,7 @@ export interface StoreState {
   isLoading: boolean;
   searchResults: SearchResultsState | null;
   searchQuery: string;
+  searchContext?: SearchContext;
   searchCache: SearchCache | null;
   searchHistory: string[];
 }
@@ -57,6 +59,7 @@ export class Store {
       isLoading: false,
       searchResults: null,
       searchQuery: this._loadSearchQuery(),
+      searchContext: this._loadSearchContext(),
       searchCache: this._loadSearchCache(),
       searchHistory: this._loadSearchHistory()
     };
@@ -92,6 +95,13 @@ export class Store {
     const host = window.location.hostname;
     if ('searchQuery' in patch) {
       localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery!);
+    }
+    if ('searchContext' in patch) {
+      if (patch.searchContext) {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, JSON.stringify(patch.searchContext));
+      } else {
+        localStorage.removeItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+      }
     }
     if ('searchCache' in patch) {
       try {
@@ -151,6 +161,16 @@ export class Store {
   private _loadSearchQuery(): string {
     const host = window.location.hostname;
     return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || '';
+  }
+
+  private _loadSearchContext(): SearchContext | undefined {
+    try {
+      const host = window.location.hostname;
+      const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+      return saved ? JSON.parse(saved) : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   private _loadGuiPos(): GuiPos | null {

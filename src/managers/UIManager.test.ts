@@ -233,11 +233,18 @@ describe('UIManager', () => {
     expect(adapter.parseSearchResults).toHaveBeenCalled();
     expect(store.setState).toHaveBeenCalledWith({ searchQuery: 'test' });
     expect(store.setState).toHaveBeenCalledWith({
-      searchResults: mockResults,
+      searchResults: {
+        ...mockResults,
+        searchContext: { type: 'keyword', label: 'test' }
+      },
       searchCache: {
         query: 'test',
-        results: mockResults,
-        fetchedAt: expect.any(Number)
+        results: {
+          ...mockResults,
+          searchContext: { type: 'keyword', label: 'test' }
+        },
+        fetchedAt: expect.any(Number),
+        context: { type: 'keyword', label: 'test' }
       }
     });
 
@@ -403,6 +410,29 @@ describe('UIManager', () => {
     const onResume = (createResumeNotification as unknown as Mock).mock.calls[0][0].onResume;
     onResume();
     expect(navigator.jumpToPage).toHaveBeenCalledWith(6);
+  });
+
+  it('should handle skip in resume notification', () => {
+    uiManager.showResumeNotification(5);
+    const onSkip = (createResumeNotification as unknown as Mock).mock.calls[0][0].onSkip;
+    onSkip();
+  });
+
+  it('should handle window resize', () => {
+    uiManager.init();
+    const calls = (window.addEventListener as Mock).mock.calls;
+    const resizeCall = calls.find(c => c[0] === 'resize');
+    expect(resizeCall).toBeDefined();
+    const resizeHandler = resizeCall![1];
+    
+    const clampSpy = vi.fn().mockReturnValue({ top: 100, left: 200 });
+    // @ts-expect-error - accessing private property for testing
+    uiManager.draggable = { clampToViewport: clampSpy };
+    
+    resizeHandler();
+    
+    expect(clampSpy).toHaveBeenCalled();
+    expect(store.setState).toHaveBeenCalledWith({ guiPos: { top: 100, left: 200 } });
   });
 
   it('navigation button callbacks should work', () => {

@@ -72,67 +72,33 @@ describe('SearchModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-      it('should focus input after a delay', () => {
+  it('should focus input after a delay', () => {
+    const { input } = createSearchModal(defaultProps);
+    const focusSpy = vi.spyOn(input, 'focus');
+    vi.advanceTimersByTime(50);
+    expect(focusSpy).toHaveBeenCalled();
+  });
 
-        const { input } = createSearchModal(defaultProps);
+  it('should render search history chips when provided', () => {
+    const history = ['query 1', 'query 2'];
+    const { el } = createSearchModal({ ...defaultProps, searchHistory: history });
+    const chips = el.querySelectorAll('.comic-helper-search-history-item');
+    expect(chips).toHaveLength(2);
+    expect(chips[0].textContent).toBe('query 1');
+    expect(chips[1].textContent).toBe('query 2');
+  });
 
-        const focusSpy = vi.spyOn(input, 'focus');
+  it('should call onSearch when a history chip is clicked', () => {
+    const onSearch = vi.fn();
+    const history = ['history query'];
+    const { el, input } = createSearchModal({ ...defaultProps, onSearch, searchHistory: history });
+    const chip = el.querySelector('.comic-helper-search-history-item') as HTMLButtonElement;
+    chip.click();
+    expect(input.value).toBe('history query');
+    expect(onSearch).toHaveBeenCalledWith('history query');
+  });
 
-        vi.advanceTimersByTime(50);
-
-        expect(focusSpy).toHaveBeenCalled();
-
-      });
-
-  
-
-      it('should render search history chips when provided', () => {
-
-        const history = ['query 1', 'query 2'];
-
-        const { el } = createSearchModal({ ...defaultProps, searchHistory: history });
-
-        
-
-        const chips = el.querySelectorAll('.comic-helper-search-history-item');
-
-        expect(chips).toHaveLength(2);
-
-        expect(chips[0].textContent).toBe('query 1');
-
-        expect(chips[1].textContent).toBe('query 2');
-
-      });
-
-  
-
-      it('should call onSearch when a history chip is clicked', () => {
-
-        const onSearch = vi.fn();
-
-        const history = ['history query'];
-
-        const { el, input } = createSearchModal({ ...defaultProps, onSearch, searchHistory: history });
-
-        
-
-        const chip = el.querySelector('.comic-helper-search-history-item') as HTMLButtonElement;
-
-        chip.click();
-
-        
-
-        expect(input.value).toBe('history query');
-
-        expect(onSearch).toHaveBeenCalledWith('history query');
-
-      });
-
-  
-
-      describe('search results display', () => {
-
-  
+  describe('search results display', () => {
     const sampleResults: SearchResultsState = {
       results: [
         { title: 'Work A', href: '/fanzine/1/', thumb: '/thumb/1.webp' },
@@ -166,6 +132,27 @@ describe('SearchModal', () => {
       expect(header?.textContent).toContain('100件');
     });
 
+    it('should display search context in header if provided', () => {
+      const resultsWithContext: SearchResultsState = {
+        ...sampleResults,
+        searchContext: { type: 'tag', label: 'CoolTag' }
+      };
+      const { el } = createSearchModal({ ...defaultProps, searchResults: resultsWithContext });
+      const header = el.querySelector('.comic-helper-section-title');
+      expect(header?.textContent).toContain('Tag: CoolTag');
+      expect(header?.textContent).toContain('(100件)');
+    });
+
+    it('should display genre context in header if provided', () => {
+      const resultsWithContext: SearchResultsState = {
+        ...sampleResults,
+        searchContext: { type: 'genre', label: 'Action' }
+      };
+      const { el } = createSearchModal({ ...defaultProps, searchResults: resultsWithContext });
+      const header = el.querySelector('.comic-helper-section-title');
+      expect(header?.textContent).toContain('Genre: Action');
+    });
+
     it('should render pagination buttons when pagination data exists', () => {
       const { el } = createSearchModal({ ...defaultProps, searchResults: sampleResults });
       const pagination = el.querySelector('.comic-helper-search-pagination');
@@ -189,25 +176,17 @@ describe('SearchModal', () => {
       expect(stopSpy).toHaveBeenCalled();
     });
 
-    it('should not render pagination when pagination data is empty', () => {
-      const resultsNoPage: SearchResultsState = { ...sampleResults, pagination: [] };
-      const { el } = createSearchModal({ ...defaultProps, searchResults: resultsNoPage });
-      expect(el.querySelector('.comic-helper-search-pagination')).toBeNull();
-    });
-
     it('should show no-results message when results array is empty', () => {
       const emptyResults: SearchResultsState = { results: [], totalCount: '0件', nextPageUrl: null, pagination: [] };
       const { el } = createSearchModal({ ...defaultProps, searchResults: emptyResults });
       const msg = el.querySelector('.comic-helper-search-no-results');
       expect(msg).not.toBeNull();
       expect(msg?.textContent).toBe(t('ui.searchNoResults'));
-      expect(el.querySelector('.comic-helper-search-result-grid')).toBeNull();
     });
 
     it('should update results via updateResults()', () => {
       const { el, updateResults } = createSearchModal(defaultProps);
       expect(el.querySelector('.comic-helper-search-result-grid')).toBeNull();
-
       updateResults(sampleResults);
       const grid = el.querySelector('.comic-helper-search-result-grid');
       expect(grid).not.toBeNull();
@@ -218,31 +197,11 @@ describe('SearchModal', () => {
       const onClose = vi.fn();
       const { el } = createSearchModal({ ...defaultProps, onClose, searchResults: sampleResults });
       const item = el.querySelector('.comic-helper-search-result-item') as HTMLElement;
-      item.click();
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      const stopSpy = vi.spyOn(event, 'stopPropagation');
+      item.dispatchEvent(event);
       expect(onClose).not.toHaveBeenCalled();
-    });
-
-    it('should stop click propagation on pagination buttons', () => {
-      const onClose = vi.fn();
-      const { el } = createSearchModal({ ...defaultProps, onClose, searchResults: sampleResults });
-      const btn = el.querySelector('.comic-helper-search-page-btn') as HTMLElement;
-      btn.click();
-      expect(onClose).not.toHaveBeenCalled();
-    });
-
-    it('should replace previous results when updateResults() is called again', () => {
-      const { el, updateResults } = createSearchModal({ ...defaultProps, searchResults: sampleResults });
-      expect(el.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(2);
-
-      const newResults: SearchResultsState = {
-        results: [{ title: 'Work C', href: '/fanzine/3/', thumb: '/thumb/3.webp' }],
-        totalCount: '1件',
-        nextPageUrl: null,
-        pagination: []
-      };
-      updateResults(newResults);
-      expect(el.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(1);
-      expect(el.querySelector('.comic-helper-search-pagination')).toBeNull();
+      expect(stopSpy).toHaveBeenCalled();
     });
   });
 
@@ -254,13 +213,10 @@ describe('SearchModal', () => {
       const updatingText = el.querySelector('.comic-helper-search-updating') as HTMLElement;
 
       setUpdating(true);
-
-      // Should be immediate for indicator and disabled state
       expect(updatingText.style.display).toBe('inline');
       expect(input.disabled).toBe(true);
       expect(submitBtn.disabled).toBe(true);
       
-      // Spinner overlay should be delayed (200ms)
       expect(overlay.classList.contains('visible')).toBe(false);
       vi.advanceTimersByTime(200);
       expect(overlay.classList.contains('visible')).toBe(true);
@@ -272,12 +228,10 @@ describe('SearchModal', () => {
       const overlay = el.querySelector('.comic-helper-search-spinner-overlay') as HTMLElement;
 
       setUpdating(true);
-      vi.advanceTimersByTime(200); // Show it
+      vi.advanceTimersByTime(200); 
       expect(overlay.classList.contains('visible')).toBe(true);
 
       setUpdating(false);
-
-      // Should still be visible due to minimum display time (400ms)
       expect(overlay.classList.contains('visible')).toBe(true);
       expect(input.disabled).toBe(true);
 

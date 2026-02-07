@@ -1,10 +1,11 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
-import { Metadata } from '../../types';
+import { Metadata, Tag } from '../../types';
 
 export interface MetadataModalProps {
   metadata: Metadata;
   onClose: () => void;
+  onTagClick: (tag: Tag) => Promise<void>;
 }
 
 export interface MetadataModalComponent {
@@ -12,7 +13,7 @@ export interface MetadataModalComponent {
   update: () => void;
 }
 
-export function createMetadataModal({ metadata, onClose }: MetadataModalProps): MetadataModalComponent {
+export function createMetadataModal({ metadata, onClose, onTagClick }: MetadataModalProps): MetadataModalComponent {
   const { title, tags, relatedWorks } = metadata;
 
   const closeBtn = createElement('button', {
@@ -39,9 +40,14 @@ export function createMetadataModal({ metadata, onClose }: MetadataModalProps): 
     return createElement('a', {
       className,
       textContent: tag.text,
-      attributes: { href: tag.href, target: '_blank' },
+      style: { cursor: 'pointer' },
       events: {
-        click: (e) => e.stopPropagation()
+        click: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onTagClick(tag);
+          onClose(); // Explicitly close metadata modal
+        }
       }
     });
   });
