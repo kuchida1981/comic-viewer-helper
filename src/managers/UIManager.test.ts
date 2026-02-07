@@ -233,11 +233,18 @@ describe('UIManager', () => {
     expect(adapter.parseSearchResults).toHaveBeenCalled();
     expect(store.setState).toHaveBeenCalledWith({ searchQuery: 'test' });
     expect(store.setState).toHaveBeenCalledWith({
-      searchResults: mockResults,
+      searchResults: {
+        ...mockResults,
+        searchContext: { type: 'keyword', label: 'test' }
+      },
       searchCache: {
         query: 'test',
-        results: mockResults,
-        fetchedAt: expect.any(Number)
+        results: {
+          ...mockResults,
+          searchContext: { type: 'keyword', label: 'test' }
+        },
+        fetchedAt: expect.any(Number),
+        context: { type: 'keyword', label: 'test' }
       }
     });
 

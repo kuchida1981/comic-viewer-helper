@@ -30,17 +30,24 @@ export interface PaginationItem {
   type: 'page' | 'prev' | 'next' | 'extend';
 }
 
+export interface SearchContext {
+  type: 'keyword' | 'tag' | 'genre' | 'artist';
+  label?: string;
+}
+
 export interface SearchResultsState {
   results: SearchResult[];
   totalCount: string | null;
   nextPageUrl: string | null;
   pagination: PaginationItem[];
+  searchContext?: SearchContext;
 }
 
 export interface SearchCache {
   query: string;
   results: SearchResultsState;
   fetchedAt: number;
+  context?: SearchContext;
 }
 
 export interface SearchConfig {

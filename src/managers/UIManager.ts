@@ -14,7 +14,7 @@ import { createElement } from '../ui/utils';
 import { jumpToRandomWork } from '../logic';
 import { Store, MAX_SEARCH_HISTORY } from '../store';
 import { Navigator } from './Navigator';
-import { SiteAdapter } from '../types';
+import { SiteAdapter, SearchContext } from '../types';
 
 
 const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
@@ -234,7 +234,20 @@ export class UIManager {
       this.modalEl,
       () => createMetadataModal({
         metadata,
-        onClose: () => this.store.setState({ isMetadataModalOpen: false })
+        onClose: () => this.store.setState({ isMetadataModalOpen: false }),
+        onTagClick: (tag) => {
+          this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true });
+          // Map tag type to SearchContext type
+          let contextType: 'tag' | 'artist' | 'genre' = 'tag';
+          if (tag.type === 'artist' || tag.type === 'genre') {
+            contextType = tag.type;
+          }
+          
+          this._performSearch(tag.href, false, {
+            type: contextType,
+            label: tag.text
+          });
+        }
       })
     );
 
@@ -313,26 +326,47 @@ export class UIManager {
   /**
    * Perform search and update store/cache
    */
-  private async _performSearch(queryOrUrl: string, silent = false): Promise<void> {
+  private async _performSearch(queryOrUrl: string, silent = false, context?: SearchContext): Promise<void> {
     if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
 
     let url: string;
     let query: string;
+    let searchContext: SearchContext | undefined = context;
 
     const isUrl = queryOrUrl.startsWith('http') || queryOrUrl.startsWith('/');
 
     if (isUrl) {
       url = queryOrUrl;
-      query = this.store.getState().searchQuery;
+      
+      if (context) {
+        // Explicit context provided (e.g. Tag Search) -> New Search
+        query = context.label || '';
+        if (!silent) {
+          this.store.setState({ searchQuery: query });
+        }
+        searchContext = context;
+      } else {
+        // No context provided (e.g. Pagination) -> Continue current search
+        query = this.store.getState().searchQuery;
+        searchContext = this.store.getState().searchContext;
+      }
     } else {
       query = queryOrUrl;
       url = this.adapter.getSearchUrl(query);
+      
+      if (!searchContext) {
+        searchContext = { type: 'keyword', label: query };
+      }
+
       if (!silent) {
         this.store.setState({ searchQuery: query });
-        this._updateSearchHistory(query);
+        if (searchContext.type === 'keyword') {
+          this._updateSearchHistory(query);
+        }
       }
     }
 
+    this.store.setState({ searchContext });
     this.searchModalComp?.setUpdating(true);
 
     try {
@@ -342,12 +376,15 @@ export class UIManager {
       const doc = new DOMParser().parseFromString(html, 'text/html');
       const results = this.adapter.parseSearchResults!(doc);
 
+      results.searchContext = searchContext;
+
       this.store.setState({
         searchResults: results,
         searchCache: {
           query,
           results,
-          fetchedAt: Date.now()
+          fetchedAt: Date.now(),
+          context: searchContext
         }
       });
       this.searchModalComp?.updateResults(results);
