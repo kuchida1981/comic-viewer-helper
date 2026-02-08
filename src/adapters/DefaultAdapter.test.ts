@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { assert, describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { DefaultAdapter } from './DefaultAdapter.js';
 import { isSearchableAdapter, isMetadataAdapter } from '../types';
 
@@ -29,9 +29,7 @@ describe('DefaultAdapter', () => {
       vi.stubGlobal('location', { origin: 'http://example.com' });
       
       const query = 'test keyword';
-      if (!isSearchableAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be SearchableAdapter');
-      }
+      assert(isSearchableAdapter(DefaultAdapter), 'DefaultAdapter should be SearchableAdapter');
       const result = DefaultAdapter.getSearchUrl(query);
       
       const url = new URL(result);
@@ -49,9 +47,7 @@ describe('DefaultAdapter', () => {
         queryParam: 'q'
       };
 
-      if (!isSearchableAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be SearchableAdapter');
-      }
+      assert(isSearchableAdapter(DefaultAdapter), 'DefaultAdapter should be SearchableAdapter');
       const result = DefaultAdapter.getSearchUrl('hello');
       expect(result).toBe('https://search.com/find?q=hello');
 
@@ -63,9 +59,7 @@ describe('DefaultAdapter', () => {
   describe('parseSearchResults', () => {
     const parse = (html: string) => {
       const doc = new DOMParser().parseFromString(html, 'text/html');
-      if (!isSearchableAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be SearchableAdapter');
-      }
+      assert(isSearchableAdapter(DefaultAdapter), 'DefaultAdapter should be SearchableAdapter');
       return DefaultAdapter.parseSearchResults(doc);
     };
 
@@ -172,9 +166,7 @@ describe('DefaultAdapter', () => {
       });
       (document.querySelectorAll as Mock).mockReturnValue([]);
 
-      if (!isMetadataAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be MetadataAdapter');
-      }
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
       const result = DefaultAdapter.getMetadata();
       expect(result.title).toBe('My Manga Title');
     });
@@ -189,9 +181,7 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      if (!isMetadataAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be MetadataAdapter');
-      }
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
       const result = DefaultAdapter.getMetadata();
       expect(result.tags).toEqual([
         { text: 'Action', href: 'http://tags/action', type: null },
@@ -215,9 +205,7 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      if (!isMetadataAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be MetadataAdapter');
-      }
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
       const result = DefaultAdapter.getMetadata();
       expect(result.tags).toEqual([
         { text: 'Artist A', href: 'http://example.com/artist/a', type: 'artist' },
@@ -248,9 +236,7 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      if (!isMetadataAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be MetadataAdapter');
-      }
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
       const result = DefaultAdapter.getMetadata();
       expect(result.relatedWorks).toEqual([
         { title: 'Related Work 1', href: 'http://work/1', thumb: 'thumb1.jpg', isPrivate: false }
@@ -277,9 +263,7 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      if (!isMetadataAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be MetadataAdapter');
-      }
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
       const result = DefaultAdapter.getMetadata();
       expect(result.relatedWorks[0].title).toBe('Title from Anchor');
     });
@@ -288,9 +272,7 @@ describe('DefaultAdapter', () => {
       (document.querySelector as Mock).mockReturnValue(null);
       (document.querySelectorAll as Mock).mockReturnValue([]);
 
-      if (!isMetadataAdapter(DefaultAdapter)) {
-        throw new Error('DefaultAdapter should be MetadataAdapter');
-      }
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
       const result = DefaultAdapter.getMetadata();
       expect(result).toEqual({
         title: 'Unknown Title',
