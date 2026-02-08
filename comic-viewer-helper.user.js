@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.7d90e23
+// @version         1.4.0-unstable.a628dab
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -300,21 +300,8 @@
     if (index < 0 || index >= imgs.length) return null;
     return imgs[index];
   }
-  function cleanupDOM(container) {
-    if (!container) return [];
-    const allImages = Array.from(container.querySelectorAll("img"));
-    const wrappers = container.querySelectorAll(".comic-row-wrapper");
-    wrappers.forEach((w) => w.remove());
-    allImages.forEach((img) => {
-      if (img && img.style) {
-        img.style.cssText = "";
-      }
-    });
-    return allImages;
-  }
   function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
     if (!container) return;
-    const allImages = cleanupDOM(container);
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     Object.assign(container.style, {
@@ -326,6 +313,9 @@
       width: "100%",
       maxWidth: "none"
     });
+    const allImages = Array.from(container.querySelectorAll("img"));
+    const existingWrappers = Array.from(container.querySelectorAll(".comic-row-wrapper"));
+    let wrapperIndex = 0;
     for (let i = 0; i < allImages.length; i++) {
       const img = allImages[i];
       if (!img || typeof img.naturalWidth !== "number" || typeof img.naturalHeight !== "number") {
@@ -333,22 +323,30 @@
       }
       const isLandscape = img.naturalWidth > img.naturalHeight;
       let pairWithNext = false;
+      let nextImg = null;
       const effectiveIndex = i - spreadOffset;
       const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
       const isFirstPage = i === 0;
       const isNextLastPage = i + 1 === allImages.length - 1;
       if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
-        const nextImg = allImages[i + 1];
-        if (nextImg && typeof nextImg.naturalWidth === "number" && typeof nextImg.naturalHeight === "number") {
-          const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
+        const candidate = allImages[i + 1];
+        if (candidate && typeof candidate.naturalWidth === "number" && typeof candidate.naturalHeight === "number") {
+          const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
           if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
             pairWithNext = true;
+            nextImg = candidate;
           }
         }
       }
-      const row = document.createElement("div");
-      row.className = "comic-row-wrapper";
-      Object.assign(row.style, {
+      let wrapper = existingWrappers[wrapperIndex];
+      if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.className = "comic-row-wrapper";
+        container.appendChild(wrapper);
+      } else {
+        container.appendChild(wrapper);
+      }
+      Object.assign(wrapper.style, {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -361,9 +359,8 @@
         position: "relative",
         boxSizing: "border-box"
       });
-      if (pairWithNext) {
-        const nextImg = allImages[i + 1];
-        row.style.flexDirection = "row-reverse";
+      if (pairWithNext && nextImg) {
+        wrapper.style.flexDirection = "row-reverse";
         [img, nextImg].forEach((im) => {
           Object.assign(im.style, {
             maxWidth: "50%",
@@ -375,11 +372,12 @@
             display: "block"
           });
         });
-        row.appendChild(img);
-        row.appendChild(nextImg);
-        container.appendChild(row);
+        if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
+          wrapper.replaceChildren(img, nextImg);
+        }
         i++;
       } else {
+        wrapper.style.flexDirection = "row";
         Object.assign(img.style, {
           maxWidth: `${vw}px`,
           maxHeight: `${vh}px`,
@@ -390,9 +388,15 @@
           flexShrink: "0",
           objectFit: "contain"
         });
-        row.appendChild(img);
-        container.appendChild(row);
+        if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
+          wrapper.replaceChildren(img);
+        }
       }
+      wrapperIndex++;
+    }
+    while (wrapperIndex < existingWrappers.length) {
+      existingWrappers[wrapperIndex].remove();
+      wrapperIndex++;
     }
   }
   function revertToOriginal(originalImages, container) {
@@ -1767,7 +1771,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.7d90e23"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.a628dab"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
