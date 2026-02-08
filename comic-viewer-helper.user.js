@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.a628dab
+// @version         1.4.0-unstable.9645d03
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1771,7 +1771,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.a628dab"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.9645d03"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2300,6 +2300,12 @@
       document.removeEventListener("mouseup", this._onMouseUp);
     }
   }
+  function isSearchableAdapter(adapter) {
+    return typeof adapter.getSearchUrl === "function" && typeof adapter.parseSearchResults === "function";
+  }
+  function isMetadataAdapter(adapter) {
+    return typeof adapter.getMetadata === "function";
+  }
   const SEARCH_TTL = 60 * 60 * 1e3;
   function normalizeQuery(query) {
     return query.trim().toLowerCase().split(/\s+/).sort().join(" ");
@@ -2562,7 +2568,7 @@
      * Perform search and update store/cache
      */
     async _performSearch(queryOrUrl, silent = false, context) {
-      if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
+      if (!isSearchableAdapter(this.adapter)) return;
       if (!silent) {
         this.store.setState({ searchResults: null });
       }
@@ -2885,7 +2891,7 @@
     init() {
       const container = this.adapter.getContainer();
       if (!container) return;
-      const metadata = this.adapter.getMetadata?.() ?? { title: "Unknown Title", tags: [], relatedWorks: [] };
+      const metadata = isMetadataAdapter(this.adapter) ? this.adapter.getMetadata() : { title: "Unknown Title", tags: [], relatedWorks: [] };
       this.store.setState({ metadata });
       this.navigator.init();
       this.uiManager.init();
