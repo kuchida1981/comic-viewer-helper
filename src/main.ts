@@ -5,7 +5,7 @@ import { UIManager } from './managers/UIManager';
 import { InputManager } from './managers/InputManager';
 import { ResumeManager } from './managers/ResumeManager';
 import { PopUnderBlocker } from './managers/PopUnderBlocker';
-import { SiteAdapter } from './types';
+import { SiteAdapter, isMetadataAdapter } from './types';
 
 class App {
   private store: Store;
@@ -37,7 +37,9 @@ class App {
     if (!container) return;
 
     // Extract and set metadata
-    const metadata = this.adapter.getMetadata?.() ?? { title: 'Unknown Title', tags: [], relatedWorks: [] };
+    const metadata = isMetadataAdapter(this.adapter)
+      ? this.adapter.getMetadata()
+      : { title: 'Unknown Title', tags: [], relatedWorks: [] };
     this.store.setState({ metadata });
 
     // Initialize managers

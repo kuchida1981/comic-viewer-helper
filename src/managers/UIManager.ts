@@ -14,7 +14,7 @@ import { createElement } from '../ui/utils';
 import { jumpToRandomWork } from '../logic';
 import { Store, MAX_SEARCH_HISTORY } from '../store';
 import { Navigator } from './Navigator';
-import { SiteAdapter, SearchContext } from '../types';
+import { SiteAdapter, SearchContext, isSearchableAdapter } from '../types';
 
 
 const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
@@ -335,7 +335,7 @@ export class UIManager {
    * Perform search and update store/cache
    */
   private async _performSearch(queryOrUrl: string, silent = false, context?: SearchContext): Promise<void> {
-    if (!this.adapter.getSearchUrl || !this.adapter.parseSearchResults) return;
+    if (!isSearchableAdapter(this.adapter)) return;
 
     // Clear previous results to avoid flicker
     if (!silent) {
@@ -386,7 +386,7 @@ export class UIManager {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, 'text/html');
-      const results = this.adapter.parseSearchResults!(doc);
+      const results = this.adapter.parseSearchResults(doc);
 
       results.searchContext = searchContext;
 

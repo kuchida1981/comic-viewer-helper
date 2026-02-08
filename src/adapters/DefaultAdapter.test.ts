@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { assert, describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { DefaultAdapter } from './DefaultAdapter.js';
+import { isSearchableAdapter, isMetadataAdapter } from '../types';
 
 describe('DefaultAdapter', () => {
   it('should match any URL', () => {
@@ -28,7 +29,8 @@ describe('DefaultAdapter', () => {
       vi.stubGlobal('location', { origin: 'http://example.com' });
       
       const query = 'test keyword';
-      const result = DefaultAdapter.getSearchUrl!(query);
+      assert(isSearchableAdapter(DefaultAdapter), 'DefaultAdapter should be SearchableAdapter');
+      const result = DefaultAdapter.getSearchUrl(query);
       
       const url = new URL(result);
       expect(url.origin).toBe('http://example.com');
@@ -45,7 +47,8 @@ describe('DefaultAdapter', () => {
         queryParam: 'q'
       };
 
-      const result = DefaultAdapter.getSearchUrl!('hello');
+      assert(isSearchableAdapter(DefaultAdapter), 'DefaultAdapter should be SearchableAdapter');
+      const result = DefaultAdapter.getSearchUrl('hello');
       expect(result).toBe('https://search.com/find?q=hello');
 
       // Restore
@@ -56,7 +59,8 @@ describe('DefaultAdapter', () => {
   describe('parseSearchResults', () => {
     const parse = (html: string) => {
       const doc = new DOMParser().parseFromString(html, 'text/html');
-      return DefaultAdapter.parseSearchResults!(doc);
+      assert(isSearchableAdapter(DefaultAdapter), 'DefaultAdapter should be SearchableAdapter');
+      return DefaultAdapter.parseSearchResults(doc);
     };
 
     it('should extract results from div.post-list > a', () => {
@@ -162,7 +166,8 @@ describe('DefaultAdapter', () => {
       });
       (document.querySelectorAll as Mock).mockReturnValue([]);
 
-      const result = DefaultAdapter.getMetadata!();
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
+      const result = DefaultAdapter.getMetadata();
       expect(result.title).toBe('My Manga Title');
     });
 
@@ -176,7 +181,8 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      const result = DefaultAdapter.getMetadata!();
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
+      const result = DefaultAdapter.getMetadata();
       expect(result.tags).toEqual([
         { text: 'Action', href: 'http://tags/action', type: null },
         { text: 'Fantasy', href: 'http://tags/fantasy', type: null }
@@ -199,7 +205,8 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      const result = DefaultAdapter.getMetadata!();
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
+      const result = DefaultAdapter.getMetadata();
       expect(result.tags).toEqual([
         { text: 'Artist A', href: 'http://example.com/artist/a', type: 'artist' },
         { text: 'Character B', href: 'http://example.com/character/b', type: 'character' },
@@ -229,7 +236,8 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      const result = DefaultAdapter.getMetadata!();
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
+      const result = DefaultAdapter.getMetadata();
       expect(result.relatedWorks).toEqual([
         { title: 'Related Work 1', href: 'http://work/1', thumb: 'thumb1.jpg', isPrivate: false }
       ]);
@@ -255,7 +263,8 @@ describe('DefaultAdapter', () => {
         return [];
       });
 
-      const result = DefaultAdapter.getMetadata!();
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
+      const result = DefaultAdapter.getMetadata();
       expect(result.relatedWorks[0].title).toBe('Title from Anchor');
     });
 
@@ -263,7 +272,8 @@ describe('DefaultAdapter', () => {
       (document.querySelector as Mock).mockReturnValue(null);
       (document.querySelectorAll as Mock).mockReturnValue([]);
 
-      const result = DefaultAdapter.getMetadata!();
+      assert(isMetadataAdapter(DefaultAdapter), 'DefaultAdapter should be MetadataAdapter');
+      const result = DefaultAdapter.getMetadata();
       expect(result).toEqual({
         title: 'Unknown Title',
         tags: [],
