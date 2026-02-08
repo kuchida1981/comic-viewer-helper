@@ -11,6 +11,10 @@
 - **Logic Separation**:
   - `src/logic.ts`: Contains pure functions only. NO DOM dependencies allowed here.
   - DOM manipulations are encapsulated within Managers and Adapters.
+- **Key Conventions**:
+  - Right-to-left (RTL) navigation for manga:
+    - Next: Left arrow key, 'j' key, or click on the left side of the screen.
+    - Previous: Right arrow key, 'k' key, or click on the right side of the screen.
 
 ### Quality Standards
 - **Testing**: Maintain **100% coverage** for core logic (`src/logic.ts`).
