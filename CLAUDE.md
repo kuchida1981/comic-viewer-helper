@@ -1,5 +1,26 @@
 # Project Instructions for Claude Code
 
+## Architecture & Quality Standards
+
+### Architecture Overview
+- **Core Structure**:
+  - `App`: Entry point and lifecycle management.
+  - `Store`: Central state management.
+  - `Managers`: Feature-specific logic (Navigator, UIManager, ResumeManager, etc.).
+  - `Adapters`: Abstraction layer for site-specific DOM structures.
+- **Logic Separation**:
+  - `src/logic.ts`: Contains pure functions only. NO DOM dependencies allowed here.
+  - DOM manipulations are encapsulated within Managers and Adapters.
+- **Key Conventions**:
+  - Right-to-left (RTL) navigation for manga:
+    - Next: Left arrow key, 'j' key, or click on the left side of the screen.
+    - Previous: Right arrow key, 'k' key, or click on the right side of the screen.
+
+### Quality Standards
+- **Testing**: Maintain **100% coverage** for core logic (`src/logic.ts`).
+- **Type Safety**: Strict TypeScript usage. Avoid `any`.
+- **Specification**: All changes must follow the OpenSpec workflow (Requirement/Scenario based).
+
 ## Language
 
 The user is a Japanese speaker.
