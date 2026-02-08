@@ -6,6 +6,23 @@
 - **Owner**: `kuchida1981`
 - **Repo Name**: `comic-viewer-helper`
 
+## Architecture & Quality Standards
+
+### Architecture Overview
+- **Core Structure**:
+  - `App`: Entry point and lifecycle management.
+  - `Store`: Central state management.
+  - `Managers`: Feature-specific logic (Navigator, UIManager, ResumeManager, etc.).
+  - `Adapters`: Abstraction layer for site-specific DOM structures.
+- **Logic Separation**:
+  - `src/logic.ts`: Contains pure functions only. NO DOM dependencies allowed here.
+  - DOM manipulations are encapsulated within Managers and Adapters.
+
+### Quality Standards
+- **Testing**: Maintain **100% coverage** for core logic (`src/logic.ts`).
+- **Type Safety**: Strict TypeScript usage. Avoid `any`.
+- **Specification**: All changes must follow the OpenSpec workflow (Requirement/Scenario based).
+
 ## Language
 
 The user is a Japanese speaker.
