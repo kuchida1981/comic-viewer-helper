@@ -64,3 +64,32 @@ export interface SiteAdapter {
   searchConfig?: SearchConfig;
   parseSearchResults?: (doc: Document) => SearchResultsState;
 }
+
+/**
+ * Interface for adapters that support search functionality
+ */
+export interface SearchableAdapter extends SiteAdapter {
+  getSearchUrl: (query: string) => string;
+  parseSearchResults: (doc: Document) => SearchResultsState;
+}
+
+/**
+ * Interface for adapters that support metadata extraction
+ */
+export interface MetadataAdapter extends SiteAdapter {
+  getMetadata: () => Metadata;
+}
+
+/**
+ * Type guard for SearchableAdapter
+ */
+export function isSearchableAdapter(adapter: SiteAdapter): adapter is SearchableAdapter {
+  return typeof adapter.getSearchUrl === 'function' && typeof adapter.parseSearchResults === 'function';
+}
+
+/**
+ * Type guard for MetadataAdapter
+ */
+export function isMetadataAdapter(adapter: SiteAdapter): adapter is MetadataAdapter {
+  return typeof adapter.getMetadata === 'function';
+}
