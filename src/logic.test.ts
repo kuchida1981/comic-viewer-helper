@@ -279,23 +279,100 @@ describe('logic.js', () => {
 
       container = {
         style: {},
-        appendChild: vi.fn(),
-        querySelectorAll: vi.fn((selector: string) => {
-          if (selector === 'img') return asNodeList(images);
-          if (selector === '.comic-row-wrapper') return asNodeList([]);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        children: [] as any[],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        appendChild: vi.fn(function(this: any, child: any) {
+          if (!this.children.includes(child)) {
+             this.children.push(child);
+             child.parentElement = this;
+          }
+        }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        querySelectorAll: vi.fn(function(this: any, selector: string) {
+          if (selector === 'img') {
+             // Return all images in the subtree. Simple recursive search.
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             const results: any[] = [];
+             const queue = [...this.children];
+             while(queue.length > 0) {
+                const node = queue.shift();
+                if (node.tagName === 'IMG') results.push(node);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if (node.children) queue.push(...(node.children as any[]));
+             }
+             // Fallback for initial images if not yet appended to children?
+             // In fitImagesToViewport, we query 'img' first.
+             // If the mocked setup didn't append images to container.children, we might miss them.
+             // But existing tests rely on images being present.
+             // Let's merge initial 'images' with found images to be safe, or ensure 'images' are in children.
+             return asNodeList(results.length > 0 ? results : images);
+          }
+          if (selector === '.comic-row-wrapper') {
+             // Find wrappers in children
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             const wrappers = this.children.filter((c: any) => c.className === 'comic-row-wrapper');
+             return asNodeList(wrappers);
+          }
           return asNodeList([]);
         })
       } as unknown as HTMLElement;
+      
+      // Ensure initial images are in container children for the dynamic querySelectorAll to work?
+      // Or keep the fallback above. 
+      // Actually, let's keep it simple: initial state has no children in container, but 'querySelectorAll' mocks return 'images'.
+      // After execution, wrappers are added.
+      // So 'img' selector should return 'images' (assuming they are still in DOM).
+      // '.comic-row-wrapper' selector should check 'this.children'.
+      
+      // Let's refine the mock logic above to be safer.
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      container.querySelectorAll = vi.fn(function(this: any, selector: string) {
+          if (selector === 'img') return asNodeList(images); // Always return all images for simplicity
+          if (selector === '.comic-row-wrapper') {
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             return asNodeList(this.children.filter((c: any) => c.className === 'comic-row-wrapper'));
+          }
+          return asNodeList([]);
+      });
 
       vi.stubGlobal('document', {
         querySelector: vi.fn().mockReturnValue(container),
         createElement: vi.fn().mockImplementation((tag) => {
-          const el = { 
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const el: any = { 
             tagName: tag.toUpperCase(), 
             style: {}, 
-            appendChild: vi.fn(), 
-            className: '' 
+            className: '',
+            children: [],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            appendChild: vi.fn(function(this: any, child: any) {
+               if (!this.children.includes(child)) {
+                 this.children.push(child);
+                 child.parentElement = this;
+               }
+            }),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            remove: vi.fn(function(this: any) {
+               if (this.parentElement) {
+                 const idx = this.parentElement.children.indexOf(this);
+                 if (idx > -1) this.parentElement.children.splice(idx, 1);
+               }
+            }),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            replaceChildren: vi.fn(function(this: any, ...newChildren: any[]) {
+               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               this.children.forEach((c: any) => { c.parentElement = null; });
+               this.children = [...newChildren];
+               // eslint-disable-next-line @typescript-eslint/no-explicit-any
+               this.children.forEach((c: any) => { c.parentElement = this; });
+            })
           };
+          Object.defineProperty(el, 'lastChild', {
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             get: function(this: any) { return this.children.length > 0 ? this.children[this.children.length - 1] : null; }
+          });
           createdElements.push(el as unknown as HTMLElement);
           return el;
         })
@@ -328,10 +405,10 @@ describe('logic.js', () => {
       
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(4);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]);
-      expect(wrappers[2].appendChild).toHaveBeenCalledWith(images[2]);
-      expect(wrappers[3].appendChild).toHaveBeenCalledWith(images[3]);
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(images[0]);
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(images[1]);
+      expect(wrappers[2].replaceChildren).toHaveBeenCalledWith(images[2]);
+      expect(wrappers[3].replaceChildren).toHaveBeenCalledWith(images[3]);
     });
 
     it('should show first page (index 0) and last page as solo with offset 1', () => {
@@ -344,10 +421,9 @@ describe('logic.js', () => {
 
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(3);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[2]);
-      expect(wrappers[2].appendChild).toHaveBeenCalledWith(images[3]);
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(images[0]);
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(images[1], images[2]);
+      expect(wrappers[2].replaceChildren).toHaveBeenCalledWith(images[3]);
     });
 
     it('should show all pages as solo when there are only 2 pages', () => {
@@ -363,8 +439,8 @@ describe('logic.js', () => {
       
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(2);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(images[0]); // First page solo
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(images[1]); // Last page solo
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(images[0]); // First page solo
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(images[1]); // Last page solo
     });
 
     it('should pair 1-2 when offset is 1 but 0 and last are solo', () => {
@@ -386,11 +462,10 @@ describe('logic.js', () => {
 
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(4);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(fiveImages[0]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(fiveImages[1]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(fiveImages[2]);
-      expect(wrappers[2].appendChild).toHaveBeenCalledWith(fiveImages[3]);
-      expect(wrappers[3].appendChild).toHaveBeenCalledWith(fiveImages[4]);
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(fiveImages[0]);
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(fiveImages[1], fiveImages[2]);
+      expect(wrappers[2].replaceChildren).toHaveBeenCalledWith(fiveImages[3]);
+      expect(wrappers[3].replaceChildren).toHaveBeenCalledWith(fiveImages[4]);
     });
 
     it('should maintain global order even when some images are paired and some are solo', () => {
@@ -429,26 +504,75 @@ describe('logic.js', () => {
       // Expected: 0 solo (first), 1 solo (next is last), 2 solo (last) -> 3 rows
       const wrappers = createdElements.filter(e => e.tagName === 'DIV');
       expect(wrappers.length).toBe(3);
-      expect(wrappers[0].appendChild).toHaveBeenCalledWith(threeImages[0]);
-      expect(wrappers[1].appendChild).toHaveBeenCalledWith(threeImages[1]);
-      expect(wrappers[2].appendChild).toHaveBeenCalledWith(threeImages[2]);
+      expect(wrappers[0].replaceChildren).toHaveBeenCalledWith(threeImages[0]);
+      expect(wrappers[1].replaceChildren).toHaveBeenCalledWith(threeImages[1]);
+      expect(wrappers[2].replaceChildren).toHaveBeenCalledWith(threeImages[2]);
     });
 
-    it('should call cleanupDOM (remove wrappers)', () => {
-      const existingWrapper = { remove: vi.fn() };
-      vi.mocked(container.querySelectorAll).mockImplementation((selector: string) => {
-        if (selector === '.comic-row-wrapper') return asNodeList([existingWrapper] as unknown as HTMLElement[]);
-        if (selector === 'img') return asNodeList(images);
-        return asNodeList([]);
+    it('should remove unused wrappers', () => {
+      // Setup: container has one wrapper, but logic determines no images need it (e.g. empty images list?)
+      // Or simpler: setup an extra wrapper that won't be used.
+      
+      const extraWrapper = { 
+        className: 'comic-row-wrapper', 
+        remove: vi.fn(), 
+        style: {},
+        children: [],
+        appendChild: vi.fn() 
+      } as unknown as HTMLElement;
+      
+      // Manually add to container children for this test
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (container as any).children.push(extraWrapper);
+      
+      // Override querySelectorAll just for this test to verify it finds the extra wrapper
+      // Actually, since we improved the mock in beforeEach, we might not need to override if we pushed to children correctly.
+      // But let's rely on the querySelectorAll mock we just wrote.
+
+      // Run logic with 0 images -> should remove all wrappers
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.mocked(container.querySelectorAll).mockImplementation(function(this: any, selector: string) {
+          if (selector === 'img') return asNodeList([]);
+          if (selector === '.comic-row-wrapper') return asNodeList([extraWrapper] as unknown as HTMLElement[]);
+          return asNodeList([]);
       });
 
       fitImagesToViewport(container, 0, true);
-      expect(existingWrapper.remove).toHaveBeenCalled();
+      expect(extraWrapper.remove).toHaveBeenCalled();
     });
 
     it('should do nothing if container is null', () => {
       fitImagesToViewport(null as unknown as HTMLElement, 0, true);
       expect(container.appendChild).not.toHaveBeenCalled();
+    });
+
+    it('should reuse existing wrappers when called with same state (Reconciliation)', () => {
+      // First call to set up DOM
+      fitImagesToViewport(container, 0, true);
+      const wrappersAfterFirstCall = Array.from(container.querySelectorAll('.comic-row-wrapper'));
+      expect(wrappersAfterFirstCall.length).toBeGreaterThan(0);
+
+      // Mock querySelectorAll to return the existing wrappers for the second call
+      // This simulates the DOM state being preserved
+      vi.mocked(container.querySelectorAll).mockImplementation((selector: string) => {
+        if (selector === '.comic-row-wrapper') return asNodeList(wrappersAfterFirstCall as unknown as HTMLElement[]);
+        if (selector === 'img') return asNodeList(images);
+        return asNodeList([]);
+      });
+
+      // Second call
+      fitImagesToViewport(container, 0, true);
+      
+      // Verify that remove() was NOT called on existing wrappers (reuse)
+      // NOTE: In the old implementation, this would fail because it calls cleanupDOM which removes wrappers.
+      // We check if wrappers are still attached or reused.
+      // For strict reconciliation, we expect the exact same instances to be in the container.
+      
+      // Since we are mocking everything, we can check if 'remove' was called on the wrappers.
+      // In the optimized version, it should NOT be called for wrappers that are still valid.
+      wrappersAfterFirstCall.forEach(_w => {
+        expect(_w.remove).not.toHaveBeenCalled();
+      });
     });
   });
 

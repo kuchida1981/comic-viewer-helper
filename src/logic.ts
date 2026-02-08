@@ -97,13 +97,10 @@ export function cleanupDOM(container: HTMLElement): HTMLImageElement[] {
 }
 
 /**
- * Fit images to viewport
+ * Fit images to viewport using DOM reconciliation to minimize layout thrashing
  */
 export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, isDualViewEnabled = false): void {
   if (!container) return;
-
-  // Cleanup first and get images
-  const allImages = cleanupDOM(container);
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -112,6 +109,14 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
     display: 'flex', flexDirection: 'column', alignItems: 'center',
     padding: '0', margin: '0', width: '100%', maxWidth: 'none'
   });
+
+  // 1. Get all images (whether inside wrappers or not)
+  // Note: We use querySelectorAll to get current DOM order
+  const allImages = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
+  
+  // 2. Get existing wrappers for reuse
+  const existingWrappers = Array.from(container.querySelectorAll<HTMLElement>('.comic-row-wrapper'));
+  let wrapperIndex = 0;
 
   for (let i = 0; i < allImages.length; i++) {
     const img = allImages[i];
@@ -124,6 +129,7 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
     const isLandscape = img.naturalWidth > img.naturalHeight;
 
     let pairWithNext = false;
+    let nextImg: HTMLImageElement | null = null;
 
     // Deterministic pairing logic based on spreadOffset
     const effectiveIndex = i - spreadOffset;
@@ -134,29 +140,40 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
     const isNextLastPage = i + 1 === allImages.length - 1;
 
     if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
-      const nextImg = allImages[i + 1];
+      const candidate = allImages[i + 1];
       
       // Safety check for next pairing candidate
-      if (nextImg && typeof nextImg.naturalWidth === 'number' && typeof nextImg.naturalHeight === 'number') {
-        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
+      if (candidate && typeof candidate.naturalWidth === 'number' && typeof candidate.naturalHeight === 'number') {
+        const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
 
         if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
           pairWithNext = true;
+          nextImg = candidate;
         }
       }
     }
 
-    const row = document.createElement('div');
-    row.className = 'comic-row-wrapper';
-    Object.assign(row.style, {
+    // 3. Reconciliation: reuse or create wrapper
+    let wrapper = existingWrappers[wrapperIndex];
+
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'comic-row-wrapper';
+      container.appendChild(wrapper);
+    } else {
+      // Ensure wrapper is in correct DOM order by appending it again
+      // (appendChild moves the node if it's already in the DOM)
+      container.appendChild(wrapper);
+    }
+
+    Object.assign(wrapper.style, {
       display: 'flex', justifyContent: 'center', alignItems: 'center',
       width: '100vw', maxWidth: '100vw', marginLeft: 'calc(50% - 50vw)', marginRight: 'calc(50% - 50vw)',
       height: '100vh', marginBottom: '0', position: 'relative', boxSizing: 'border-box'
     });
 
-    if (pairWithNext) {
-      const nextImg = allImages[i + 1];
-      row.style.flexDirection = 'row-reverse';
+    if (pairWithNext && nextImg) {
+      wrapper.style.flexDirection = 'row-reverse';
 
       [img, nextImg].forEach(im => {
         Object.assign(im.style, {
@@ -165,17 +182,32 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
         });
       });
 
-      row.appendChild(img); row.appendChild(nextImg);
-      container.appendChild(row);
-      i++;
+      // Only update children if state is different to avoid layout thrashing
+      if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
+        wrapper.replaceChildren(img, nextImg);
+      }
+
+      i++; // Skip next image
     } else {
+      wrapper.style.flexDirection = 'row'; // Default
+      
       Object.assign(img.style, {
         maxWidth: `${vw}px`, maxHeight: `${vh}px`, width: 'auto', height: 'auto',
         display: 'block', margin: '0 auto', flexShrink: '0', objectFit: 'contain'
       });
-      row.appendChild(img);
-      container.appendChild(row);
+
+      if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
+        wrapper.replaceChildren(img);
+      }
     }
+    
+    wrapperIndex++;
+  }
+
+  // 4. Remove unused wrappers
+  while (wrapperIndex < existingWrappers.length) {
+    existingWrappers[wrapperIndex].remove();
+    wrapperIndex++;
   }
 }
 
