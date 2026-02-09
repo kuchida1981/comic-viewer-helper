@@ -54,3 +54,12 @@ The system SHALL update the DOM by comparing the desired state with the current 
 - **WHEN** the browser window is resized
 - **THEN** the layout is updated to fit the new viewport without destroying DOM elements that remain visible.
 
+### Requirement: オートプレイ制御 UI
+ナビゲーションパネルには、オートプレイの開始と停止を切り替えるための制御ボタンが含まれなければならない（SHALL）。ボタンは現在の再生状態（再生中/停止中）を視覚的に示し、ツールチップにより機能を説明しなければならない。
+
+#### Scenario: オートプレイボタンの表示と切り替え
+- **WHEN** ナビゲーションパネルが表示されている
+- **THEN** 再生/停止ボタン（例: ▶/|| またはアイコン）が表示される
+- **WHEN** ボタンをクリックする
+- **THEN** オートプレイの状態がトグルされ、ボタンの外観が更新される
+
