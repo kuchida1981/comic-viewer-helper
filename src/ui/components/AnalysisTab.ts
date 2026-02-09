@@ -15,7 +15,7 @@ interface TagCount {
 
 export function createAnalysisTab({ history, onTagClick }: AnalysisTabProps): HTMLElement {
   const container = createElement('div', {
-    className: 'comic-helper-tab-content'
+    className: 'comic-helper-tab-content comic-helper-search-container'
   });
 
   if (history.length === 0) {

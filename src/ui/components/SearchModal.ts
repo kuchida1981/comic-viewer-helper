@@ -33,8 +33,7 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
   let activeTabId: 'search' | 'history' | 'analysis' = 'search';
   
   const tabContainer = createElement('div', {
-    className: 'comic-helper-tabs',
-    style: { display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid #444' }
+    className: 'comic-helper-tabs'
   });
 
   const tabButtons: { [key: string]: HTMLElement } = {};
@@ -43,14 +42,6 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
     const btn = createElement('button', {
       className: `comic-helper-tab-btn${activeTabId === id ? ' active' : ''}`,
       textContent: label,
-      style: {
-        padding: '8px 16px',
-        background: activeTabId === id ? '#444' : 'transparent',
-        border: 'none',
-        color: '#fff',
-        cursor: 'pointer',
-        borderBottom: activeTabId === id ? '2px solid #007bff' : 'none'
-      },
       events: {
         click: () => setTab(id)
       }
@@ -101,9 +92,11 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
     activeTabId = tabId;
     Object.keys(tabButtons).forEach(id => {
       const btn = tabButtons[id];
-      const isActive = id === tabId;
-      btn.style.background = isActive ? '#444' : 'transparent';
-      btn.style.borderBottom = isActive ? '2px solid #007bff' : 'none';
+      if (id === tabId) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
     });
     renderActiveTab();
   };
@@ -122,7 +115,7 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
 
   const title = createElement('h2', {
     className: 'comic-helper-modal-title',
-    textContent: t('ui.search'),
+    textContent: 'Comic Helper',
     style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
   });
 

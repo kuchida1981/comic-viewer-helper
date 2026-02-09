@@ -173,6 +173,39 @@ export const styles = `
     padding-bottom: 10px;
   }
 
+  .comic-helper-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #333;
+  }
+
+  .comic-helper-tab-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+
+  .comic-helper-tab-btn:hover {
+    color: #fff;
+  }
+
+  .comic-helper-tab-btn.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 2px solid #4CAF50;
+  }
+
+  .comic-helper-tab-content {
+    display: block;
+  }
+
   .comic-helper-section-title {
     font-size: 14px;
     color: #888;

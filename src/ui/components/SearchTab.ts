@@ -166,7 +166,7 @@ export function createSearchTab({ onSearch, onPageChange, searchResults, searchQ
 
   let resultsSection = createResultsSection(searchResults, onPageChange);
   const el = createElement('div', {
-    className: 'comic-helper-tab-content active'
+    className: 'comic-helper-tab-content active comic-helper-search-container'
   }, [form, historySection, resultsSection]);
 
   return {

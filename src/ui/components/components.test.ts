@@ -131,7 +131,7 @@ describe('UI Components', () => {
       expect(elements.length).toBe(9);
       expect(elements[0].textContent).toBe('<<');
       expect(elements[1].textContent).toBe('<');
-      expect(elements[2].textContent).toBe('▶');
+      expect(elements[2].textContent).toBe('◀');
       expect(elements[3].textContent).toBe('🎲');
     });
 
@@ -165,11 +165,11 @@ describe('UI Components', () => {
     it('should have an update method that toggles icon', () => {
       const { elements, update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {}, onAutoplay: () => {}, isAutoplayEnabled: false });
       expect(typeof update).toBe('function');
-      expect(elements[2].textContent).toBe('▶');
+      expect(elements[2].textContent).toBe('◀');
       update(true);
       expect(elements[2].textContent).toBe('||');
       update(false);
-      expect(elements[2].textContent).toBe('▶');
+      expect(elements[2].textContent).toBe('◀');
     });
   });
 

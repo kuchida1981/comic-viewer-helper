@@ -25,7 +25,7 @@ export function createNavigationButtons({
   const configs = [
     { text: '<<', title: t('ui.goLast'), action: onLast },
     { text: '<', title: t('ui.goNext'), action: onNext },
-    { text: isAutoplayEnabled ? '||' : '▶', title: isAutoplayEnabled ? t('ui.stopAutoplay') : t('ui.autoplay'), action: onAutoplay, id: 'autoplay-btn' },
+    { text: isAutoplayEnabled ? '||' : '◀', title: isAutoplayEnabled ? t('ui.stopAutoplay') : t('ui.autoplay'), action: onAutoplay, id: 'autoplay-btn' },
     { text: '🎲', title: t('ui.lucky'), action: onLucky, className: 'comic-helper-button comic-helper-icon-btn' },
     { text: '>', title: t('ui.goPrev'), action: onPrev },
     { text: '>>', title: t('ui.goFirst'), action: onFirst },
@@ -63,7 +63,7 @@ export function createNavigationButtons({
     update: (autoplay: boolean) => {
       const btn = elements.find(el => el.id === 'autoplay-btn');
       if (btn) {
-        btn.textContent = autoplay ? '||' : '▶';
+        btn.textContent = autoplay ? '||' : '◀';
         btn.title = autoplay ? t('ui.stopAutoplay') : t('ui.autoplay');
       }
     }
