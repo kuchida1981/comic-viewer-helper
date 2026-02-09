@@ -94,6 +94,39 @@ describe('SearchModal', () => {
       vi.advanceTimersByTime(200);
       expect(overlay.classList.contains('visible')).toBe(true);
     });
+
+    it('should hide loading indicators when setUpdating(false)', () => {
+      const { el, setUpdating } = createSearchModal(defaultProps);
+      const overlay = el.querySelector('.comic-helper-search-spinner-overlay') as HTMLElement;
+
+      setUpdating(true);
+      vi.advanceTimersByTime(200);
+      setUpdating(false);
+      vi.advanceTimersByTime(400);
+      expect(overlay.classList.contains('visible')).toBe(false);
+    });
+  });
+
+  it('should update results', () => {
+    const { el, updateResults } = createSearchModal(defaultProps);
+    const results = {
+      results: [{ title: 'New Work', href: '/new', thumb: 'n.jpg' }],
+      totalCount: '1',
+      nextPageUrl: null,
+      pagination: []
+    };
+    updateResults(results);
+    expect(el.textContent).toContain('New Work');
+  });
+
+  it('should update history', () => {
+    const { el, setTab, updateHistory } = createSearchModal(defaultProps);
+    setTab('history');
+    const newHistory = [
+      { url: 'new', title: 'New Manga', thumb: 'n.jpg', tags: [], lastViewedAt: Date.now() }
+    ];
+    updateHistory(newHistory);
+    expect(el.textContent).toContain('New Manga');
   });
 
   describe('scroll isolation', () => {
