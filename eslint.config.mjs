@@ -51,6 +51,7 @@ export default [
         "caughtErrorsIgnorePattern": "^_"
       }],
       "no-console": "off",
+      "complexity": ["error", 10],
       "@typescript-eslint/ban-ts-comment": "warn", // Warn for @ts-ignore/@ts-nocheck
       "@typescript-eslint/no-explicit-any": "warn"
     }

@@ -1,3 +1,5 @@
+## MODIFIED Requirements
+
 ### Requirement: 循環的複雑度の制限
 コードの保守性とテスト容易性を担保するため、すべての関数およびメソッドの循環的複雑度（Cyclomatic Complexity）は **10** 以下でなければならない（MUST）。
 
