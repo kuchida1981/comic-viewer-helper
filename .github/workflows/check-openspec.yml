@@ -31,12 +31,28 @@ jobs:
             exit 0
           fi
 
+          echo "🔍 Debug: Listing 'openspec/changes' contents:"
+          ls -la openspec/changes/
+
+          echo "🔍 Debug: Running find command..."
           # Find directories/files in openspec/changes other than archive and hidden files
-          ACTIVE_CHANGES=$(find openspec/changes -maxdepth 1 -not -path 'openspec/changes' -not -path 'openspec/changes/archive' -not -name '.*' | sed 's|^openspec/changes/||' | grep -v '^$')
+          # Using stricter find logic:
+          # 1. Start from openspec/changes
+          # 2. Max depth 1 (direct children only)
+          # 3. Exclude the directory itself
+          # 4. Exclude 'archive' directory explicitly
+          # 5. Exclude hidden files/dirs (starting with .)
+          ACTIVE_CHANGES=$(find openspec/changes -maxdepth 1 -not -path 'openspec/changes' -not -path 'openspec/changes/archive' -not -name '.*')
           
-          if [ -n "$ACTIVE_CHANGES" ]; then
+          echo "🔍 Debug: Found candidates:"
+          echo "$ACTIVE_CHANGES"
+
+          # Clean up output for display (remove path prefix)
+          CLEANED_CHANGES=$(echo "$ACTIVE_CHANGES" | sed 's|^openspec/changes/||' | grep -v '^$')
+
+          if [ -n "$CLEANED_CHANGES" ]; then
             echo "❌ ERROR: Active OpenSpec changes found in 'openspec/changes/':"
-            echo "$ACTIVE_CHANGES"
+            echo "$CLEANED_CHANGES"
             echo ""
             echo "OpenSpec の設計原則に従い、マージ前にすべての変更をアーカイブする必要があります。"
             echo "以下のコマンドを実行してアーカイブを完了させてください："
