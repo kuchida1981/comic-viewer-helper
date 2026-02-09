@@ -4,6 +4,7 @@ import { Navigator } from './managers/Navigator';
 import { UIManager } from './managers/UIManager';
 import { InputManager } from './managers/InputManager';
 import { AutoplayManager } from './managers/AutoplayManager';
+import { HistoryManager } from './managers/HistoryManager';
 import { ResumeManager } from './managers/ResumeManager';
 import { PopUnderBlocker } from './managers/PopUnderBlocker';
 import { SiteAdapter, isMetadataAdapter } from './types';
@@ -15,6 +16,7 @@ class App {
   private uiManager: UIManager;
   private inputManager: InputManager;
   private autoplayManager: AutoplayManager;
+  private historyManager: HistoryManager;
   private resumeManager: ResumeManager;
   private popUnderBlocker: PopUnderBlocker;
 
@@ -26,7 +28,8 @@ class App {
     this.adapter = adapters.find(a => a.match(window.location.href)) || DefaultAdapter;
 
     this.navigator = new Navigator(this.adapter, this.store);
-    this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
+    this.historyManager = new HistoryManager();
+    this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.historyManager);
     this.inputManager = new InputManager(this.store, this.navigator);
     this.autoplayManager = new AutoplayManager(this.store, this.navigator);
     this.resumeManager = new ResumeManager(this.store);
@@ -44,6 +47,9 @@ class App {
       ? this.adapter.getMetadata()
       : { title: 'Unknown Title', tags: [], relatedWorks: [] };
     this.store.setState({ metadata });
+
+    // Save history
+    void this.historyManager.saveHistory(metadata, window.location.href);
 
     // Initialize managers
     this.navigator.init();

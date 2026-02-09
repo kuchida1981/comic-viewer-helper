@@ -13,6 +13,7 @@ import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
 import { Store } from '../store.js';
 import { Navigator } from './Navigator.js';
+import { HistoryManager } from './HistoryManager.js';
 import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
 import * as logic from '../logic.js';
 
@@ -24,6 +25,16 @@ vi.mock('../logic.js', async () => {
     jumpToRandomWork: vi.fn()
   };
 });
+
+// Mock HistoryManager
+vi.mock('./HistoryManager.js', () => ({
+  HistoryManager: class {
+    getHistory = vi.fn().mockResolvedValue([]);
+    saveHistory = vi.fn().mockResolvedValue(undefined);
+    deleteHistory = vi.fn().mockResolvedValue(undefined);
+    clearHistory = vi.fn().mockResolvedValue(undefined);
+  }
+}));
 
 // Mock components
 vi.mock('../ui/styles.js', () => ({ injectStyles: vi.fn() }));
@@ -67,7 +78,7 @@ vi.mock('../ui/components/HelpModal.js', () => ({
   createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/SearchModal.js', () => ({
-  createSearchModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, input: {}, updateResults: vi.fn(), setUpdating: vi.fn() }))
+  createSearchModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, updateResults: vi.fn(), updateHistory: vi.fn(), setUpdating: vi.fn(), setTab: vi.fn() }))
 }));
 vi.mock('../ui/components/ProgressBar.js', () => ({
   createProgressBar: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
@@ -77,6 +88,7 @@ describe('UIManager', () => {
   let adapter: typeof DefaultAdapter;
   let store: Store;
   let navigator: Navigator;
+  let historyManager: HistoryManager;
   let uiManager: UIManager;
 
   beforeEach(() => {
@@ -88,6 +100,7 @@ describe('UIManager', () => {
     
     const defaultState = {
       enabled: true, 
+      isAutoplayEnabled: false,
       isDualViewEnabled: false, 
       guiPos: { top: 10, left: 10 },
       currentVisibleIndex: 0,
@@ -121,8 +134,10 @@ describe('UIManager', () => {
         scrollToEdge: vi.fn(),
         scrollToImage: vi.fn()
     } as unknown as Navigator;
+
+    historyManager = new HistoryManager();
     
-    uiManager = new UIManager(adapter, store, navigator);
+    uiManager = new UIManager(adapter, store, navigator, historyManager);
 
     vi.stubGlobal('document', {
         getElementById: vi.fn().mockReturnValue(null),

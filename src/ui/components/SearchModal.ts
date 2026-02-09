@@ -1,175 +1,112 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
-import { SearchResultsState, SearchContext } from '../../types';
+import { SearchResultsState, SearchContext, Tag } from '../../types';
+import { HistoryRecord } from '../../managers/HistoryManager';
+import { createSearchTab, SearchTabComponent } from './SearchTab';
+import { createHistoryTab } from './HistoryTab';
+import { createAnalysisTab } from './AnalysisTab';
 
 export interface SearchModalProps {
   onSearch: (query: string, context?: SearchContext) => void;
   onPageChange: (url: string) => void;
   onClose: () => void;
+  onDeleteHistory: (url: string) => void;
+  onClearHistory: () => void;
   searchResults: SearchResultsState | null;
   searchQuery?: string;
   searchContext?: SearchContext;
   searchHistory: string[];
+  history: HistoryRecord[];
 }
 
 export interface SearchModalComponent {
   el: HTMLElement;
-  input: HTMLInputElement;
   updateResults: (searchResults: SearchResultsState | null) => void;
+  updateHistory: (history: HistoryRecord[]) => void;
   setUpdating: (updating: boolean) => void;
+  setTab: (tabId: 'search' | 'history' | 'analysis') => void;
 }
 
-function createResultsSection(searchResults: SearchResultsState | null, onPageChange: (url: string) => void): HTMLElement {
-  const section = createElement('div', {
-    className: 'comic-helper-search-results-section'
+export function createSearchModal(props: SearchModalProps): SearchModalComponent {
+  const { onSearch, onClose, onDeleteHistory, onClearHistory } = props;
+
+  let activeTabId: 'search' | 'history' | 'analysis' = 'search';
+  
+  const tabContainer = createElement('div', {
+    className: 'comic-helper-tabs',
+    style: { display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid #444' }
   });
 
-  if (!searchResults) return section;
+  const tabButtons: { [key: string]: HTMLElement } = {};
 
-  const { results, totalCount, pagination, searchContext } = searchResults;
-
-  const header = createElement('div', {
-    className: 'comic-helper-section-title'
-  });
-
-  let titleText = t('ui.searchResults');
-  if (searchContext && searchContext.label) {
-    const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
-    titleText = `${prefix}: ${searchContext.label}`;
-  }
-
-  header.textContent = totalCount
-    ? `${titleText} (${totalCount})`
-    : titleText;
-  section.appendChild(header);
-
-  if (results.length === 0) {
-    section.appendChild(createElement('div', {
-      className: 'comic-helper-search-no-results',
-      textContent: t('ui.searchNoResults')
-    }));
-    return section;
-  }
-
-  const grid = createElement('div', {
-    className: 'comic-helper-search-result-grid'
-  });
-
-  results.forEach(item => {
-    const thumb = createElement('img', {
-      className: 'comic-helper-search-result-thumb',
-      attributes: { src: item.thumb, loading: 'lazy' }
+  const createTabBtn = (id: 'search' | 'history' | 'analysis', label: string) => {
+    const btn = createElement('button', {
+      className: `comic-helper-tab-btn${activeTabId === id ? ' active' : ''}`,
+      textContent: label,
+      style: {
+        padding: '8px 16px',
+        background: activeTabId === id ? '#444' : 'transparent',
+        border: 'none',
+        color: '#fff',
+        cursor: 'pointer',
+        borderBottom: activeTabId === id ? '2px solid #007bff' : 'none'
+      },
+      events: {
+        click: () => setTab(id)
+      }
     });
-    const title = createElement('div', {
-      className: 'comic-helper-search-result-title',
-      textContent: item.title
-    });
-    const link = createElement('a', {
-      className: 'comic-helper-search-result-item',
-      attributes: { href: item.href, target: '_blank' },
-      events: { click: (e) => e.stopPropagation() }
-    }, [thumb, title]);
-    grid.appendChild(link);
-  });
-  section.appendChild(grid);
-
-  if (pagination && pagination.length > 0) {
-    const nav = createElement('div', {
-      className: 'comic-helper-search-pagination'
-    });
-
-    pagination.forEach(item => {
-      const label = item.type === 'next' ? t('ui.goNext') : item.type === 'prev' ? t('ui.goPrev') : item.label;
-      const btn = createElement('button', {
-        className: `comic-helper-search-page-btn${item.isCurrent ? ' active' : ''} type-${item.type}`,
-        textContent: item.label,
-        attributes: {
-          title: label,
-          ...( (!item.url || item.isCurrent) ? { disabled: 'true' } : {} )
-        },
-        events: {
-          click: (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (item.url) onPageChange(item.url);
-          }
-        }
-      });
-      nav.appendChild(btn);
-    });
-    section.appendChild(nav);
-  }
-
-  return section;
-}
-
-export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchContext, searchHistory }: SearchModalProps): SearchModalComponent {
-  const displayValue = (searchContext?.type === 'keyword') ? (searchQuery || '') : '';
-
-  const input = createElement('input', {
-    className: 'comic-helper-search-input',
-    attributes: {
-      type: 'text',
-      placeholder: t('ui.searchPlaceholder'),
-      autofocus: 'true',
-      value: displayValue
-    }
-  }) as HTMLInputElement;
-
-  const submitBtn = createElement('button', {
-    className: 'comic-helper-search-submit',
-    textContent: t('ui.search'),
-    attributes: {
-      type: 'submit'
-    }
-  });
-
-  const handleSubmit = () => {
-    const query = input.value.trim();
-    if (query) onSearch(query);
+    tabButtons[id] = btn;
+    return btn;
   };
 
-  const form = createElement('form', {
-    className: 'comic-helper-search-form',
-    events: {
-      submit: (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        handleSubmit();
-      }
-    }
-  }, [input, submitBtn]);
+  tabContainer.appendChild(createTabBtn('search', t('ui.searchTab')));
+  tabContainer.appendChild(createTabBtn('history', t('ui.historyTab')));
+  tabContainer.appendChild(createTabBtn('analysis', t('ui.analysisTab')));
 
-  const historySection = createElement('div', {
-    className: 'comic-helper-search-history'
+  const contentContainer = createElement('div', {
+    className: 'comic-helper-tab-container'
   });
 
-  if (searchHistory.length > 0) {
-    historySection.appendChild(createElement('span', {
-      className: 'comic-helper-search-history-label',
-      textContent: `${t('ui.searchHistory')}:`
-    }));
+  let searchTab: SearchTabComponent | null = null;
+  let historyTabEl: HTMLElement | null = null;
+  let analysisTabEl: HTMLElement | null = null;
 
-    searchHistory.forEach(historyItem => {
-      const btn = createElement('button', {
-        className: 'comic-helper-search-history-item',
-        textContent: historyItem,
-        events: {
-          click: (e) => {
-            e.preventDefault();
-            input.value = historyItem;
-            onSearch(historyItem);
-          }
+  const renderActiveTab = () => {
+    contentContainer.innerHTML = '';
+    if (activeTabId === 'search') {
+      if (!searchTab) {
+        searchTab = createSearchTab(props);
+      }
+      contentContainer.appendChild(searchTab.el);
+    } else if (activeTabId === 'history') {
+      historyTabEl = createHistoryTab({
+        history: props.history,
+        onDelete: onDeleteHistory,
+        onClear: onClearHistory
+      });
+      contentContainer.appendChild(historyTabEl);
+    } else if (activeTabId === 'analysis') {
+      analysisTabEl = createAnalysisTab({
+        history: props.history,
+        onTagClick: (tag: Tag) => {
+          setTab('search');
+          onSearch(tag.href, { type: 'tag', label: tag.text });
         }
       });
-      historySection.appendChild(btn);
-    });
-  }
+      contentContainer.appendChild(analysisTabEl);
+    }
+  };
 
-  let resultsSection = createResultsSection(searchResults, onPageChange);
-  const container = createElement('div', {
-    className: 'comic-helper-search-container'
-  }, [form, historySection, resultsSection]);
+  const setTab = (tabId: 'search' | 'history' | 'analysis') => {
+    activeTabId = tabId;
+    Object.keys(tabButtons).forEach(id => {
+      const btn = tabButtons[id];
+      const isActive = id === tabId;
+      btn.style.background = isActive ? '#444' : 'transparent';
+      btn.style.borderBottom = isActive ? '2px solid #007bff' : 'none';
+    });
+    renderActiveTab();
+  };
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -185,13 +122,14 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
 
   const title = createElement('h2', {
     className: 'comic-helper-modal-title',
-    textContent: t('ui.search')
+    textContent: t('ui.search'),
+    style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
   });
 
   const updatingIndicator = createElement('span', {
     className: 'comic-helper-search-updating',
     textContent: '...',
-    style: { display: 'none' }
+    style: { display: 'none', fontSize: '14px', marginLeft: '8px' }
   });
   title.appendChild(updatingIndicator);
 
@@ -205,8 +143,8 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     events: {
       click: (e) => e.stopPropagation()
     }
-  }, [closeBtn, title, container, spinnerOverlay]);
-  content.addEventListener('click', (e) => e.stopPropagation());
+  }, [closeBtn, title, tabContainer, contentContainer, spinnerOverlay]);
+  
   content.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
 
   const overlay = createElement('div', {
@@ -217,8 +155,7 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
   }, [content]);
   overlay.addEventListener('wheel', (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
 
-  // Autofocus doesn't always work when dynamically added
-  setTimeout(() => input.focus(), 50);
+  renderActiveTab();
 
   // Anti-flicker logic state
   let loadingTimeout: number | null = null;
@@ -228,28 +165,33 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
 
   return {
     el: overlay,
-    input,
     updateResults: (newResults: SearchResultsState | null) => {
-      const newSection = createResultsSection(newResults, onPageChange);
-      container.replaceChild(newSection, resultsSection);
-      resultsSection = newSection;
-      content.scrollTop = 0;
+      props.searchResults = newResults;
+      if (searchTab) {
+        searchTab.updateResults(newResults);
+      }
+      if (activeTabId === 'search') {
+        content.scrollTop = 0;
+      }
+    },
+    updateHistory: (newHistory: HistoryRecord[]) => {
+      props.history = newHistory;
+      if (activeTabId === 'history' || activeTabId === 'analysis') {
+        renderActiveTab();
+      }
     },
     setUpdating: (updating: boolean) => {
       updatingIndicator.style.display = updating ? 'inline' : 'none';
 
-      // Always clear any pending timeout when state changes
       if (loadingTimeout) {
         clearTimeout(loadingTimeout);
         loadingTimeout = null;
       }
 
       if (updating) {
-        // Disable inputs immediately to prevent double submission
-        input.disabled = true;
-        submitBtn.disabled = true;
-
-        // Delay showing the spinner to avoid flickering for fast searches
+        if (searchTab) {
+          searchTab.input.disabled = true;
+        }
         loadingTimeout = window.setTimeout(() => {
           spinnerOverlay.classList.add('visible');
           loadingStartTime = Date.now();
@@ -258,19 +200,20 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
       } else {
         const hide = () => {
           spinnerOverlay.classList.remove('visible');
-          input.disabled = false;
-          submitBtn.disabled = false;
+          if (searchTab) {
+            searchTab.input.disabled = false;
+          }
         };
 
         const shownDuration = Date.now() - loadingStartTime;
         if (loadingStartTime > 0 && shownDuration < MIN_SHOW_TIME_MS) {
-          // Ensure it stays visible for a minimum duration if it was already shown
           window.setTimeout(hide, MIN_SHOW_TIME_MS - shownDuration);
         } else {
           hide();
         }
         loadingStartTime = 0;
       }
-    }
+    },
+    setTab
   };
 }

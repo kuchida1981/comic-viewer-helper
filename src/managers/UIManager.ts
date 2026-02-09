@@ -11,9 +11,11 @@ import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
 import { Draggable } from '../ui/Draggable';
 import { createElement } from '../ui/utils';
+import { t } from '../i18n';
 import { jumpToRandomWork } from '../logic';
 import { Store, MAX_SEARCH_HISTORY } from '../store';
 import { Navigator } from './Navigator';
+import { HistoryManager, HistoryRecord } from './HistoryManager';
 import { SiteAdapter, SearchContext, isSearchableAdapter } from '../types';
 
 
@@ -35,6 +37,7 @@ export class UIManager {
   private adapter: SiteAdapter;
   private store: Store;
   private navigator: Navigator;
+  private historyManager: HistoryManager;
 
   // Component references
   private powerComp: PowerButtonComponent | null;
@@ -47,11 +50,13 @@ export class UIManager {
   private helpModalEl: HTMLElement | null;
   private searchModalComp: SearchModalComponent | null;
   private navBtns: NavigationButtonsComponent | null;
+  private cachedHistory: HistoryRecord[] = [];
 
-  constructor(adapter: SiteAdapter, store: Store, navigator: Navigator) {
+  constructor(adapter: SiteAdapter, store: Store, navigator: Navigator, historyManager: HistoryManager) {
     this.adapter = adapter;
     this.store = store;
     this.navigator = navigator;
+    this.historyManager = historyManager;
 
     // Component references
     this.powerComp = null;
@@ -207,13 +212,32 @@ export class UIManager {
           searchQuery,
           searchContext,
           searchHistory,
+          history: this.cachedHistory,
           onSearch: (query: string, context?: SearchContext) => this._performSearch(query, false, context),
           onPageChange: (url: string) => this._performSearch(url),
           onClose: () => {
             this.store.setState({ isSearchModalOpen: false });
+          },
+          onDeleteHistory: async (url: string) => {
+            await this.historyManager.deleteHistory(url);
+            this.cachedHistory = await this.historyManager.getHistory();
+            this.searchModalComp?.updateHistory(this.cachedHistory);
+          },
+          onClearHistory: async () => {
+            if (confirm(t('ui.clearHistory') + '?')) {
+              await this.historyManager.clearHistory();
+              this.cachedHistory = [];
+              this.searchModalComp?.updateHistory(this.cachedHistory);
+            }
           }
         });
         document.body.appendChild(this.searchModalComp.el);
+
+        // Fetch history asynchronously
+        void (async () => {
+          this.cachedHistory = await this.historyManager.getHistory();
+          this.searchModalComp?.updateHistory(this.cachedHistory);
+        })();
 
         // SWR logic
         const currentContext = state.searchContext;

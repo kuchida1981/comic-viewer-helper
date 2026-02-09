@@ -1,24 +1,24 @@
 ## 1. インフラストラクチャの準備
 
-- [ ] 1.1 `src/utils/indexedDB.ts` を作成し、IndexedDB の基本的なラップ関数を実装する
-- [ ] 1.2 `src/managers/HistoryManager.ts` を新設し、履歴の保存・取得・削除のインターフェースを実装する
+- [x] 1.1 `src/utils/indexedDB.ts` を作成し、IndexedDB の基本的なラップ関数を実装する
+- [x] 1.2 `src/managers/HistoryManager.ts` を新設し、履歴の保存・取得・削除のインターフェースを実装する
 
 ## 2. 履歴保存の実装
 
-- [ ] 2.1 `App.init` (`src/main.ts`) において、作品ロード時に `HistoryManager.saveHistory` を呼び出すようにする
-- [ ] 2.2 重複保存の回避（URLをキーにして最新日時に更新）を確認する
+- [x] 2.1 `App.init` (`src/main.ts`) において、作品ロード時に `HistoryManager.saveHistory` を呼び出すようにする
+- [x] 2.2 重複保存の回避（URLをキーにして最新日時に更新）を確認する
 
 ## 3. UIのリファクタリングとタブ化
 
-- [ ] 3.1 `src/ui/components/SearchModal.ts` を分割し、タブ切り替えの基盤を実装する
-- [ ] 3.2 既存の検索機能を `SearchTab.ts`（または相当する構成）に抽出する
-- [ ] 3.3 タブ間の通信（タグクリック時に検索タブへ飛ばすなど）の仕組みを整える
+- [x] 3.1 `src/ui/components/SearchModal.ts` を分割し、タブ切り替えの基盤を実装する
+- [x] 3.2 既存の検索機能を `SearchTab.ts`（または相当する構成）に抽出する
+- [x] 3.3 タブ間の通信（タグクリック時に検索タブへ飛ばすなど）の仕組みを整える
 
 ## 4. 履歴・分析表示の実装
 
-- [ ] 4.1 `HistoryTab.ts` を実装し、IndexedDB から取得した履歴をリスト表示する
-- [ ] 4.2 `AnalysisTab.ts` を実装し、タグの集計ロジックとランキング表示を実装する
-- [ ] 4.3 履歴から作品ページへのリンク、およびタグクリックによる検索連動を実装する
+- [x] 4.1 `HistoryTab.ts` を実装し、IndexedDB から取得した履歴をリスト表示する
+- [x] 4.2 `AnalysisTab.ts` を実装し、タグの集計ロジックとランキング表示を実装する
+- [x] 4.3 履歴から作品ページへのリンク、およびタグクリックによる検索連動を実装する
 
 ## 5. 検証とテスト
 

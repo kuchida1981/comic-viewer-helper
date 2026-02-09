@@ -35,7 +35,14 @@ export const MESSAGES = {
       continueReading: 'Continue',
       startFromBeginning: 'Start Over',
       autoplay: 'Autoplay',
-      stopAutoplay: 'Stop Autoplay'
+      stopAutoplay: 'Stop Autoplay',
+      historyTab: 'History',
+      analysisTab: 'Analysis',
+      searchTab: 'Search',
+      clearHistory: 'Clear History',
+      noHistory: 'No browsing history yet.',
+      topTags: 'Top Tags',
+      topArtists: 'Top Artists'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
@@ -86,7 +93,14 @@ export const MESSAGES = {
       continueReading: '続きから',
       startFromBeginning: '最初から',
       autoplay: 'オートプレイ開始',
-      stopAutoplay: 'オートプレイ停止'
+      stopAutoplay: 'オートプレイ停止',
+      historyTab: '履歴',
+      analysisTab: '分析',
+      searchTab: '検索',
+      clearHistory: '履歴をクリア',
+      noHistory: '閲覧履歴がまだありません。',
+      topTags: 'よく見るタグ',
+      topArtists: 'よく見る作者'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },

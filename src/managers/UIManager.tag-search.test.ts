@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { UIManager } from './UIManager';
 import { Store } from '../store';
 import { Navigator } from './Navigator';
+import { HistoryManager } from './HistoryManager';
 import { DefaultAdapter } from '../adapters/DefaultAdapter';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createSearchModal } from '../ui/components/SearchModal';
@@ -18,10 +19,20 @@ vi.mock('../ui/components/MetadataModal.js', () => ({
 vi.mock('../ui/components/SearchModal.js', () => ({
   createSearchModal: vi.fn(() => ({ 
     el: { style: {}, remove: vi.fn() }, 
-    input: {}, 
     updateResults: vi.fn(), 
-    setUpdating: vi.fn() 
+    updateHistory: vi.fn(),
+    setUpdating: vi.fn(),
+    setTab: vi.fn()
   }))
+}));
+// Mock HistoryManager
+vi.mock('./HistoryManager.js', () => ({
+  HistoryManager: class {
+    getHistory = vi.fn().mockResolvedValue([]);
+    deleteHistory = vi.fn().mockResolvedValue(undefined);
+    clearHistory = vi.fn().mockResolvedValue(undefined);
+    saveHistory = vi.fn().mockResolvedValue(undefined);
+  }
 }));
 // Mock other components to avoid errors
 vi.mock('../ui/components/PowerButton.js', () => ({ createPowerButton: vi.fn(() => ({ el: {}, update: vi.fn() })) }));
@@ -72,7 +83,7 @@ describe('UIManager - Internal Tag Search', () => {
     });
     
     navigator = { getImages: vi.fn().mockReturnValue([]) } as unknown as Navigator;
-    uiManager = new UIManager(adapter, store, navigator);
+    uiManager = new UIManager(adapter, store, navigator, new HistoryManager());
 
     vi.stubGlobal('document', {
         getElementById: vi.fn().mockReturnValue(null),
