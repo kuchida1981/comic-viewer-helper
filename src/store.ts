@@ -79,28 +79,31 @@ export class Store {
       }
     }
 
-    if (!changed) return;
+    if (changed) {
+      this._persistChanges(patch);
+      this._notify();
+    }
+  }
 
-    // Persistence
-    if ('enabled' in patch) {
-      localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
-    }
-    if ('isDualViewEnabled' in patch) {
-      localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
-    }
-    if ('guiPos' in patch) {
-      localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
-    }
+  private _persistChanges(patch: Partial<StoreState>): void {
+    if ('enabled' in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
+    if ('isDualViewEnabled' in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
+    if ('guiPos' in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
 
+    this._persistSearchRelatedChanges(patch);
+  }
+
+  private _persistSearchRelatedChanges(patch: Partial<StoreState>): void {
     const host = window.location.hostname;
     if ('searchQuery' in patch) {
       localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery!);
     }
     if ('searchContext' in patch) {
+      const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
       if (patch.searchContext) {
-        localStorage.setItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, JSON.stringify(patch.searchContext));
+        localStorage.setItem(key, JSON.stringify(patch.searchContext));
       } else {
-        localStorage.removeItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+        localStorage.removeItem(key);
       }
     }
     if ('searchCache' in patch) {
@@ -113,8 +116,6 @@ export class Store {
     if ('searchHistory' in patch) {
       localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
     }
-
-    this._notify();
   }
 
   subscribe(callback: StoreListener): () => void {

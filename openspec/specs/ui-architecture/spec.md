@@ -54,3 +54,10 @@ The system SHALL update the DOM by comparing the desired state with the current 
 - **WHEN** the browser window is resized
 - **THEN** the layout is updated to fit the new viewport without destroying DOM elements that remain visible.
 
+### Requirement: コンポーネント更新の自律化
+UIマネージャー（`UIManager`）の複雑度を低減するため、各UIコンポーネントは自身の状態更新ロジックをカプセル化し、`update(state)` メソッドなどを通じて自律的に再描画を行わなければならない（MUST）。マネージャー側での詳細な条件分岐（存在チェックや内部状態の比較）は避けるべきである。
+
+#### Scenario: 状態変更時のUI更新
+- **WHEN** ストアの状態が変更され、`UIManager` が通知を受け取る
+- **THEN** `UIManager` は各コンポーネントの更新メソッドを呼び出し、コンポーネント自身が必要なDOM操作を判断して実行する
+

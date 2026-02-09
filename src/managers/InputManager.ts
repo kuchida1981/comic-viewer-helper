@@ -5,6 +5,23 @@ import { Navigator } from './Navigator';
 
 const CLICK_THRESHOLD_PX = 5;
 
+/**
+ * Check if a keyboard event matches a given shortcut ID
+ */
+function matchesShortcut(e: KeyboardEvent, id: string): boolean {
+  const sc = SHORTCUTS.find(s => s.id === id);
+  if (!sc) return false;
+  return sc.keys.some(k => {
+    if (k.startsWith('Shift+')) {
+      const baseKey = k.replace('Shift+', '');
+      return e.shiftKey && e.key === (baseKey === 'Space' ? ' ' : baseKey);
+    }
+    // If it's a direct key match (like '?'), allow it regardless of Shift state
+    // because Shift+'/' becomes '?' in event.key.
+    return e.key === (k === 'Space' ? ' ' : k);
+  });
+}
+
 export class InputManager {
   private store: Store;
   private navigator: Navigator;
@@ -19,12 +36,7 @@ export class InputManager {
   constructor(store: Store, navigator: Navigator) {
     this.store = store;
     this.navigator = navigator;
-
     this.lastWheelTime = 0;
-
-    this.resizeReq = undefined;
-    this.scrollReq = undefined;
-
     this.mouseDownPos = null;
     this.mouseDownTarget = null;
 
@@ -57,16 +69,20 @@ export class InputManager {
     );
   }
 
-  handleWheel(e: WheelEvent): void {
-    const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-    if (!enabled) return;
+  private _isAnyModalOpen(): boolean {
+    const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+    return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+  }
 
-    if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
+  handleWheel(e: WheelEvent): void {
+    const state = this.store.getState();
+    if (!state.enabled) return;
+
+    if (this._isAnyModalOpen()) {
       const modalContent = document.querySelector('.comic-helper-modal-content');
-      if (modalContent && modalContent.contains(e.target as Node)) {
-        return;
+      if (!modalContent || !modalContent.contains(e.target as Node)) {
+        e.preventDefault();
       }
-      e.preventDefault();
       return;
     }
 
@@ -77,10 +93,15 @@ export class InputManager {
     const direction = getNavigationDirection(e, this.WHEEL_THRESHOLD);
     if (direction === 'none') return;
 
+    this.lastWheelTime = now;
+    this._navigateByWheel(direction);
+  }
+
+  private _navigateByWheel(direction: 'next' | 'prev'): void {
+    const { isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
     const imgs = this.navigator.getImages();
     if (imgs.length === 0) return;
 
-    this.lastWheelTime = now;
     const step = isDualViewEnabled ? 2 : 1;
 
     if (direction === 'next' && currentVisibleIndex + step >= imgs.length) {
@@ -99,80 +120,67 @@ export class InputManager {
 
   onKeyDown(e: KeyboardEvent): void {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
 
-    // Handle Escape for all modals
-    if (e.key === 'Escape') {
-      if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
-        e.preventDefault();
-        this.store.setState({
-          isMetadataModalOpen: false,
-          isHelpModalOpen: false,
-          isSearchModalOpen: false
-        });
-        return;
-      }
+    if (this._handleModalCloseShortcuts(e)) return;
+    if (this._handleToggleShortcuts(e)) return;
+
+    if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
+
+    this._handleShortcutAction(e);
+  }
+
+  private _handleModalCloseShortcuts(e: KeyboardEvent): boolean {
+    if (e.key === 'Escape' && this._isAnyModalOpen()) {
+      e.preventDefault();
+      this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+      return true;
     }
+    return false;
+  }
 
-    // Helper function to check if a key matches a shortcut
-    const isKey = (id: string) => {
-      const sc = SHORTCUTS.find(s => s.id === id);
-      if (!sc) return false;
-      return sc.keys.some(k => {
-        if (k.startsWith('Shift+')) {
-          const baseKey = k.replace('Shift+', '');
-          return e.shiftKey && e.key === (baseKey === 'Space' ? ' ' : baseKey);
-        }
-        return !e.shiftKey && e.key === (k === 'Space' ? ' ' : k);
-      });
+  private _handleToggleShortcuts(e: KeyboardEvent): boolean {
+    if (matchesShortcut(e, 'help')) {
+      e.preventDefault();
+      this.store.setState({ isHelpModalOpen: !this.store.getState().isHelpModalOpen });
+      return true;
+    }
+    if (matchesShortcut(e, 'search')) {
+      e.preventDefault();
+      this.store.setState({ isSearchModalOpen: !this.store.getState().isSearchModalOpen });
+      return true;
+    }
+    return false;
+  }
+
+  private _handleShortcutAction(e: KeyboardEvent): void {
+    const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
+
+    const actions: Record<string, () => void> = {
+      nextPage: () => this.navigator.scrollToImage(1),
+      prevPage: () => this.navigator.scrollToImage(-1),
+      dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
+      spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
+      metadata: () => this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen }),
+      help: () => this.store.setState({ isHelpModalOpen: !isHelpModalOpen }),
+      fullscreen: () => this._toggleFullscreen(),
+      randomJump: () => jumpToRandomWork(metadata, searchCache)
     };
 
-    // Allow toggling help even if already open
-    if (isKey('help') && isHelpModalOpen) {
-      e.preventDefault();
-      this.store.setState({ isHelpModalOpen: false });
-      return;
-    }
-
-    if (isKey('search')) {
-      e.preventDefault();
-      this.store.setState({ isSearchModalOpen: !isSearchModalOpen });
-      return;
-    }
-
-    if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || !enabled) return;
-
-    if (isKey('nextPage')) {
-      e.preventDefault();
-      this.navigator.scrollToImage(1);
-    } else if (isKey('prevPage')) {
-      e.preventDefault();
-      this.navigator.scrollToImage(-1);
-    } else if (isKey('dualView')) {
-      e.preventDefault();
-      this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
-    } else if (isKey('spreadOffset') && isDualViewEnabled) {
-      e.preventDefault();
-      const { spreadOffset } = this.store.getState();
-      this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-    } else if (isKey('metadata')) {
-      e.preventDefault();
-      this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
-    } else if (isKey('help')) {
-      e.preventDefault();
-      this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
-    } else if (isKey('fullscreen')) {
-      e.preventDefault();
-      if (!document.documentElement.requestFullscreen) return;
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      } else {
-        document.documentElement.requestFullscreen().catch(() => {});
+    for (const [id, action] of Object.entries(actions)) {
+      if (matchesShortcut(e, id)) {
+        e.preventDefault();
+        action();
+        break;
       }
-    } else if (isKey('randomJump')) {
-      e.preventDefault();
-      const { metadata, searchCache } = this.store.getState();
-      jumpToRandomWork(metadata, searchCache);
+    }
+  }
+
+  private _toggleFullscreen(): void {
+    if (!document.documentElement.requestFullscreen) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => { });
+    } else {
+      document.documentElement.requestFullscreen().catch(() => { });
     }
   }
 
@@ -188,7 +196,6 @@ export class InputManager {
     const { enabled, currentVisibleIndex } = this.store.getState();
     if (!enabled) return;
 
-    // Wait for the next frame to ensure layout is stable after the transition.
     requestAnimationFrame(() => {
       this.navigator.applyLayout(currentVisibleIndex);
     });
@@ -213,15 +220,13 @@ export class InputManager {
     this.mouseDownTarget = null;
     this.mouseDownPos = null;
 
-    if (!target || !startPos) return;
-    if (!(e.target instanceof HTMLImageElement) || e.target !== target) return;
+    if (!target || !startPos || !(e.target instanceof HTMLImageElement) || e.target !== target) return;
 
     const dx = e.clientX - startPos.x;
     const dy = e.clientY - startPos.y;
     if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
 
-    const { enabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-    if (!enabled || isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) return;
+    if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
 
     const direction = getClickNavigationDirection(target);
     this.navigator.scrollToImage(direction === 'next' ? 1 : -1);

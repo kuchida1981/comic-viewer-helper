@@ -24,7 +24,6 @@ export class Navigator {
     this.updatePageCounter = this.updatePageCounter.bind(this);
     this.init = this.init.bind(this);
 
-    // Track last state for layout updates
     this._lastEnabled = undefined;
     this._lastDualView = undefined;
     this._lastSpreadOffset = undefined;
@@ -56,12 +55,7 @@ export class Navigator {
     imgs.forEach(img => {
       if (!img.complete) {
         img.addEventListener('load', () => {
-          // If we are explicitly navigating to a target, ignore automatic layout updates
-          // triggered by image loads, as jumpToPage/scrollToImage will handle it.
-          if (this.pendingTargetIndex !== null) {
-            console.log('[Navigator] Skipping auto applyLayout because navigation is pending');
-            return;
-          }
+          if (this.pendingTargetIndex !== null) return;
           requestAnimationFrame(() => this.applyLayout());
         });
       }
@@ -80,8 +74,7 @@ export class Navigator {
 
   updatePageCounter(): void {
     const state = this.store.getState();
-    const { enabled } = state;
-    if (!enabled) return;
+    if (!state.enabled) return;
 
     const imgs = this.getImages();
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
@@ -96,52 +89,49 @@ export class Navigator {
     const index = typeof pageNumber === 'string' ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
     const targetImg = getImageElementByIndex(imgs, index);
 
-    console.log(`[Navigator] jumpToPage: ${pageNumber} (index: ${index})`, { complete: targetImg?.complete, height: targetImg?.naturalHeight });
-
     if (targetImg) {
       this.pendingTargetIndex = index;
       forceImageLoad(targetImg);
 
       if (!targetImg.complete || targetImg.naturalHeight === 0) {
-        console.log(`[Navigator] Waiting for image load...`);
         this.store.setState({ isLoading: true });
         await waitForImageLoad(targetImg);
-        console.log(`[Navigator] Image loaded. Applying layout...`);
         this.applyLayout(index);
         this.store.setState({ isLoading: false });
       } else {
         this.applyLayout(index);
       }
 
-      requestAnimationFrame(() => {
-        this.pendingTargetIndex = null;
-      });
+      requestAnimationFrame(() => { this.pendingTargetIndex = null; });
       return true;
-    } else {
-      this.updatePageCounter();
-      return false;
     }
+    this.updatePageCounter();
+    return false;
+  }
+
+  private _calculateTargetIndex(imgs: HTMLImageElement[], direction: number): number {
+    const { isDualViewEnabled } = this.store.getState();
+    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+    let targetIndex = currentIndex + direction;
+
+    if (targetIndex < 0) return 0;
+
+    if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+      const currentImg = imgs[currentIndex];
+      const prospective = imgs[targetIndex];
+      if (currentImg && prospective && prospective.parentElement === currentImg.parentElement && 
+          prospective.parentElement?.classList.contains('comic-row-wrapper')) {
+        targetIndex += direction;
+      }
+    }
+    return targetIndex;
   }
 
   async scrollToImage(direction: number): Promise<void> {
     const imgs = this.getImages();
     if (imgs.length === 0) return;
 
-    const { isDualViewEnabled } = this.store.getState();
-    const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-    let targetIndex = currentIndex + direction;
-
-    if (targetIndex < 0) targetIndex = 0;
-
-    if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-      const currentImg = imgs[currentIndex];
-      if (targetIndex < imgs.length) {
-        const prospectiveTargetImg = imgs[targetIndex];
-        if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains('comic-row-wrapper')) {
-          targetIndex += direction;
-        }
-      }
-    }
+    const targetIndex = this._calculateTargetIndex(imgs, direction);
 
     if (targetIndex >= imgs.length) {
       if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
@@ -150,28 +140,24 @@ export class Navigator {
       return;
     }
 
-    console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
-
     const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
-    const finalTarget = imgs[finalIndex];
-    if (finalTarget) {
-      this.pendingTargetIndex = finalIndex;
-      forceImageLoad(finalTarget);
+    await this._performScrollToImage(imgs[finalIndex], finalIndex);
+  }
 
-      if (!finalTarget.complete || finalTarget.naturalHeight === 0) {
-        console.log(`[Navigator] Waiting for image load...`);
-        this.store.setState({ isLoading: true });
-        await waitForImageLoad(finalTarget);
-        this.applyLayout(finalIndex);
-        this.store.setState({ isLoading: false });
-      } else {
-        finalTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+  private async _performScrollToImage(target: HTMLImageElement, index: number): Promise<void> {
+    this.pendingTargetIndex = index;
+    forceImageLoad(target);
 
-      requestAnimationFrame(() => {
-        this.pendingTargetIndex = null;
-      });
+    if (!target.complete || target.naturalHeight === 0) {
+      this.store.setState({ isLoading: true });
+      await waitForImageLoad(target);
+      this.applyLayout(index);
+      this.store.setState({ isLoading: false });
+    } else {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+
+    requestAnimationFrame(() => { this.pendingTargetIndex = null; });
   }
 
   async scrollToEdge(position: 'start' | 'end'): Promise<void> {
@@ -190,12 +176,7 @@ export class Navigator {
     }
 
     this.applyLayout(targetIndex);
-    // applyLayout は RAF 内で scrollIntoView を実行する。
-    // ガードを RAF と同じフレームで解除することで、スクロール実行前の画像ロード
-    // イベントによる割り込み applyLayout を防止する。
-    requestAnimationFrame(() => {
-      this.pendingTargetIndex = null;
-    });
+    requestAnimationFrame(() => { this.pendingTargetIndex = null; });
   }
 
   applyLayout(forcedIndex?: number): void {
@@ -203,7 +184,6 @@ export class Navigator {
     const container = this.adapter.getContainer();
     if (!container) return;
 
-    // If disabled, we might want to revert.
     if (!enabled) {
       revertToOriginal(this.getImages(), container);
       return;
@@ -215,18 +195,13 @@ export class Navigator {
       ? this.pendingTargetIndex
       : (forcedIndex !== undefined ? forcedIndex : viewportIndex);
 
-    console.log(`[Navigator] applyLayout: current=${currentIndex}, pending=${this.pendingTargetIndex}, forced=${forcedIndex}, viewport=${viewportIndex}`);
-
     fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
 
     if (currentIndex !== -1) {
       const targetImg = imgs[currentIndex];
       if (targetImg) {
-        // DOM update might take a moment to be reflected in layout.
-        // Wait for next frames before scrolling to ensure layout is stable.
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
             targetImg.scrollIntoView({ block: 'center' });
           });
         });

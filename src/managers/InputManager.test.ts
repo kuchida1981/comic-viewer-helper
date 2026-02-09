@@ -176,7 +176,8 @@ describe('InputManager', () => {
 
   it('onKeyDown should handle help toggle', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isHelpModalOpen: false });
-    const event = { key: '?', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    // Realistic '?' input often comes with shiftKey: true (from Shift + '/')
+    const event = { key: '?', shiftKey: true, preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
     expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: true });
     
