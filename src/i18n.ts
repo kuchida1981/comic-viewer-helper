@@ -33,7 +33,9 @@ export const MESSAGES = {
       resume: 'Resume',
       resumeNotification: 'Resume from page {page}?',
       continueReading: 'Continue',
-      startFromBeginning: 'Start Over'
+      startFromBeginning: 'Start Over',
+      autoplay: 'Autoplay',
+      stopAutoplay: 'Stop Autoplay'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
@@ -82,7 +84,9 @@ export const MESSAGES = {
       resume: 'レジューム',
       resumeNotification: '{page}ページから再開しますか？',
       continueReading: '続きから',
-      startFromBeginning: '最初から'
+      startFromBeginning: '最初から',
+      autoplay: 'オートプレイ開始',
+      stopAutoplay: 'オートプレイ停止'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },

@@ -126,17 +126,13 @@ describe('UI Components', () => {
   });
 
   describe('NavigationButtons', () => {
-    it('should render 8 navigation buttons', () => {
-      const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {} });
-      expect(elements.length).toBe(8);
+    it('should render 9 navigation buttons', () => {
+      const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {}, onAutoplay: () => {}, isAutoplayEnabled: false });
+      expect(elements.length).toBe(9);
       expect(elements[0].textContent).toBe('<<');
       expect(elements[1].textContent).toBe('<');
-      expect(elements[2].textContent).toBe('🎲');
-      expect(elements[3].textContent).toBe('>');
-      expect(elements[4].textContent).toBe('>>');
-      expect(elements[5].textContent).toBe('Info');
-      expect(elements[6].textContent).toBe('?');
-      expect(elements[7].textContent).toBe('🔍');
+      expect(elements[2].textContent).toBe('▶');
+      expect(elements[3].textContent).toBe('🎲');
     });
 
     it('should call correct actions and blur', () => {
@@ -148,7 +144,9 @@ describe('UI Components', () => {
         onInfo: vi.fn(),
         onHelp: vi.fn(),
         onSearch: vi.fn(),
-        onLucky: vi.fn()
+        onLucky: vi.fn(),
+        onAutoplay: vi.fn(),
+        isAutoplayEnabled: false
       };
       const { elements } = createNavigationButtons(actions);
       
@@ -164,10 +162,14 @@ describe('UI Components', () => {
       expect(actions.onNext).toHaveBeenCalled();
     });
 
-    it('should have an empty update method', () => {
-      const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {} });
+    it('should have an update method that toggles icon', () => {
+      const { elements, update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {}, onAutoplay: () => {}, isAutoplayEnabled: false });
       expect(typeof update).toBe('function');
-      update();
+      expect(elements[2].textContent).toBe('▶');
+      update(true);
+      expect(elements[2].textContent).toBe('||');
+      update(false);
+      expect(elements[2].textContent).toBe('▶');
     });
   });
 

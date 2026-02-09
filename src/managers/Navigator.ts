@@ -144,7 +144,8 @@ export class Navigator {
     }
 
     if (targetIndex >= imgs.length) {
-      if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
+      const { isAutoplayEnabled, isMetadataModalOpen } = this.store.getState();
+      if (direction > 0 && !isAutoplayEnabled && !isMetadataModalOpen) {
         this.store.setState({ isMetadataModalOpen: true });
       }
       return;

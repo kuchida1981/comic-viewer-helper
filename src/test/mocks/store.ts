@@ -3,6 +3,7 @@ import { Store, StoreState } from '../../store.js';
 
 const DEFAULT_STATE: StoreState = {
   enabled: true,
+  isAutoplayEnabled: false,
   isDualViewEnabled: false,
   spreadOffset: 0,
   currentVisibleIndex: 0,

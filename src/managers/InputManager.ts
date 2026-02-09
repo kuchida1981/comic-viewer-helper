@@ -83,6 +83,9 @@ export class InputManager {
     this.lastWheelTime = now;
     const step = isDualViewEnabled ? 2 : 1;
 
+    // Manual interaction stops autoplay
+    this.store.setState({ isAutoplayEnabled: false });
+
     if (direction === 'next' && currentVisibleIndex + step >= imgs.length) {
       if (!isMetadataModalOpen) {
         this.store.setState({ isMetadataModalOpen: true });
@@ -144,9 +147,11 @@ export class InputManager {
 
     if (isKey('nextPage')) {
       e.preventDefault();
+      this.store.setState({ isAutoplayEnabled: false });
       this.navigator.scrollToImage(1);
     } else if (isKey('prevPage')) {
       e.preventDefault();
+      this.store.setState({ isAutoplayEnabled: false });
       this.navigator.scrollToImage(-1);
     } else if (isKey('dualView')) {
       e.preventDefault();
@@ -222,6 +227,9 @@ export class InputManager {
 
     const { enabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
     if (!enabled || isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) return;
+
+    // Manual interaction stops autoplay
+    this.store.setState({ isAutoplayEnabled: false });
 
     const direction = getClickNavigationDirection(target);
     this.navigator.scrollToImage(direction === 'next' ? 1 : -1);

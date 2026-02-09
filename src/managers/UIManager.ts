@@ -2,7 +2,7 @@ import { injectStyles } from '../ui/styles';
 import { createPowerButton, PowerButtonComponent } from '../ui/components/PowerButton';
 import { createPageCounter, PageCounterComponent } from '../ui/components/PageCounter';
 import { createSpreadControls, SpreadControlsComponent } from '../ui/components/SpreadControls';
-import { createNavigationButtons } from '../ui/components/NavigationButtons';
+import { createNavigationButtons, NavigationButtonsComponent } from '../ui/components/NavigationButtons';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
 import { createSearchModal, SearchModalComponent } from '../ui/components/SearchModal';
@@ -46,6 +46,7 @@ export class UIManager {
   private modalEl: HTMLElement | null;
   private helpModalEl: HTMLElement | null;
   private searchModalComp: SearchModalComponent | null;
+  private navBtns: NavigationButtonsComponent | null;
 
   constructor(adapter: SiteAdapter, store: Store, navigator: Navigator) {
     this.adapter = adapter;
@@ -62,6 +63,7 @@ export class UIManager {
     this.modalEl = null;
     this.helpModalEl = null;
     this.searchModalComp = null;
+    this.navBtns = null;
 
     this.updateUI = this.updateUI.bind(this);
     this.init = this.init.bind(this);
@@ -164,10 +166,10 @@ export class UIManager {
       document.body.appendChild(this.loadingComp.el);
     }
 
-    if (container.querySelectorAll('.comic-helper-button').length === 0) {
-      const { metadata } = state;
+    if (!this.navBtns) {
+      const { metadata, isAutoplayEnabled } = state;
 
-      const navBtns = createNavigationButtons({
+      this.navBtns = createNavigationButtons({
         onFirst: () => { void this.navigator.scrollToEdge('start'); },
         onPrev: () => { void this.navigator.scrollToImage(-1); },
         onNext: () => { void this.navigator.scrollToImage(1); },
@@ -175,12 +177,17 @@ export class UIManager {
         onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
         onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
-        onLucky: () => { jumpToRandomWork(metadata, state.searchCache); }
+        onLucky: () => { jumpToRandomWork(metadata, state.searchCache); },
+        onAutoplay: () => {
+          const current = this.store.getState().isAutoplayEnabled;
+          this.store.setState({ isAutoplayEnabled: !current });
+        },
+        isAutoplayEnabled
       });
-      navBtns.elements.forEach(btn => container?.appendChild(btn));
+      this.navBtns.elements.forEach(btn => container?.appendChild(btn));
     }
 
-    const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, metadata } = state;
+    const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, metadata, isAutoplayEnabled } = state;
 
     // Handle Modals
     this.helpModalEl = this._manageModal(
@@ -290,6 +297,7 @@ export class UIManager {
 
     this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
     this.spreadComp?.update(isDualViewEnabled);
+    this.navBtns?.update(isAutoplayEnabled);
   }
 
   /**

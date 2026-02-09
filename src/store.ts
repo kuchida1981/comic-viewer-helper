@@ -7,7 +7,8 @@ export const STORAGE_KEYS = {
   SEARCH_QUERY: 'comic-viewer-helper-search-query',
   SEARCH_CONTEXT: 'comic-viewer-helper-search-context',
   SEARCH_CACHE: 'comic-viewer-helper-search-cache',
-  SEARCH_HISTORY: 'comic-viewer-helper-search-history'
+  SEARCH_HISTORY: 'comic-viewer-helper-search-history',
+  AUTOPLAY: 'comic-viewer-helper-autoplay'
 } as const;
 
 export const MAX_SEARCH_HISTORY = 3;
@@ -19,6 +20,7 @@ export interface GuiPos {
 
 export interface StoreState {
   enabled: boolean;
+  isAutoplayEnabled: boolean;
   isDualViewEnabled: boolean;
   spreadOffset: number;
   currentVisibleIndex: number;
@@ -44,6 +46,7 @@ export class Store {
   constructor() {
     this.state = {
       enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== 'false',
+      isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY) === 'true',
       isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === 'true',
       spreadOffset: 0,
       currentVisibleIndex: 0,
@@ -84,6 +87,9 @@ export class Store {
     // Persistence
     if ('enabled' in patch) {
       localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
+    }
+    if ('isAutoplayEnabled' in patch) {
+      localStorage.setItem(STORAGE_KEYS.AUTOPLAY, String(patch.isAutoplayEnabled));
     }
     if ('isDualViewEnabled' in patch) {
       localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));

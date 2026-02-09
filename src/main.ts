@@ -3,6 +3,7 @@ import { DefaultAdapter } from './adapters/DefaultAdapter';
 import { Navigator } from './managers/Navigator';
 import { UIManager } from './managers/UIManager';
 import { InputManager } from './managers/InputManager';
+import { AutoplayManager } from './managers/AutoplayManager';
 import { ResumeManager } from './managers/ResumeManager';
 import { PopUnderBlocker } from './managers/PopUnderBlocker';
 import { SiteAdapter, isMetadataAdapter } from './types';
@@ -13,6 +14,7 @@ class App {
   private navigator: Navigator;
   private uiManager: UIManager;
   private inputManager: InputManager;
+  private autoplayManager: AutoplayManager;
   private resumeManager: ResumeManager;
   private popUnderBlocker: PopUnderBlocker;
 
@@ -26,6 +28,7 @@ class App {
     this.navigator = new Navigator(this.adapter, this.store);
     this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
     this.inputManager = new InputManager(this.store, this.navigator);
+    this.autoplayManager = new AutoplayManager(this.store, this.navigator);
     this.resumeManager = new ResumeManager(this.store);
     this.popUnderBlocker = new PopUnderBlocker(this.store);
 
@@ -46,6 +49,7 @@ class App {
     this.navigator.init();
     this.uiManager.init();
     this.inputManager.init();
+    this.autoplayManager.init();
     this.popUnderBlocker.init();
 
     // Resume position logic

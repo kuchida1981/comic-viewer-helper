@@ -18,6 +18,7 @@ describe('Store', () => {
     const store = new Store();
     expect(store.getState()).toEqual({
       enabled: true,
+      isAutoplayEnabled: false,
       isDualViewEnabled: false,
       spreadOffset: 0,
       currentVisibleIndex: 0,
@@ -33,6 +34,7 @@ describe('Store', () => {
       isLoading: false,
       searchResults: null,
       searchQuery: '',
+      searchContext: undefined,
       searchCache: null,
       searchHistory: []
     });
