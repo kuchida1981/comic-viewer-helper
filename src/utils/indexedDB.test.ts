@@ -1,6 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { IndexedDBWrapper } from './indexedDB';
 
+interface MockIDBRequest {
+  onsuccess: (() => void) | null;
+  onerror: (() => void) | null;
+  onupgradeneeded: ((ev: { oldVersion: number }) => void) | null;
+  result: unknown;
+}
+
+interface MockIDBStore {
+  put: (item: unknown) => { onsuccess: () => void };
+  getAll: () => { onsuccess: () => void; result?: unknown };
+  delete: (key: IDBValidKey) => { onsuccess: () => void };
+  clear: () => { onsuccess: () => void };
+  createIndex: (name: string, path: string | string[]) => void;
+}
+
+interface MockIDBDatabase {
+  transaction: (store: string, mode?: string) => {
+    objectStore: (name?: string) => MockIDBStore;
+  };
+  createObjectStore: (name: string, options?: { keyPath: string; autoIncrement?: boolean }) => MockIDBStore;
+  objectStoreNames: { contains: (name: string) => boolean };
+}
+
 describe('IndexedDBWrapper', () => {
   let wrapper: IndexedDBWrapper;
   const config = {
@@ -22,10 +45,10 @@ describe('IndexedDBWrapper', () => {
   });
 
   it('should attempt to open database', async () => {
-    const mockRequest = {
-      onsuccess: null as (() => void) | null,
-      onerror: null as (() => void) | null,
-      onupgradeneeded: null as ((ev: { oldVersion: number }) => void) | null,
+    const mockRequest: MockIDBRequest = {
+      onsuccess: null,
+      onerror: null,
+      onupgradeneeded: null,
       result: {
         transaction: vi.fn().mockReturnValue({
           objectStore: vi.fn().mockReturnValue({
@@ -43,7 +66,7 @@ describe('IndexedDBWrapper', () => {
     const openPromise = wrapper.open();
     // Simulate success in next tick to allow promise to be returned
     setTimeout(() => {
-      if (mockRequest.onsuccess) (mockRequest as { onsuccess: () => void }).onsuccess();
+      if (mockRequest.onsuccess) mockRequest.onsuccess();
     }, 0);
     
     const db = await openPromise;
@@ -52,15 +75,18 @@ describe('IndexedDBWrapper', () => {
   });
 
   it('should handle onupgradeneeded', async () => {
-    const mockDb = {
+    const mockDb: MockIDBDatabase = {
       createObjectStore: vi.fn().mockReturnValue({
         createIndex: vi.fn()
       }),
-      objectStoreNames: { contains: vi.fn().mockReturnValue(false) }
+      objectStoreNames: { contains: vi.fn().mockReturnValue(false) },
+      transaction: vi.fn()
     };
-    const mockRequest = {
+    const mockRequest: MockIDBRequest = {
       result: mockDb,
-      onupgradeneeded: null as ((ev: { oldVersion: number }) => void) | null
+      onupgradeneeded: null,
+      onsuccess: null,
+      onerror: null
     };
     mockIDB.open.mockReturnValue(mockRequest);
 
@@ -80,33 +106,39 @@ describe('IndexedDBWrapper', () => {
     
     // Simulate upgrade
     if (mockRequest.onupgradeneeded) {
-      (mockRequest as { onupgradeneeded: (ev: { oldVersion: number }) => void }).onupgradeneeded({ oldVersion: 0 });
+      mockRequest.onupgradeneeded({ oldVersion: 0 });
     }
 
     expect(mockDb.createObjectStore).toHaveBeenCalledWith('testStore', { keyPath: 'id', autoIncrement: undefined });
-    const storeMock = mockDb.createObjectStore.mock.results[0].value;
+    const storeMock = (mockDb.createObjectStore as unknown as { mock: { results: Array<{ value: MockIDBStore }> } }).mock.results[0].value;
     expect(storeMock.createIndex).toHaveBeenCalledWith('name', 'name');
   });
 
   it('should handle put operation', async () => {
-    // Manually setting internal db state for testing the put method in isolation
-    (wrapper as unknown as { db: unknown }).db = {
+    const storeMock: MockIDBStore = {
+      put: vi.fn().mockReturnValue({ onsuccess: vi.fn() }),
+      getAll: vi.fn(),
+      delete: vi.fn(),
+      clear: vi.fn(),
+      createIndex: vi.fn()
+    };
+    const dbMock: MockIDBDatabase = {
       transaction: vi.fn().mockReturnValue({
-        objectStore: vi.fn().mockReturnValue({
-          put: vi.fn().mockReturnValue({ onsuccess: vi.fn() })
-        })
-      })
+        objectStore: vi.fn().mockReturnValue(storeMock)
+      }),
+      createObjectStore: vi.fn(),
+      objectStoreNames: { contains: vi.fn().mockReturnValue(true) }
     };
 
-    const dbMock = (wrapper as unknown as { db: unknown }).db;
-    const storeMock = dbMock.transaction().objectStore();
-    const requestMock = storeMock.put();
+    (wrapper as unknown as { db: MockIDBDatabase }).db = dbMock;
+
+    const requestMock = storeMock.put({ id: 1 });
 
     const putPromise = wrapper.put('testStore', { id: 1 });
     
     // Simulate success
     setTimeout(() => {
-      requestMock.onsuccess();
+      (requestMock as { onsuccess: () => void }).onsuccess();
     }, 0);
     
     await putPromise;
@@ -116,22 +148,29 @@ describe('IndexedDBWrapper', () => {
   });
 
   it('should handle getAll operation', async () => {
-    (wrapper as unknown as { db: unknown }).db = {
+    const storeMock: MockIDBStore = {
+      put: vi.fn(),
+      getAll: vi.fn().mockReturnValue({ onsuccess: vi.fn() }),
+      delete: vi.fn(),
+      clear: vi.fn(),
+      createIndex: vi.fn()
+    };
+    const dbMock: MockIDBDatabase = {
       transaction: vi.fn().mockReturnValue({
-        objectStore: vi.fn().mockReturnValue({
-          getAll: vi.fn().mockReturnValue({ onsuccess: vi.fn() })
-        })
-      })
+        objectStore: vi.fn().mockReturnValue(storeMock)
+      }),
+      createObjectStore: vi.fn(),
+      objectStoreNames: { contains: vi.fn().mockReturnValue(true) }
     };
 
-    const dbMock = (wrapper as unknown as { db: unknown }).db;
-    const storeMock = dbMock.transaction().objectStore();
+    (wrapper as unknown as { db: MockIDBDatabase }).db = dbMock;
+
     const requestMock = storeMock.getAll();
 
     const getAllPromise = wrapper.getAll('testStore');
-    requestMock.result = [{ id: 1 }];
+    (requestMock as { result: unknown }).result = [{ id: 1 }];
     setTimeout(() => {
-      requestMock.onsuccess();
+      (requestMock as { onsuccess: () => void }).onsuccess();
     }, 0);
     const result = await getAllPromise;
 
@@ -139,21 +178,28 @@ describe('IndexedDBWrapper', () => {
   });
 
   it('should handle delete operation', async () => {
-    (wrapper as unknown as { db: unknown }).db = {
+    const storeMock: MockIDBStore = {
+      put: vi.fn(),
+      getAll: vi.fn(),
+      delete: vi.fn().mockReturnValue({ onsuccess: vi.fn() }),
+      clear: vi.fn(),
+      createIndex: vi.fn()
+    };
+    const dbMock: MockIDBDatabase = {
       transaction: vi.fn().mockReturnValue({
-        objectStore: vi.fn().mockReturnValue({
-          delete: vi.fn().mockReturnValue({ onsuccess: vi.fn() })
-        })
-      })
+        objectStore: vi.fn().mockReturnValue(storeMock)
+      }),
+      createObjectStore: vi.fn(),
+      objectStoreNames: { contains: vi.fn().mockReturnValue(true) }
     };
 
-    const dbMock = (wrapper as unknown as { db: unknown }).db;
-    const storeMock = dbMock.transaction().objectStore();
-    const requestMock = storeMock.delete();
+    (wrapper as unknown as { db: MockIDBDatabase }).db = dbMock;
+
+    const requestMock = storeMock.delete(1);
 
     const deletePromise = wrapper.delete('testStore', 1);
     setTimeout(() => {
-      requestMock.onsuccess();
+      (requestMock as { onsuccess: () => void }).onsuccess();
     }, 0);
     await deletePromise;
 
@@ -161,21 +207,28 @@ describe('IndexedDBWrapper', () => {
   });
 
   it('should handle clear operation', async () => {
-    (wrapper as unknown as { db: unknown }).db = {
+    const storeMock: MockIDBStore = {
+      put: vi.fn(),
+      getAll: vi.fn(),
+      delete: vi.fn(),
+      clear: vi.fn().mockReturnValue({ onsuccess: vi.fn() }),
+      createIndex: vi.fn()
+    };
+    const dbMock: MockIDBDatabase = {
       transaction: vi.fn().mockReturnValue({
-        objectStore: vi.fn().mockReturnValue({
-          clear: vi.fn().mockReturnValue({ onsuccess: vi.fn() })
-        })
-      })
+        objectStore: vi.fn().mockReturnValue(storeMock)
+      }),
+      createObjectStore: vi.fn(),
+      objectStoreNames: { contains: vi.fn().mockReturnValue(true) }
     };
 
-    const dbMock = (wrapper as unknown as { db: unknown }).db;
-    const storeMock = dbMock.transaction().objectStore();
+    (wrapper as unknown as { db: MockIDBDatabase }).db = dbMock;
+
     const requestMock = storeMock.clear();
 
     const clearPromise = wrapper.clear('testStore');
     setTimeout(() => {
-      requestMock.onsuccess();
+      (requestMock as { onsuccess: () => void }).onsuccess();
     }, 0);
     await clearPromise;
 
