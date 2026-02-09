@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.9349d59
+// @version         1.4.0-unstable.7db8fd2
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -70,25 +70,28 @@
           changed = true;
         }
       }
-      if (!changed) return;
-      if ("enabled" in patch) {
-        localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
+      if (changed) {
+        this._persistChanges(patch);
+        this._notify();
       }
-      if ("isDualViewEnabled" in patch) {
-        localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
-      }
-      if ("guiPos" in patch) {
-        localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
-      }
+    }
+    _persistChanges(patch) {
+      if ("enabled" in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
+      if ("isDualViewEnabled" in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
+      if ("guiPos" in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      this._persistSearchRelatedChanges(patch);
+    }
+    _persistSearchRelatedChanges(patch) {
       const host = window.location.hostname;
       if ("searchQuery" in patch) {
         localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
       }
       if ("searchContext" in patch) {
+        const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
         if (patch.searchContext) {
-          localStorage.setItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, JSON.stringify(patch.searchContext));
+          localStorage.setItem(key, JSON.stringify(patch.searchContext));
         } else {
-          localStorage.removeItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+          localStorage.removeItem(key);
         }
       }
       if ("searchCache" in patch) {
@@ -101,7 +104,6 @@
       if ("searchHistory" in patch) {
         localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
       }
-      this._notify();
     }
     subscribe(callback) {
       this.listeners.push(callback);
@@ -300,10 +302,78 @@
     if (index < 0 || index >= imgs.length) return null;
     return imgs[index];
   }
+  function isEligibleForPairing(i, total, spreadOffset) {
+    const effectiveIndex = i - spreadOffset;
+    const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
+    const isFirstPage = i === 0;
+    const isNextLastPage = i + 1 === total - 1;
+    return isPairingPosition && i + 1 < total && !isFirstPage && !isNextLastPage;
+  }
+  function getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled) {
+    if (!isDualViewEnabled || !isEligibleForPairing(i, allImages.length, spreadOffset)) {
+      return { pairWithNext: false, nextImg: null };
+    }
+    const img = allImages[i];
+    const candidate = allImages[i + 1];
+    if (img && candidate && typeof img.naturalWidth === "number" && typeof img.naturalHeight === "number" && typeof candidate.naturalWidth === "number" && typeof candidate.naturalHeight === "number") {
+      const isLandscape = img.naturalWidth > img.naturalHeight;
+      const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
+      if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
+        return { pairWithNext: true, nextImg: candidate };
+      }
+    }
+    return { pairWithNext: false, nextImg: null };
+  }
+  function applyRowLayout(wrapper, img, nextImg, viewport) {
+    Object.assign(wrapper.style, {
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      width: "100vw",
+      maxWidth: "100vw",
+      marginLeft: "calc(50% - 50vw)",
+      marginRight: "calc(50% - 50vw)",
+      height: "100vh",
+      marginBottom: "0",
+      position: "relative",
+      boxSizing: "border-box"
+    });
+    if (nextImg) {
+      wrapper.style.flexDirection = "row-reverse";
+      [img, nextImg].forEach((im) => {
+        Object.assign(im.style, {
+          maxWidth: "50%",
+          maxHeight: "100%",
+          width: "auto",
+          height: "auto",
+          objectFit: "contain",
+          margin: "0",
+          display: "block"
+        });
+      });
+      if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
+        wrapper.replaceChildren(img, nextImg);
+      }
+    } else {
+      wrapper.style.flexDirection = "row";
+      Object.assign(img.style, {
+        maxWidth: `${viewport.vw}px`,
+        maxHeight: `${viewport.vh}px`,
+        width: "auto",
+        height: "auto",
+        display: "block",
+        margin: "0 auto",
+        flexShrink: "0",
+        objectFit: "contain"
+      });
+      if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
+        wrapper.replaceChildren(img);
+      }
+    }
+  }
   function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
     if (!container) return;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const viewport = { vw: window.innerWidth, vh: window.innerHeight };
     Object.assign(container.style, {
       display: "flex",
       flexDirection: "column",
@@ -318,80 +388,16 @@
     let wrapperIndex = 0;
     for (let i = 0; i < allImages.length; i++) {
       const img = allImages[i];
-      if (!img || typeof img.naturalWidth !== "number" || typeof img.naturalHeight !== "number") {
-        continue;
-      }
-      const isLandscape = img.naturalWidth > img.naturalHeight;
-      let pairWithNext = false;
-      let nextImg = null;
-      const effectiveIndex = i - spreadOffset;
-      const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
-      const isFirstPage = i === 0;
-      const isNextLastPage = i + 1 === allImages.length - 1;
-      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
-        const candidate = allImages[i + 1];
-        if (candidate && typeof candidate.naturalWidth === "number" && typeof candidate.naturalHeight === "number") {
-          const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
-          if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
-            pairWithNext = true;
-            nextImg = candidate;
-          }
-        }
-      }
+      if (!img || typeof img.naturalWidth !== "number") continue;
+      const { pairWithNext, nextImg } = getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled);
       let wrapper = existingWrappers[wrapperIndex];
       if (!wrapper) {
         wrapper = document.createElement("div");
         wrapper.className = "comic-row-wrapper";
-        container.appendChild(wrapper);
-      } else {
-        container.appendChild(wrapper);
       }
-      Object.assign(wrapper.style, {
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100vw",
-        maxWidth: "100vw",
-        marginLeft: "calc(50% - 50vw)",
-        marginRight: "calc(50% - 50vw)",
-        height: "100vh",
-        marginBottom: "0",
-        position: "relative",
-        boxSizing: "border-box"
-      });
-      if (pairWithNext && nextImg) {
-        wrapper.style.flexDirection = "row-reverse";
-        [img, nextImg].forEach((im) => {
-          Object.assign(im.style, {
-            maxWidth: "50%",
-            maxHeight: "100%",
-            width: "auto",
-            height: "auto",
-            objectFit: "contain",
-            margin: "0",
-            display: "block"
-          });
-        });
-        if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
-          wrapper.replaceChildren(img, nextImg);
-        }
-        i++;
-      } else {
-        wrapper.style.flexDirection = "row";
-        Object.assign(img.style, {
-          maxWidth: `${vw}px`,
-          maxHeight: `${vh}px`,
-          width: "auto",
-          height: "auto",
-          display: "block",
-          margin: "0 auto",
-          flexShrink: "0",
-          objectFit: "contain"
-        });
-        if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
-          wrapper.replaceChildren(img);
-        }
-      }
+      container.appendChild(wrapper);
+      applyRowLayout(wrapper, img, nextImg, viewport);
+      if (pairWithNext) i++;
       wrapperIndex++;
     }
     while (wrapperIndex < existingWrappers.length) {
@@ -477,32 +483,28 @@
       });
     }
   }
+  function triggerImageDecode(img) {
+    if (img && !img.complete) {
+      img.loading = "eager";
+      if ("decode" in img && typeof img.decode === "function") {
+        img.decode().catch(() => {
+        });
+      }
+    }
+  }
   function preloadImages(images, currentIndex, count = 3) {
     if (!images || !Array.isArray(images) || images.length === 0) return;
     for (let i = 1; i <= count; i++) {
       const nextIndex = currentIndex + i;
       if (nextIndex < images.length) {
-        const img = images[nextIndex];
-        if (img && !img.complete) {
-          img.loading = "eager";
-          if ("decode" in img && typeof img.decode === "function") {
-            img.decode().catch(() => {
-            });
-          }
-        }
+        triggerImageDecode(images[nextIndex]);
       }
     }
-    for (let i = 1; i <= Math.min(count, 2); i++) {
+    const prevCount = Math.min(count, 2);
+    for (let i = 1; i <= prevCount; i++) {
       const prevIndex = currentIndex - i;
       if (prevIndex >= 0) {
-        const img = images[prevIndex];
-        if (img && !img.complete) {
-          img.loading = "eager";
-          if ("decode" in img && typeof img.decode === "function") {
-            img.decode().catch(() => {
-            });
-          }
-        }
+        triggerImageDecode(images[prevIndex]);
       }
     }
   }
@@ -565,10 +567,7 @@
       imgs.forEach((img) => {
         if (!img.complete) {
           img.addEventListener("load", () => {
-            if (this.pendingTargetIndex !== null) {
-              console.log("[Navigator] Skipping auto applyLayout because navigation is pending");
-              return;
-            }
+            if (this.pendingTargetIndex !== null) return;
             requestAnimationFrame(() => this.applyLayout());
           });
         }
@@ -584,8 +583,7 @@
     }
     updatePageCounter() {
       const state = this.store.getState();
-      const { enabled } = state;
-      if (!enabled) return;
+      if (!state.enabled) return;
       const imgs = this.getImages();
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       if (currentIndex !== -1) {
@@ -597,15 +595,12 @@
       const imgs = this.getImages();
       const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
       const targetImg = getImageElementByIndex(imgs, index);
-      console.log(`[Navigator] jumpToPage: ${pageNumber} (index: ${index})`, { complete: targetImg?.complete, height: targetImg?.naturalHeight });
       if (targetImg) {
         this.pendingTargetIndex = index;
         forceImageLoad(targetImg);
         if (!targetImg.complete || targetImg.naturalHeight === 0) {
-          console.log(`[Navigator] Waiting for image load...`);
           this.store.setState({ isLoading: true });
           await waitForImageLoad(targetImg);
-          console.log(`[Navigator] Image loaded. Applying layout...`);
           this.applyLayout(index);
           this.store.setState({ isLoading: false });
         } else {
@@ -615,52 +610,51 @@
           this.pendingTargetIndex = null;
         });
         return true;
-      } else {
-        this.updatePageCounter();
-        return false;
       }
+      this.updatePageCounter();
+      return false;
+    }
+    _calculateTargetIndex(imgs, direction) {
+      const { isDualViewEnabled } = this.store.getState();
+      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      let targetIndex = currentIndex + direction;
+      if (targetIndex < 0) return 0;
+      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
+        const currentImg = imgs[currentIndex];
+        const prospective = imgs[targetIndex];
+        if (currentImg && prospective && prospective.parentElement === currentImg.parentElement && prospective.parentElement?.classList.contains("comic-row-wrapper")) {
+          targetIndex += direction;
+        }
+      }
+      return targetIndex;
     }
     async scrollToImage(direction) {
       const imgs = this.getImages();
       if (imgs.length === 0) return;
-      const { isDualViewEnabled } = this.store.getState();
-      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-      let targetIndex = currentIndex + direction;
-      if (targetIndex < 0) targetIndex = 0;
-      if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-        const currentImg = imgs[currentIndex];
-        if (targetIndex < imgs.length) {
-          const prospectiveTargetImg = imgs[targetIndex];
-          if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
-            targetIndex += direction;
-          }
-        }
-      }
+      const targetIndex = this._calculateTargetIndex(imgs, direction);
       if (targetIndex >= imgs.length) {
         if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
           this.store.setState({ isMetadataModalOpen: true });
         }
         return;
       }
-      console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
       const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
-      const finalTarget = imgs[finalIndex];
-      if (finalTarget) {
-        this.pendingTargetIndex = finalIndex;
-        forceImageLoad(finalTarget);
-        if (!finalTarget.complete || finalTarget.naturalHeight === 0) {
-          console.log(`[Navigator] Waiting for image load...`);
-          this.store.setState({ isLoading: true });
-          await waitForImageLoad(finalTarget);
-          this.applyLayout(finalIndex);
-          this.store.setState({ isLoading: false });
-        } else {
-          finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-        requestAnimationFrame(() => {
-          this.pendingTargetIndex = null;
-        });
+      await this._performScrollToImage(imgs[finalIndex], finalIndex);
+    }
+    async _performScrollToImage(target, index) {
+      this.pendingTargetIndex = index;
+      forceImageLoad(target);
+      if (!target.complete || target.naturalHeight === 0) {
+        this.store.setState({ isLoading: true });
+        await waitForImageLoad(target);
+        this.applyLayout(index);
+        this.store.setState({ isLoading: false });
+      } else {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
       }
+      requestAnimationFrame(() => {
+        this.pendingTargetIndex = null;
+      });
     }
     async scrollToEdge(position) {
       const imgs = this.getImages();
@@ -690,14 +684,12 @@
       const imgs = this.getImages();
       const viewportIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       const currentIndex = this.pendingTargetIndex !== null ? this.pendingTargetIndex : forcedIndex !== void 0 ? forcedIndex : viewportIndex;
-      console.log(`[Navigator] applyLayout: current=${currentIndex}, pending=${this.pendingTargetIndex}, forced=${forcedIndex}, viewport=${viewportIndex}`);
       fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
       if (currentIndex !== -1) {
         const targetImg = imgs[currentIndex];
         if (targetImg) {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
               targetImg.scrollIntoView({ block: "center" });
             });
           });
@@ -1389,43 +1381,55 @@
     style.textContent = styles;
     document.head.appendChild(style);
   }
-  function createElement(tag, options = {}, children = []) {
-    const el = document.createElement(tag);
-    const opts = options || {};
+  function applyBasicProperties(el, opts) {
     if (opts.id) el.id = opts.id;
     if (opts.className) el.className = opts.className;
     if (opts.textContent) el.textContent = opts.textContent;
     if (opts.title) el.title = opts.title;
+  }
+  function applyInputProperties(el, opts) {
     if (el instanceof HTMLInputElement) {
       if (opts.type) el.type = opts.type;
       if (opts.checked !== void 0) el.checked = opts.checked;
     }
+  }
+  function applyAttributes(el, attributes) {
+    if (!attributes) return;
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value !== null && value !== void 0) {
+        el.setAttribute(key, String(value));
+      }
+    }
+  }
+  function applyEvents(el, events) {
+    if (!events) return;
+    for (const [type, listener] of Object.entries(events)) {
+      if (listener) {
+        el.addEventListener(type, listener);
+      }
+    }
+  }
+  function appendChildren(el, children) {
+    if (!children || !Array.isArray(children)) return;
+    children.forEach((child) => {
+      if (typeof child === "string") {
+        el.appendChild(document.createTextNode(child));
+      } else if (child instanceof HTMLElement) {
+        el.appendChild(child);
+      }
+    });
+  }
+  function createElement(tag, options = {}, children = []) {
+    const el = document.createElement(tag);
+    const opts = options || {};
+    applyBasicProperties(el, opts);
+    applyInputProperties(el, opts);
     if (opts.style) {
       Object.assign(el.style, opts.style);
     }
-    if (opts.attributes) {
-      for (const [key, value] of Object.entries(opts.attributes)) {
-        if (value !== null && value !== void 0) {
-          el.setAttribute(key, String(value));
-        }
-      }
-    }
-    if (opts.events) {
-      for (const [type, listener] of Object.entries(opts.events)) {
-        if (listener) {
-          el.addEventListener(type, listener);
-        }
-      }
-    }
-    if (children && Array.isArray(children)) {
-      children.forEach((child) => {
-        if (typeof child === "string") {
-          el.appendChild(document.createTextNode(child));
-        } else if (child instanceof HTMLElement) {
-          el.appendChild(child);
-        }
-      });
-    }
+    applyAttributes(el, opts.attributes);
+    applyEvents(el, opts.events);
+    appendChildren(el, children);
     return el;
   }
   const MESSAGES = {
@@ -1771,7 +1775,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.9349d59"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.7db8fd2"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2310,33 +2314,29 @@
   function normalizeQuery(query) {
     return query.trim().toLowerCase().split(/\s+/).sort().join(" ");
   }
+  function contextsMatch(c1, c2) {
+    if (!c1 && !c2) return true;
+    if (!c1 || !c2) return false;
+    return c1.type === c2.type && c1.label === c2.label;
+  }
   class UIManager {
     adapter;
     store;
     navigator;
     // Component references
-    powerComp;
-    counterComp;
-    spreadComp;
-    progressComp;
-    loadingComp;
-    draggable;
-    modalEl;
-    helpModalEl;
-    searchModalComp;
+    powerComp = null;
+    counterComp = null;
+    spreadComp = null;
+    progressComp = null;
+    loadingComp = null;
+    draggable = null;
+    modalEl = null;
+    helpModalEl = null;
+    searchModalComp = null;
     constructor(adapter, store, navigator2) {
       this.adapter = adapter;
       this.store = store;
       this.navigator = navigator2;
-      this.powerComp = null;
-      this.counterComp = null;
-      this.spreadComp = null;
-      this.progressComp = null;
-      this.loadingComp = null;
-      this.draggable = null;
-      this.modalEl = null;
-      this.helpModalEl = null;
-      this.searchModalComp = null;
       this.updateUI = this.updateUI.bind(this);
       this.init = this.init.bind(this);
     }
@@ -2353,63 +2353,51 @@
     }
     updateUI() {
       const state = this.store.getState();
-      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex, isLoading } = state;
+      const container = this._ensureRootContainer(state.guiPos);
+      this._initializeComponents(container);
+      this._updateModals(state);
+      this.powerComp?.update(state.enabled);
+      this.loadingComp?.update(state.isLoading);
+      document.documentElement.classList.toggle("comic-helper-enabled", state.enabled);
+      this._updateVisibility(container, state);
+    }
+    _ensureRootContainer(guiPos) {
       let container = document.getElementById("comic-helper-ui");
       if (!container) {
         container = createElement("div", { id: "comic-helper-ui" });
         if (guiPos) {
-          Object.assign(container.style, {
-            top: `${guiPos.top}px`,
-            left: `${guiPos.left}px`,
-            bottom: "auto",
-            right: "auto"
-          });
+          Object.assign(container.style, { top: `${guiPos.top}px`, left: `${guiPos.left}px`, bottom: "auto", right: "auto" });
         }
         this.draggable = new Draggable(container, {
           onDragEnd: (top, left) => this.store.setState({ guiPos: { top, left } })
         });
         document.body.appendChild(container);
       }
+      return container;
+    }
+    _initializeComponents(container) {
+      const state = this.store.getState();
+      const imgs = this.navigator.getImages();
       if (!this.powerComp) {
         this.powerComp = createPowerButton({
-          isEnabled: enabled,
-          onClick: () => {
-            const newState = !this.store.getState().enabled;
-            this.store.setState({ enabled: newState });
-          }
+          isEnabled: state.enabled,
+          onClick: () => this.store.setState({ enabled: !this.store.getState().enabled })
         });
         container.appendChild(this.powerComp.el);
       }
-      const imgs = this.navigator.getImages();
       if (!this.counterComp) {
         this.counterComp = createPageCounter({
-          current: currentVisibleIndex + 1,
+          current: state.currentVisibleIndex + 1,
           total: imgs.length,
-          onJump: (val) => {
-            (async () => {
-              const success = await this.navigator.jumpToPage(val);
-              if (this.counterComp) {
-                this.counterComp.input.blur();
-                if (!success) {
-                  this.counterComp.input.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
-                  setTimeout(() => {
-                    if (this.counterComp) this.counterComp.input.style.backgroundColor = "";
-                  }, 500);
-                }
-              }
-            })();
-          }
+          onJump: (val) => this._handleJump(val)
         });
         container.appendChild(this.counterComp.el);
       }
       if (!this.spreadComp) {
         this.spreadComp = createSpreadControls({
-          isDualViewEnabled,
+          isDualViewEnabled: state.isDualViewEnabled,
           onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
-          onAdjust: () => {
-            const { spreadOffset } = this.store.getState();
-            this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-          }
+          onAdjust: () => this.store.setState({ spreadOffset: this.store.getState().spreadOffset === 0 ? 1 : 0 })
         });
         container.appendChild(this.spreadComp.el);
       }
@@ -2418,102 +2406,116 @@
         document.body.appendChild(this.progressComp.el);
       }
       if (!this.loadingComp) {
-        this.loadingComp = createLoadingIndicator({ isLoading });
+        this.loadingComp = createLoadingIndicator({ isLoading: state.isLoading });
         document.body.appendChild(this.loadingComp.el);
       }
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
-        const { metadata: metadata2 } = state;
-        const navBtns = createNavigationButtons({
-          onFirst: () => {
-            void this.navigator.scrollToEdge("start");
-          },
-          onPrev: () => {
-            void this.navigator.scrollToImage(-1);
-          },
-          onNext: () => {
-            void this.navigator.scrollToImage(1);
-          },
-          onLast: () => {
-            void this.navigator.scrollToEdge("end");
-          },
-          onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
-          onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-          onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
-          onLucky: () => {
-            jumpToRandomWork(metadata2, state.searchCache);
-          }
-        });
-        navBtns.elements.forEach((btn) => container?.appendChild(btn));
+        this._addNavigationButtons(container);
       }
-      const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, metadata } = state;
-      this.helpModalEl = this._manageModal(
-        isHelpModalOpen,
-        this.helpModalEl,
-        () => createHelpModal({
-          onClose: () => this.store.setState({ isHelpModalOpen: false })
-        })
-      );
-      if (isSearchModalOpen) {
+    }
+    async _handleJump(val) {
+      const success = await this.navigator.jumpToPage(val);
+      if (this.counterComp) {
+        this.counterComp.input.blur();
+        if (!success) {
+          this.counterComp.input.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
+          setTimeout(() => {
+            if (this.counterComp) this.counterComp.input.style.backgroundColor = "";
+          }, 500);
+        }
+      }
+    }
+    _addNavigationButtons(container) {
+      const navBtns = createNavigationButtons({
+        onFirst: () => {
+          void this.navigator.scrollToEdge("start");
+        },
+        onPrev: () => {
+          void this.navigator.scrollToImage(-1);
+        },
+        onNext: () => {
+          void this.navigator.scrollToImage(1);
+        },
+        onLast: () => {
+          void this.navigator.scrollToEdge("end");
+        },
+        onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
+        onHelp: () => this.store.setState({ isHelpModalOpen: true }),
+        onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
+        onLucky: () => {
+          jumpToRandomWork(this.store.getState().metadata, this.store.getState().searchCache);
+        }
+      });
+      navBtns.elements.forEach((btn) => container.appendChild(btn));
+    }
+    _updateModals(state) {
+      this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
+        onClose: () => this.store.setState({ isHelpModalOpen: false })
+      }));
+      this._updateSearchModal(state);
+      this.modalEl = this._manageModal(state.isMetadataModalOpen, this.modalEl, () => createMetadataModal({
+        metadata: state.metadata,
+        onClose: () => this.store.setState({ isMetadataModalOpen: false }),
+        onTagClick: (tag) => this._handleTagClick(tag)
+      }));
+    }
+    _updateSearchModal(state) {
+      if (state.isSearchModalOpen) {
         if (!this.searchModalComp) {
-          const { searchResults, searchQuery, searchCache, searchHistory, searchContext } = state;
           this.searchModalComp = createSearchModal({
-            searchResults,
-            searchQuery,
-            searchContext,
-            searchHistory,
-            onSearch: (query, context) => this._performSearch(query, false, context),
+            searchResults: state.searchResults,
+            searchQuery: state.searchQuery,
+            searchContext: state.searchContext,
+            searchHistory: state.searchHistory,
+            onSearch: (q, ctx) => this._performSearch(q, false, ctx),
             onPageChange: (url) => this._performSearch(url),
-            onClose: () => {
-              this.store.setState({ isSearchModalOpen: false });
-            }
+            onClose: () => this.store.setState({ isSearchModalOpen: false })
           });
           document.body.appendChild(this.searchModalComp.el);
-          const currentContext = state.searchContext;
-          const isContextMatch = !searchCache?.context && !currentContext || searchCache?.context?.type === currentContext?.type && searchCache?.context?.label === currentContext?.label;
-          if (searchCache && searchCache.query === searchQuery && isContextMatch) {
-            this.store.setState({ searchResults: searchCache.results });
-            this.searchModalComp.updateResults(searchCache.results);
-            if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
-              void this._performSearch(searchQuery, true, currentContext);
-            }
-          } else if (searchQuery && currentContext?.type === "keyword") {
-            void this._performSearch(searchQuery);
-          }
+          this._handleSearchSWR(state);
         }
-      } else {
-        if (this.searchModalComp) {
-          this.searchModalComp.el.remove();
-          this.searchModalComp = null;
-        }
+      } else if (this.searchModalComp) {
+        this.searchModalComp.el.remove();
+        this.searchModalComp = null;
       }
-      this.modalEl = this._manageModal(
-        isMetadataModalOpen,
-        this.modalEl,
-        () => createMetadataModal({
-          metadata,
-          onClose: () => this.store.setState({ isMetadataModalOpen: false }),
-          onTagClick: (tag) => {
-            this.store.setState({
-              isMetadataModalOpen: false,
-              isSearchModalOpen: true,
-              searchResults: null
-            });
-            const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
-            return this._performSearch(tag.href, false, {
-              type: contextType,
-              label: tag.text
-            });
-          }
-        })
-      );
-      this.powerComp?.update(enabled);
-      this.loadingComp?.update(isLoading);
-      document.documentElement.classList.toggle("comic-helper-enabled", enabled);
+    }
+    _handleSearchSWR(state) {
+      const { searchCache, searchQuery, searchContext } = state;
+      if (!searchCache) {
+        if (searchQuery && searchContext?.type === "keyword") {
+          void this._performSearch(searchQuery);
+        }
+        return;
+      }
+      this._processSearchCache(searchCache, searchQuery, searchContext);
+    }
+    _processSearchCache(searchCache, searchQuery, searchContext) {
+      if (searchCache.query === searchQuery && contextsMatch(searchCache.context, searchContext)) {
+        this.store.setState({ searchResults: searchCache.results });
+        this.searchModalComp?.updateResults(searchCache.results);
+        this._revalidateCacheIfNeeded(searchCache, searchQuery, searchContext);
+      } else if (searchQuery && searchContext?.type === "keyword") {
+        void this._performSearch(searchQuery);
+      }
+    }
+    _revalidateCacheIfNeeded(searchCache, searchQuery, searchContext) {
+      if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
+        void this._performSearch(searchQuery, true, searchContext);
+      }
+    }
+    _handleTagClick(tag) {
+      this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
+      const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
+      return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
+    }
+    _updateVisibility(container, state) {
+      const imgs = this.navigator.getImages();
+      const { enabled, currentVisibleIndex, isDualViewEnabled } = state;
       if (!enabled) {
         container.style.padding = "4px 8px";
-        if (this.counterComp) this.counterComp.el.style.display = "none";
-        if (this.spreadComp) this.spreadComp.el.style.display = "none";
-        if (this.progressComp) this.progressComp.el.style.display = "none";
+        [this.counterComp, this.spreadComp, this.progressComp].forEach((c) => {
+          if (c) c.el.style.display = "none";
+        });
         container.querySelectorAll(".comic-helper-button").forEach((btn) => {
           btn.style.display = "none";
         });
@@ -2532,23 +2534,15 @@
       this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
       this.spreadComp?.update(isDualViewEnabled);
     }
-    /**
-     * Show resume notification
-     */
     showResumeNotification(savedIndex) {
       const notification = createResumeNotification({
         savedIndex,
-        onResume: () => {
-          this.navigator.jumpToPage(savedIndex + 1);
-        },
+        onResume: () => this.navigator.jumpToPage(savedIndex + 1),
         onSkip: () => {
         }
       });
       document.body.appendChild(notification.el);
     }
-    /**
-     * Private helper to manage modal lifecycle (creation and destruction)
-     */
     _manageModal(isOpen, modalEl, createFn) {
       if (isOpen) {
         if (!modalEl) {
@@ -2556,66 +2550,23 @@
           modalEl = newModal.el;
           document.body.appendChild(modalEl);
         }
-      } else {
-        if (modalEl) {
-          modalEl.remove();
-          modalEl = null;
-        }
+      } else if (modalEl) {
+        modalEl.remove();
+        modalEl = null;
       }
       return modalEl;
     }
-    /**
-     * Perform search and update store/cache
-     */
     async _performSearch(queryOrUrl, silent = false, context) {
       if (!isSearchableAdapter(this.adapter)) return;
-      if (!silent) {
-        this.store.setState({ searchResults: null });
-      }
-      let url;
-      let query;
-      let searchContext = context;
+      if (!silent) this.store.setState({ searchResults: null });
       const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
-      if (isUrl) {
-        url = queryOrUrl;
-        if (context) {
-          query = context.label || "";
-          searchContext = context;
-        } else {
-          query = this.store.getState().searchQuery;
-          searchContext = this.store.getState().searchContext;
-        }
-      } else {
-        query = queryOrUrl;
-        url = this.adapter.getSearchUrl(query);
-        if (!searchContext) {
-          searchContext = { type: "keyword", label: query };
-        }
-        if (!silent) {
-          this.store.setState({ searchQuery: query });
-          if (searchContext.type === "keyword") {
-            this._updateSearchHistory(query);
-          }
-        }
-      }
-      this.store.setState({ searchContext });
+      const { url, query, searchContext } = this._getSearchParameters(queryOrUrl, context);
+      this._updateStoreBeforeSearch(query, searchContext, silent, isUrl);
       this.searchModalComp?.setUpdating(true);
       try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const html = await res.text();
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        const results = this.adapter.parseSearchResults(doc);
+        const results = await this._fetchSearchResults(url);
         results.searchContext = searchContext;
-        this.store.setState({
-          searchResults: results,
-          searchCache: {
-            query,
-            results,
-            fetchedAt: Date.now(),
-            context: searchContext
-          }
-        });
+        this.store.setState({ searchResults: results, searchCache: { query, results, fetchedAt: Date.now(), context: searchContext } });
         this.searchModalComp?.updateResults(results);
       } catch (error) {
         console.error("Failed to fetch search results:", error);
@@ -2623,9 +2574,34 @@
         this.searchModalComp?.setUpdating(false);
       }
     }
-    /**
-     * Update search history with normalization and limit
-     */
+    _updateStoreBeforeSearch(query, context, silent, isUrl) {
+      this.store.setState({ searchContext: context });
+      if (!silent && !isUrl && context.type === "keyword") {
+        this.store.setState({ searchQuery: query });
+        this._updateSearchHistory(query);
+      }
+    }
+    _getSearchParameters(queryOrUrl, context) {
+      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
+      if (isUrl) {
+        const query2 = context ? context.label || "" : this.store.getState().searchQuery;
+        const searchContext2 = context || this.store.getState().searchContext || { type: "keyword", label: query2 };
+        return { url: queryOrUrl, query: query2, searchContext: searchContext2 };
+      }
+      const query = queryOrUrl;
+      const searchableAdapter = this.adapter;
+      const url = searchableAdapter.getSearchUrl(query);
+      const searchContext = context || { type: "keyword", label: query };
+      return { url, query, searchContext };
+    }
+    async _fetchSearchResults(url) {
+      const searchableAdapter = this.adapter;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return searchableAdapter.parseSearchResults(doc);
+    }
     _updateSearchHistory(query) {
       const { searchHistory } = this.store.getState();
       const normalizedNew = normalizeQuery(query);
@@ -2635,6 +2611,17 @@
     }
   }
   const CLICK_THRESHOLD_PX = 5;
+  function matchesShortcut(e, id) {
+    const sc = SHORTCUTS.find((s) => s.id === id);
+    if (!sc) return false;
+    return sc.keys.some((k) => {
+      if (k.startsWith("Shift+")) {
+        const baseKey = k.replace("Shift+", "");
+        return e.shiftKey && e.key === (baseKey === "Space" ? " " : baseKey);
+      }
+      return e.key === (k === "Space" ? " " : k);
+    });
+  }
   class InputManager {
     store;
     navigator;
@@ -2649,8 +2636,6 @@
       this.store = store;
       this.navigator = navigator2;
       this.lastWheelTime = 0;
-      this.resizeReq = void 0;
-      this.scrollReq = void 0;
       this.mouseDownPos = null;
       this.mouseDownTarget = null;
       this.handleWheel = this.handleWheel.bind(this);
@@ -2674,15 +2659,18 @@
       if (!(target instanceof HTMLElement)) return false;
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
     }
+    _isAnyModalOpen() {
+      const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+      return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+    }
     handleWheel(e) {
-      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-      if (!enabled) return;
-      if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
+      const state = this.store.getState();
+      if (!state.enabled) return;
+      if (this._isAnyModalOpen()) {
         const modalContent = document.querySelector(".comic-helper-modal-content");
-        if (modalContent && modalContent.contains(e.target)) {
-          return;
+        if (!modalContent || !modalContent.contains(e.target)) {
+          e.preventDefault();
         }
-        e.preventDefault();
         return;
       }
       e.preventDefault();
@@ -2690,9 +2678,13 @@
       if (now - this.lastWheelTime < this.WHEEL_THROTTLE_MS) return;
       const direction = getNavigationDirection(e, this.WHEEL_THRESHOLD);
       if (direction === "none") return;
+      this.lastWheelTime = now;
+      this._navigateByWheel(direction);
+    }
+    _navigateByWheel(direction) {
+      const { isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
       const imgs = this.navigator.getImages();
       if (imgs.length === 0) return;
-      this.lastWheelTime = now;
       const step = isDualViewEnabled ? 2 : 1;
       if (direction === "next" && currentVisibleIndex + step >= imgs.length) {
         if (!isMetadataModalOpen) {
@@ -2705,73 +2697,62 @@
     }
     onKeyDown(e) {
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-      if (e.key === "Escape") {
-        if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) {
-          e.preventDefault();
-          this.store.setState({
-            isMetadataModalOpen: false,
-            isHelpModalOpen: false,
-            isSearchModalOpen: false
-          });
-          return;
-        }
+      if (this._handleModalCloseShortcuts(e)) return;
+      if (this._handleToggleShortcuts(e)) return;
+      if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
+      this._handleShortcutAction(e);
+    }
+    _handleModalCloseShortcuts(e) {
+      if (e.key === "Escape" && this._isAnyModalOpen()) {
+        e.preventDefault();
+        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+        return true;
       }
-      const isKey = (id) => {
-        const sc = SHORTCUTS.find((s) => s.id === id);
-        if (!sc) return false;
-        return sc.keys.some((k) => {
-          if (k.startsWith("Shift+")) {
-            const baseKey = k.replace("Shift+", "");
-            return e.shiftKey && e.key === (baseKey === "Space" ? " " : baseKey);
-          }
-          return !e.shiftKey && e.key === (k === "Space" ? " " : k);
-        });
+      return false;
+    }
+    _handleToggleShortcuts(e) {
+      if (matchesShortcut(e, "help")) {
+        e.preventDefault();
+        this.store.setState({ isHelpModalOpen: !this.store.getState().isHelpModalOpen });
+        return true;
+      }
+      if (matchesShortcut(e, "search")) {
+        e.preventDefault();
+        this.store.setState({ isSearchModalOpen: !this.store.getState().isSearchModalOpen });
+        return true;
+      }
+      return false;
+    }
+    _handleShortcutAction(e) {
+      const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
+      const actions = {
+        nextPage: () => this.navigator.scrollToImage(1),
+        prevPage: () => this.navigator.scrollToImage(-1),
+        dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
+        spreadOffset: () => {
+          if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+        },
+        metadata: () => this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen }),
+        help: () => this.store.setState({ isHelpModalOpen: !isHelpModalOpen }),
+        fullscreen: () => this._toggleFullscreen(),
+        randomJump: () => jumpToRandomWork(metadata, searchCache)
       };
-      if (isKey("help") && isHelpModalOpen) {
-        e.preventDefault();
-        this.store.setState({ isHelpModalOpen: false });
-        return;
-      }
-      if (isKey("search")) {
-        e.preventDefault();
-        this.store.setState({ isSearchModalOpen: !isSearchModalOpen });
-        return;
-      }
-      if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || !enabled) return;
-      if (isKey("nextPage")) {
-        e.preventDefault();
-        this.navigator.scrollToImage(1);
-      } else if (isKey("prevPage")) {
-        e.preventDefault();
-        this.navigator.scrollToImage(-1);
-      } else if (isKey("dualView")) {
-        e.preventDefault();
-        this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
-      } else if (isKey("spreadOffset") && isDualViewEnabled) {
-        e.preventDefault();
-        const { spreadOffset } = this.store.getState();
-        this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-      } else if (isKey("metadata")) {
-        e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
-      } else if (isKey("help")) {
-        e.preventDefault();
-        this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
-      } else if (isKey("fullscreen")) {
-        e.preventDefault();
-        if (!document.documentElement.requestFullscreen) return;
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => {
-          });
-        } else {
-          document.documentElement.requestFullscreen().catch(() => {
-          });
+      for (const [id, action] of Object.entries(actions)) {
+        if (matchesShortcut(e, id)) {
+          e.preventDefault();
+          action();
+          break;
         }
-      } else if (isKey("randomJump")) {
-        e.preventDefault();
-        const { metadata, searchCache } = this.store.getState();
-        jumpToRandomWork(metadata, searchCache);
+      }
+    }
+    _toggleFullscreen() {
+      if (!document.documentElement.requestFullscreen) return;
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {
+        });
+      } else {
+        document.documentElement.requestFullscreen().catch(() => {
+        });
       }
     }
     handleResize() {
@@ -2802,13 +2783,11 @@
       const startPos = this.mouseDownPos;
       this.mouseDownTarget = null;
       this.mouseDownPos = null;
-      if (!target || !startPos) return;
-      if (!(e.target instanceof HTMLImageElement) || e.target !== target) return;
+      if (!target || !startPos || !(e.target instanceof HTMLImageElement) || e.target !== target) return;
       const dx = e.clientX - startPos.x;
       const dy = e.clientY - startPos.y;
       if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
-      const { enabled, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-      if (!enabled || isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) return;
+      if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
       const direction = getClickNavigationDirection(target);
       this.navigator.scrollToImage(direction === "next" ? 1 : -1);
     }
