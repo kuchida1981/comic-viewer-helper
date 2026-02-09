@@ -65,7 +65,7 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
     const link = createElement('a', {
       className: 'comic-helper-search-result-item',
       attributes: { href: item.href, target: '_blank' },
-      events: { click: (e) => e.stopPropagation() }
+      events: { click: function handleItemClick(e) { e.stopPropagation(); } }
     }, [thumb, title]);
     grid.appendChild(link);
   });
@@ -86,7 +86,7 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
           ...( (!item.url || item.isCurrent) ? { disabled: 'true' } : {} )
         },
         events: {
-          click: (e) => {
+          click: function handlePageClick(e) {
             e.preventDefault();
             e.stopPropagation();
             if (item.url) onPageChange(item.url);
@@ -122,7 +122,7 @@ export function createSearchTab({ onSearch, onPageChange, searchResults, searchQ
     }
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = function handleSubmit() {
     const query = input.value.trim();
     if (query) onSearch(query);
   };
@@ -130,7 +130,7 @@ export function createSearchTab({ onSearch, onPageChange, searchResults, searchQ
   const form = createElement('form', {
     className: 'comic-helper-search-form',
     events: {
-      submit: (e) => {
+      submit: function onFormSubmit(e) {
         e.preventDefault();
         e.stopPropagation();
         handleSubmit();
@@ -148,12 +148,12 @@ export function createSearchTab({ onSearch, onPageChange, searchResults, searchQ
       textContent: `${t('ui.searchHistory')}:`
     }));
 
-    searchHistory.forEach(historyItem => {
+    searchHistory.forEach(function renderHistoryItem(historyItem) {
       const btn = createElement('button', {
         className: `comic-helper-search-history-item`,
         textContent: historyItem,
         events: {
-          click: (e) => {
+          click: function handleHistoryItemClick(e) {
             e.preventDefault();
             input.value = historyItem;
             onSearch(historyItem);
@@ -172,7 +172,7 @@ export function createSearchTab({ onSearch, onPageChange, searchResults, searchQ
   return {
     el,
     input,
-    updateResults: (newResults: SearchResultsState | null) => {
+    updateResults: function updateSearchTabResults(newResults: SearchResultsState | null) {
       const newSection = createResultsSection(newResults, onPageChange);
       el.replaceChild(newSection, resultsSection);
       resultsSection = newSection;

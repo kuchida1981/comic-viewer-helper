@@ -33,7 +33,7 @@ export class Navigator {
   }
 
   init(): void {
-    this.store.subscribe((state: StoreState) => {
+    this.store.subscribe(function onStoreUpdate(state: StoreState) {
       const layoutChanged =
         state.enabled !== this._lastEnabled ||
         state.isDualViewEnabled !== this._lastDualView ||
@@ -45,7 +45,7 @@ export class Navigator {
         this._lastDualView = state.isDualViewEnabled;
         this._lastSpreadOffset = state.spreadOffset;
       }
-    });
+    }.bind(this));
 
     const initialState = this.store.getState();
     this._lastEnabled = initialState.enabled;
@@ -53,19 +53,19 @@ export class Navigator {
     this._lastSpreadOffset = initialState.spreadOffset;
 
     const imgs = this.getImages();
-    imgs.forEach(img => {
+    imgs.forEach(function addLoadListener(img) {
       if (!img.complete) {
-        img.addEventListener('load', () => {
+        img.addEventListener('load', function handleImageLoad() {
           // If we are explicitly navigating to a target, ignore automatic layout updates
           // triggered by image loads, as jumpToPage/scrollToImage will handle it.
           if (this.pendingTargetIndex !== null) {
             console.log('[Navigator] Skipping auto applyLayout because navigation is pending');
             return;
           }
-          requestAnimationFrame(() => this.applyLayout());
-        });
+          requestAnimationFrame(function onImageLoadFrame() { this.applyLayout(); }.bind(this));
+        }.bind(this));
       }
-    });
+    }.bind(this));
 
     if (initialState.enabled) {
       this.applyLayout();
@@ -113,9 +113,9 @@ export class Navigator {
         this.applyLayout(index);
       }
 
-      requestAnimationFrame(() => {
+      requestAnimationFrame(function clearPendingTargetJump() {
         this.pendingTargetIndex = null;
-      });
+      }.bind(this));
       return true;
     } else {
       this.updatePageCounter();
@@ -169,9 +169,9 @@ export class Navigator {
         finalTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
 
-      requestAnimationFrame(() => {
+      requestAnimationFrame(function clearPendingTargetScroll() {
         this.pendingTargetIndex = null;
-      });
+      }.bind(this));
     }
   }
 
@@ -194,9 +194,9 @@ export class Navigator {
     // applyLayout は RAF 内で scrollIntoView を実行する。
     // ガードを RAF と同じフレームで解除することで、スクロール実行前の画像ロード
     // イベントによる割り込み applyLayout を防止する。
-    requestAnimationFrame(() => {
+    requestAnimationFrame(function clearPendingTargetEdge() {
       this.pendingTargetIndex = null;
-    });
+    }.bind(this));
   }
 
   applyLayout(forcedIndex?: number): void {
@@ -225,8 +225,8 @@ export class Navigator {
       if (targetImg) {
         // DOM update might take a moment to be reflected in layout.
         // Wait for next frames before scrolling to ensure layout is stable.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
+        requestAnimationFrame(function waitForLayout1() {
+          requestAnimationFrame(function waitForLayout2() {
             console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
             targetImg.scrollIntoView({ block: 'center' });
           });

@@ -25,7 +25,7 @@ class App {
 
     // Select adapter (currently only DefaultAdapter)
     const adapters: SiteAdapter[] = [DefaultAdapter];
-    this.adapter = adapters.find(a => a.match(window.location.href)) || DefaultAdapter;
+    this.adapter = adapters.find(function matchAdapter(a) { return a.match(window.location.href); }) || DefaultAdapter;
 
     this.navigator = new Navigator(this.adapter, this.store);
     this.historyManager = new HistoryManager();
@@ -69,19 +69,19 @@ class App {
     }
 
     // Save position on page unload
-    window.addEventListener('beforeunload', () => {
+    window.addEventListener('beforeunload', function handleBeforeUnload() {
       if (this.resumeManager.isEnabled()) {
         const workKey = window.location.origin + window.location.pathname;
         const currentIndex = this.store.getState().currentVisibleIndex;
         this.resumeManager.savePosition(workKey, currentIndex);
       }
-    });
+    }.bind(this));
   }
 }
 
 const app = new App();
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', app.init);
+  document.addEventListener('DOMContentLoaded', function handleDOMContentLoaded() { app.init(); });
 } else {
   app.init();
 }

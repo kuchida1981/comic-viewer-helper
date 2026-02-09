@@ -81,6 +81,51 @@ describe('SearchModal', () => {
     expect(onDeleteHistory).toHaveBeenCalledWith('url1');
   });
 
+  it('should prevent propagation on history item click', () => {
+    const history = [{ url: 'u', title: 'T', thumb: '', tags: [], lastViewedAt: 0 }];
+    const { el, setTab } = createSearchModal({ ...defaultProps, history });
+    setTab('history');
+    const item = el.querySelector('.comic-helper-search-result-item') as HTMLElement;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const spy = vi.spyOn(event, 'stopPropagation');
+    item.dispatchEvent(event);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should prevent propagation on history item click', () => {
+    const history = [{ url: 'u', title: 'T', thumb: '', tags: [], lastViewedAt: 0 }];
+    const { el, setTab } = createSearchModal({ ...defaultProps, history });
+    setTab('history');
+    const item = el.querySelector('.comic-helper-search-result-item') as HTMLElement;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const spy = vi.spyOn(event, 'stopPropagation');
+    item.dispatchEvent(event);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should call onClearHistory', () => {
+    const onClearHistory = vi.fn();
+    const { el, setTab } = createSearchModal({ ...defaultProps, onClearHistory, history: [{ url: 'u1', title: 'M1', thumb: '', tags: [], lastViewedAt: 0 }] });
+    setTab('history');
+    const clearBtn = el.querySelector('.comic-helper-button') as HTMLElement;
+    clearBtn.click();
+    expect(onClearHistory).toHaveBeenCalled();
+  });
+
+  it('should call onSearch when a tag is clicked in analysis tab', () => {
+    const onSearch = vi.fn();
+    const history = [
+      { url: 'u1', title: 'M1', thumb: 't1.jpg', tags: [{ text: 'Tag A', href: 'hA', type: 'genre' }], lastViewedAt: Date.now() }
+    ];
+    const { el, setTab } = createSearchModal({ ...defaultProps, history, onSearch });
+    setTab('analysis');
+    
+    const tagChip = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
+    tagChip.click();
+    
+    expect(onSearch).toHaveBeenCalledWith('hA', { type: 'tag', label: 'Tag A' });
+  });
+
   describe('updating state', () => {
     it('should show loading indicators when setUpdating(true) after delay', () => {
       const { el, setUpdating } = createSearchModal(defaultProps);
@@ -127,6 +172,115 @@ describe('SearchModal', () => {
     ];
     updateHistory(newHistory);
     expect(el.textContent).toContain('New Manga');
+  });
+
+  it('should call onSearch when a tag is clicked in analysis tab', () => {
+    const onSearch = vi.fn();
+    const history = [
+      { url: 'u1', title: 'M1', thumb: 't1.jpg', tags: [{ text: 'Tag A', href: 'hA', type: 'genre' }], lastViewedAt: Date.now() }
+    ];
+    const { el, setTab } = createSearchModal({ ...defaultProps, history, onSearch });
+    setTab('analysis');
+    
+    const tagChip = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
+    tagChip.click();
+    
+    expect(onSearch).toHaveBeenCalledWith('hA', { type: 'tag', label: 'Tag A' });
+  });
+
+  it('should call onSearch when a tag is clicked in analysis tab', () => {
+    const onSearch = vi.fn();
+    const history = [
+      { url: 'u1', title: 'M1', thumb: 't1.jpg', tags: [{ text: 'Tag A', href: 'hA', type: 'genre' }], lastViewedAt: Date.now() }
+    ];
+    const { el, setTab } = createSearchModal({ ...defaultProps, history, onSearch });
+    setTab('analysis');
+    
+    const tagChip = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
+    tagChip.click();
+    
+    expect(onSearch).toHaveBeenCalledWith('hA', { type: 'tag', label: 'Tag A' });
+  });
+
+  it('should clear results grid when results are null', () => {
+    const { el, updateResults } = createSearchModal(defaultProps);
+    const results = {
+      results: [{ title: 'Work', href: '/w', thumb: 'w.jpg' }],
+      totalCount: '1',
+      nextPageUrl: null,
+      pagination: []
+    };
+    updateResults(results);
+    expect(el.textContent).toContain('Work');
+
+    updateResults(null);
+    expect(el.querySelector('.comic-helper-search-result-grid')).toBeNull();
+  });
+
+  it('should activate tab buttons when setTab is called', () => {
+    const { el, setTab } = createSearchModal(defaultProps);
+    const historyBtn = el.querySelector('.comic-helper-tab-btn:nth-child(2)') as HTMLElement;
+    
+    setTab('history');
+    expect(historyBtn.classList.contains('active')).toBe(true);
+    
+    const searchBtn = el.querySelector('.comic-helper-tab-btn:nth-child(1)') as HTMLElement;
+    setTab('search');
+    expect(searchBtn.classList.contains('active')).toBe(true);
+    expect(historyBtn.classList.contains('active')).toBe(false);
+
+    // analysis tab
+    setTab('analysis');
+    expect(el.textContent).toContain(t('ui.analysisTab'));
+  });
+
+  it('should update results and handle scroll reset', () => {
+    const { el, updateResults, setTab } = createSearchModal(defaultProps);
+    
+    // search tab
+    setTab('search');
+    updateResults({ results: [], totalCount: '0', nextPageUrl: null, pagination: [] });
+    
+    // results = null
+    updateResults(null);
+    expect(el.querySelector('.comic-helper-search-result-grid')).toBeNull();
+
+    // results = null in analysis tab
+    setTab('analysis');
+    updateResults(null);
+  });
+
+  it('should call onPageChange from search tab', () => {
+    const onPageChange = vi.fn();
+    const results = {
+      results: [{ title: 'A', href: '/a', thumb: 'a.jpg' }],
+      totalCount: '10',
+      nextPageUrl: '/p2',
+      pagination: [{ label: '2', url: '/p2', isCurrent: false, type: 'page' as const }]
+    };
+    const { el, updateResults } = createSearchModal({ ...defaultProps, onPageChange });
+    updateResults(results);
+    
+    const p2Btn = el.querySelector('.comic-helper-search-page-btn') as HTMLElement;
+    p2Btn.click();
+    expect(onPageChange).toHaveBeenCalledWith('/p2');
+  });
+
+  it('should prevent propagation on result item click', () => {
+    const results = {
+      results: [{ title: 'A', href: '/a', thumb: 'a.jpg' }],
+      totalCount: '1',
+      nextPageUrl: null,
+      pagination: []
+    };
+    const { el, updateResults } = createSearchModal(defaultProps);
+    updateResults(results);
+    
+    const item = el.querySelector('.comic-helper-search-result-item') as HTMLElement;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const spy = vi.spyOn(event, 'stopPropagation');
+    item.dispatchEvent(event);
+    expect(spy).toHaveBeenCalled();
   });
 
   describe('scroll isolation', () => {

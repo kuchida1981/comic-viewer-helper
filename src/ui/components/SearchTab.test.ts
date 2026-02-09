@@ -34,6 +34,14 @@ describe('SearchTab', () => {
     expect(chips[0].textContent).toBe('h1');
   });
 
+  it('should call onSearch when a history chip is clicked', () => {
+    const onSearch = vi.fn();
+    const { el } = createSearchTab({ ...defaultProps, onSearch, searchHistory: ['history query'] });
+    const chip = el.querySelector('.comic-helper-search-history-item') as HTMLElement;
+    chip.click();
+    expect(onSearch).toHaveBeenCalledWith('history query');
+  });
+
   it('should update results', () => {
     const { el, updateResults } = createSearchTab(defaultProps);
     const results = {
@@ -65,6 +73,20 @@ describe('SearchTab', () => {
     expect(onPageChange).toHaveBeenCalledWith('/p2');
   });
 
+  it('should render special pagination labels', () => {
+    const results = {
+      results: [{ title: 'A', href: '/a', thumb: 'a.jpg' }], totalCount: '10', nextPageUrl: null,
+      pagination: [
+        { label: 'Next', url: '/next', isCurrent: false, type: 'next' as const },
+        { label: 'Prev', url: '/prev', isCurrent: false, type: 'prev' as const }
+      ]
+    };
+    const { el } = createSearchTab({ ...defaultProps, searchResults: results });
+    const buttons = el.querySelectorAll('.comic-helper-search-page-btn');
+    expect((buttons[0] as HTMLElement).title).toBe(t('ui.goNext'));
+    expect((buttons[1] as HTMLElement).title).toBe(t('ui.goPrev'));
+  });
+
   it('should show no results message', () => {
     const results = { results: [], totalCount: '0', nextPageUrl: null, pagination: [] };
     const { el } = createSearchTab({ ...defaultProps, searchResults: results });
@@ -78,5 +100,17 @@ describe('SearchTab', () => {
     };
     const { el } = createSearchTab({ ...defaultProps, searchResults: results });
     expect(el.textContent).toContain('Tag: MyTag');
+  });
+
+  it('should render results without pagination when not provided', () => {
+    const results = { 
+      results: [{ title: 'Single Work', href: '/s', thumb: 's.jpg' }],
+      totalCount: '1',
+      nextPageUrl: null,
+      pagination: []
+    };
+    const { el } = createSearchTab({ ...defaultProps, searchResults: results });
+    expect(el.textContent).toContain('Single Work');
+    expect(el.querySelector('.comic-helper-search-pagination')).toBeNull();
   });
 });

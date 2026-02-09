@@ -43,7 +43,7 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
       className: `comic-helper-tab-btn${activeTabId === id ? ' active' : ''}`,
       textContent: label,
       events: {
-        click: () => setTab(id)
+        click: function handleTabBtnClick() { setTab(id); }
       }
     });
     tabButtons[id] = btn;
@@ -62,7 +62,7 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
   let historyTabEl: HTMLElement | null = null;
   let analysisTabEl: HTMLElement | null = null;
 
-  const renderActiveTab = () => {
+  const renderActiveTab = function renderActiveTab() {
     contentContainer.innerHTML = '';
     if (activeTabId === 'search') {
       if (!searchTab) {
@@ -70,16 +70,18 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
       }
       contentContainer.appendChild(searchTab.el);
     } else if (activeTabId === 'history') {
+      const handleHistoryDelete = function handleHistoryDelete(url: string) { return onDeleteHistory(url); };
+      const handleHistoryClear = function handleHistoryClear() { return onClearHistory(); };
       historyTabEl = createHistoryTab({
         history: props.history,
-        onDelete: onDeleteHistory,
-        onClear: onClearHistory
+        onDelete: handleHistoryDelete,
+        onClear: handleHistoryClear
       });
       contentContainer.appendChild(historyTabEl);
     } else if (activeTabId === 'analysis') {
       analysisTabEl = createAnalysisTab({
         history: props.history,
-        onTagClick: (tag: Tag) => {
+        onTagClick: function handleAnalysisTagClick(tag: Tag) {
           setTab('search');
           onSearch(tag.href, { type: 'tag', label: tag.text });
         }
@@ -88,9 +90,9 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
     }
   };
 
-  const setTab = (tabId: 'search' | 'history' | 'analysis') => {
+  const setTab = function setTab(tabId: 'search' | 'history' | 'analysis') {
     activeTabId = tabId;
-    Object.keys(tabButtons).forEach(id => {
+    Object.keys(tabButtons).forEach(function updateTabButton(id) {
       const btn = tabButtons[id];
       if (id === tabId) {
         btn.classList.add('active');
@@ -106,7 +108,7 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
     textContent: '×',
     title: t('ui.close'),
     events: {
-      click: (e) => {
+      click: function handleCloseBtnClick(e) {
         e.preventDefault();
         onClose();
       }
@@ -134,19 +136,19 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
     events: {
-      click: (e) => e.stopPropagation()
+      click: function handleContentClick(e: Event) { e.stopPropagation(); }
     }
   }, [closeBtn, title, tabContainer, contentContainer, spinnerOverlay]);
   
-  content.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
+  content.addEventListener('wheel', function handleContentWheel(e: Event) { e.stopPropagation(); }, { passive: true });
 
   const overlay = createElement('div', {
     className: 'comic-helper-modal-overlay',
     events: {
-      click: onClose
+      click: function handleOverlayClick() { onClose(); }
     }
   }, [content]);
-  overlay.addEventListener('wheel', (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+  overlay.addEventListener('wheel', function handleOverlayWheel(e: Event) { e.preventDefault(); e.stopPropagation(); }, { passive: false });
 
   renderActiveTab();
 
@@ -156,57 +158,112 @@ export function createSearchModal(props: SearchModalProps): SearchModalComponent
   const SHOW_DELAY_MS = 200;
   const MIN_SHOW_TIME_MS = 400;
 
-  return {
-    el: overlay,
-    updateResults: (newResults: SearchResultsState | null) => {
-      props.searchResults = newResults;
-      if (searchTab) {
-        searchTab.updateResults(newResults);
-      }
-      if (activeTabId === 'search') {
-        content.scrollTop = 0;
-      }
-    },
-    updateHistory: (newHistory: HistoryRecord[]) => {
-      props.history = newHistory;
-      if (activeTabId === 'history' || activeTabId === 'analysis') {
-        renderActiveTab();
-      }
-    },
-    setUpdating: (updating: boolean) => {
-      updatingIndicator.style.display = updating ? 'inline' : 'none';
+    return {
 
-      if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-        loadingTimeout = null;
-      }
+      el: overlay,
 
-      if (updating) {
+      updateResults: function updateSearchModalResults(newResults: SearchResultsState | null) {
+
+        props.searchResults = newResults;
+
         if (searchTab) {
-          searchTab.input.disabled = true;
-        }
-        loadingTimeout = window.setTimeout(() => {
-          spinnerOverlay.classList.add('visible');
-          loadingStartTime = Date.now();
-          loadingTimeout = null;
-        }, SHOW_DELAY_MS);
-      } else {
-        const hide = () => {
-          spinnerOverlay.classList.remove('visible');
-          if (searchTab) {
-            searchTab.input.disabled = false;
-          }
-        };
 
-        const shownDuration = Date.now() - loadingStartTime;
-        if (loadingStartTime > 0 && shownDuration < MIN_SHOW_TIME_MS) {
-          window.setTimeout(hide, MIN_SHOW_TIME_MS - shownDuration);
-        } else {
-          hide();
+          searchTab.updateResults(newResults);
+
         }
-        loadingStartTime = 0;
-      }
-    },
-    setTab
-  };
-}
+
+        if (activeTabId === 'search') {
+
+          content.scrollTop = 0;
+
+        }
+
+      },
+
+      updateHistory: function updateSearchModalHistory(newHistory: HistoryRecord[]) {
+
+        props.history = newHistory;
+
+        if (activeTabId === 'history' || activeTabId === 'analysis') {
+
+          renderActiveTab();
+
+        }
+
+      },
+
+      setUpdating: function setSearchModalUpdating(updating: boolean) {
+
+        updatingIndicator.style.display = updating ? 'inline' : 'none';
+
+  
+
+        if (loadingTimeout) {
+
+          clearTimeout(loadingTimeout);
+
+          loadingTimeout = null;
+
+        }
+
+  
+
+        if (updating) {
+
+          if (searchTab) {
+
+            searchTab.input.disabled = true;
+
+          }
+
+          loadingTimeout = window.setTimeout(function showSpinner() {
+
+            spinnerOverlay.classList.add('visible');
+
+            loadingStartTime = Date.now();
+
+            loadingTimeout = null;
+
+          }, SHOW_DELAY_MS);
+
+        } else {
+
+          const hide = function hideSpinner() {
+
+            spinnerOverlay.classList.remove('visible');
+
+            if (searchTab) {
+
+              searchTab.input.disabled = false;
+
+            }
+
+          };
+
+  
+
+          const shownDuration = Date.now() - loadingStartTime;
+
+          if (loadingStartTime > 0 && shownDuration < MIN_SHOW_TIME_MS) {
+
+            window.setTimeout(hide, MIN_SHOW_TIME_MS - shownDuration);
+
+          } else {
+
+            hide();
+
+          }
+
+          loadingStartTime = 0;
+
+        }
+
+      },
+
+      setTab
+
+    };
+
+  }
+
+  

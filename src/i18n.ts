@@ -132,7 +132,7 @@ export type MessageKey = NestedKeyOf<MessageStructure>;
 /**
  * Detect language from browser settings
  */
-const getLanguage = (): Language => {
+const getLanguage = function getLanguage(): Language {
   const lang = (navigator.language || 'en').split('-')[0];
   return (lang in MESSAGES) ? (lang as Language) : 'en';
 };

@@ -214,6 +214,51 @@ describe('UIManager', () => {
     uiManager.updateUI();
   });
 
+  it('should handle history deletion and clearing', async () => {
+    (store.getState as Mock).mockReturnValue({
+      enabled: true,
+      isSearchModalOpen: true,
+      metadata: {},
+      currentVisibleIndex: 0,
+      searchResults: null,
+      searchQuery: '',
+      searchHistory: []
+    });
+    
+    uiManager.updateUI();
+    const props = (createSearchModal as unknown as Mock).mock.calls[0][0];
+    
+    // 1. Delete history
+    await props.onDeleteHistory('url1');
+    expect(historyManager.deleteHistory).toHaveBeenCalledWith('url1');
+    expect(historyManager.getHistory).toHaveBeenCalled();
+
+    // 2. Clear history (Confirm: Cancel)
+    const confirmMock = vi.fn().mockReturnValue(false);
+    vi.stubGlobal('confirm', confirmMock);
+    await props.onClearHistory();
+    expect(historyManager.clearHistory).not.toHaveBeenCalled();
+
+    // 3. Clear history (Confirm: OK)
+    confirmMock.mockReturnValue(true);
+    await props.onClearHistory();
+    expect(historyManager.clearHistory).toHaveBeenCalled();
+    
+    vi.unstubAllGlobals();
+  });
+
+  it('should handle modal creation branches', () => {
+    // metadata modal
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, metadata: {} });
+    uiManager.updateUI();
+    expect(createMetadataModal).toHaveBeenCalled();
+
+    // help modal
+    (store.getState as Mock).mockReturnValue({ enabled: true, isHelpModalOpen: true });
+    uiManager.updateUI();
+    expect(createHelpModal).toHaveBeenCalled();
+  });
+
   it('should handle search modal fetch and parse', async () => {
     const mockResults = { results: [{ title: 'A', href: '/a', thumb: '/a.jpg' }], totalCount: '1件', nextPageUrl: null };
     adapter.getSearchUrl = vi.fn().mockReturnValue('http://search.com?q=test');

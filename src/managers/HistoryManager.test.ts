@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import { HistoryManager } from './HistoryManager';
 
 // Simple mock for IndexedDB
@@ -104,5 +104,48 @@ describe('HistoryManager', () => {
     
     expect(history.length).toBe(count);
     console.log(`[Performance] Saving and getting ${count} records took ${end - start}ms`);
+  });
+
+  describe('error handling', () => {
+    it('should handle save error', async () => {
+      const wrapper = (historyManager as unknown as { db: { put: Mock } }).db;
+      wrapper.put.mockRejectedValueOnce(new Error('DB Error'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      
+      await historyManager.saveHistory({ title: 'T', tags: [], relatedWorks: [] }, 'u');
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle get error', async () => {
+      const wrapper = (historyManager as unknown as { db: { getAll: Mock } }).db;
+      wrapper.getAll.mockRejectedValueOnce(new Error('DB Error'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      
+      const history = await historyManager.getHistory();
+      expect(history).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle delete error', async () => {
+      const wrapper = (historyManager as unknown as { db: { delete: Mock } }).db;
+      wrapper.delete.mockRejectedValueOnce(new Error('DB Error'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      
+      await historyManager.deleteHistory('u');
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle clear error', async () => {
+      const wrapper = (historyManager as unknown as { db: { clear: Mock } }).db;
+      wrapper.clear.mockRejectedValueOnce(new Error('DB Error'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      
+      await historyManager.clearHistory();
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
   });
 });

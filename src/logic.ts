@@ -41,7 +41,7 @@ export function getPrimaryVisibleImageIndex(imgs: (HTMLImageElement | { getBound
   let primaryIndex = -1;
   const viewportCenter = windowHeight / 2;
 
-  imgs.forEach((img, index) => {
+  imgs.forEach(function checkVisibleHeight(img, index) {
     // Safety check: skip if img is null/undefined or getBoundingClientRect is missing
     if (!img || typeof img.getBoundingClientRect !== 'function') {
       return;
@@ -85,9 +85,9 @@ export function cleanupDOM(container: HTMLElement): HTMLImageElement[] {
   const allImages = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
   const wrappers = container.querySelectorAll('.comic-row-wrapper');
 
-  wrappers.forEach(w => w.remove());
+  wrappers.forEach(function removeWrapper(w) { w.remove(); });
 
-  allImages.forEach(img => {
+  allImages.forEach(function resetImageStyle(img) {
     if (img && img.style) {
       img.style.cssText = '';
     }
@@ -110,42 +110,29 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
     padding: '0', margin: '0', width: '100%', maxWidth: 'none'
   });
 
-  // 1. Get all images (whether inside wrappers or not)
-  // Note: We use querySelectorAll to get current DOM order
   const allImages = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
-  
-  // 2. Get existing wrappers for reuse
   const existingWrappers = Array.from(container.querySelectorAll<HTMLElement>('.comic-row-wrapper'));
   let wrapperIndex = 0;
 
   for (let i = 0; i < allImages.length; i++) {
     const img = allImages[i];
-    
-    // Safety check: skip invalid images
     if (!img || typeof img.naturalWidth !== 'number' || typeof img.naturalHeight !== 'number') {
       continue;
     }
 
     const isLandscape = img.naturalWidth > img.naturalHeight;
-
     let pairWithNext = false;
     let nextImg: HTMLImageElement | null = null;
 
-    // Deterministic pairing logic based on spreadOffset
     const effectiveIndex = i - spreadOffset;
     const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
-
-    // EXCEPTIONS: First and last pages are always solo
     const isFirstPage = i === 0;
     const isNextLastPage = i + 1 === allImages.length - 1;
 
     if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
       const candidate = allImages[i + 1];
-      
-      // Safety check for next pairing candidate
       if (candidate && typeof candidate.naturalWidth === 'number' && typeof candidate.naturalHeight === 'number') {
         const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
-
         if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
           pairWithNext = true;
           nextImg = candidate;
@@ -153,16 +140,12 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
       }
     }
 
-    // 3. Reconciliation: reuse or create wrapper
     let wrapper = existingWrappers[wrapperIndex];
-
     if (!wrapper) {
       wrapper = document.createElement('div');
       wrapper.className = 'comic-row-wrapper';
       container.appendChild(wrapper);
     } else {
-      // Ensure wrapper is in correct DOM order by appending it again
-      // (appendChild moves the node if it's already in the DOM)
       container.appendChild(wrapper);
     }
 
@@ -174,33 +157,28 @@ export function fitImagesToViewport(container: HTMLElement, spreadOffset = 0, is
 
     if (pairWithNext && nextImg) {
       wrapper.style.flexDirection = 'row-reverse';
-
-      [img, nextImg].forEach(im => {
+      const applyPairedStyle = function applyPairedStyle(im: HTMLImageElement) {
         Object.assign(im.style, {
           maxWidth: '50%', maxHeight: '100%', width: 'auto', height: 'auto',
           objectFit: 'contain', margin: '0', display: 'block'
         });
-      });
+      };
+      [img, nextImg].forEach(applyPairedStyle);
 
-      // Only update children if state is different to avoid layout thrashing
       if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
         wrapper.replaceChildren(img, nextImg);
       }
-
-      i++; // Skip next image
+      i++;
     } else {
-      wrapper.style.flexDirection = 'row'; // Default
-      
+      wrapper.style.flexDirection = 'row';
       Object.assign(img.style, {
         maxWidth: `${vw}px`, maxHeight: `${vh}px`, width: 'auto', height: 'auto',
         display: 'block', margin: '0 auto', flexShrink: '0', objectFit: 'contain'
       });
-
       if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
         wrapper.replaceChildren(img);
       }
     }
-    
     wrapperIndex++;
   }
 
@@ -225,7 +203,7 @@ export function revertToOriginal(originalImages: HTMLImageElement[], container: 
   if (!originalImages || !Array.isArray(originalImages)) return;
 
   // Remove wrappers and restore images
-  originalImages.forEach(img => {
+  originalImages.forEach(function restoreImage(img) {
     if (img && img.style) {
       img.style.cssText = '';
     }
@@ -237,7 +215,7 @@ export function revertToOriginal(originalImages: HTMLImageElement[], container: 
 
   // Remove any remaining wrappers
   const wrappers = container.querySelectorAll('.comic-row-wrapper');
-  wrappers.forEach(w => w.remove());
+  wrappers.forEach(function removeResidualWrapper(w) { w.remove(); });
 }
 
 /**
@@ -378,7 +356,7 @@ export function jumpToRandomWork(metadata: Metadata, searchCache?: SearchCache |
 
   // 1. Related Works (filter private)
   if (metadata?.relatedWorks) {
-    sources.push(...metadata.relatedWorks.filter(w => !w.isPrivate));
+    sources.push(...metadata.relatedWorks.filter(function filterPrivate(w) { return !w.isPrivate; }));
   }
 
   // 2. Search Cache Results
@@ -390,7 +368,7 @@ export function jumpToRandomWork(metadata: Metadata, searchCache?: SearchCache |
 
   // 3. Deduplicate by href
   const uniqueWorks = Array.from(
-    new Map(sources.map(w => [w.href, w])).values()
+    new Map(sources.map(function mapByHref(w) { return [w.href, w]; })).values()
   );
 
   const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];

@@ -13,60 +13,63 @@ export interface SpreadControlsComponent {
 }
 
 export function createSpreadControls({ isDualViewEnabled, onToggle, onAdjust }: SpreadControlsProps): SpreadControlsComponent {
-  const checkbox = createElement('input', {
-    type: 'checkbox',
-    checked: isDualViewEnabled,
-    events: {
-      change: (e) => {
-        const target = e.currentTarget as HTMLInputElement;
-        onToggle(target.checked);
-        if (typeof target.blur === 'function') {
-          target.blur();
+    const checkbox = createElement('input', {
+      type: 'checkbox',
+      checked: isDualViewEnabled,
+      events: {
+        change: function handleSpreadCheckboxChange(e: Event) {
+          const target = e.currentTarget as HTMLInputElement;
+          onToggle(target.checked);
+          if (typeof target.blur === 'function') {
+            target.blur();
+          }
         }
       }
-    }
-  }) as HTMLInputElement;
-
-  const label = createElement('label', {
-    className: 'comic-helper-label'
-  }, [checkbox, t('ui.spread')]);
-
-  const createAdjustBtn = () => createElement('button', {
-    className: 'comic-helper-adjust-btn',
-    textContent: t('ui.offset'),
-    title: t('ui.shiftOffset'),
-    events: {
-      click: (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onAdjust();
-      }
-    }
-  });
-
-  let adjustBtn: HTMLElement | null = isDualViewEnabled ? createAdjustBtn() : null;
-
-  const el = createElement('div', {
-    style: { display: 'flex', alignItems: 'center' }
-  }, [label]);
-
-  if (adjustBtn) el.appendChild(adjustBtn);
-
-  return {
-    el,
-    update: (enabled: boolean) => {
-      checkbox.checked = enabled;
-      if (enabled) {
-        if (!adjustBtn) {
-          adjustBtn = createAdjustBtn();
-          el.appendChild(adjustBtn);
+    }) as HTMLInputElement;
+  
+    const label = createElement('label', {
+      className: 'comic-helper-label'
+    }, [checkbox, t('ui.spread')]);
+  
+    const createAdjustBtn = function createAdjustBtn() {
+      return createElement('button', {
+        className: 'comic-helper-adjust-btn',
+        textContent: t('ui.offset'),
+        title: t('ui.shiftOffset'),
+        events: {
+          click: function handleAdjustClick(e: Event) {
+            e.preventDefault();
+            e.stopPropagation();
+            onAdjust();
+          }
         }
-      } else {
-        if (adjustBtn) {
-          adjustBtn.remove();
-          adjustBtn = null;
+      });
+    };
+  
+    let adjustBtn: HTMLElement | null = isDualViewEnabled ? createAdjustBtn() : null;
+  
+    const el = createElement('div', {
+      style: { display: 'flex', alignItems: 'center' }
+    }, [label]);
+  
+    if (adjustBtn) el.appendChild(adjustBtn);
+  
+    return {
+      el,
+      update: function updateSpreadControls(enabled: boolean) {
+        checkbox.checked = enabled;
+        if (enabled) {
+          if (!adjustBtn) {
+            adjustBtn = createAdjustBtn();
+            el.appendChild(adjustBtn);
+          }
+        } else {
+          if (adjustBtn) {
+            adjustBtn.remove();
+            adjustBtn = null;
+          }
         }
       }
-    }
-  };
-}
+    };
+  }
+  

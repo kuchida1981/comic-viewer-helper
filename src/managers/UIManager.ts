@@ -82,12 +82,12 @@ export class UIManager {
     this.store.subscribe(this.updateUI);
 
     // Handle window resize for draggable clamping
-    window.addEventListener('resize', () => {
+    window.addEventListener('resize', function handleWindowResize() {
       if (this.draggable) {
         const { top, left } = this.draggable.clampToViewport();
         this.store.setState({ guiPos: { top, left } });
       }
-    });
+    }.bind(this));
   }
 
   updateUI(): void {
@@ -106,7 +106,9 @@ export class UIManager {
         });
       }
       this.draggable = new Draggable(container, {
-        onDragEnd: (top: number, left: number) => this.store.setState({ guiPos: { top, left } })
+        onDragEnd: function handleDragEnd(top: number, left: number) {
+          this.store.setState({ guiPos: { top, left } });
+        }.bind(this)
       });
       document.body.appendChild(container);
     }
@@ -115,11 +117,11 @@ export class UIManager {
     if (!this.powerComp) {
       this.powerComp = createPowerButton({
         isEnabled: enabled,
-        onClick: () => {
+        onClick: function handlePowerClick() {
           const newState = !this.store.getState().enabled;
           // Revert logic is handled by Navigator via store subscription in main orchestration
           this.store.setState({ enabled: newState });
-        }
+        }.bind(this)
       });
       container.appendChild(this.powerComp.el);
     }
@@ -131,20 +133,20 @@ export class UIManager {
       this.counterComp = createPageCounter({
         current: currentVisibleIndex + 1,
         total: imgs.length,
-        onJump: (val: string) => {
+        onJump: function handleJump(val: string) {
           (async () => {
             const success = await this.navigator.jumpToPage(val);
             if (this.counterComp) {
               this.counterComp.input.blur();
               if (!success) {
                 this.counterComp.input.style.backgroundColor = 'rgba(255, 0, 0, 0.3)';
-                setTimeout(() => {
+                setTimeout(function resetBg() {
                   if (this.counterComp) this.counterComp.input.style.backgroundColor = '';
-                }, 500);
+                }.bind(this), 500);
               }
             }
           })();
-        }
+        }.bind(this)
       });
       container.appendChild(this.counterComp.el);
     }
@@ -152,11 +154,11 @@ export class UIManager {
     if (!this.spreadComp) {
       this.spreadComp = createSpreadControls({
         isDualViewEnabled,
-        onToggle: (val: boolean) => this.store.setState({ isDualViewEnabled: val }),
-        onAdjust: () => {
+        onToggle: function handleSpreadToggle(val: boolean) { this.store.setState({ isDualViewEnabled: val }); }.bind(this),
+        onAdjust: function handleSpreadAdjust() {
           const { spreadOffset } = this.store.getState();
           this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-        }
+        }.bind(this)
       });
       container.appendChild(this.spreadComp.el);
     }
@@ -175,21 +177,21 @@ export class UIManager {
       const { metadata, isAutoplayEnabled } = state;
 
       this.navBtns = createNavigationButtons({
-        onFirst: () => { void this.navigator.scrollToEdge('start'); },
-        onPrev: () => { void this.navigator.scrollToImage(-1); },
-        onNext: () => { void this.navigator.scrollToImage(1); },
-        onLast: () => { void this.navigator.scrollToEdge('end'); },
-        onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
-        onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-        onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
-        onLucky: () => { jumpToRandomWork(metadata, state.searchCache); },
-        onAutoplay: () => {
+        onFirst: function handleFirst() { void this.navigator.scrollToEdge('start'); }.bind(this),
+        onPrev: function handlePrev() { void this.navigator.scrollToImage(-1); }.bind(this),
+        onNext: function handleNext() { void this.navigator.scrollToImage(1); }.bind(this),
+        onLast: function handleLast() { void this.navigator.scrollToEdge('end'); }.bind(this),
+        onInfo: function handleInfo() { this.store.setState({ isMetadataModalOpen: true }); }.bind(this),
+        onHelp: function handleHelp() { this.store.setState({ isHelpModalOpen: true }); }.bind(this),
+        onSearch: function handleSearch() { this.store.setState({ isSearchModalOpen: true, searchResults: null }); }.bind(this),
+        onLucky: function handleLucky() { jumpToRandomWork(metadata, state.searchCache); }.bind(this),
+        onAutoplay: function handleAutoplayToggle() {
           const current = this.store.getState().isAutoplayEnabled;
           this.store.setState({ isAutoplayEnabled: !current });
-        },
+        }.bind(this),
         isAutoplayEnabled
       });
-      this.navBtns.elements.forEach(btn => container?.appendChild(btn));
+      this.navBtns.elements.forEach(function appendBtn(btn) { container?.appendChild(btn); });
     }
 
     const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, metadata, isAutoplayEnabled } = state;
@@ -198,9 +200,11 @@ export class UIManager {
     this.helpModalEl = this._manageModal(
       isHelpModalOpen,
       this.helpModalEl,
-      () => createHelpModal({
-        onClose: () => this.store.setState({ isHelpModalOpen: false })
-      })
+      function createHelp() {
+        return createHelpModal({
+          onClose: function handleHelpClose() { this.store.setState({ isHelpModalOpen: false }); }.bind(this)
+        });
+      }.bind(this)
     );
 
     if (isSearchModalOpen) {
@@ -213,31 +217,31 @@ export class UIManager {
           searchContext,
           searchHistory,
           history: this.cachedHistory,
-          onSearch: (query: string, context?: SearchContext) => this._performSearch(query, false, context),
-          onPageChange: (url: string) => this._performSearch(url),
-          onClose: () => {
+          onSearch: function handleSearchModalSearch(query: string, context?: SearchContext) { this._performSearch(query, false, context); }.bind(this),
+          onPageChange: function handleSearchModalPageChange(url: string) { this._performSearch(url); }.bind(this),
+          onClose: function handleSearchModalClose() {
             this.store.setState({ isSearchModalOpen: false });
-          },
-          onDeleteHistory: async (url: string) => {
+          }.bind(this),
+          onDeleteHistory: async function handleSearchModalDelete(url: string) {
             await this.historyManager.deleteHistory(url);
             this.cachedHistory = await this.historyManager.getHistory();
             this.searchModalComp?.updateHistory(this.cachedHistory);
-          },
-          onClearHistory: async () => {
+          }.bind(this),
+          onClearHistory: async function handleSearchModalClear() {
             if (confirm(t('ui.clearHistory') + '?')) {
               await this.historyManager.clearHistory();
               this.cachedHistory = [];
               this.searchModalComp?.updateHistory(this.cachedHistory);
             }
-          }
+          }.bind(this)
         });
         document.body.appendChild(this.searchModalComp.el);
 
         // Fetch history asynchronously
-        void (async () => {
+        void (async function fetchInitialHistory() {
           this.cachedHistory = await this.historyManager.getHistory();
           this.searchModalComp?.updateHistory(this.cachedHistory);
-        })();
+        }.bind(this))();
 
         // SWR logic
         const currentContext = state.searchContext;
@@ -270,24 +274,26 @@ export class UIManager {
     this.modalEl = this._manageModal(
       isMetadataModalOpen,
       this.modalEl,
-      () => createMetadataModal({
-        metadata,
-        onClose: () => this.store.setState({ isMetadataModalOpen: false }),
-        onTagClick: (tag) => {
-          this.store.setState({ 
-            isMetadataModalOpen: false, 
-            isSearchModalOpen: true,
-            searchResults: null
-          });
-          // Map tag type to SearchContext type
-          const contextType: 'tag' | 'artist' | 'genre' = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
-          
-          return this._performSearch(tag.href, false, {
-            type: contextType,
-            label: tag.text
-          });
-        }
-      })
+      function createMetadata() {
+        return createMetadataModal({
+          metadata,
+          onClose: function handleMetadataClose() { this.store.setState({ isMetadataModalOpen: false }); }.bind(this),
+          onTagClick: function handleMetadataTagClick(tag) {
+            this.store.setState({ 
+              isMetadataModalOpen: false, 
+              isSearchModalOpen: true,
+              searchResults: null
+            });
+            // Map tag type to SearchContext type
+            const contextType: 'tag' | 'artist' | 'genre' = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
+            
+            return this._performSearch(tag.href, false, {
+              type: contextType,
+              label: tag.text
+            });
+          }.bind(this)
+        });
+      }.bind(this)
     );
 
     this.powerComp?.update(enabled);
@@ -330,10 +336,10 @@ export class UIManager {
   showResumeNotification(savedIndex: number): void {
     const notification = createResumeNotification({
       savedIndex,
-      onResume: () => {
+      onResume: function handleResume() {
         this.navigator.jumpToPage(savedIndex + 1);
-      },
-      onSkip: () => {
+      }.bind(this),
+      onSkip: function handleSkip() {
         // 何もしない（最初から読む）
       }
     });

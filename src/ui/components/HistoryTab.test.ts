@@ -22,8 +22,20 @@ describe('HistoryTab', () => {
     const onDelete = vi.fn();
     const el = createHistoryTab({ history, onDelete, onClear: vi.fn() });
     const btn = el.querySelector('.comic-helper-history-delete') as HTMLElement;
-    btn.click();
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const spy = vi.spyOn(event, 'preventDefault');
+    btn.dispatchEvent(event);
     expect(onDelete).toHaveBeenCalledWith('u1');
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should stop propagation on link click', () => {
+    const el = createHistoryTab({ history, onDelete: vi.fn(), onClear: vi.fn() });
+    const link = el.querySelector('.comic-helper-search-result-item') as HTMLElement;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const spy = vi.spyOn(event, 'stopPropagation');
+    link.dispatchEvent(event);
+    expect(spy).toHaveBeenCalled();
   });
 
   it('should call onClear when clear button is clicked', () => {
