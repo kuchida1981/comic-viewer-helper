@@ -23,9 +23,9 @@ describe('IndexedDBWrapper', () => {
 
   it('should attempt to open database', async () => {
     const mockRequest = {
-      onsuccess: null,
-      onerror: null,
-      onupgradeneeded: null,
+      onsuccess: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+      onupgradeneeded: null as ((ev: { oldVersion: number }) => void) | null,
       result: {
         transaction: vi.fn().mockReturnValue({
           objectStore: vi.fn().mockReturnValue({
@@ -43,7 +43,7 @@ describe('IndexedDBWrapper', () => {
     const openPromise = wrapper.open();
     // Simulate success in next tick to allow promise to be returned
     setTimeout(() => {
-      if (mockRequest.onsuccess) (mockRequest as any).onsuccess();
+      if (mockRequest.onsuccess) (mockRequest as { onsuccess: () => void }).onsuccess();
     }, 0);
     
     const db = await openPromise;
@@ -60,7 +60,7 @@ describe('IndexedDBWrapper', () => {
     };
     const mockRequest = {
       result: mockDb,
-      onupgradeneeded: null
+      onupgradeneeded: null as ((ev: { oldVersion: number }) => void) | null
     };
     mockIDB.open.mockReturnValue(mockRequest);
 
@@ -80,7 +80,7 @@ describe('IndexedDBWrapper', () => {
     
     // Simulate upgrade
     if (mockRequest.onupgradeneeded) {
-      (mockRequest as any).onupgradeneeded({ oldVersion: 0 });
+      (mockRequest as { onupgradeneeded: (ev: { oldVersion: number }) => void }).onupgradeneeded({ oldVersion: 0 });
     }
 
     expect(mockDb.createObjectStore).toHaveBeenCalledWith('testStore', { keyPath: 'id', autoIncrement: undefined });
@@ -90,7 +90,7 @@ describe('IndexedDBWrapper', () => {
 
   it('should handle put operation', async () => {
     // Manually setting internal db state for testing the put method in isolation
-    (wrapper as any).db = {
+    (wrapper as unknown as { db: unknown }).db = {
       transaction: vi.fn().mockReturnValue({
         objectStore: vi.fn().mockReturnValue({
           put: vi.fn().mockReturnValue({ onsuccess: vi.fn() })
@@ -98,7 +98,7 @@ describe('IndexedDBWrapper', () => {
       })
     };
 
-    const dbMock = (wrapper as any).db;
+    const dbMock = (wrapper as unknown as { db: unknown }).db;
     const storeMock = dbMock.transaction().objectStore();
     const requestMock = storeMock.put();
 
@@ -116,7 +116,7 @@ describe('IndexedDBWrapper', () => {
   });
 
   it('should handle getAll operation', async () => {
-    (wrapper as any).db = {
+    (wrapper as unknown as { db: unknown }).db = {
       transaction: vi.fn().mockReturnValue({
         objectStore: vi.fn().mockReturnValue({
           getAll: vi.fn().mockReturnValue({ onsuccess: vi.fn() })
@@ -124,7 +124,7 @@ describe('IndexedDBWrapper', () => {
       })
     };
 
-    const dbMock = (wrapper as any).db;
+    const dbMock = (wrapper as unknown as { db: unknown }).db;
     const storeMock = dbMock.transaction().objectStore();
     const requestMock = storeMock.getAll();
 
@@ -139,7 +139,7 @@ describe('IndexedDBWrapper', () => {
   });
 
   it('should handle delete operation', async () => {
-    (wrapper as any).db = {
+    (wrapper as unknown as { db: unknown }).db = {
       transaction: vi.fn().mockReturnValue({
         objectStore: vi.fn().mockReturnValue({
           delete: vi.fn().mockReturnValue({ onsuccess: vi.fn() })
@@ -147,7 +147,7 @@ describe('IndexedDBWrapper', () => {
       })
     };
 
-    const dbMock = (wrapper as any).db;
+    const dbMock = (wrapper as unknown as { db: unknown }).db;
     const storeMock = dbMock.transaction().objectStore();
     const requestMock = storeMock.delete();
 
@@ -161,7 +161,7 @@ describe('IndexedDBWrapper', () => {
   });
 
   it('should handle clear operation', async () => {
-    (wrapper as any).db = {
+    (wrapper as unknown as { db: unknown }).db = {
       transaction: vi.fn().mockReturnValue({
         objectStore: vi.fn().mockReturnValue({
           clear: vi.fn().mockReturnValue({ onsuccess: vi.fn() })
@@ -169,7 +169,7 @@ describe('IndexedDBWrapper', () => {
       })
     };
 
-    const dbMock = (wrapper as any).db;
+    const dbMock = (wrapper as unknown as { db: unknown }).db;
     const storeMock = dbMock.transaction().objectStore();
     const requestMock = storeMock.clear();
 
