@@ -16,7 +16,9 @@ function matchesShortcut(e: KeyboardEvent, id: string): boolean {
       const baseKey = k.replace('Shift+', '');
       return e.shiftKey && e.key === (baseKey === 'Space' ? ' ' : baseKey);
     }
-    return !e.shiftKey && e.key === (k === 'Space' ? ' ' : k);
+    // If it's a direct key match (like '?'), allow it regardless of Shift state
+    // because Shift+'/' becomes '?' in event.key.
+    return e.key === (k === 'Space' ? ' ' : k);
   });
 }
 
