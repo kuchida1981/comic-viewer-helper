@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.89664a4
+// @version         1.4.0-unstable.c16edd8
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1734,7 +1734,7 @@
           click: (e) => {
             e.preventDefault();
             e.stopPropagation();
-            onTagClick(tag);
+            void onTagClick(tag);
             onClose();
           }
         }
@@ -1775,7 +1775,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.89664a4"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.c16edd8"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2389,7 +2389,9 @@
         this.counterComp = createPageCounter({
           current: state.currentVisibleIndex + 1,
           total: imgs.length,
-          onJump: (val) => this._handleJump(val)
+          onJump: (val) => {
+            void this._handleJump(val);
+          }
         });
         container.appendChild(this.counterComp.el);
       }
@@ -2467,8 +2469,12 @@
             searchQuery: state.searchQuery,
             searchContext: state.searchContext,
             searchHistory: state.searchHistory,
-            onSearch: (q, ctx) => this._performSearch(q, false, ctx),
-            onPageChange: (url) => this._performSearch(url),
+            onSearch: (q, ctx) => {
+              void this._performSearch(q, false, ctx);
+            },
+            onPageChange: (url) => {
+              void this._performSearch(url);
+            },
             onClose: () => this.store.setState({ isSearchModalOpen: false })
           });
           document.body.appendChild(this.searchModalComp.el);
@@ -2537,7 +2543,9 @@
     showResumeNotification(savedIndex) {
       const notification = createResumeNotification({
         savedIndex,
-        onResume: () => this.navigator.jumpToPage(savedIndex + 1),
+        onResume: () => {
+          void this.navigator.jumpToPage(savedIndex + 1);
+        },
         onSkip: () => {
         }
       });
@@ -2693,7 +2701,7 @@
         return;
       }
       const nextIndex = direction === "next" ? currentVisibleIndex + step : Math.max(currentVisibleIndex - step, 0);
-      this.navigator.jumpToPage(nextIndex + 1);
+      void this.navigator.jumpToPage(nextIndex + 1);
     }
     onKeyDown(e) {
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -2789,7 +2797,7 @@
       if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
       if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
       const direction = getClickNavigationDirection(target);
-      this.navigator.scrollToImage(direction === "next" ? 1 : -1);
+      void this.navigator.scrollToImage(direction === "next" ? 1 : -1);
     }
   }
   class ResumeManager {
