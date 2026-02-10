@@ -1,6 +1,7 @@
 import { Store } from '../store';
+import { isResumeDataMap } from '../type-guards';
 
-interface ResumeData {
+export interface ResumeData {
   pageIndex: number;
 }
 
@@ -29,7 +30,8 @@ export class ResumeManager {
 
   private _loadData(): Record<string, ResumeData> {
     try {
-      return JSON.parse(localStorage.getItem(this.storageKey) || '{}');
+      const parsed: unknown = JSON.parse(localStorage.getItem(this.storageKey) || '{}');
+      return isResumeDataMap(parsed) ? parsed : {};
     } catch {
       return {};
     }

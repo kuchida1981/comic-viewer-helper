@@ -61,13 +61,8 @@ export default [
       "@typescript-eslint/no-explicit-any": "warn",
       "eqeqeq": ["error", "always", { "null": "ignore" }],
 
-      // Phase 1: Suppress rules to maintain "0 warning" status for now. 
-      // These will be addressed in Phase 2 and Phase 3.
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
+      // Phase 2: Unsafe rules are now enabled.
+      // Other suppressions will be addressed in Phase 3.
       
       "@typescript-eslint/unbound-method": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
@@ -87,7 +82,12 @@ export default [
   {
     files: ["**/*.test.ts"],
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn"
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off"
     }
   }
 ];

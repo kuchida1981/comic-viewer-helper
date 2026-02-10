@@ -1,4 +1,5 @@
 import { Metadata, SearchResultsState, SearchCache, SearchContext } from './types';
+import { isGuiPos, isStringArray, isSearchCache, isSearchContext } from './type-guards';
 
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
@@ -138,8 +139,8 @@ export class Store {
       const host = window.location.hostname;
       const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+        const parsed: unknown = JSON.parse(saved);
+        if (isStringArray(parsed)) {
           return parsed;
         }
       }
@@ -153,7 +154,9 @@ export class Store {
     try {
       const host = window.location.hostname;
       const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed: unknown = JSON.parse(saved);
+      return isSearchCache(parsed) ? parsed : null;
     } catch {
       return null;
     }
@@ -168,7 +171,9 @@ export class Store {
     try {
       const host = window.location.hostname;
       const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
-      return saved ? JSON.parse(saved) : undefined;
+      if (!saved) return undefined;
+      const parsed: unknown = JSON.parse(saved);
+      return isSearchContext(parsed) ? parsed : undefined;
     } catch {
       return undefined;
     }
@@ -178,12 +183,11 @@ export class Store {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
       if (!saved) return null;
-      const pos = JSON.parse(saved);
+      const pos: unknown = JSON.parse(saved);
       // Basic validation
+      if (!isGuiPos(pos)) return null;
       const buffer = 50;
       if (
-        typeof pos.left !== 'number' ||
-        typeof pos.top !== 'number' ||
         pos.left < -buffer ||
         pos.left > window.innerWidth + buffer ||
         pos.top < -buffer ||

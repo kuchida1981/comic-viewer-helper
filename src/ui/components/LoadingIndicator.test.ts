@@ -1,43 +1,25 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createLoadingIndicator } from './LoadingIndicator.js';
-import { createElement } from '../utils.js';
-
-vi.mock('../utils.js', () => ({
-  createElement: vi.fn((tag, props) => {
-    const el = {
-      tagName: tag.toUpperCase(),
-      classList: {
-        add: vi.fn(),
-        remove: vi.fn(),
-        contains: vi.fn(c => (el.className || '').includes(c))
-      },
-      appendChild: vi.fn(),
-      ...props,
-      className: props?.className || ''
-    };
-    return el;
-  })
-}));
 
 describe('LoadingIndicator', () => {
   it('should create loading indicator element', () => {
     const { el } = createLoadingIndicator({ isLoading: false });
-    expect(createElement).toHaveBeenCalledWith('div', { id: 'comic-helper-loading' });
-    expect(el.appendChild).toHaveBeenCalledTimes(2);
+    expect(el.id).toBe('comic-helper-loading');
+    expect(el.children.length).toBe(2); // Spinner and Text
   });
 
   it('should reflect initial loading state', () => {
     const { el } = createLoadingIndicator({ isLoading: true });
-    expect(el.classList.add).toHaveBeenCalledWith('visible');
+    expect(el.classList.contains('visible')).toBe(true);
   });
 
   it('should update visibility', () => {
     const { el, update } = createLoadingIndicator({ isLoading: false });
     
     update(true);
-    expect(el.classList.add).toHaveBeenCalledWith('visible');
+    expect(el.classList.contains('visible')).toBe(true);
     
     update(false);
-    expect(el.classList.remove).toHaveBeenCalledWith('visible');
+    expect(el.classList.contains('visible')).toBe(false);
   });
 });

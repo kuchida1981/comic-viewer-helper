@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ResumeManager } from './ResumeManager.js';
+import { ResumeManager, ResumeData } from './ResumeManager.js';
 import { Store } from '../store.js';
 import { setupLocalStorageMock } from '../test/mocks/storage.js';
 
@@ -33,7 +33,7 @@ describe('ResumeManager', () => {
 
       resumeManager.savePosition(url, pageIndex);
 
-      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}');
+      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}') as Record<string, ResumeData>;
       expect(saved[url]).toEqual({ pageIndex: 42 });
     });
 
@@ -43,7 +43,7 @@ describe('ResumeManager', () => {
       resumeManager.savePosition(url, 10);
       resumeManager.savePosition(url, 20);
 
-      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}');
+      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}') as Record<string, ResumeData>;
       expect(saved[url]).toEqual({ pageIndex: 20 });
     });
 
@@ -51,7 +51,7 @@ describe('ResumeManager', () => {
       resumeManager.savePosition('https://example.com/page1', 10);
       resumeManager.savePosition('https://example.com/page2', 20);
 
-      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}');
+      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}') as Record<string, ResumeData>;
       expect(saved['https://example.com/page1']).toEqual({ pageIndex: 10 });
       expect(saved['https://example.com/page2']).toEqual({ pageIndex: 20 });
     });

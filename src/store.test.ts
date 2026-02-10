@@ -147,4 +147,36 @@ describe('Store', () => {
     const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
     expect(JSON.parse(saved || '{}')).toEqual(pos);
   });
+
+  it('should handle invalid search history in localStorage', () => {
+    const host = window.location.hostname;
+    localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(['a', 1, 'b']));
+    const store = new Store();
+    expect(store.getState().searchHistory).toEqual([]);
+  });
+
+  it('should handle invalid search cache in localStorage', () => {
+    const host = window.location.hostname;
+    localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify({ invalid: 'cache' }));
+    const store = new Store();
+    expect(store.getState().searchCache).toBeNull();
+  });
+
+  it('should handle invalid search context in localStorage', () => {
+    const host = window.location.hostname;
+    localStorage.setItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, JSON.stringify({ type: 'invalid' }));
+    const store = new Store();
+    expect(store.getState().searchContext).toBeUndefined();
+  });
+
+  it('should handle JSON parse errors during search related loads', () => {
+    const host = window.location.hostname;
+    localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, 'invalid-json');
+    localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, 'invalid-json');
+    localStorage.setItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, 'invalid-json');
+    const store = new Store();
+    expect(store.getState().searchHistory).toEqual([]);
+    expect(store.getState().searchCache).toBeNull();
+    expect(store.getState().searchContext).toBeUndefined();
+  });
 });

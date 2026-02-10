@@ -1,11 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { UIManager } from './UIManager';
-import { Store } from '../store';
+import { Store, StoreState } from '../store';
 import { Navigator } from './Navigator';
 import { DefaultAdapter } from '../adapters/DefaultAdapter';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createSearchModal } from '../ui/components/SearchModal';
 import { Tag } from '../types';
+
+// Helper Interfaces
+interface ModalProps { onClose: () => void; }
+interface MetadataModalProps extends ModalProps {
+  onTagClick: (tag: Tag) => Promise<void>;
+}
+interface SearchModalProps extends ModalProps {
+  onSearch: (q: string, context?: unknown) => Promise<void>;
+}
 
 // Mock dependencies
 vi.mock('../ui/styles.js', () => ({ injectStyles: vi.fn() }));
@@ -13,10 +22,10 @@ vi.mock('../ui/utils.js', () => ({
   createElement: vi.fn().mockReturnValue({ style: {}, appendChild: vi.fn(), querySelectorAll: vi.fn().mockReturnValue([]) })
 }));
 vi.mock('../ui/components/MetadataModal.js', () => ({
-  createMetadataModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
+  createMetadataModal: vi.fn((_props: MetadataModalProps) => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/SearchModal.js', () => ({
-  createSearchModal: vi.fn(() => ({ 
+  createSearchModal: vi.fn((_props: SearchModalProps) => ({ 
     el: { style: {}, remove: vi.fn() }, 
     input: {}, 
     updateResults: vi.fn(), 
@@ -45,14 +54,22 @@ describe('UIManager - Internal Tag Search', () => {
       parseSearchResults: vi.fn().mockReturnValue({ results: [] })
     } as unknown as typeof DefaultAdapter;
     
-    const defaultState = {
+    const defaultState: StoreState = {
       enabled: true, 
       metadata: { title: '', tags: [], relatedWorks: [] },
       isMetadataModalOpen: true, // Start with modal open
       isSearchModalOpen: false,
       searchQuery: '',
       searchHistory: [],
-      searchContext: undefined
+      searchContext: undefined,
+      isDualViewEnabled: false,
+      spreadOffset: 0,
+      currentVisibleIndex: 0,
+      guiPos: null,
+      isHelpModalOpen: false,
+      isLoading: false,
+      searchResults: null,
+      searchCache: null
     };
 
     store = {
@@ -66,7 +83,7 @@ describe('UIManager - Internal Tag Search', () => {
         const calls = (store.setState as Mock).mock.calls;
         let currentState = { ...defaultState };
         calls.forEach(call => {
-            currentState = { ...currentState, ...call[0] };
+            currentState = { ...currentState, ...(call[0] as Partial<StoreState>) };
         });
         return currentState;
     });
@@ -96,7 +113,7 @@ describe('UIManager - Internal Tag Search', () => {
 
     // Verify MetadataModal created with onTagClick
     expect(createMetadataModal).toHaveBeenCalled();
-    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0];
+    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0] as MetadataModalProps;
     expect(props.onTagClick).toBeDefined();
 
     // Simulate tag click
@@ -140,7 +157,7 @@ describe('UIManager - Internal Tag Search', () => {
     vi.stubGlobal('fetch', fetchMock);
     uiManager.updateUI();
 
-    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0];
+    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0] as MetadataModalProps;
     const tag: Tag = { text: 'Action', href: 'http://site.com/genre/action', type: 'genre' };
     await props.onTagClick(tag);
 
@@ -154,7 +171,7 @@ describe('UIManager - Internal Tag Search', () => {
     vi.stubGlobal('fetch', fetchMock);
     uiManager.updateUI();
 
-    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0];
+    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0] as MetadataModalProps;
     const tag: Tag = { text: 'Artist Name', href: 'http://site.com/artist/name', type: 'artist' };
     await props.onTagClick(tag);
 
@@ -169,7 +186,7 @@ describe('UIManager - Internal Tag Search', () => {
     uiManager.updateUI();
 
     // 1. Tag Search
-    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0];
+    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0] as MetadataModalProps;
     const tag: Tag = { text: 'Tag1', href: 'http://site.com/tags/tag1', type: 'tag' };
     await props.onTagClick(tag);
 
@@ -199,10 +216,10 @@ describe('UIManager - Internal Tag Search', () => {
     // createSearchModal is called in updateUI when isSearchModalOpen is true (which it is after tag search)
     // Re-run updateUI to ensure mock is fresh/accessible if needed?
     // Actually uiManager already called createSearchModal.
-    const searchModalProps = (createSearchModal as unknown as Mock).mock.calls[0][0];
+    const searchModalProps = (createSearchModal as unknown as Mock).mock.calls[0][0] as SearchModalProps;
     
     // Perform keyword search
-    searchModalProps.onSearch('keyword1');
+    await searchModalProps.onSearch('keyword1');
     await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
 
     // Verify context updated to keyword
@@ -217,6 +234,6 @@ describe('UIManager - Internal Tag Search', () => {
     const historyCallsAfterKeyword = (store.setState as Mock).mock.calls.filter(c => c[0].searchHistory);
     expect(historyCallsAfterKeyword.length).toBeGreaterThan(0);
     const lastHistoryCall = historyCallsAfterKeyword[historyCallsAfterKeyword.length - 1];
-    expect(lastHistoryCall[0].searchHistory).toContain('keyword1');
+    expect((lastHistoryCall[0] as StoreState).searchHistory).toContain('keyword1');
   });
 });

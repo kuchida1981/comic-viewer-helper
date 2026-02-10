@@ -51,7 +51,7 @@ describe('InputManager', () => {
     } as unknown as Navigator;
     inputManager = new InputManager(store, navigator);
 
-    vi.stubGlobal('requestAnimationFrame', vi.fn((cb) => { cb(0); return 1; }));
+    vi.stubGlobal('requestAnimationFrame', vi.fn((cb: FrameRequestCallback) => { cb(0); return 1; }));
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
     
     vi.spyOn(window, 'addEventListener');
