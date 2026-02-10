@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.c16edd8
+// @version         1.4.0-unstable.26c81e4
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -22,6 +22,36 @@
  */
 (function() {
   "use strict";
+  function isObject(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+  function isStringArray(value) {
+    return Array.isArray(value) && value.every((item) => typeof item === "string");
+  }
+  function isGuiPos(value) {
+    if (!isObject(value)) return false;
+    return typeof value.top === "number" && typeof value.left === "number";
+  }
+  function isResumeData(value) {
+    if (!isObject(value)) return false;
+    return typeof value.pageIndex === "number";
+  }
+  function isResumeDataMap(value) {
+    if (!isObject(value)) return false;
+    return Object.values(value).every(isResumeData);
+  }
+  function isSearchContext(value) {
+    if (!isObject(value)) return false;
+    if (typeof value.type !== "string") return false;
+    return ["keyword", "tag", "genre", "artist"].includes(value.type);
+  }
+  function isSearchCache(value) {
+    if (!isObject(value)) return false;
+    if (typeof value.query !== "string") return false;
+    if (typeof value.fetchedAt !== "number") return false;
+    if (!isObject(value.results)) return false;
+    return Array.isArray(value.results["results"]);
+  }
   const STORAGE_KEYS = {
     DUAL_VIEW: "comic-viewer-helper-dual-view",
     GUI_POS: "comic-viewer-helper-gui-pos",
@@ -123,7 +153,7 @@
         const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+          if (isStringArray(parsed)) {
             return parsed;
           }
         }
@@ -136,7 +166,9 @@
       try {
         const host = window.location.hostname;
         const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
-        return saved ? JSON.parse(saved) : null;
+        if (!saved) return null;
+        const parsed = JSON.parse(saved);
+        return isSearchCache(parsed) ? parsed : null;
       } catch {
         return null;
       }
@@ -149,7 +181,9 @@
       try {
         const host = window.location.hostname;
         const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
-        return saved ? JSON.parse(saved) : void 0;
+        if (!saved) return void 0;
+        const parsed = JSON.parse(saved);
+        return isSearchContext(parsed) ? parsed : void 0;
       } catch {
         return void 0;
       }
@@ -159,8 +193,9 @@
         const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
         if (!saved) return null;
         const pos = JSON.parse(saved);
+        if (!isGuiPos(pos)) return null;
         const buffer = 50;
-        if (typeof pos.left !== "number" || typeof pos.top !== "number" || pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
+        if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
           return null;
         }
         return pos;
@@ -1775,7 +1810,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.c16edd8"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.26c81e4"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2820,7 +2855,8 @@
     }
     _loadData() {
       try {
-        return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+        const parsed = JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+        return isResumeDataMap(parsed) ? parsed : {};
       } catch {
         return {};
       }
