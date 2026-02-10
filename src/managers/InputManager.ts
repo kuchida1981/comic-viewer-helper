@@ -156,14 +156,14 @@ export class InputManager {
     const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
 
     const actions: Record<string, () => void | Promise<void>> = {
-      nextPage: () => { void this.navigator.scrollToImage(1); },
-      prevPage: () => { void this.navigator.scrollToImage(-1); },
+      nextPage: () => this.navigator.scrollToImage(1),
+      prevPage: () => this.navigator.scrollToImage(-1),
       dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
       spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
       metadata: () => this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen }),
       help: () => this.store.setState({ isHelpModalOpen: !isHelpModalOpen }),
       fullscreen: () => this._toggleFullscreen(),
-      randomJump: () => { jumpToRandomWork(metadata, searchCache); }
+      randomJump: () => jumpToRandomWork(metadata, searchCache)
     };
 
     for (const [id, action] of Object.entries(actions)) {
