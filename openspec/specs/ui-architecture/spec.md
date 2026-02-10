@@ -1,7 +1,8 @@
 # ui-architecture Specification
 
 ## Purpose
-TBD - created by archiving change refactor-main-js. Update Purpose after archive.
+UI の構造、コンポーネントの責務、および DOM 操作の安全性に関する設計指針を定義します。
+
 ## Requirements
 ### Requirement: コンポーネントベースの UI 構築
 UI は、独立した小さな部品（コンポーネント）から構成され、共通の要素生成ユーティリティ（`createElement` など）を使用して宣言的に構築されなければならない (MUST)。また、各コンポーネントおよびユーティリティは TypeScript で記述され、適切な型定義を持つものとする。
@@ -61,3 +62,13 @@ UIマネージャー（`UIManager`）の複雑度を低減するため、各UI�
 - **WHEN** ストアの状態が変更され、`UIManager` が通知を受け取る
 - **THEN** `UIManager` は各コンポーネントの更新メソッドを呼び出し、コンポーネント自身が必要なDOM操作を判断して実行する
 
+### Requirement: ロジックの隠蔽と安全なアクセス
+UIManager は、内部的な DOM 操作やイベントハンドラなどの補助的なメソッドをプライベート化し、外部からの不正なアクセスを防がなければならない（SHALL）。また、すべてのメソッド（プライベートを含む）は、`this` の文脈を常に保持するため、アロー関数プロパティとして定義されなければならない（SHALL）。
+
+#### Scenario: 内部メソッドへのアクセス制限
+- **WHEN** UIManager インスタンスに対して外部から `_` で始まるメソッドを呼び出そうとする
+- **THEN** TypeScript のコンパイルエラーが発生すること
+
+#### Scenario: メソッドの this 束縛の安全性
+- **WHEN** UIManager のメソッドを他のコンポーネントのコールバックとして渡す
+- **THEN** 呼び出し時に `this` が常に UIManager インスタンスを指していることが保証される（`bind` やラップなしでも正常に動作する）
