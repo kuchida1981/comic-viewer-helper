@@ -118,7 +118,7 @@ describe('Navigator', () => {
   });
 
   it('should scroll to image', () => {
-    navigator.scrollToImage(1);
+    void navigator.scrollToImage(1);
     expect(mockImages[1].scrollIntoView).toHaveBeenCalled();
   });
 
@@ -142,7 +142,7 @@ describe('Navigator', () => {
     // Let's create a new navigator instance for this test to be safe with new adapter return
     navigator = new Navigator(adapter, store);
     
-    navigator.scrollToImage(1);
+    void navigator.scrollToImage(1);
     // Should skip index 1 and go to index 2 (next spread)
     expect(imgs[2].scrollIntoView).toHaveBeenCalled();
   });
@@ -243,7 +243,7 @@ describe('Navigator', () => {
         // Mock visible index to be 1
         vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(1);
     
-        navigator.scrollToImage(1);
+        void navigator.scrollToImage(1);
     
         expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
         // Should NOT scroll to any image (early return)

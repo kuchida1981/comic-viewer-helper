@@ -125,7 +125,7 @@ export class UIManager {
       this.counterComp = createPageCounter({
         current: state.currentVisibleIndex + 1,
         total: imgs.length,
-        onJump: (val: string) => this._handleJump(val)
+        onJump: (val: string) => { void this._handleJump(val); }
       });
       container.appendChild(this.counterComp.el);
     }
@@ -201,8 +201,8 @@ export class UIManager {
           searchQuery: state.searchQuery,
           searchContext: state.searchContext,
           searchHistory: state.searchHistory,
-          onSearch: (q, ctx) => this._performSearch(q, false, ctx),
-          onPageChange: (url) => this._performSearch(url),
+          onSearch: (q, ctx) => { void this._performSearch(q, false, ctx); },
+          onPageChange: (url) => { void this._performSearch(url); },
           onClose: () => this.store.setState({ isSearchModalOpen: false })
         });
         document.body.appendChild(this.searchModalComp.el);
@@ -275,7 +275,7 @@ export class UIManager {
   showResumeNotification(savedIndex: number): void {
     const notification = createResumeNotification({
       savedIndex,
-      onResume: () => this.navigator.jumpToPage(savedIndex + 1),
+      onResume: () => { void this.navigator.jumpToPage(savedIndex + 1); },
       onSkip: () => { }
     });
     document.body.appendChild(notification.el);
