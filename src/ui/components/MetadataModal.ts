@@ -45,7 +45,7 @@ export function createMetadataModal({ metadata, onClose, onTagClick }: MetadataM
         click: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          onTagClick(tag);
+          void onTagClick(tag);
           onClose(); // Explicitly close metadata modal
         }
       }

@@ -1,9 +1,4 @@
-# type-safety-enforcement
-
-## Purpose
-プロジェクト全体の型安全性を ESLint を通じて強制し、ランタイムエラーのリスクを最小化します。
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: 非同期処理の安全性の強制
 システムは、非同期関数（Promise）が適切に処理（await されるか、明示的に無視）されることを強制しなければならない（SHALL）。

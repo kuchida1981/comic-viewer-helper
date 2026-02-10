@@ -115,7 +115,7 @@ export class InputManager {
       ? currentVisibleIndex + step
       : Math.max(currentVisibleIndex - step, 0);
 
-    this.navigator.jumpToPage(nextIndex + 1);
+    void this.navigator.jumpToPage(nextIndex + 1);
   }
 
   onKeyDown(e: KeyboardEvent): void {
@@ -155,7 +155,7 @@ export class InputManager {
   private _handleShortcutAction(e: KeyboardEvent): void {
     const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
 
-    const actions: Record<string, () => void> = {
+    const actions: Record<string, () => void | Promise<void>> = {
       nextPage: () => this.navigator.scrollToImage(1),
       prevPage: () => this.navigator.scrollToImage(-1),
       dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
@@ -169,7 +169,10 @@ export class InputManager {
     for (const [id, action] of Object.entries(actions)) {
       if (matchesShortcut(e, id)) {
         e.preventDefault();
-        action();
+        const result = action();
+        if (result instanceof Promise) {
+          void result;
+        }
         break;
       }
     }
@@ -229,6 +232,6 @@ export class InputManager {
     if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
 
     const direction = getClickNavigationDirection(target);
-    this.navigator.scrollToImage(direction === 'next' ? 1 : -1);
+    void this.navigator.scrollToImage(direction === 'next' ? 1 : -1);
   }
 }
