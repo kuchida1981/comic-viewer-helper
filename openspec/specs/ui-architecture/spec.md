@@ -1,7 +1,7 @@
 # ui-architecture Specification
 
 ## Purpose
-UI の構造、コンポーネントの責務、および DOM 操作の安全性に関する設計指針を定義します。
+本ドキュメントは、Comic Viewer Helper における UI の基本構造、各コンポーネントの責務、および DOM 操作の安全性とパフォーマンスを両立させるための設計指針を定義します。アロー関数プロパティによる this 束縛の保証や、自律的な再描画ロジックの採用により、保守性の高い UI アーキテクチャを実現します。
 
 ## Requirements
 ### Requirement: コンポーネントベースの UI 構築
