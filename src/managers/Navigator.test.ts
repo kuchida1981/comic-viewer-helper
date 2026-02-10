@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { Navigator } from './Navigator.js';
 import * as logic from '../logic.js';
-import { Store } from '../store.js';
+import { Store, StoreListener, StoreState } from '../store.js';
 import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
 
 // Mock logic functions to isolate Navigator logic
@@ -11,7 +11,7 @@ vi.mock('../logic.js', async (importOriginal) => {
     ...actual,
     fitImagesToViewport: vi.fn(),
     getPrimaryVisibleImageIndex: vi.fn().mockReturnValue(0),
-    getImageElementByIndex: vi.fn((imgs, idx) => imgs[idx]),
+    getImageElementByIndex: vi.fn((imgs: HTMLImageElement[], idx: number) => imgs[idx]),
     revertToOriginal: vi.fn(),
     forceImageLoad: vi.fn(),
     waitForImageLoad: vi.fn().mockResolvedValue(undefined),
@@ -27,27 +27,21 @@ describe('Navigator', () => {
 
   beforeEach(() => {
     mockImages = [
-      { 
-        id: 'img1', 
-        scrollIntoView: vi.fn(), 
-        parentElement: { classList: { contains: () => false } }, 
-        complete: true, 
-        naturalHeight: 100,
-        addEventListener: vi.fn(), 
-        getAttribute: vi.fn().mockReturnValue(null),
-        setAttribute: vi.fn()
-      } as unknown as HTMLImageElement,
-      { 
-        id: 'img2', 
-        scrollIntoView: vi.fn(), 
-        parentElement: { classList: { contains: () => false } }, 
-        complete: true, 
-        naturalHeight: 100,
-        addEventListener: vi.fn(), 
-        getAttribute: vi.fn().mockReturnValue(null),
-        setAttribute: vi.fn()
-      } as unknown as HTMLImageElement
+      document.createElement('img'),
+      document.createElement('img')
     ];
+    mockImages[0].id = 'img1';
+    mockImages[1].id = 'img2';
+
+    // jsdom doesn't implement scrollIntoView
+    mockImages.forEach(img => {
+      img.scrollIntoView = vi.fn();
+      Object.defineProperty(img, 'naturalHeight', { value: 100, writable: true });
+      Object.defineProperty(img, 'complete', { value: true, writable: true });
+      vi.spyOn(img, 'addEventListener');
+      vi.spyOn(img, 'getAttribute');
+      vi.spyOn(img, 'setAttribute');
+    });
 
     adapter = {
       match: vi.fn().mockReturnValue(true),
@@ -70,10 +64,10 @@ describe('Navigator', () => {
 
     vi.stubGlobal('window', {
         innerHeight: 1000,
-        requestAnimationFrame: vi.fn(cb => cb(0)),
+        requestAnimationFrame: vi.fn((cb: FrameRequestCallback) => { cb(0); return 1; }),
         cancelAnimationFrame: vi.fn()
     });
-    vi.stubGlobal('requestAnimationFrame', vi.fn(cb => cb(0)));
+    vi.stubGlobal('requestAnimationFrame', vi.fn((cb: FrameRequestCallback) => { cb(0); return 1; }));
   });
 
   afterEach(() => {
@@ -124,22 +118,30 @@ describe('Navigator', () => {
 
   it('should handle dual view scroll correctly', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isDualViewEnabled: true, currentVisibleIndex: 0 });
-    // Mock same parent and row wrapper class
-    const parent = { classList: { contains: vi.fn().mockReturnValue(true) } } as unknown as HTMLElement;
-    const parent2 = { classList: { contains: vi.fn().mockReturnValue(true) } } as unknown as HTMLElement;
     
-    const imgs = [
-        { ...mockImages[0], parentElement: parent },
-        { ...mockImages[1], parentElement: parent },
-        { ...mockImages[0], id: 'img3', parentElement: parent2 },
-        { ...mockImages[1], id: 'img4', parentElement: parent2 }
-    ] as unknown as HTMLImageElement[];
+    const parent = document.createElement('div');
+    parent.className = 'comic-row-wrapper';
+    const parent2 = document.createElement('div');
+    parent2.className = 'comic-row-wrapper';
+    
+    const img1 = document.createElement('img');
+    const img2 = document.createElement('img');
+    const img3 = document.createElement('img');
+    const img4 = document.createElement('img');
+    
+    const imgs = [img1, img2, img3, img4];
+    imgs.forEach(img => { 
+      img.scrollIntoView = vi.fn();
+      Object.defineProperty(img, 'complete', { value: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 100 });
+    });
+
+    parent.appendChild(img1);
+    parent.appendChild(img2);
+    parent2.appendChild(img3);
+    parent2.appendChild(img4);
     
     (adapter.getImages as Mock).mockReturnValue(imgs);
-    // Re-initialize to bust cache or mock getImages correctly if cache logic uses it
-    // Navigator usually caches, so we might need to recreate navigator or force clear cache.
-    // Based on implementation, getImages() caches.
-    // Let's create a new navigator instance for this test to be safe with new adapter return
     navigator = new Navigator(adapter, store);
     
     void navigator.scrollToImage(1);
@@ -165,10 +167,8 @@ describe('Navigator', () => {
 
   it('should scroll to edge (unloaded image - waits for load)', async () => {
     // Simulate the last image being unloaded
-    // @ts-expect-error - writing to readonly property
-    mockImages[1].complete = false;
-    // @ts-expect-error - writing to readonly property
-    mockImages[1].naturalHeight = 0;
+    Object.defineProperty(mockImages[1], 'complete', { value: false });
+    Object.defineProperty(mockImages[1], 'naturalHeight', { value: 0 });
 
     const spy = vi.spyOn(navigator, 'applyLayout');
 
@@ -194,16 +194,15 @@ describe('Navigator', () => {
 
     it('init should handle image load listeners', () => {
       const spy = vi.spyOn(navigator, 'applyLayout');
-      // @ts-expect-error - writing to readonly property
-      mockImages[0].complete = false;
+      Object.defineProperty(mockImages[0], 'complete', { value: false });
 
       navigator.init();
 
       expect(mockImages[0].addEventListener).toHaveBeenCalledWith('load', expect.any(Function));
 
       // Trigger load
-      const loadCb = (mockImages[0].addEventListener as Mock).mock.calls[0][1];
-      loadCb();
+      const loadCb = ((mockImages[0].addEventListener as Mock).mock.calls[0][1]) as EventListener;
+      loadCb({} as Event);
 
       expect(spy).toHaveBeenCalled();
     });
@@ -213,8 +212,8 @@ describe('Navigator', () => {
       const spy = vi.spyOn(navigator, 'applyLayout');
       
       // Simulate store update
-      const subscribeCb = (store.subscribe as Mock).mock.calls[0][0];
-      subscribeCb({ enabled: true, isDualViewEnabled: true, spreadOffset: 0 });
+      const subscribeCb = ((store.subscribe as Mock).mock.calls[0][0]) as StoreListener;
+      subscribeCb({ enabled: true, isDualViewEnabled: true, spreadOffset: 0, currentVisibleIndex: 0 } as unknown as StoreState);
       
       expect(spy).toHaveBeenCalled();
     });
@@ -227,14 +226,23 @@ describe('Navigator', () => {
           currentVisibleIndex: 1 
         });
     
-        const parent = { classList: { contains: vi.fn().mockReturnValue(true) } } as unknown as HTMLElement;
+        const parent = document.createElement('div');
+        parent.className = 'comic-row-wrapper';
         
         // 3 images. Index 1 and 2 are a spread.
-        const imgs = [
-            { ...mockImages[0] }, // index 0
-            { ...mockImages[0], parentElement: parent }, // index 1
-            { ...mockImages[0], parentElement: parent }  // index 2
-        ] as unknown as HTMLImageElement[];
+        const img1 = document.createElement('img');
+        const img2 = document.createElement('img');
+        const img3 = document.createElement('img');
+        
+        const imgs = [img1, img2, img3];
+        imgs.forEach(img => { 
+          img.scrollIntoView = vi.fn();
+          Object.defineProperty(img, 'complete', { value: true });
+          Object.defineProperty(img, 'naturalHeight', { value: 100 });
+        });
+        
+        parent.appendChild(img2);
+        parent.appendChild(img3);
         
         // Mock getImages to return 3 images
         (adapter.getImages as Mock).mockReturnValue(imgs);

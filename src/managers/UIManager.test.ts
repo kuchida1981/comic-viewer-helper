@@ -11,10 +11,26 @@ import { createSearchModal } from '../ui/components/SearchModal.js';
 import { createResumeNotification } from '../ui/components/ResumeNotification.js';
 import { Draggable } from '../ui/Draggable.js';
 import { createElement } from '../ui/utils.js';
-import { Store } from '../store.js';
+import { Store, StoreState } from '../store.js';
 import { Navigator } from './Navigator.js';
 import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
 import * as logic from '../logic.js';
+
+// Define Prop Interfaces for safe mocking
+interface PowerButtonProps { onClick: () => void; }
+interface PageCounterProps { onJump: (p: string) => void; }
+interface SpreadControlsProps { onToggle: (val: boolean) => void; onAdjust: () => void; }
+interface NavigationButtonsProps {
+  onFirst: () => void; onPrev: () => void; onNext: () => void; onLast: () => void;
+  onInfo: () => void; onHelp: () => void; onSearch: () => void; onLucky: () => void;
+}
+interface ModalProps { onClose: () => void; }
+interface SearchModalProps extends ModalProps {
+  onSearch: (q: string, context?: unknown) => Promise<void>;
+  onPageChange: (url: string) => Promise<void>;
+  onResultClick?: (e: MouseEvent) => void;
+}
+interface ResumeNotificationProps { onResume: () => void; onSkip: () => void; }
 
 // Mock logic
 vi.mock('../logic.js', async () => {
@@ -31,43 +47,45 @@ vi.mock('../ui/utils.js', () => ({
   createElement: vi.fn()
 }));
 vi.mock('../ui/Draggable.js', () => ({
-  Draggable: vi.fn().mockImplementation(function() {
+  Draggable: vi.fn().mockImplementation(function(_el: HTMLElement, options: { onDragEnd: (t: number, l: number) => void }) {
+    // Attach handler to instance for testing access
     return {
       clampToViewport: vi.fn().mockReturnValue({ top: 20, left: 30 }),
-      destroy: vi.fn()
+      destroy: vi.fn(),
+      onDragEnd: options.onDragEnd // Expose for testing
     };
   })
 }));
 vi.mock('../ui/components/PowerButton.js', () => ({
-  createPowerButton: vi.fn(() => ({ el: { style: {}, appendChild: vi.fn() }, update: vi.fn() }))
+  createPowerButton: vi.fn((_props: PowerButtonProps) => ({ el: { style: {}, appendChild: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/PageCounter.js', () => ({
-  createPageCounter: vi.fn(() => ({ 
+  createPageCounter: vi.fn((_props: PageCounterProps) => ({ 
     el: { style: {}, display: '' }, 
     update: vi.fn(), 
     input: { blur: vi.fn(), style: {} } 
   }))
 }));
 vi.mock('../ui/components/SpreadControls.js', () => ({
-  createSpreadControls: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
+  createSpreadControls: vi.fn((_props: SpreadControlsProps) => ({ el: { style: {}, display: '' }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/ResumeNotification.js', () => ({
-  createResumeNotification: vi.fn(() => ({ el: { style: {}, display: '' } }))
+  createResumeNotification: vi.fn((_props: ResumeNotificationProps) => ({ el: { style: {}, display: '' } }))
 }));
 vi.mock('../ui/components/LoadingIndicator.js', () => ({
   createLoadingIndicator: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/NavigationButtons.js', () => ({
-  createNavigationButtons: vi.fn(() => ({ elements: [{ style: {}, querySelectorAll: vi.fn() }], update: vi.fn() }))
+  createNavigationButtons: vi.fn((_props: NavigationButtonsProps) => ({ elements: [{ style: {}, querySelectorAll: vi.fn() }], update: vi.fn() }))
 }));
 vi.mock('../ui/components/MetadataModal.js', () => ({
-  createMetadataModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
+  createMetadataModal: vi.fn((_props: ModalProps) => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/HelpModal.js', () => ({
-  createHelpModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
+  createHelpModal: vi.fn((_props: ModalProps) => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/SearchModal.js', () => ({
-  createSearchModal: vi.fn(() => ({ el: { style: {}, remove: vi.fn() }, input: {}, updateResults: vi.fn(), setUpdating: vi.fn() }))
+  createSearchModal: vi.fn((_props: SearchModalProps) => ({ el: { style: {}, remove: vi.fn() }, input: {}, updateResults: vi.fn(), setUpdating: vi.fn() }))
 }));
 vi.mock('../ui/components/ProgressBar.js', () => ({
   createProgressBar: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
@@ -111,7 +129,7 @@ describe('UIManager', () => {
 
     // Use mockImplementation to allow partial overrides while keeping defaults
     (store.getState as Mock).mockImplementation(() => {
-      const lastResult = (store.getState as Mock).mock.results.at(-2)?.value || defaultState;
+      const lastResult = ((store.getState as Mock).mock.results.at(-2)?.value || defaultState) as StoreState;
       return { ...defaultState, ...lastResult };
     });
     
@@ -185,13 +203,13 @@ describe('UIManager', () => {
     uiManager.updateUI();
     
     // Test onClose
-    (createHelpModal as unknown as Mock).mock.calls[0][0].onClose();
+    ((createHelpModal as unknown as Mock).mock.calls[0][0] as ModalProps).onClose();
     expect(store.setState).toHaveBeenCalledWith({ isHelpModalOpen: false });
 
-    (createMetadataModal as unknown as Mock).mock.calls[0][0].onClose();
+    ((createMetadataModal as unknown as Mock).mock.calls[0][0] as ModalProps).onClose();
     expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false });
 
-    (createSearchModal as unknown as Mock).mock.calls[0][0].onClose();
+    ((createSearchModal as unknown as Mock).mock.calls[0][0] as SearchModalProps).onClose();
     expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
     
     // Close modals in state and update UI
@@ -218,8 +236,8 @@ describe('UIManager', () => {
     });
     uiManager.updateUI();
 
-    const onSearch = (createSearchModal as unknown as Mock).mock.calls[0][0].onSearch;
-    onSearch('test');
+    const onSearch = ((createSearchModal as unknown as Mock).mock.calls[0][0] as SearchModalProps).onSearch;
+    await onSearch('test');
 
     expect(adapter.getSearchUrl).toHaveBeenCalledWith('test');
     expect(fetchMock).toHaveBeenCalledWith('http://search.com?q=test');
@@ -269,10 +287,10 @@ describe('UIManager', () => {
 
     uiManager.updateUI(); // Initialize components
 
-    const onSearch = (createSearchModal as unknown as Mock).mock.calls[0][0].onSearch;
+    const onSearch = ((createSearchModal as unknown as Mock).mock.calls[0][0] as SearchModalProps).onSearch;
 
     // 1. Add new item
-    onSearch('new key');
+    await onSearch('new key');
     expect(store.setState).toHaveBeenCalledWith({
       searchHistory: ['new key', 'key 1', 'key 2']
     });
@@ -282,7 +300,7 @@ describe('UIManager', () => {
       enabled: true,
       searchHistory: ['new key', 'key 1', 'key 2']
     });
-    onSearch('KEY 1'); // Same as 'key 1'
+    await onSearch('KEY 1'); // Same as 'key 1'
     expect(store.setState).toHaveBeenCalledWith({
       searchHistory: ['KEY 1', 'new key', 'key 2']
     });
@@ -292,7 +310,7 @@ describe('UIManager', () => {
       enabled: true,
       searchHistory: ['key 1 a', 'new key', 'key 2']
     });
-    onSearch('a KEY 1');
+    await onSearch('a KEY 1');
     expect(store.setState).toHaveBeenCalledWith({
       searchHistory: ['a KEY 1', 'new key', 'key 2']
     });
@@ -302,7 +320,7 @@ describe('UIManager', () => {
       enabled: true,
       searchHistory: ['c', 'b', 'a']
     });
-    onSearch('d');
+    await onSearch('d');
     expect(store.setState).toHaveBeenCalledWith({
       searchHistory: ['d', 'c', 'b']
     });
@@ -339,7 +357,7 @@ describe('UIManager', () => {
     // Should show cache immediately
     expect(store.setState).toHaveBeenCalledWith({ searchResults: oldCache.results });
     expect(createSearchModal).toHaveBeenCalled();
-    const modal = (createSearchModal as unknown as Mock).mock.results[0].value;
+    const modal = (createSearchModal as unknown as Mock).mock.results[0].value as { updateResults: (r: unknown) => void };
     expect(modal.updateResults).toHaveBeenCalledWith(oldCache.results);
 
     // fetch should have been called (SWR)
@@ -405,7 +423,7 @@ describe('UIManager', () => {
     });
 
     uiManager.updateUI();
-    const props = (createSearchModal as unknown as Mock).mock.calls[0][0];
+    const props = (createSearchModal as unknown as Mock).mock.calls[0][0] as SearchModalProps;
     (store.setState as Mock).mockClear();
 
     // 1. Tag Search (Explicit context)
@@ -456,7 +474,7 @@ describe('UIManager', () => {
     });
 
     uiManager.updateUI();
-    const props = (createSearchModal as unknown as Mock).mock.calls[0][0];
+    const props = (createSearchModal as unknown as Mock).mock.calls[0][0] as SearchModalProps;
     (store.setState as Mock).mockClear();
 
     await props.onPageChange('http://search.com/p/2');
@@ -486,7 +504,7 @@ describe('UIManager', () => {
 
   it('onDragEnd should update store', () => {
     uiManager.updateUI();
-    const onDragEnd = (Draggable as unknown as Mock).mock.calls[0][1].onDragEnd;
+    const onDragEnd = ((Draggable as unknown as Mock).mock.calls[0][1] as { onDragEnd: (t: number, l: number) => void }).onDragEnd;
     onDragEnd(100, 200);
     expect(store.setState).toHaveBeenCalledWith({ guiPos: { top: 100, left: 200 } });
   });
@@ -494,20 +512,20 @@ describe('UIManager', () => {
   it('component callbacks should work', () => {
     uiManager.updateUI();
     
-    const powerOnClick = (createPowerButton as unknown as Mock).mock.calls[0][0].onClick;
+    const powerOnClick = ((createPowerButton as unknown as Mock).mock.calls[0][0] as PowerButtonProps).onClick;
     (store.getState as Mock).mockReturnValue({ enabled: true });
     powerOnClick();
     expect(store.setState).toHaveBeenCalledWith({ enabled: false });
 
-    const counterOnJump = (createPageCounter as unknown as Mock).mock.calls[0][0].onJump;
+    const counterOnJump = ((createPageCounter as unknown as Mock).mock.calls[0][0] as PageCounterProps).onJump;
     counterOnJump('5');
     expect(navigator.jumpToPage).toHaveBeenCalledWith('5');
 
-    const spreadOnToggle = (createSpreadControls as unknown as Mock).mock.calls[0][0].onToggle;
+    const spreadOnToggle = ((createSpreadControls as unknown as Mock).mock.calls[0][0] as SpreadControlsProps).onToggle;
     spreadOnToggle(true);
     expect(store.setState).toHaveBeenCalledWith({ isDualViewEnabled: true });
 
-    const spreadOnAdjust = (createSpreadControls as unknown as Mock).mock.calls[0][0].onAdjust;
+    const spreadOnAdjust = ((createSpreadControls as unknown as Mock).mock.calls[0][0] as SpreadControlsProps).onAdjust;
     (store.getState as Mock).mockReturnValue({ spreadOffset: 0 });
     spreadOnAdjust();
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
@@ -521,14 +539,14 @@ describe('UIManager', () => {
     }));
     expect(document.body.appendChild).toHaveBeenCalled();
 
-    const onResume = (createResumeNotification as unknown as Mock).mock.calls[0][0].onResume;
+    const onResume = ((createResumeNotification as unknown as Mock).mock.calls[0][0] as ResumeNotificationProps).onResume;
     onResume();
     expect(navigator.jumpToPage).toHaveBeenCalledWith(6);
   });
 
   it('should handle skip in resume notification', () => {
     uiManager.showResumeNotification(5);
-    const onSkip = (createResumeNotification as unknown as Mock).mock.calls[0][0].onSkip;
+    const onSkip = ((createResumeNotification as unknown as Mock).mock.calls[0][0] as ResumeNotificationProps).onSkip;
     onSkip();
   });
 
@@ -551,7 +569,7 @@ describe('UIManager', () => {
 
   it('navigation button callbacks should work', () => {
     uiManager.updateUI();
-    const callbacks = (createNavigationButtons as unknown as Mock).mock.calls[0][0];
+    const callbacks = (createNavigationButtons as unknown as Mock).mock.calls[0][0] as NavigationButtonsProps;
     callbacks.onFirst();
     expect(navigator.scrollToEdge).toHaveBeenCalledWith('start');
     callbacks.onPrev();
@@ -571,4 +589,3 @@ describe('UIManager', () => {
                                 expect(logic.jumpToRandomWork).toHaveBeenCalled();
                             });
         });
-        
