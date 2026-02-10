@@ -1,0 +1,25 @@
+## MODIFIED Requirements
+
+### Requirement: 警告の厳格な処理
+システムは、Lint の警告（Warning）もエラーとして扱い、ビルドや CI を失敗させなければならない（SHALL）。また、静的解析には TypeScript の型情報を利用し、型レベルでの不安全な操作（unsafe assignment, member access, call, return）も検出対象とし、これらをエラーとして報告しなければならない（SHALL）。さらに、テストファイル（`**/*.test.ts`）においても、これらの不安全な操作をエラーとして報告しなければならない（SHALL）。
+
+#### Scenario: 警告が存在する場合の失敗
+- **WHEN** ソースコードに Lint 警告が含まれている状態で `npm run lint` を実行する
+- **THEN** コマンドは終了コード 非 0 で終了すること
+
+#### Scenario: 型情報が必要なルールの検証
+- **WHEN** `npm run lint` を実行したとき
+- **THEN** ESLint は TypeScript の型情報を参照して解析を行い、型に関連する違反も報告すること
+
+#### Scenario: 不安全な any 操作の検出
+- **WHEN** `any` 型の変数に対してプロパティアクセスや関数呼び出しを行っているコード（プロダクションおよびテストコードの両方）に対して `npm run lint` を実行する
+- **THEN** `@typescript-eslint/no-unsafe-member-access` や `@typescript-eslint/no-unsafe-call` 等のエラーが報告される
+
+## ADDED Requirements
+
+### Requirement: メソッド参照の安全性
+システムは、クラスメソッドをコールバックやイベントハンドラとして渡す際に、`this` 束縛が失われるリスク（unbound method）を排除しなければならない（SHALL）。
+
+#### Scenario: unbound-method の検出
+- **WHEN** クラスメソッドをアロー関数でラップせずに直接コールバックとして渡している箇所（かつ `bind(this)` もされていない）に対して `npm run lint` を実行する
+- **THEN** `@typescript-eslint/unbound-method` エラーが報告される
