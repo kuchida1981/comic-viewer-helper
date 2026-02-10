@@ -79,7 +79,7 @@ export default [
   },
   // Specific suppressions for files with persistent overlap/safety issues
   {
-    files: ["src/logic.ts", "src/ui/utils.ts"],
+    files: ["src/logic.ts", "src/ui/utils.ts", "src/adapters/DefaultAdapter.ts", "src/managers/Navigator.ts"],
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "off"
     }

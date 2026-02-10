@@ -111,7 +111,7 @@ export class Navigator {
     if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
       const currentImg = imgs[currentIndex];
       const prospective = imgs[targetIndex];
-      if (prospective.parentElement === currentImg.parentElement && 
+      if (currentImg && prospective && prospective.parentElement === currentImg.parentElement && 
           prospective.parentElement?.classList.contains('comic-row-wrapper')) {
         targetIndex += direction;
       }
