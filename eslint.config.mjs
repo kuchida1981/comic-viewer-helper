@@ -78,7 +78,10 @@ export default [
       "@typescript-eslint/require-await": "off"
     }
   },
-  // Test files: same strictness as production
+  // Test files: relaxed rules for mocks and DOM manipulations.
+  // Note: Unsafe rules are disabled here because Vitest mock APIs (mock.calls, etc.) 
+  // return 'any' values that are difficult to type-safely handle without excessive casting.
+  // This will be re-addressed in Phase 3.
   {
     files: ["**/*.test.ts"],
     rules: {
