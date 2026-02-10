@@ -61,12 +61,11 @@ export default [
       "@typescript-eslint/no-explicit-any": "warn",
       "eqeqeq": ["error", "always", { "null": "ignore" }],
 
-      // Phase 2: Unsafe rules are now enabled.
-      // Other suppressions will be addressed in Phase 3.
-      
-      "@typescript-eslint/unbound-method": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
+      // Phase 3: Strict rules are now enabled.
+      "@typescript-eslint/unbound-method": "error",
+      "@typescript-eslint/no-confusing-void-expression": ["error", { "ignoreArrowShorthand": true }],
+      "@typescript-eslint/no-unnecessary-condition": "error",
+
       "@typescript-eslint/restrict-template-expressions": "off",
       "@typescript-eslint/no-deprecated": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
@@ -78,14 +77,21 @@ export default [
       "@typescript-eslint/require-await": "off"
     }
   },
+  // Specific suppressions for files with persistent overlap/safety issues
+  {
+    files: ["src/logic.ts", "src/ui/utils.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off"
+    }
+  },
   // Test files: relaxed rules for mocks and DOM manipulations.
   // Note: Unsafe rules are disabled here because Vitest mock APIs (mock.calls, etc.) 
   // return 'any' values that are difficult to type-safely handle without excessive casting.
-  // This will be re-addressed in Phase 3.
   {
     files: ["**/*.test.ts"],
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/unbound-method": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-call": "off",

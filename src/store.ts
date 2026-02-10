@@ -67,11 +67,11 @@ export class Store {
     this.listeners = [];
   }
 
-  getState(): StoreState {
+  getState = (): StoreState => {
     return { ...this.state };
-  }
+  };
 
-  setState(patch: Partial<StoreState>): void {
+  setState = (patch: Partial<StoreState>): void => {
     let changed = false;
     for (const key of Object.keys(patch) as (keyof StoreState)[]) {
       if (this.state[key] !== patch[key]) {
@@ -84,17 +84,17 @@ export class Store {
       this._persistChanges(patch);
       this._notify();
     }
-  }
+  };
 
-  private _persistChanges(patch: Partial<StoreState>): void {
+  private _persistChanges = (patch: Partial<StoreState>): void => {
     if ('enabled' in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
     if ('isDualViewEnabled' in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
     if ('guiPos' in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
 
     this._persistSearchRelatedChanges(patch);
-  }
+  };
 
-  private _persistSearchRelatedChanges(patch: Partial<StoreState>): void {
+  private _persistSearchRelatedChanges = (patch: Partial<StoreState>): void => {
     const host = window.location.hostname;
     if ('searchQuery' in patch) {
       localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery!);
@@ -117,24 +117,24 @@ export class Store {
     if ('searchHistory' in patch) {
       localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
     }
-  }
+  };
 
-  subscribe(callback: StoreListener): () => void {
+  subscribe = (callback: StoreListener): () => void => {
     this.listeners.push(callback);
     return () => {
       this.listeners = this.listeners.filter(l => l !== callback);
     };
-  }
+  };
 
-  private _notify(): void {
+  private _notify = (): void => {
     this.listeners.forEach(callback => callback(this.getState()));
-  }
+  };
 
-  private _applyPatch<K extends keyof StoreState>(key: K, value: StoreState[K]): void {
+  private _applyPatch = <K extends keyof StoreState>(key: K, value: StoreState[K]): void => {
     this.state[key] = value;
-  }
+  };
 
-  private _loadSearchHistory(): string[] {
+  private _loadSearchHistory = (): string[] => {
     try {
       const host = window.location.hostname;
       const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
@@ -148,9 +148,9 @@ export class Store {
     } catch {
       return [];
     }
-  }
+  };
 
-  private _loadSearchCache(): SearchCache | null {
+  private _loadSearchCache = (): SearchCache | null => {
     try {
       const host = window.location.hostname;
       const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
@@ -160,14 +160,14 @@ export class Store {
     } catch {
       return null;
     }
-  }
+  };
 
-  private _loadSearchQuery(): string {
+  private _loadSearchQuery = (): string => {
     const host = window.location.hostname;
     return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || '';
-  }
+  };
 
-  private _loadSearchContext(): SearchContext | undefined {
+  private _loadSearchContext = (): SearchContext | undefined => {
     try {
       const host = window.location.hostname;
       const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
@@ -177,9 +177,9 @@ export class Store {
     } catch {
       return undefined;
     }
-  }
+  };
 
-  private _loadGuiPos(): GuiPos | null {
+  private _loadGuiPos = (): GuiPos | null => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
       if (!saved) return null;
@@ -199,5 +199,5 @@ export class Store {
     } catch {
       return null;
     }
-  }
+  };
 }

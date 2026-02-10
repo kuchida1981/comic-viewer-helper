@@ -113,7 +113,8 @@ describe('UIManager - Internal Tag Search', () => {
 
     // Verify MetadataModal created with onTagClick
     expect(createMetadataModal).toHaveBeenCalled();
-    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0] as MetadataModalProps;
+    const createMetadataModalMock = createMetadataModal as unknown as Mock<(props: MetadataModalProps) => { el: { style: object; remove: Mock }; update: Mock }>;
+    const props = createMetadataModalMock.mock.calls[0][0];
     expect(props.onTagClick).toBeDefined();
 
     // Simulate tag click
@@ -141,14 +142,15 @@ describe('UIManager - Internal Tag Search', () => {
     }));
     
     // Check that searchQuery was NOT updated
-    const searchQueryCalls = (store.setState as Mock).mock.calls.filter(call => 'searchQuery' in call[0]);
+    const setStateMock = store.setState as unknown as Mock<(patch: Partial<StoreState>) => void>;
+    const searchQueryCalls = setStateMock.mock.calls.filter((call: [Partial<StoreState>]) => 'searchQuery' in call[0]);
     expect(searchQueryCalls).toHaveLength(0);
 
     // Check history NOT updated for tag search
     // We can't easily check private _updateSearchHistory, but we can check store state if mock worked fully
     // Or check if setState was called with searchHistory.
     // Since our partial mock accumulates state, let's check calls.
-    const historyUpdateCalls = (store.setState as Mock).mock.calls.filter(c => c[0].searchHistory);
+    const historyUpdateCalls = setStateMock.mock.calls.filter((c: [Partial<StoreState>]) => !!c[0].searchHistory);
     expect(historyUpdateCalls.length).toBe(0);
   });
 
@@ -157,7 +159,8 @@ describe('UIManager - Internal Tag Search', () => {
     vi.stubGlobal('fetch', fetchMock);
     uiManager.updateUI();
 
-    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0] as MetadataModalProps;
+    const createMetadataModalMock = createMetadataModal as unknown as Mock<(props: MetadataModalProps) => { el: { style: object; remove: Mock }; update: Mock }>;
+    const props = createMetadataModalMock.mock.calls[0][0];
     const tag: Tag = { text: 'Action', href: 'http://site.com/genre/action', type: 'genre' };
     await props.onTagClick(tag);
 
@@ -171,7 +174,8 @@ describe('UIManager - Internal Tag Search', () => {
     vi.stubGlobal('fetch', fetchMock);
     uiManager.updateUI();
 
-    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0] as MetadataModalProps;
+    const createMetadataModalMock = createMetadataModal as unknown as Mock<(props: MetadataModalProps) => { el: { style: object; remove: Mock }; update: Mock }>;
+    const props = createMetadataModalMock.mock.calls[0][0];
     const tag: Tag = { text: 'Artist Name', href: 'http://site.com/artist/name', type: 'artist' };
     await props.onTagClick(tag);
 
@@ -186,7 +190,8 @@ describe('UIManager - Internal Tag Search', () => {
     uiManager.updateUI();
 
     // 1. Tag Search
-    const props = (createMetadataModal as unknown as Mock).mock.calls[0][0] as MetadataModalProps;
+    const createMetadataModalMock = createMetadataModal as unknown as Mock<(props: MetadataModalProps) => { el: { style: object; remove: Mock }; update: Mock }>;
+    const props = createMetadataModalMock.mock.calls[0][0];
     const tag: Tag = { text: 'Tag1', href: 'http://site.com/tags/tag1', type: 'tag' };
     await props.onTagClick(tag);
 
@@ -196,14 +201,15 @@ describe('UIManager - Internal Tag Search', () => {
     }));
 
     // searchQuery should not be updated for tags
-    const tagSearchQueryCalls = (store.setState as Mock).mock.calls.filter(call => 'searchQuery' in call[0]);
+    const setStateMock = store.setState as unknown as Mock<(patch: Partial<StoreState>) => void>;
+    const tagSearchQueryCalls = setStateMock.mock.calls.filter((call: [Partial<StoreState>]) => 'searchQuery' in call[0]);
     expect(tagSearchQueryCalls).toHaveLength(0);
     expect(store.setState).toHaveBeenCalledWith(expect.objectContaining({
         searchContext: { type: 'tag', label: 'Tag1' }
     }));
 
     // Check history NOT updated (check calls to setState with searchHistory)
-    const historyCallsAfterTag = (store.setState as Mock).mock.calls.filter(c => c[0].searchHistory);
+    const historyCallsAfterTag = setStateMock.mock.calls.filter((c: [Partial<StoreState>]) => !!c[0].searchHistory);
     expect(historyCallsAfterTag.length).toBe(0);
 
 
@@ -213,10 +219,8 @@ describe('UIManager - Internal Tag Search', () => {
 
     // Trigger onSearch from SearchModal
     // Need to get SearchModal component mock
-    // createSearchModal is called in updateUI when isSearchModalOpen is true (which it is after tag search)
-    // Re-run updateUI to ensure mock is fresh/accessible if needed?
-    // Actually uiManager already called createSearchModal.
-    const searchModalProps = (createSearchModal as unknown as Mock).mock.calls[0][0] as SearchModalProps;
+    const createSearchModalMock = createSearchModal as unknown as Mock<(props: SearchModalProps) => { el: { style: object; remove: Mock }; input: object; updateResults: Mock; setUpdating: Mock }>;
+    const searchModalProps = createSearchModalMock.mock.calls[0][0];
     
     // Perform keyword search
     await searchModalProps.onSearch('keyword1');
@@ -231,9 +235,9 @@ describe('UIManager - Internal Tag Search', () => {
     }));
 
     // Check history IS updated
-    const historyCallsAfterKeyword = (store.setState as Mock).mock.calls.filter(c => c[0].searchHistory);
+    const historyCallsAfterKeyword = setStateMock.mock.calls.filter((c: [Partial<StoreState>]) => !!c[0].searchHistory);
     expect(historyCallsAfterKeyword.length).toBeGreaterThan(0);
     const lastHistoryCall = historyCallsAfterKeyword[historyCallsAfterKeyword.length - 1];
-    expect((lastHistoryCall[0] as StoreState).searchHistory).toContain('keyword1');
+    expect(lastHistoryCall[0].searchHistory).toContain('keyword1');
   });
 });

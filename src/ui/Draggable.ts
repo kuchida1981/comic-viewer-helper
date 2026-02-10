@@ -24,14 +24,10 @@ export class Draggable {
     this.initialTop = 0;
     this.initialLeft = 0;
 
-    this._onMouseDown = this._onMouseDown.bind(this);
-    this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseUp = this._onMouseUp.bind(this);
-
     this.element.addEventListener('mousedown', this._onMouseDown);
   }
 
-  private _onMouseDown(e: MouseEvent): void {
+  private _onMouseDown = (e: MouseEvent): void => {
     if (e.button !== 0 || (!(e.target instanceof HTMLElement))) return;
     // Only drag if clicking the container itself or a non-interactive child
     if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
@@ -54,13 +50,13 @@ export class Draggable {
     document.addEventListener('mousemove', this._onMouseMove);
     document.addEventListener('mouseup', this._onMouseUp);
     e.preventDefault();
-  }
+  };
 
   /**
    * Clamp the element's position to keep it within the viewport
    * @returns {{top: number, left: number}} The clamped position
    */
-  clampToViewport(): { top: number; left: number } {
+  clampToViewport = (): { top: number; left: number } => {
     const rect = this.element.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -84,18 +80,18 @@ export class Draggable {
     });
 
     return { top, left };
-  }
+  };
 
-  private _onMouseMove(e: MouseEvent): void {
+  private _onMouseMove = (e: MouseEvent): void => {
     if (!this.isDragging) return;
     const deltaX = e.clientX - this.dragStartX;
     const deltaY = e.clientY - this.dragStartY;
     this.element.style.top = `${this.initialTop + deltaY}px`;
     this.element.style.left = `${this.initialLeft + deltaX}px`;
     this.clampToViewport();
-  }
+  };
 
-  private _onMouseUp(): void {
+  private _onMouseUp = (): void => {
     if (!this.isDragging) return;
     this.isDragging = false;
     document.removeEventListener('mousemove', this._onMouseMove);
@@ -103,11 +99,11 @@ export class Draggable {
 
     const { top, left } = this.clampToViewport();
     this.onDragEnd(top, left);
-  }
+  };
 
-  destroy(): void {
+  destroy = (): void => {
     this.element.removeEventListener('mousedown', this._onMouseDown);
     document.removeEventListener('mousemove', this._onMouseMove);
     document.removeEventListener('mouseup', this._onMouseUp);
-  }
+  };
 }

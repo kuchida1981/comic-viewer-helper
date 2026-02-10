@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { Navigator } from './Navigator.js';
 import * as logic from '../logic.js';
-import { Store, StoreListener, StoreState } from '../store.js';
+import { Store, StoreListener } from '../store.js';
 import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
 
 // Mock logic functions to isolate Navigator logic
@@ -187,7 +187,22 @@ describe('Navigator', () => {
   });
 
   it('should revert when disabled via applyLayout', () => {
-    (store.getState as Mock).mockReturnValue({ enabled: false });
+    vi.mocked(store.getState).mockReturnValue({ 
+      enabled: false,
+      isDualViewEnabled: false,
+      spreadOffset: 0,
+      currentVisibleIndex: 0,
+      metadata: { title: '', tags: [], relatedWorks: [] },
+      isMetadataModalOpen: false,
+      isHelpModalOpen: false,
+      isSearchModalOpen: false,
+      isLoading: false,
+      searchResults: null,
+      searchQuery: '',
+      searchCache: null,
+      searchHistory: [],
+      guiPos: null
+    });
     navigator.applyLayout();
     expect(logic.revertToOriginal).toHaveBeenCalled();
   });
@@ -201,7 +216,8 @@ describe('Navigator', () => {
       expect(mockImages[0].addEventListener).toHaveBeenCalledWith('load', expect.any(Function));
 
       // Trigger load
-      const loadCb = ((mockImages[0].addEventListener as Mock).mock.calls[0][1]) as EventListener;
+      const addEventListenerMock = mockImages[0].addEventListener as Mock;
+      const loadCb = addEventListenerMock.mock.calls[0][1] as EventListener;
       loadCb({} as Event);
 
       expect(spy).toHaveBeenCalled();
@@ -212,8 +228,24 @@ describe('Navigator', () => {
       const spy = vi.spyOn(navigator, 'applyLayout');
       
       // Simulate store update
-      const subscribeCb = ((store.subscribe as Mock).mock.calls[0][0]) as StoreListener;
-      subscribeCb({ enabled: true, isDualViewEnabled: true, spreadOffset: 0, currentVisibleIndex: 0 } as unknown as StoreState);
+      const subscribeMock = store.subscribe as Mock;
+      const subscribeCb = subscribeMock.mock.calls[0][0] as StoreListener;
+      subscribeCb({ 
+        enabled: true, 
+        isDualViewEnabled: true, 
+        spreadOffset: 0, 
+        currentVisibleIndex: 0,
+        metadata: { title: '', tags: [], relatedWorks: [] },
+        isMetadataModalOpen: false,
+        isHelpModalOpen: false,
+        isSearchModalOpen: false,
+        isLoading: false,
+        searchResults: null,
+        searchQuery: '',
+        searchCache: null,
+        searchHistory: [],
+        guiPos: null
+      });
       
       expect(spy).toHaveBeenCalled();
     });

@@ -33,7 +33,7 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
   });
 
   let titleText = t('ui.searchResults');
-  if (searchContext && searchContext.label) {
+  if (searchContext?.label) {
     const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
     titleText = `${prefix}: ${searchContext.label}`;
   }
@@ -73,7 +73,7 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
   });
   section.appendChild(grid);
 
-  if (pagination && pagination.length > 0) {
+  if (pagination.length > 0) {
     const nav = createElement('div', {
       className: 'comic-helper-search-pagination'
     });

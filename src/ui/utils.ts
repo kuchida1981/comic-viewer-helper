@@ -24,9 +24,11 @@ function applyBasicProperties(el: HTMLElement, opts: ElementOptions): void {
  * Apply input-specific properties
  */
 function applyInputProperties(el: HTMLElement, opts: ElementOptions): void {
-  if (el instanceof HTMLInputElement) {
-    if (opts.type) el.type = opts.type;
-    if (opts.checked !== undefined) el.checked = opts.checked;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  if ((el as any).tagName === 'INPUT') {
+    const input = el as HTMLInputElement;
+    if (opts.type) input.type = opts.type;
+    if (opts.checked !== undefined) input.checked = opts.checked;
   }
 }
 
@@ -48,9 +50,7 @@ function applyAttributes(el: HTMLElement, attributes?: Record<string, string | n
 function applyEvents(el: HTMLElement, events?: Record<string, EventListenerOrEventListenerObject>): void {
   if (!events) return;
   for (const [type, listener] of Object.entries(events)) {
-    if (listener) {
-      el.addEventListener(type, listener);
-    }
+    el.addEventListener(type, listener);
   }
 }
 
@@ -58,7 +58,6 @@ function applyEvents(el: HTMLElement, events?: Record<string, EventListenerOrEve
  * Append children to the element
  */
 function appendChildren(el: HTMLElement, children: (HTMLElement | string | null | undefined)[]): void {
-  if (!children || !Array.isArray(children)) return;
   children.forEach(child => {
     if (typeof child === 'string') {
       el.appendChild(document.createTextNode(child));
@@ -77,7 +76,9 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
   children: (HTMLElement | string | null | undefined)[] = []
 ): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
-  const opts = options || {};
+  // Ensure options is an object even if null is passed (for safety/tests)
+   
+  const opts = (options || {}) as ElementOptions;
 
   applyBasicProperties(el, opts);
   applyInputProperties(el, opts);

@@ -170,7 +170,6 @@ describe('Draggable', () => {
     // @ts-expect-error - accessing private property
     draggable.isDragging = false;
     // @ts-expect-error - accessing private method
-    const result = draggable._onMouseUp();
-    expect(result).toBeUndefined();
+    draggable._onMouseUp();
   });
 });

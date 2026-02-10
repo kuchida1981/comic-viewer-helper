@@ -40,11 +40,8 @@ export function createNavigationButtons({
         click: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (cfg.action) cfg.action();
-          const target = e.currentTarget as HTMLElement;
-          if (target && typeof target.blur === 'function') {
-            target.blur();
-          }
+          cfg.action();
+          (e.currentTarget as HTMLElement).blur();
         }
       }
     }));
