@@ -21,17 +21,17 @@ test.describe('Navigation', () => {
   });
 
   test('should scroll back when "k" is pressed', async ({ comicPage }) => {
-    // Scroll down first
+    // Scroll down first (using 'j' key logic we know works)
     await comicPage.keyboard.press('j');
-    await comicPage.waitForFunction(() => window.scrollY > 0);
+    await comicPage.waitForFunction(() => window.scrollY >= window.innerHeight - 10);
     
     const scrolledY = await comicPage.evaluate(() => window.scrollY);
     
     // Press 'k' to go back
     await comicPage.keyboard.press('k');
     
-    // Wait for scroll back
-    await comicPage.waitForFunction((oldY) => window.scrollY < oldY, scrolledY);
+    // Wait for scroll back (expecting to return to roughly 0)
+    await comicPage.waitForFunction((oldY) => window.scrollY < oldY - 50, scrolledY);
     
     const finalY = await comicPage.evaluate(() => window.scrollY);
     expect(finalY).toBeLessThan(scrolledY);
