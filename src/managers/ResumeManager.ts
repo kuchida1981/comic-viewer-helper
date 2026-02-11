@@ -13,34 +13,35 @@ export class ResumeManager {
     this.store = store;
   }
 
-  isEnabled(): boolean {
+  isEnabled = (): boolean => {
     return true;
-  }
+  };
 
-  savePosition(url: string, pageIndex: number): void {
+  savePosition = (url: string, pageIndex: number): void => {
     const data = this._loadData();
     data[url] = { pageIndex };
     localStorage.setItem(this.storageKey, JSON.stringify(data));
-  }
+  };
 
-  loadPosition(url: string): number | null {
-    const data = this._loadData();
-    return data[url]?.pageIndex ?? null;
-  }
+  loadPosition = (url: string): number | null => {
+    const data: Record<string, ResumeData | undefined> = this._loadData();
+    const entry = data[url];
+    return entry ? entry.pageIndex : null;
+  };
 
-  private _loadData(): Record<string, ResumeData> {
+  private _loadData = (): Record<string, ResumeData> => {
     try {
       const parsed: unknown = JSON.parse(localStorage.getItem(this.storageKey) || '{}');
       return isResumeDataMap(parsed) ? parsed : {};
     } catch {
       return {};
     }
-  }
+  };
 
   /**
    * Clear all saved positions
    */
-  clearAll(): void {
+  clearAll = (): void => {
     localStorage.removeItem(this.storageKey);
-  }
+  };
 }

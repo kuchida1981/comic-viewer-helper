@@ -16,14 +16,6 @@ export class Navigator {
     this.store = store;
     this.originalImages = [];
 
-    this.getImages = this.getImages.bind(this);
-    this.jumpToPage = this.jumpToPage.bind(this);
-    this.scrollToImage = this.scrollToImage.bind(this);
-    this.scrollToEdge = this.scrollToEdge.bind(this);
-    this.applyLayout = this.applyLayout.bind(this);
-    this.updatePageCounter = this.updatePageCounter.bind(this);
-    this.init = this.init.bind(this);
-
     this._lastEnabled = undefined;
     this._lastDualView = undefined;
     this._lastSpreadOffset = undefined;
@@ -31,7 +23,7 @@ export class Navigator {
     this.pendingTargetIndex = null;
   }
 
-  init(): void {
+  init = (): void => {
     this.store.subscribe((state: StoreState) => {
       const layoutChanged =
         state.enabled !== this._lastEnabled ||
@@ -64,15 +56,15 @@ export class Navigator {
     if (initialState.enabled) {
       this.applyLayout();
     }
-  }
+  };
 
-  getImages(): HTMLImageElement[] {
+  getImages = (): HTMLImageElement[] => {
     if (this.originalImages.length > 0) return this.originalImages;
     this.originalImages = this.adapter.getImages();
     return this.originalImages;
-  }
+  };
 
-  updatePageCounter(): void {
+  updatePageCounter = (): void => {
     const state = this.store.getState();
     if (!state.enabled) return;
 
@@ -82,7 +74,7 @@ export class Navigator {
       this.store.setState({ currentVisibleIndex: currentIndex });
       preloadImages(imgs, currentIndex);
     }
-  }
+  };
 
   async jumpToPage(pageNumber: string | number): Promise<boolean> {
     const imgs = this.getImages();
@@ -109,7 +101,7 @@ export class Navigator {
     return false;
   }
 
-  private _calculateTargetIndex(imgs: HTMLImageElement[], direction: number): number {
+  private _calculateTargetIndex = (imgs: HTMLImageElement[], direction: number): number => {
     const { isDualViewEnabled } = this.store.getState();
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
     let targetIndex = currentIndex + direction;
@@ -125,7 +117,7 @@ export class Navigator {
       }
     }
     return targetIndex;
-  }
+  };
 
   async scrollToImage(direction: number): Promise<void> {
     const imgs = this.getImages();
@@ -179,7 +171,7 @@ export class Navigator {
     requestAnimationFrame(() => { this.pendingTargetIndex = null; });
   }
 
-  applyLayout(forcedIndex?: number): void {
+  applyLayout = (forcedIndex?: number): void => {
     const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
     const container = this.adapter.getContainer();
     if (!container) return;
@@ -199,14 +191,12 @@ export class Navigator {
 
     if (currentIndex !== -1) {
       const targetImg = imgs[currentIndex];
-      if (targetImg) {
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            targetImg.scrollIntoView({ block: 'center' });
-          });
+          targetImg.scrollIntoView({ block: 'center' });
         });
-        preloadImages(imgs, currentIndex);
-      }
+      });
+      preloadImages(imgs, currentIndex);
     }
-  }
+  };
 }

@@ -39,17 +39,9 @@ export class InputManager {
     this.lastWheelTime = 0;
     this.mouseDownPos = null;
     this.mouseDownTarget = null;
-
-    this.handleWheel = this.handleWheel.bind(this);
-    this.onKeyDown = this.onKeyDown.bind(this);
-    this.handleResize = this.handleResize.bind(this);
-    this.handleFullscreenChange = this.handleFullscreenChange.bind(this);
-    this.handleScroll = this.handleScroll.bind(this);
-    this.onMouseDown = this.onMouseDown.bind(this);
-    this.onMouseUp = this.onMouseUp.bind(this);
   }
 
-  init(): void {
+  init = (): void => {
     window.addEventListener('wheel', this.handleWheel, { passive: false });
     document.addEventListener('keydown', this.onKeyDown, true);
     document.addEventListener('mousedown', this.onMouseDown);
@@ -57,9 +49,9 @@ export class InputManager {
     window.addEventListener('resize', this.handleResize);
     document.addEventListener('fullscreenchange', this.handleFullscreenChange);
     window.addEventListener('scroll', this.handleScroll);
-  }
+  };
 
-  isInputField(target: EventTarget | null): boolean {
+  isInputField = (target: EventTarget | null): boolean => {
     if (!(target instanceof HTMLElement)) return false;
     return (
       target instanceof HTMLInputElement ||
@@ -67,14 +59,14 @@ export class InputManager {
       target instanceof HTMLSelectElement ||
       !!target.isContentEditable
     );
-  }
+  };
 
-  private _isAnyModalOpen(): boolean {
+  private _isAnyModalOpen = (): boolean => {
     const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
     return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
-  }
+  };
 
-  handleWheel(e: WheelEvent): void {
+  handleWheel = (e: WheelEvent): void => {
     const state = this.store.getState();
     if (!state.enabled) return;
 
@@ -95,9 +87,9 @@ export class InputManager {
 
     this.lastWheelTime = now;
     this._navigateByWheel(direction);
-  }
+  };
 
-  private _navigateByWheel(direction: 'next' | 'prev'): void {
+  private _navigateByWheel = (direction: 'next' | 'prev'): void => {
     const { isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
     const imgs = this.navigator.getImages();
     if (imgs.length === 0) return;
@@ -116,9 +108,9 @@ export class InputManager {
       : Math.max(currentVisibleIndex - step, 0);
 
     void this.navigator.jumpToPage(nextIndex + 1);
-  }
+  };
 
-  onKeyDown(e: KeyboardEvent): void {
+  onKeyDown = (e: KeyboardEvent): void => {
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
 
     if (this._handleModalCloseShortcuts(e)) return;
@@ -127,18 +119,18 @@ export class InputManager {
     if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
 
     this._handleShortcutAction(e);
-  }
+  };
 
-  private _handleModalCloseShortcuts(e: KeyboardEvent): boolean {
+  private _handleModalCloseShortcuts = (e: KeyboardEvent): boolean => {
     if (e.key === 'Escape' && this._isAnyModalOpen()) {
       e.preventDefault();
       this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
       return true;
     }
     return false;
-  }
+  };
 
-  private _handleToggleShortcuts(e: KeyboardEvent): boolean {
+  private _handleToggleShortcuts = (e: KeyboardEvent): boolean => {
     if (matchesShortcut(e, 'help')) {
       e.preventDefault();
       this.store.setState({ isHelpModalOpen: !this.store.getState().isHelpModalOpen });
@@ -150,9 +142,9 @@ export class InputManager {
       return true;
     }
     return false;
-  }
+  };
 
-  private _handleShortcutAction(e: KeyboardEvent): void {
+  private _handleShortcutAction = (e: KeyboardEvent): void => {
     const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
 
     const actions: Record<string, () => void | Promise<void>> = {
@@ -163,7 +155,7 @@ export class InputManager {
       metadata: () => this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen }),
       help: () => this.store.setState({ isHelpModalOpen: !isHelpModalOpen }),
       fullscreen: () => this._toggleFullscreen(),
-      randomJump: () => jumpToRandomWork(metadata, searchCache)
+      randomJump: () => { jumpToRandomWork(metadata, searchCache); }
     };
 
     for (const [id, action] of Object.entries(actions)) {
@@ -171,53 +163,54 @@ export class InputManager {
         e.preventDefault();
         const result = action();
         if (result instanceof Promise) {
-          void result;
+          void result.catch((err: unknown) => { console.error('Shortcut action failed:', err); });
         }
         break;
       }
     }
-  }
+  };
 
-  private _toggleFullscreen(): void {
+  private _toggleFullscreen = (): void => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!document.documentElement.requestFullscreen) return;
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => { });
     } else {
       document.documentElement.requestFullscreen().catch(() => { });
     }
-  }
+  };
 
-  handleResize(): void {
+  handleResize = (): void => {
     const { enabled, currentVisibleIndex } = this.store.getState();
     if (!enabled) return;
 
     if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
     this.resizeReq = requestAnimationFrame(() => this.navigator.applyLayout(currentVisibleIndex));
-  }
+  };
 
-  handleFullscreenChange(): void {
+  handleFullscreenChange = (): void => {
     const { enabled, currentVisibleIndex } = this.store.getState();
     if (!enabled) return;
 
     requestAnimationFrame(() => {
       this.navigator.applyLayout(currentVisibleIndex);
     });
-  }
+  };
 
-  handleScroll(): void {
+  handleScroll = (): void => {
     if (!this.store.getState().enabled) return;
 
     if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
     this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
-  }
+  };
 
-  onMouseDown(e: MouseEvent): void {
+  onMouseDown = (e: MouseEvent): void => {
     if (!(e.target instanceof HTMLImageElement)) return;
     this.mouseDownPos = { x: e.clientX, y: e.clientY };
     this.mouseDownTarget = e.target;
-  }
+  };
 
-  onMouseUp(e: MouseEvent): void {
+  onMouseUp = (e: MouseEvent): void => {
     const target = this.mouseDownTarget;
     const startPos = this.mouseDownPos;
     this.mouseDownTarget = null;
@@ -233,5 +226,5 @@ export class InputManager {
 
     const direction = getClickNavigationDirection(target);
     void this.navigator.scrollToImage(direction === 'next' ? 1 : -1);
-  }
+  };
 }

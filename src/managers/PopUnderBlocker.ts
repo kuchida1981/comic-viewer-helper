@@ -5,14 +5,13 @@ export class PopUnderBlocker {
 
   constructor(store: Store) {
     this.store = store;
-    this.handleClick = this.handleClick.bind(this);
   }
 
-  init(): void {
+  init = (): void => {
     document.addEventListener('click', this.handleClick, true);
-  }
+  };
 
-  handleClick(e: MouseEvent): void {
+  handleClick = (e: MouseEvent): void => {
     if (!this.store.getState().enabled) return;
 
     const target = e.target as HTMLElement;
@@ -30,5 +29,5 @@ export class PopUnderBlocker {
     e.stopImmediatePropagation();
     e.preventDefault();
     window.location.href = link.href;
-  }
+  };
 }

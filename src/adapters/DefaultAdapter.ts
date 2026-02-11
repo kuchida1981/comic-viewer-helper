@@ -36,13 +36,16 @@ export const DefaultAdapter: SiteAdapter = {
     baseUrl: '/',
     queryParam: 's'
   },
-  getSearchUrl: function (query: string) {
-    const url = new URL(this.searchConfig?.baseUrl || '/', window.location.origin);
-    url.searchParams.set(this.searchConfig?.queryParam || 's', query);
+  getSearchUrl: function (this: typeof DefaultAdapter, query: string) {
+    const config = this.searchConfig;
+    if (!config) return '';
+    const url = new URL(config.baseUrl, window.location.origin);
+    url.searchParams.set(config.queryParam, query);
     return url.toString();
   },
   getMetadata: (): Metadata => {
-    const title = document.querySelector('h1')?.textContent?.trim() || 'Unknown Title';
+    const titleEl = document.querySelector('h1');
+    const title = titleEl?.textContent?.trim() || 'Unknown Title';
 
     const tags = Array.from(document.querySelectorAll<HTMLAnchorElement>('#post-tag a')).map(a => {
       const href = a.href;
@@ -81,7 +84,8 @@ export const DefaultAdapter: SiteAdapter = {
       };
     });
 
-    const totalCount = doc.querySelector<HTMLElement>('div.page-h > span')?.textContent?.trim() || null;
+    const totalCountEl = doc.querySelector<HTMLElement>('div.page-h > span');
+    const totalCount = totalCountEl?.textContent?.trim() || null;
     const nextPageUrl = doc.querySelector<HTMLAnchorElement>('div.wp-pagenavi a.nextpostslink')?.getAttribute('href') || null;
 
     const pagination: PaginationItem[] = [];
@@ -104,7 +108,7 @@ export const DefaultAdapter: SiteAdapter = {
 
           pagination.push({
             label: el.textContent?.trim() || '',
-            url: el.getAttribute('href') || null,
+            url: el.getAttribute('href'),
             isCurrent,
             type
           });

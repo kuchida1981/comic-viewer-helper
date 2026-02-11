@@ -60,12 +60,9 @@ export class UIManager {
     this.adapter = adapter;
     this.store = store;
     this.navigator = navigator;
-
-    this.updateUI = this.updateUI.bind(this);
-    this.init = this.init.bind(this);
   }
 
-  init(): void {
+  init = (): void => {
     injectStyles();
     this.updateUI();
 
@@ -77,9 +74,9 @@ export class UIManager {
         this.store.setState({ guiPos: { top, left } });
       }
     });
-  }
+  };
 
-  updateUI(): void {
+  updateUI = (): void => {
     const state = this.store.getState();
     const container = this._ensureRootContainer(state.guiPos);
 
@@ -92,9 +89,9 @@ export class UIManager {
     document.documentElement.classList.toggle('comic-helper-enabled', state.enabled);
 
     this._updateVisibility(container, state);
-  }
+  };
 
-  private _ensureRootContainer(guiPos: { top: number; left: number } | null): HTMLElement {
+  private _ensureRootContainer = (guiPos: { top: number; left: number } | null): HTMLElement => {
     let container = document.getElementById('comic-helper-ui');
     if (!container) {
       container = createElement('div', { id: 'comic-helper-ui' });
@@ -107,9 +104,9 @@ export class UIManager {
       document.body.appendChild(container);
     }
     return container;
-  }
+  };
 
-  private _initializeComponents(container: HTMLElement): void {
+  private _initializeComponents = (container: HTMLElement): void => {
     const state = this.store.getState();
     const imgs = this.navigator.getImages();
 
@@ -152,9 +149,9 @@ export class UIManager {
     if (container.querySelectorAll('.comic-helper-button').length === 0) {
       this._addNavigationButtons(container);
     }
-  }
+  };
 
-  private async _handleJump(val: string): Promise<void> {
+  private _handleJump = async (val: string): Promise<void> => {
     const success = await this.navigator.jumpToPage(val);
     if (this.counterComp) {
       this.counterComp.input.blur();
@@ -163,9 +160,9 @@ export class UIManager {
         setTimeout(() => { if (this.counterComp) this.counterComp.input.style.backgroundColor = ''; }, 500);
       }
     }
-  }
+  };
 
-  private _addNavigationButtons(container: HTMLElement): void {
+  private _addNavigationButtons = (container: HTMLElement): void => {
     const navBtns = createNavigationButtons({
       onFirst: () => { void this.navigator.scrollToEdge('start'); },
       onPrev: () => { void this.navigator.scrollToImage(-1); },
@@ -177,9 +174,9 @@ export class UIManager {
       onLucky: () => { jumpToRandomWork(this.store.getState().metadata, this.store.getState().searchCache); }
     });
     navBtns.elements.forEach(btn => container.appendChild(btn));
-  }
+  };
 
-  private _updateModals(state: StoreState): void {
+  private _updateModals = (state: StoreState): void => {
     this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
       onClose: () => this.store.setState({ isHelpModalOpen: false })
     }));
@@ -189,11 +186,11 @@ export class UIManager {
     this.modalEl = this._manageModal(state.isMetadataModalOpen, this.modalEl, () => createMetadataModal({
       metadata: state.metadata,
       onClose: () => this.store.setState({ isMetadataModalOpen: false }),
-      onTagClick: (tag) => this._handleTagClick(tag)
+      onTagClick: async (tag) => { await this._handleTagClick(tag); }
     }));
-  }
+  };
 
-  private _updateSearchModal(state: StoreState): void {
+  private _updateSearchModal = (state: StoreState): void => {
     if (state.isSearchModalOpen) {
       if (!this.searchModalComp) {
         this.searchModalComp = createSearchModal({
@@ -212,9 +209,9 @@ export class UIManager {
       this.searchModalComp.el.remove();
       this.searchModalComp = null;
     }
-  }
+  };
 
-  private _handleSearchSWR(state: StoreState): void {
+  private _handleSearchSWR = (state: StoreState): void => {
     const { searchCache, searchQuery, searchContext } = state;
     if (!searchCache) {
       if (searchQuery && searchContext?.type === 'keyword') {
@@ -224,9 +221,9 @@ export class UIManager {
     }
 
     this._processSearchCache(searchCache, searchQuery, searchContext);
-  }
+  };
 
-  private _processSearchCache(searchCache: SearchCache, searchQuery: string, searchContext?: SearchContext): void {
+  private _processSearchCache = (searchCache: SearchCache, searchQuery: string, searchContext?: SearchContext): void => {
     if (searchCache.query === searchQuery && contextsMatch(searchCache.context, searchContext)) {
       this.store.setState({ searchResults: searchCache.results });
       this.searchModalComp?.updateResults(searchCache.results);
@@ -234,21 +231,21 @@ export class UIManager {
     } else if (searchQuery && searchContext?.type === 'keyword') {
       void this._performSearch(searchQuery);
     }
-  }
+  };
 
-  private _revalidateCacheIfNeeded(searchCache: SearchCache, searchQuery: string, searchContext?: SearchContext): void {
+  private _revalidateCacheIfNeeded = (searchCache: SearchCache, searchQuery: string, searchContext?: SearchContext): void => {
     if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
       void this._performSearch(searchQuery, true, searchContext);
     }
-  }
+  };
 
-  private _handleTagClick(tag: Tag): Promise<void> {
+  private _handleTagClick = async (tag: Tag): Promise<void> => {
     this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
     const contextType = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
     return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
-  }
+  };
 
-  private _updateVisibility(container: HTMLElement, state: StoreState): void {
+  private _updateVisibility = (container: HTMLElement, state: StoreState): void => {
     const imgs = this.navigator.getImages();
     const { enabled, currentVisibleIndex, isDualViewEnabled } = state;
 
@@ -270,18 +267,18 @@ export class UIManager {
 
     this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
     this.spreadComp?.update(isDualViewEnabled);
-  }
+  };
 
-  showResumeNotification(savedIndex: number): void {
+  showResumeNotification = (savedIndex: number): void => {
     const notification = createResumeNotification({
       savedIndex,
       onResume: () => { void this.navigator.jumpToPage(savedIndex + 1); },
       onSkip: () => { }
     });
     document.body.appendChild(notification.el);
-  }
+  };
 
-  private _manageModal(isOpen: boolean, modalEl: HTMLElement | null, createFn: () => { el: HTMLElement }): HTMLElement | null {
+  private _manageModal = (isOpen: boolean, modalEl: HTMLElement | null, createFn: () => { el: HTMLElement }): HTMLElement | null => {
     if (isOpen) {
       if (!modalEl) {
         const newModal = createFn();
@@ -293,9 +290,9 @@ export class UIManager {
       modalEl = null;
     }
     return modalEl;
-  }
+  };
 
-  private async _performSearch(queryOrUrl: string, silent = false, context?: SearchContext): Promise<void> {
+  private _performSearch = async (queryOrUrl: string, silent = false, context?: SearchContext): Promise<void> => {
     if (!isSearchableAdapter(this.adapter)) return;
     if (!silent) this.store.setState({ searchResults: null });
 
@@ -315,17 +312,17 @@ export class UIManager {
     } finally {
       this.searchModalComp?.setUpdating(false);
     }
-  }
+  };
 
-  private _updateStoreBeforeSearch(query: string, context: SearchContext, silent: boolean, isUrl: boolean): void {
+  private _updateStoreBeforeSearch = (query: string, context: SearchContext, silent: boolean, isUrl: boolean): void => {
     this.store.setState({ searchContext: context });
     if (!silent && !isUrl && context.type === 'keyword') {
       this.store.setState({ searchQuery: query });
       this._updateSearchHistory(query);
     }
-  }
+  };
 
-  private _getSearchParameters(queryOrUrl: string, context?: SearchContext): { url: string; query: string; searchContext: SearchContext } {
+  private _getSearchParameters = (queryOrUrl: string, context?: SearchContext): { url: string; query: string; searchContext: SearchContext } => {
     const isUrl = queryOrUrl.startsWith('http') || queryOrUrl.startsWith('/');
     if (isUrl) {
       const query = context ? (context.label || '') : this.store.getState().searchQuery;
@@ -337,22 +334,22 @@ export class UIManager {
     const url = searchableAdapter.getSearchUrl(query);
     const searchContext = context || { type: 'keyword', label: query };
     return { url, query, searchContext };
-  }
+  };
 
-  private async _fetchSearchResults(url: string): Promise<SearchResultsState> {
+  private _fetchSearchResults = async (url: string): Promise<SearchResultsState> => {
     const searchableAdapter = this.adapter as SearchableAdapter;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, 'text/html');
     return searchableAdapter.parseSearchResults(doc);
-  }
+  };
 
-  private _updateSearchHistory(query: string): void {
+  private _updateSearchHistory = (query: string): void => {
     const { searchHistory } = this.store.getState();
     const normalizedNew = normalizeQuery(query);
     const filtered = searchHistory.filter(h => normalizeQuery(h) !== normalizedNew);
     const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
     this.store.setState({ searchHistory: newHistory });
-  }
+  };
 }

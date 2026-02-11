@@ -28,11 +28,9 @@ class App {
     this.inputManager = new InputManager(this.store, this.navigator);
     this.resumeManager = new ResumeManager(this.store);
     this.popUnderBlocker = new PopUnderBlocker(this.store);
-
-    this.init = this.init.bind(this);
   }
 
-  init(): void {
+  init = (): void => {
     const container = this.adapter.getContainer();
     if (!container) return;
 
@@ -66,7 +64,7 @@ class App {
         this.resumeManager.savePosition(workKey, currentIndex);
       }
     });
-  }
+  };
 }
 
 const app = new App();
