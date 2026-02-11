@@ -1,0 +1,19 @@
+# Use Playwright official image as base
+FROM mcr.microsoft.com/playwright:v1.50.1-noble
+
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy the rest of the source code
+COPY . .
+
+# Build the UserScript
+# Note: scripts/build.mjs will be modified in a later task to handle missing .git
+RUN npm run build
+
+# Default command to run tests
+# Use --output to ensure reports are written to a known directory for mounting
+CMD ["npx", "playwright", "test"]

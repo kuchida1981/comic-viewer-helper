@@ -1,0 +1,21 @@
+services:
+  mock-server:
+    image: nginx:alpine
+    volumes:
+      - ./tests/e2e/mocks:/usr/share/nginx/html:ro
+    ports:
+      - "3000:80"
+
+  playwright:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    environment:
+      - BASE_URL=http://mock-server
+    volumes:
+      - ./playwright-report:/app/playwright-report
+      - ./test-results:/app/test-results
+    depends_on:
+      - mock-server
+    # Ensure the container exits after tests are done
+    command: npx playwright test

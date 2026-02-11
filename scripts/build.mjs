@@ -9,7 +9,7 @@ let version = pkg.version;
 const isUnstable = process.env.IS_UNSTABLE === 'true';
 if (isUnstable) {
   try {
-    const commitHash = execSync('git rev-parse --short HEAD').toString().trim();
+    const commitHash = execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
     version += `-unstable.${commitHash}`;
   } catch (e) {
     console.warn('Failed to get git commit hash, falling back to timestamp');
