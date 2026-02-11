@@ -21,11 +21,11 @@
 ### 2. イベントサイクル管理フラグ (`_escapeCycleHandled`) の導入
 `keydown` で `Escape` を処理した際にフラグを保持し、対になる `keyup` イベントも確実に捕捉・抑制します。
 
-### 3. フォーカス強制解除 (`blur`)
-`Escape` 処理の瞬間に `document.activeElement` が `input` 等であった場合、即座に `blur()` を実行します。ブラウザの「入力欄からの脱出」を目的としたフルスクリーン解除挙動を未然に防ぐ試みです。
+### 3. フォーカス強制解除と移動 (`blur` & `focus`)
+`Escape` 処理の瞬間に `document.activeElement` が `input` 等であった場合、即座に `blur()` を実行し、さらに `document.body.focus()` を呼び出します。ブラウザの「入力欄からの脱出」という判断基準を物理的に取り除く試みです。
 
-### 4. 判定ロジックの多重化
-`Store` 状態、DOM 実態 (`.comic-helper-modal-overlay`)、およびフォーカス要素の所属を組み合わせて、モーダルが「視覚的に開いている」状況を確実に検知します。
+### 4. 非同期クローズ (`setTimeout`)
+モーダルの閉鎖処理 (`setState`) を `setTimeout(..., 0)` で非同期化します。`preventDefault()` と `stopImmediatePropagation()` を呼んだ直後のメインループでブラウザに「イベント処理完了」を認識させ、その後に DOM を更新することで、フルスクリーン解除挙動との競合を回避します。
 
 ## Risks / Trade-offs
 

@@ -9,6 +9,10 @@ import { createResumeNotification } from './ResumeNotification.js';
 import { Metadata } from '../../types.js';
 
 describe('UI Components', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
   describe('PowerButton', () => {
     it('should show enabled state', () => {
       const { el } = createPowerButton({ isEnabled: true, onClick: () => {} });
@@ -239,6 +243,7 @@ describe('UI Components', () => {
       
       const event = new KeyboardEvent('keydown', { key: 'Escape' });
       content.dispatchEvent(event);
+      vi.advanceTimersByTime(0);
       expect(onClose).toHaveBeenCalled();
 
       // keyup
@@ -277,6 +282,7 @@ describe('UI Components', () => {
       
       const event = new KeyboardEvent('keydown', { key: 'Escape' });
       content.dispatchEvent(event);
+      vi.advanceTimersByTime(0);
       expect(onClose).toHaveBeenCalled();
 
       // keyup

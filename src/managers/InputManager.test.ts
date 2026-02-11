@@ -30,6 +30,7 @@ describe('InputManager', () => {
   let inputManager: InputManager;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     document.body.innerHTML = '';
     store = {
       getState: vi.fn().mockReturnValue({ 
@@ -168,6 +169,7 @@ describe('InputManager', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isSearchModalOpen: false });
     const event = { type: 'keydown', key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onGlobalKeyDownCapture(event);
+    vi.advanceTimersByTime(0);
     expect(store.setState).toHaveBeenCalledWith({
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
@@ -189,6 +191,8 @@ describe('InputManager', () => {
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopImmediatePropagation).toHaveBeenCalled();
     expect(blurSpy).toHaveBeenCalled();
+    
+    vi.advanceTimersByTime(0);
     expect(store.setState).toHaveBeenCalledWith({
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
@@ -207,6 +211,7 @@ describe('InputManager', () => {
     inputManager.onGlobalKeyDownCapture(event);
     
     expect(event.preventDefault).toHaveBeenCalled();
+    vi.advanceTimersByTime(0);
     expect(store.setState).toHaveBeenCalled();
     modal.remove();
   });

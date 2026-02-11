@@ -128,12 +128,16 @@ export class InputManager {
         e.preventDefault();
         e.stopImmediatePropagation();
 
-        // Blur focused element to reduce browser's priority for "input escape" behavior
+        // High-priority focus shift: pull away from input to document body
         if (document.activeElement instanceof HTMLElement) {
           document.activeElement.blur();
         }
+        document.body.focus();
 
-        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+        // Asynchronous close: allow browser to process preventDefault before DOM removal
+        setTimeout(() => {
+          this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+        }, 0);
       } else {
         this._escapeCycleHandled = false;
       }

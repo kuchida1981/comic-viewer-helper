@@ -137,15 +137,39 @@ describe('SearchModal', () => {
 
       
 
-          form.dispatchEvent(event);
+              form.dispatchEvent(event);
 
       
 
-          expect(onClose).toHaveBeenCalled();
+          
 
       
 
-          expect(stopSpy).toHaveBeenCalled();
+              vi.advanceTimersByTime(0);
+
+      
+
+          
+
+      
+
+              expect(onClose).toHaveBeenCalled();
+
+      
+
+          
+
+      
+
+              expect(stopSpy).toHaveBeenCalled();
+
+      
+
+          
+
+      
+
+          
 
       
 

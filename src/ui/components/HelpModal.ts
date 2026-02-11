@@ -65,7 +65,8 @@ export function createHelpModal({ onClose }: HelpModalProps): HelpModalComponent
           if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
           }
-          onClose();
+          document.body.focus();
+          setTimeout(onClose, 0);
         }
       },
       keyup: (e: Event) => {

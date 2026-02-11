@@ -145,7 +145,8 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
           if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
           }
-          onClose();
+          document.body.focus();
+          setTimeout(onClose, 0);
         }
       },
       keyup: (e: Event) => {
