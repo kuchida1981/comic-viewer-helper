@@ -174,6 +174,21 @@ describe('InputManager', () => {
     });
   });
 
+  it('onKeyDown should handle Escape even when an input field is focused if a modal is open', () => {
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isSearchModalOpen: true });
+    const input = document.createElement('input');
+    const event = { key: 'Escape', preventDefault: vi.fn(), target: input } as unknown as KeyboardEvent;
+    
+    inputManager.onKeyDown(event);
+    
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(store.setState).toHaveBeenCalledWith({
+      isMetadataModalOpen: false,
+      isHelpModalOpen: false,
+      isSearchModalOpen: false
+    });
+  });
+
   it('onKeyDown should handle help toggle', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isHelpModalOpen: false });
     // Realistic '?' input often comes with shiftKey: true (from Shift + '/')

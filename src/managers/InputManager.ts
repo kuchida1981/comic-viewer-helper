@@ -111,9 +111,10 @@ export class InputManager {
   };
 
   onKeyDown = (e: KeyboardEvent): void => {
+    if (this._handleModalCloseShortcuts(e)) return;
+
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
 
-    if (this._handleModalCloseShortcuts(e)) return;
     if (this._handleToggleShortcuts(e)) return;
 
     if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
