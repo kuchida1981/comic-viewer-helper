@@ -23,7 +23,7 @@ lint:
 	npm run lint
 
 typecheck:
-	@echo "ct..."
+	@echo "typecheck..."
 	npm run check-types
 
 docs:
