@@ -10,6 +10,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.e2e
+    shm_size: '2gb'
     environment:
       - BASE_URL=http://mock-server
     volumes:
