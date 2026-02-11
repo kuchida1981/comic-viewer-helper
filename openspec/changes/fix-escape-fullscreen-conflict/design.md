@@ -18,20 +18,14 @@
 ### 1. `window` レベルのキャプチャフェーズでのイベント捕捉
 `document` よりもさらに上流の `window` レベルにおいて、キャプチャフェーズ (`useCapture: true`) で `keydown` および `keyup` イベントを捕捉します。
 
-- **Rationale**: ブラウザやサイト側のスクリプトがイベントを処理する前に、可能な限り早い段階で介入するため。
+### 2. イベントサイクル管理フラグ (`_escapeCycleHandled`) の導入
+`keydown` で `Escape` を処理した際にフラグを保持し、対になる `keyup` イベントも確実に捕捉・抑制します。
 
-### 2. `keyup` イベントの追加捕捉
-`keydown` だけでなく `keyup` においても `Escape` キーを判定し、同様に `preventDefault()` と `stopImmediatePropagation()` を実行します。
+### 3. フォーカス強制解除 (`blur`)
+`Escape` 処理の瞬間に `document.activeElement` が `input` 等であった場合、即座に `blur()` を実行します。ブラウザの「入力欄からの脱出」を目的としたフルスクリーン解除挙動を未然に防ぐ試みです。
 
-- **Rationale**: ブラウザによっては `keyup` 時にもフルスクリーン解除のトリガーが仕込まれている場合があるため。
-
-### 3. モーダル存在判定の強化（Store + DOM）
-`_isAnyModalOpen` 判定において、`Store` の状態だけでなく、DOM 上にモーダル要素 (`.comic-helper-modal-overlay`) が存在するかを直接チェックします。
-
-- **Rationale**: 状態管理とレンダリングの極小のラグによる判定漏れを防ぎ、確実にガードするため。
-
-### 4. コンポーネントレベルのガードの維持
-各モーダルコンポーネント内での `keydown` ガードもバックアップとして維持します。
+### 4. 判定ロジックの多重化
+`Store` 状態、DOM 実態 (`.comic-helper-modal-overlay`)、およびフォーカス要素の所属を組み合わせて、モーダルが「視覚的に開いている」状況を確実に検知します。
 
 ## Risks / Trade-offs
 

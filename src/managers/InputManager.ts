@@ -32,6 +32,7 @@ export class InputManager {
   private scrollReq?: number;
   private mouseDownPos: { x: number; y: number } | null;
   private mouseDownTarget: HTMLImageElement | null;
+  private _escapeCycleHandled = false;
 
   constructor(store: Store, navigator: Navigator) {
     this.store = store;
@@ -66,9 +67,11 @@ export class InputManager {
 
   private _isAnyModalOpen = (): boolean => {
     const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-    // Strengthen check by also looking at the DOM
+    if (isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen) return true;
+    
+    // Strengthen check by also looking at the DOM for active overlays
     const hasModalOverlay = !!document.querySelector('.comic-helper-modal-overlay');
-    return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || hasModalOverlay;
+    return hasModalOverlay;
   };
 
   handleWheel = (e: WheelEvent): void => {
@@ -116,10 +119,30 @@ export class InputManager {
   };
 
   onGlobalKeyDownCapture = (e: KeyboardEvent): void => {
-    // Highest priority: Close modal with Escape and prevent default browser behavior (like exiting fullscreen)
-    if (this._handleModalCloseShortcuts(e)) {
-      // If we handled it, we stop it from reaching ANY other listener
-      e.stopImmediatePropagation();
+    const isEscape = e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27;
+    if (!isEscape) return;
+
+    if (e.type === 'keydown') {
+      if (this._isAnyModalOpen()) {
+        this._escapeCycleHandled = true;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        // Blur focused element to reduce browser's priority for "input escape" behavior
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+
+        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+      } else {
+        this._escapeCycleHandled = false;
+      }
+    } else if (e.type === 'keyup') {
+      if (this._escapeCycleHandled) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this._escapeCycleHandled = false;
+      }
     }
   };
 
@@ -133,17 +156,6 @@ export class InputManager {
     if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
 
     this._handleShortcutAction(e);
-  };
-
-  private _handleModalCloseShortcuts = (e: KeyboardEvent): boolean => {
-    const isEscape = e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27;
-    if (isEscape && this._isAnyModalOpen()) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
-      return true;
-    }
-    return false;
   };
 
   private _handleToggleShortcuts = (e: KeyboardEvent): boolean => {

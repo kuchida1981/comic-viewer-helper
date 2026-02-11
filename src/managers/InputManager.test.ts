@@ -30,6 +30,7 @@ describe('InputManager', () => {
   let inputManager: InputManager;
 
   beforeEach(() => {
+    document.body.innerHTML = '';
     store = {
       getState: vi.fn().mockReturnValue({ 
         enabled: true, 
@@ -165,7 +166,7 @@ describe('InputManager', () => {
 
   it('onKeyDown should handle Escape', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isSearchModalOpen: false });
-    const event = { key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    const event = { type: 'keydown', key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onGlobalKeyDownCapture(event);
     expect(store.setState).toHaveBeenCalledWith({
       isMetadataModalOpen: false,
@@ -174,20 +175,26 @@ describe('InputManager', () => {
     });
   });
 
-  it('onKeyDown should handle Escape even when an input field is focused if a modal is open', () => {
+  it('onGlobalKeyDownCapture should handle Escape even when an input field is focused if a modal is open', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isSearchModalOpen: true });
     const input = document.createElement('input');
-    const event = { key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: input } as unknown as KeyboardEvent;
+    document.body.appendChild(input);
+    input.focus();
+    const blurSpy = vi.spyOn(input, 'blur');
+
+    const event = { key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: input, type: 'keydown' } as unknown as KeyboardEvent;
     
     inputManager.onGlobalKeyDownCapture(event);
     
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopImmediatePropagation).toHaveBeenCalled();
+    expect(blurSpy).toHaveBeenCalled();
     expect(store.setState).toHaveBeenCalledWith({
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
       isSearchModalOpen: false
     });
+    input.remove();
   });
 
   it('onKeyDown should handle Escape based on DOM presence even if store state is false', () => {
@@ -196,7 +203,7 @@ describe('InputManager', () => {
     modal.className = 'comic-helper-modal-overlay';
     document.body.appendChild(modal);
 
-    const event = { key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    const event = { type: 'keydown', key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onGlobalKeyDownCapture(event);
     
     expect(event.preventDefault).toHaveBeenCalled();
@@ -204,12 +211,21 @@ describe('InputManager', () => {
     modal.remove();
   });
 
-  it('onGlobalKeyDownCapture should handle keyup for Escape', () => {
+  it('onGlobalKeyDownCapture should handle keyup for Escape if keydown was handled', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true });
-    const event = { type: 'keyup', key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
-    inputManager.onGlobalKeyDownCapture(event);
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(event.stopImmediatePropagation).toHaveBeenCalled();
+    
+    // Simulate keydown
+    const downEvent = { type: 'keydown', key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onGlobalKeyDownCapture(downEvent);
+    expect(downEvent.preventDefault).toHaveBeenCalled();
+
+    // After keydown, state becomes false in reality, but we want to check if keyup is still blocked
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false });
+    const upEvent = { type: 'keyup', key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onGlobalKeyDownCapture(upEvent);
+    
+    expect(upEvent.preventDefault).toHaveBeenCalled();
+    expect(upEvent.stopImmediatePropagation).toHaveBeenCalled();
   });
 
   it('onKeyDown should handle help toggle', () => {

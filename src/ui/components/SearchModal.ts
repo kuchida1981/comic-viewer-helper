@@ -142,6 +142,9 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
         if (ke.key === 'Escape' || ke.key === 'Esc' || ke.keyCode === 27) {
           e.preventDefault();
           e.stopPropagation();
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
           onClose();
         }
       },
