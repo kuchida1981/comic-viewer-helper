@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.26c81e4
+// @version         1.4.0-unstable.25fec56
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -89,10 +89,10 @@
       };
       this.listeners = [];
     }
-    getState() {
+    getState = () => {
       return { ...this.state };
-    }
-    setState(patch) {
+    };
+    setState = (patch) => {
       let changed = false;
       for (const key of Object.keys(patch)) {
         if (this.state[key] !== patch[key]) {
@@ -104,14 +104,14 @@
         this._persistChanges(patch);
         this._notify();
       }
-    }
-    _persistChanges(patch) {
+    };
+    _persistChanges = (patch) => {
       if ("enabled" in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
       if ("isDualViewEnabled" in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
       if ("guiPos" in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
       this._persistSearchRelatedChanges(patch);
-    }
-    _persistSearchRelatedChanges(patch) {
+    };
+    _persistSearchRelatedChanges = (patch) => {
       const host = window.location.hostname;
       if ("searchQuery" in patch) {
         localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
@@ -134,20 +134,20 @@
       if ("searchHistory" in patch) {
         localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
       }
-    }
-    subscribe(callback) {
+    };
+    subscribe = (callback) => {
       this.listeners.push(callback);
       return () => {
         this.listeners = this.listeners.filter((l) => l !== callback);
       };
-    }
-    _notify() {
+    };
+    _notify = () => {
       this.listeners.forEach((callback) => callback(this.getState()));
-    }
-    _applyPatch(key, value) {
+    };
+    _applyPatch = (key, value) => {
       this.state[key] = value;
-    }
-    _loadSearchHistory() {
+    };
+    _loadSearchHistory = () => {
       try {
         const host = window.location.hostname;
         const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
@@ -161,8 +161,8 @@
       } catch {
         return [];
       }
-    }
-    _loadSearchCache() {
+    };
+    _loadSearchCache = () => {
       try {
         const host = window.location.hostname;
         const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
@@ -172,12 +172,12 @@
       } catch {
         return null;
       }
-    }
-    _loadSearchQuery() {
+    };
+    _loadSearchQuery = () => {
       const host = window.location.hostname;
       return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
-    }
-    _loadSearchContext() {
+    };
+    _loadSearchContext = () => {
       try {
         const host = window.location.hostname;
         const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
@@ -187,8 +187,8 @@
       } catch {
         return void 0;
       }
-    }
-    _loadGuiPos() {
+    };
+    _loadGuiPos = () => {
       try {
         const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
         if (!saved) return null;
@@ -202,7 +202,7 @@
       } catch {
         return null;
       }
-    }
+    };
   }
   const CONTAINER_SELECTOR = "#post-comic";
   const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
@@ -230,12 +230,15 @@
       queryParam: "s"
     },
     getSearchUrl: function(query) {
-      const url = new URL(this.searchConfig?.baseUrl || "/", window.location.origin);
-      url.searchParams.set(this.searchConfig?.queryParam || "s", query);
+      const config = this.searchConfig;
+      if (!config) return "";
+      const url = new URL(config.baseUrl, window.location.origin);
+      url.searchParams.set(config.queryParam, query);
       return url.toString();
     },
     getMetadata: () => {
-      const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
+      const titleEl = document.querySelector("h1");
+      const title = titleEl?.textContent?.trim() || "Unknown Title";
       const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
         const href = a.href;
         return {
@@ -247,8 +250,8 @@
       const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
         const anchor = el.closest("a");
         const img = el.querySelector("img");
-        const titleEl = el.querySelector("span") || anchor?.querySelector("span");
-        const title2 = titleEl?.textContent?.trim() || "Untitled";
+        const titleEl2 = el.querySelector("span") || anchor?.querySelector("span");
+        const title2 = titleEl2?.textContent?.trim() || "Untitled";
         return {
           title: title2,
           href: anchor?.href || "",
@@ -268,7 +271,8 @@
           thumb: img?.getAttribute("src") || ""
         };
       });
-      const totalCount = doc.querySelector("div.page-h > span")?.textContent?.trim() || null;
+      const totalCountEl = doc.querySelector("div.page-h > span");
+      const totalCount = totalCountEl?.textContent?.trim() || null;
       const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
       const pagination = [];
       const pagenavi = doc.querySelector(".wp-pagenavi");
@@ -287,7 +291,7 @@
             else if (isExtend) type = "extend";
             pagination.push({
               label: el.textContent?.trim() || "",
-              url: el.getAttribute("href") || null,
+              url: el.getAttribute("href"),
               isCurrent,
               type
             });
@@ -350,7 +354,7 @@
     }
     const img = allImages[i];
     const candidate = allImages[i + 1];
-    if (img && candidate && typeof img.naturalWidth === "number" && typeof img.naturalHeight === "number" && typeof candidate.naturalWidth === "number" && typeof candidate.naturalHeight === "number") {
+    if (img && candidate && typeof img.naturalWidth === "number" && typeof candidate.naturalWidth === "number") {
       const isLandscape = img.naturalWidth > img.naturalHeight;
       const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
       if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
@@ -425,13 +429,16 @@
       const img = allImages[i];
       if (!img || typeof img.naturalWidth !== "number") continue;
       const { pairWithNext, nextImg } = getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled);
-      let wrapper = existingWrappers[wrapperIndex];
-      if (!wrapper) {
-        wrapper = document.createElement("div");
-        wrapper.className = "comic-row-wrapper";
+      const wrapper = existingWrappers[wrapperIndex];
+      if (wrapper === void 0) {
+        const newWrapper = document.createElement("div");
+        newWrapper.className = "comic-row-wrapper";
+        container.appendChild(newWrapper);
+        applyRowLayout(newWrapper, img, nextImg, viewport);
+      } else {
+        container.appendChild(wrapper);
+        applyRowLayout(wrapper, img, nextImg, viewport);
       }
-      container.appendChild(wrapper);
-      applyRowLayout(wrapper, img, nextImg, viewport);
       if (pairWithNext) i++;
       wrapperIndex++;
     }
@@ -442,9 +449,7 @@
   }
   function revertToOriginal(originalImages, container) {
     if (!container) return;
-    if (container.style) {
-      container.style.cssText = "";
-    }
+    container.style.cssText = "";
     if (!originalImages || !Array.isArray(originalImages)) return;
     originalImages.forEach((img) => {
       if (img && img.style) {
@@ -545,10 +550,10 @@
   }
   function jumpToRandomWork(metadata, searchCache) {
     const sources = [];
-    if (metadata?.relatedWorks) {
+    if (metadata.relatedWorks) {
       sources.push(...metadata.relatedWorks.filter((w) => !w.isPrivate));
     }
-    if (searchCache?.results?.results) {
+    if (searchCache && searchCache.results) {
       sources.push(...searchCache.results.results);
     }
     if (sources.length === 0) return;
@@ -572,19 +577,12 @@
       this.adapter = adapter;
       this.store = store;
       this.originalImages = [];
-      this.getImages = this.getImages.bind(this);
-      this.jumpToPage = this.jumpToPage.bind(this);
-      this.scrollToImage = this.scrollToImage.bind(this);
-      this.scrollToEdge = this.scrollToEdge.bind(this);
-      this.applyLayout = this.applyLayout.bind(this);
-      this.updatePageCounter = this.updatePageCounter.bind(this);
-      this.init = this.init.bind(this);
       this._lastEnabled = void 0;
       this._lastDualView = void 0;
       this._lastSpreadOffset = void 0;
       this.pendingTargetIndex = null;
     }
-    init() {
+    init = () => {
       this.store.subscribe((state) => {
         const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
         if (layoutChanged) {
@@ -610,13 +608,13 @@
       if (initialState.enabled) {
         this.applyLayout();
       }
-    }
-    getImages() {
+    };
+    getImages = () => {
       if (this.originalImages.length > 0) return this.originalImages;
       this.originalImages = this.adapter.getImages();
       return this.originalImages;
-    }
-    updatePageCounter() {
+    };
+    updatePageCounter = () => {
       const state = this.store.getState();
       if (!state.enabled) return;
       const imgs = this.getImages();
@@ -625,7 +623,7 @@
         this.store.setState({ currentVisibleIndex: currentIndex });
         preloadImages(imgs, currentIndex);
       }
-    }
+    };
     async jumpToPage(pageNumber) {
       const imgs = this.getImages();
       const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
@@ -649,7 +647,7 @@
       this.updatePageCounter();
       return false;
     }
-    _calculateTargetIndex(imgs, direction) {
+    _calculateTargetIndex = (imgs, direction) => {
       const { isDualViewEnabled } = this.store.getState();
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       let targetIndex = currentIndex + direction;
@@ -662,7 +660,7 @@
         }
       }
       return targetIndex;
-    }
+    };
     async scrollToImage(direction) {
       const imgs = this.getImages();
       if (imgs.length === 0) return;
@@ -708,7 +706,7 @@
         this.pendingTargetIndex = null;
       });
     }
-    applyLayout(forcedIndex) {
+    applyLayout = (forcedIndex) => {
       const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
       const container = this.adapter.getContainer();
       if (!container) return;
@@ -722,16 +720,14 @@
       fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
       if (currentIndex !== -1) {
         const targetImg = imgs[currentIndex];
-        if (targetImg) {
+        requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              targetImg.scrollIntoView({ block: "center" });
-            });
+            targetImg.scrollIntoView({ block: "center" });
           });
-          preloadImages(imgs, currentIndex);
-        }
+        });
+        preloadImages(imgs, currentIndex);
       }
-    }
+    };
   }
   const styles = `
   #comic-helper-ui {
@@ -1423,9 +1419,10 @@
     if (opts.title) el.title = opts.title;
   }
   function applyInputProperties(el, opts) {
-    if (el instanceof HTMLInputElement) {
-      if (opts.type) el.type = opts.type;
-      if (opts.checked !== void 0) el.checked = opts.checked;
+    if (el.tagName === "INPUT") {
+      const input = el;
+      if (opts.type) input.type = opts.type;
+      if (opts.checked !== void 0) input.checked = opts.checked;
     }
   }
   function applyAttributes(el, attributes) {
@@ -1439,13 +1436,10 @@
   function applyEvents(el, events) {
     if (!events) return;
     for (const [type, listener] of Object.entries(events)) {
-      if (listener) {
-        el.addEventListener(type, listener);
-      }
+      el.addEventListener(type, listener);
     }
   }
   function appendChildren(el, children) {
-    if (!children || !Array.isArray(children)) return;
     children.forEach((child) => {
       if (typeof child === "string") {
         el.appendChild(document.createTextNode(child));
@@ -1727,11 +1721,8 @@
         click: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (cfg.action) cfg.action();
-          const target = e.currentTarget;
-          if (target && typeof target.blur === "function") {
-            target.blur();
-          }
+          cfg.action();
+          e.currentTarget.blur();
         }
       }
     }));
@@ -1810,7 +1801,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.26c81e4"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.25fec56"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1967,7 +1958,7 @@
       className: "comic-helper-section-title"
     });
     let titleText = t("ui.searchResults");
-    if (searchContext && searchContext.label) {
+    if (searchContext?.label) {
       const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
       titleText = `${prefix}: ${searchContext.label}`;
     }
@@ -2000,7 +1991,7 @@
       grid.appendChild(link);
     });
     section.appendChild(grid);
-    if (pagination && pagination.length > 0) {
+    if (pagination.length > 0) {
       const nav = createElement("div", {
         className: "comic-helper-search-pagination"
       });
@@ -2270,12 +2261,9 @@
       this.dragStartY = 0;
       this.initialTop = 0;
       this.initialLeft = 0;
-      this._onMouseDown = this._onMouseDown.bind(this);
-      this._onMouseMove = this._onMouseMove.bind(this);
-      this._onMouseUp = this._onMouseUp.bind(this);
       this.element.addEventListener("mousedown", this._onMouseDown);
     }
-    _onMouseDown(e) {
+    _onMouseDown = (e) => {
       if (e.button !== 0 || !(e.target instanceof HTMLElement)) return;
       if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
       this.isDragging = true;
@@ -2293,12 +2281,12 @@
       document.addEventListener("mousemove", this._onMouseMove);
       document.addEventListener("mouseup", this._onMouseUp);
       e.preventDefault();
-    }
+    };
     /**
      * Clamp the element's position to keep it within the viewport
      * @returns {{top: number, left: number}} The clamped position
      */
-    clampToViewport() {
+    clampToViewport = () => {
       const rect = this.element.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -2316,28 +2304,28 @@
         right: "auto"
       });
       return { top, left };
-    }
-    _onMouseMove(e) {
+    };
+    _onMouseMove = (e) => {
       if (!this.isDragging) return;
       const deltaX = e.clientX - this.dragStartX;
       const deltaY = e.clientY - this.dragStartY;
       this.element.style.top = `${this.initialTop + deltaY}px`;
       this.element.style.left = `${this.initialLeft + deltaX}px`;
       this.clampToViewport();
-    }
-    _onMouseUp() {
+    };
+    _onMouseUp = () => {
       if (!this.isDragging) return;
       this.isDragging = false;
       document.removeEventListener("mousemove", this._onMouseMove);
       document.removeEventListener("mouseup", this._onMouseUp);
       const { top, left } = this.clampToViewport();
       this.onDragEnd(top, left);
-    }
-    destroy() {
+    };
+    destroy = () => {
       this.element.removeEventListener("mousedown", this._onMouseDown);
       document.removeEventListener("mousemove", this._onMouseMove);
       document.removeEventListener("mouseup", this._onMouseUp);
-    }
+    };
   }
   function isSearchableAdapter(adapter) {
     return typeof adapter.getSearchUrl === "function" && typeof adapter.parseSearchResults === "function";
@@ -2372,10 +2360,8 @@
       this.adapter = adapter;
       this.store = store;
       this.navigator = navigator2;
-      this.updateUI = this.updateUI.bind(this);
-      this.init = this.init.bind(this);
     }
-    init() {
+    init = () => {
       injectStyles();
       this.updateUI();
       this.store.subscribe(this.updateUI);
@@ -2385,8 +2371,8 @@
           this.store.setState({ guiPos: { top, left } });
         }
       });
-    }
-    updateUI() {
+    };
+    updateUI = () => {
       const state = this.store.getState();
       const container = this._ensureRootContainer(state.guiPos);
       this._initializeComponents(container);
@@ -2395,8 +2381,8 @@
       this.loadingComp?.update(state.isLoading);
       document.documentElement.classList.toggle("comic-helper-enabled", state.enabled);
       this._updateVisibility(container, state);
-    }
-    _ensureRootContainer(guiPos) {
+    };
+    _ensureRootContainer = (guiPos) => {
       let container = document.getElementById("comic-helper-ui");
       if (!container) {
         container = createElement("div", { id: "comic-helper-ui" });
@@ -2409,8 +2395,8 @@
         document.body.appendChild(container);
       }
       return container;
-    }
-    _initializeComponents(container) {
+    };
+    _initializeComponents = (container) => {
       const state = this.store.getState();
       const imgs = this.navigator.getImages();
       if (!this.powerComp) {
@@ -2449,8 +2435,8 @@
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
         this._addNavigationButtons(container);
       }
-    }
-    async _handleJump(val) {
+    };
+    _handleJump = async (val) => {
       const success = await this.navigator.jumpToPage(val);
       if (this.counterComp) {
         this.counterComp.input.blur();
@@ -2461,8 +2447,8 @@
           }, 500);
         }
       }
-    }
-    _addNavigationButtons(container) {
+    };
+    _addNavigationButtons = (container) => {
       const navBtns = createNavigationButtons({
         onFirst: () => {
           void this.navigator.scrollToEdge("start");
@@ -2484,8 +2470,8 @@
         }
       });
       navBtns.elements.forEach((btn) => container.appendChild(btn));
-    }
-    _updateModals(state) {
+    };
+    _updateModals = (state) => {
       this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
         onClose: () => this.store.setState({ isHelpModalOpen: false })
       }));
@@ -2493,10 +2479,12 @@
       this.modalEl = this._manageModal(state.isMetadataModalOpen, this.modalEl, () => createMetadataModal({
         metadata: state.metadata,
         onClose: () => this.store.setState({ isMetadataModalOpen: false }),
-        onTagClick: (tag) => this._handleTagClick(tag)
+        onTagClick: async (tag) => {
+          await this._handleTagClick(tag);
+        }
       }));
-    }
-    _updateSearchModal(state) {
+    };
+    _updateSearchModal = (state) => {
       if (state.isSearchModalOpen) {
         if (!this.searchModalComp) {
           this.searchModalComp = createSearchModal({
@@ -2519,8 +2507,8 @@
         this.searchModalComp.el.remove();
         this.searchModalComp = null;
       }
-    }
-    _handleSearchSWR(state) {
+    };
+    _handleSearchSWR = (state) => {
       const { searchCache, searchQuery, searchContext } = state;
       if (!searchCache) {
         if (searchQuery && searchContext?.type === "keyword") {
@@ -2529,8 +2517,8 @@
         return;
       }
       this._processSearchCache(searchCache, searchQuery, searchContext);
-    }
-    _processSearchCache(searchCache, searchQuery, searchContext) {
+    };
+    _processSearchCache = (searchCache, searchQuery, searchContext) => {
       if (searchCache.query === searchQuery && contextsMatch(searchCache.context, searchContext)) {
         this.store.setState({ searchResults: searchCache.results });
         this.searchModalComp?.updateResults(searchCache.results);
@@ -2538,18 +2526,18 @@
       } else if (searchQuery && searchContext?.type === "keyword") {
         void this._performSearch(searchQuery);
       }
-    }
-    _revalidateCacheIfNeeded(searchCache, searchQuery, searchContext) {
+    };
+    _revalidateCacheIfNeeded = (searchCache, searchQuery, searchContext) => {
       if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
         void this._performSearch(searchQuery, true, searchContext);
       }
-    }
-    _handleTagClick(tag) {
+    };
+    _handleTagClick = async (tag) => {
       this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
       const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
       return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
-    }
-    _updateVisibility(container, state) {
+    };
+    _updateVisibility = (container, state) => {
       const imgs = this.navigator.getImages();
       const { enabled, currentVisibleIndex, isDualViewEnabled } = state;
       if (!enabled) {
@@ -2574,8 +2562,8 @@
       });
       this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
       this.spreadComp?.update(isDualViewEnabled);
-    }
-    showResumeNotification(savedIndex) {
+    };
+    showResumeNotification = (savedIndex) => {
       const notification = createResumeNotification({
         savedIndex,
         onResume: () => {
@@ -2585,8 +2573,8 @@
         }
       });
       document.body.appendChild(notification.el);
-    }
-    _manageModal(isOpen, modalEl, createFn) {
+    };
+    _manageModal = (isOpen, modalEl, createFn) => {
       if (isOpen) {
         if (!modalEl) {
           const newModal = createFn();
@@ -2598,8 +2586,8 @@
         modalEl = null;
       }
       return modalEl;
-    }
-    async _performSearch(queryOrUrl, silent = false, context) {
+    };
+    _performSearch = async (queryOrUrl, silent = false, context) => {
       if (!isSearchableAdapter(this.adapter)) return;
       if (!silent) this.store.setState({ searchResults: null });
       const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
@@ -2616,15 +2604,15 @@
       } finally {
         this.searchModalComp?.setUpdating(false);
       }
-    }
-    _updateStoreBeforeSearch(query, context, silent, isUrl) {
+    };
+    _updateStoreBeforeSearch = (query, context, silent, isUrl) => {
       this.store.setState({ searchContext: context });
       if (!silent && !isUrl && context.type === "keyword") {
         this.store.setState({ searchQuery: query });
         this._updateSearchHistory(query);
       }
-    }
-    _getSearchParameters(queryOrUrl, context) {
+    };
+    _getSearchParameters = (queryOrUrl, context) => {
       const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
       if (isUrl) {
         const query2 = context ? context.label || "" : this.store.getState().searchQuery;
@@ -2636,22 +2624,22 @@
       const url = searchableAdapter.getSearchUrl(query);
       const searchContext = context || { type: "keyword", label: query };
       return { url, query, searchContext };
-    }
-    async _fetchSearchResults(url) {
+    };
+    _fetchSearchResults = async (url) => {
       const searchableAdapter = this.adapter;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, "text/html");
       return searchableAdapter.parseSearchResults(doc);
-    }
-    _updateSearchHistory(query) {
+    };
+    _updateSearchHistory = (query) => {
       const { searchHistory } = this.store.getState();
       const normalizedNew = normalizeQuery(query);
       const filtered = searchHistory.filter((h) => normalizeQuery(h) !== normalizedNew);
       const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
       this.store.setState({ searchHistory: newHistory });
-    }
+    };
   }
   const CLICK_THRESHOLD_PX = 5;
   function matchesShortcut(e, id) {
@@ -2681,15 +2669,8 @@
       this.lastWheelTime = 0;
       this.mouseDownPos = null;
       this.mouseDownTarget = null;
-      this.handleWheel = this.handleWheel.bind(this);
-      this.onKeyDown = this.onKeyDown.bind(this);
-      this.handleResize = this.handleResize.bind(this);
-      this.handleFullscreenChange = this.handleFullscreenChange.bind(this);
-      this.handleScroll = this.handleScroll.bind(this);
-      this.onMouseDown = this.onMouseDown.bind(this);
-      this.onMouseUp = this.onMouseUp.bind(this);
     }
-    init() {
+    init = () => {
       window.addEventListener("wheel", this.handleWheel, { passive: false });
       document.addEventListener("keydown", this.onKeyDown, true);
       document.addEventListener("mousedown", this.onMouseDown);
@@ -2697,16 +2678,16 @@
       window.addEventListener("resize", this.handleResize);
       document.addEventListener("fullscreenchange", this.handleFullscreenChange);
       window.addEventListener("scroll", this.handleScroll);
-    }
-    isInputField(target) {
+    };
+    isInputField = (target) => {
       if (!(target instanceof HTMLElement)) return false;
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
-    }
-    _isAnyModalOpen() {
+    };
+    _isAnyModalOpen = () => {
       const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
       return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
-    }
-    handleWheel(e) {
+    };
+    handleWheel = (e) => {
       const state = this.store.getState();
       if (!state.enabled) return;
       if (this._isAnyModalOpen()) {
@@ -2723,8 +2704,8 @@
       if (direction === "none") return;
       this.lastWheelTime = now;
       this._navigateByWheel(direction);
-    }
-    _navigateByWheel(direction) {
+    };
+    _navigateByWheel = (direction) => {
       const { isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
       const imgs = this.navigator.getImages();
       if (imgs.length === 0) return;
@@ -2737,23 +2718,23 @@
       }
       const nextIndex = direction === "next" ? currentVisibleIndex + step : Math.max(currentVisibleIndex - step, 0);
       void this.navigator.jumpToPage(nextIndex + 1);
-    }
-    onKeyDown(e) {
+    };
+    onKeyDown = (e) => {
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
       if (this._handleModalCloseShortcuts(e)) return;
       if (this._handleToggleShortcuts(e)) return;
       if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
       this._handleShortcutAction(e);
-    }
-    _handleModalCloseShortcuts(e) {
+    };
+    _handleModalCloseShortcuts = (e) => {
       if (e.key === "Escape" && this._isAnyModalOpen()) {
         e.preventDefault();
         this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
         return true;
       }
       return false;
-    }
-    _handleToggleShortcuts(e) {
+    };
+    _handleToggleShortcuts = (e) => {
       if (matchesShortcut(e, "help")) {
         e.preventDefault();
         this.store.setState({ isHelpModalOpen: !this.store.getState().isHelpModalOpen });
@@ -2765,8 +2746,8 @@
         return true;
       }
       return false;
-    }
-    _handleShortcutAction(e) {
+    };
+    _handleShortcutAction = (e) => {
       const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
       const actions = {
         nextPage: () => this.navigator.scrollToImage(1),
@@ -2778,17 +2759,24 @@
         metadata: () => this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen }),
         help: () => this.store.setState({ isHelpModalOpen: !isHelpModalOpen }),
         fullscreen: () => this._toggleFullscreen(),
-        randomJump: () => jumpToRandomWork(metadata, searchCache)
+        randomJump: () => {
+          jumpToRandomWork(metadata, searchCache);
+        }
       };
       for (const [id, action] of Object.entries(actions)) {
         if (matchesShortcut(e, id)) {
           e.preventDefault();
-          action();
+          const result = action();
+          if (result instanceof Promise) {
+            void result.catch((err) => {
+              console.error("Shortcut action failed:", err);
+            });
+          }
           break;
         }
       }
-    }
-    _toggleFullscreen() {
+    };
+    _toggleFullscreen = () => {
       if (!document.documentElement.requestFullscreen) return;
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {
@@ -2797,31 +2785,31 @@
         document.documentElement.requestFullscreen().catch(() => {
         });
       }
-    }
-    handleResize() {
+    };
+    handleResize = () => {
       const { enabled, currentVisibleIndex } = this.store.getState();
       if (!enabled) return;
       if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
       this.resizeReq = requestAnimationFrame(() => this.navigator.applyLayout(currentVisibleIndex));
-    }
-    handleFullscreenChange() {
+    };
+    handleFullscreenChange = () => {
       const { enabled, currentVisibleIndex } = this.store.getState();
       if (!enabled) return;
       requestAnimationFrame(() => {
         this.navigator.applyLayout(currentVisibleIndex);
       });
-    }
-    handleScroll() {
+    };
+    handleScroll = () => {
       if (!this.store.getState().enabled) return;
       if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
       this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
-    }
-    onMouseDown(e) {
+    };
+    onMouseDown = (e) => {
       if (!(e.target instanceof HTMLImageElement)) return;
       this.mouseDownPos = { x: e.clientX, y: e.clientY };
       this.mouseDownTarget = e.target;
-    }
-    onMouseUp(e) {
+    };
+    onMouseUp = (e) => {
       const target = this.mouseDownTarget;
       const startPos = this.mouseDownPos;
       this.mouseDownTarget = null;
@@ -2833,7 +2821,7 @@
       if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
       const direction = getClickNavigationDirection(target);
       void this.navigator.scrollToImage(direction === "next" ? 1 : -1);
-    }
+    };
   }
   class ResumeManager {
     store;
@@ -2841,43 +2829,43 @@
     constructor(store) {
       this.store = store;
     }
-    isEnabled() {
+    isEnabled = () => {
       return true;
-    }
-    savePosition(url, pageIndex) {
+    };
+    savePosition = (url, pageIndex) => {
       const data = this._loadData();
       data[url] = { pageIndex };
       localStorage.setItem(this.storageKey, JSON.stringify(data));
-    }
-    loadPosition(url) {
+    };
+    loadPosition = (url) => {
       const data = this._loadData();
-      return data[url]?.pageIndex ?? null;
-    }
-    _loadData() {
+      const entry = data[url];
+      return entry ? entry.pageIndex : null;
+    };
+    _loadData = () => {
       try {
         const parsed = JSON.parse(localStorage.getItem(this.storageKey) || "{}");
         return isResumeDataMap(parsed) ? parsed : {};
       } catch {
         return {};
       }
-    }
+    };
     /**
      * Clear all saved positions
      */
-    clearAll() {
+    clearAll = () => {
       localStorage.removeItem(this.storageKey);
-    }
+    };
   }
   class PopUnderBlocker {
     store;
     constructor(store) {
       this.store = store;
-      this.handleClick = this.handleClick.bind(this);
     }
-    init() {
+    init = () => {
       document.addEventListener("click", this.handleClick, true);
-    }
-    handleClick(e) {
+    };
+    handleClick = (e) => {
       if (!this.store.getState().enabled) return;
       const target = e.target;
       const link = target.closest("a");
@@ -2890,7 +2878,7 @@
       e.stopImmediatePropagation();
       e.preventDefault();
       window.location.href = link.href;
-    }
+    };
   }
   class App {
     store;
@@ -2909,9 +2897,8 @@
       this.inputManager = new InputManager(this.store, this.navigator);
       this.resumeManager = new ResumeManager(this.store);
       this.popUnderBlocker = new PopUnderBlocker(this.store);
-      this.init = this.init.bind(this);
     }
-    init() {
+    init = () => {
       const container = this.adapter.getContainer();
       if (!container) return;
       const metadata = isMetadataAdapter(this.adapter) ? this.adapter.getMetadata() : { title: "Unknown Title", tags: [], relatedWorks: [] };
@@ -2934,7 +2921,7 @@
           this.resumeManager.savePosition(workKey, currentIndex);
         }
       });
-    }
+    };
   }
   const app = new App();
   if (document.readyState === "loading") {
