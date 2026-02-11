@@ -32,6 +32,25 @@ Please modify files in the `src/` directory and run the build command.
    npm install
    ```
 
+### Development Workflow
+
+Before creating a pull request, ensure all quality checks pass:
+
+```bash
+make all
+# or
+make pre-pr
+```
+
+This runs:
+1. `npm test` - Unit tests (100% coverage required for core logic)
+2. `npm run lint` - ESLint checks
+3. `npm run check-types` - TypeScript type checking
+4. `openspec validate --strict --all` - Specification validation
+5. `IS_UNSTABLE=true npm run build` - Build verification
+
+**All checks must pass** before creating a PR.
+
 ### Build
 To generate the `dist/comic-viewer-helper.user.js` file from source:
 ```bash
