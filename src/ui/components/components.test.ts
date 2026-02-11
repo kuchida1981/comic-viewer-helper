@@ -240,6 +240,12 @@ describe('UI Components', () => {
       const event = new KeyboardEvent('keydown', { key: 'Escape' });
       content.dispatchEvent(event);
       expect(onClose).toHaveBeenCalled();
+
+      // keyup
+      const upEvent = new KeyboardEvent('keyup', { key: 'Escape' });
+      const stopSpy = vi.spyOn(upEvent, 'stopPropagation');
+      content.dispatchEvent(upEvent);
+      expect(stopSpy).toHaveBeenCalled();
     });
 
     it('should have an empty update method', () => {
@@ -272,6 +278,12 @@ describe('UI Components', () => {
       const event = new KeyboardEvent('keydown', { key: 'Escape' });
       content.dispatchEvent(event);
       expect(onClose).toHaveBeenCalled();
+
+      // keyup
+      const upEvent = new KeyboardEvent('keyup', { key: 'Escape' });
+      const stopSpy = vi.spyOn(upEvent, 'stopPropagation');
+      content.dispatchEvent(upEvent);
+      expect(stopSpy).toHaveBeenCalled();
     });
 
     it('should call onClose when clicking overlay', () => {

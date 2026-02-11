@@ -121,23 +121,67 @@ describe('SearchModal', () => {
 
       
 
-      const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
-
-      const stopSpy = vi.spyOn(event, 'stopPropagation');
-
-      const preventSpy = vi.spyOn(event, 'preventDefault');
+          const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
 
       
 
-      form.dispatchEvent(event);
+          const stopSpy = vi.spyOn(event, 'stopPropagation');
 
-      expect(onClose).toHaveBeenCalled();
+      
 
-      expect(stopSpy).toHaveBeenCalled();
+          const preventSpy = vi.spyOn(event, 'preventDefault');
 
-      expect(preventSpy).toHaveBeenCalled();
+      
 
-    });
+          
+
+      
+
+          form.dispatchEvent(event);
+
+      
+
+          expect(onClose).toHaveBeenCalled();
+
+      
+
+          expect(stopSpy).toHaveBeenCalled();
+
+      
+
+          expect(preventSpy).toHaveBeenCalled();
+
+      
+
+      
+
+      
+
+          // Keyup test
+
+      
+
+          const upEvent = new KeyboardEvent('keyup', { key: 'Escape', bubbles: true });
+
+      
+
+          const upStopSpy = vi.spyOn(upEvent, 'stopPropagation');
+
+      
+
+          form.dispatchEvent(upEvent);
+
+      
+
+          expect(upStopSpy).toHaveBeenCalled();
+
+      
+
+        });
+
+      
+
+      
 
   
 

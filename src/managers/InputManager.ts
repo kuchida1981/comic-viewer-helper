@@ -44,6 +44,9 @@ export class InputManager {
   init = (): void => {
     window.addEventListener('wheel', this.handleWheel, { passive: false });
     document.addEventListener('keydown', this.onKeyDown, true);
+    // Multi-layered guard: window capture phase to intercept Escape before browser/other scripts
+    window.addEventListener('keydown', this.onGlobalKeyDownCapture, true);
+    window.addEventListener('keyup', this.onGlobalKeyDownCapture, true);
     document.addEventListener('mousedown', this.onMouseDown);
     document.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('resize', this.handleResize);
@@ -63,7 +66,9 @@ export class InputManager {
 
   private _isAnyModalOpen = (): boolean => {
     const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-    return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+    // Strengthen check by also looking at the DOM
+    const hasModalOverlay = !!document.querySelector('.comic-helper-modal-overlay');
+    return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || hasModalOverlay;
   };
 
   handleWheel = (e: WheelEvent): void => {
@@ -110,8 +115,16 @@ export class InputManager {
     void this.navigator.jumpToPage(nextIndex + 1);
   };
 
+  onGlobalKeyDownCapture = (e: KeyboardEvent): void => {
+    // Highest priority: Close modal with Escape and prevent default browser behavior (like exiting fullscreen)
+    if (this._handleModalCloseShortcuts(e)) {
+      // If we handled it, we stop it from reaching ANY other listener
+      e.stopImmediatePropagation();
+    }
+  };
+
   onKeyDown = (e: KeyboardEvent): void => {
-    if (this._handleModalCloseShortcuts(e)) return;
+    // Note: Escape is handled in onGlobalKeyDownCapture (window capture phase)
 
     if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
 
