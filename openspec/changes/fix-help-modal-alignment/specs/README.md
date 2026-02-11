@@ -1,5 +1,9 @@
 # Specs
 
-この変更には、要件レベルの変更はありません。
+## Modified Capabilities
 
-この変更は既存の `help-display` capability の実装改善（CSSレイアウトの修正）であり、新しい要件の追加や既存要件の変更は含まれません。
+### help-display
+
+ヘルプモーダルのショートカット一覧表示に、視覚的な配置に関する新しいシナリオを追加しました。
+
+詳細は `help-display/spec.md` を参照してください。

@@ -2,22 +2,22 @@
 
 ## 1. CSS レイアウトの変更
 
-- [ ] 1.1 `.comic-helper-shortcut-row` のレイアウトを Flexbox から Grid に変更する
+- [x] 1.1 `.comic-helper-shortcut-row` のレイアウトを Flexbox から Grid に変更する
   - `display: grid` を設定
   - `grid-template-columns: 180px 140px 1fr` を設定
   - `gap: 12px` を設定
   - `justify-content: space-between` を削除
 
-- [ ] 1.2 `.comic-helper-shortcut-keys` のスタイルを調整する
+- [x] 1.2 `.comic-helper-shortcut-keys` のスタイルを調整する
   - Grid の第1列として機能することを確認
   - 既存の `max-width: 40%` を削除（Grid の列幅で制御されるため不要）
 
-- [ ] 1.3 `.comic-helper-shortcut-label` のスタイルを調整する
+- [x] 1.3 `.comic-helper-shortcut-label` のスタイルを調整する
   - Grid の第2列として機能することを確認
   - `flex: 1` を削除（Grid の列幅で制御されるため不要）
   - `margin: 0 12px` を削除（Grid の `gap` で制御されるため不要）
 
-- [ ] 1.4 `.comic-helper-shortcut-desc` のスタイルを調整する
+- [x] 1.4 `.comic-helper-shortcut-desc` のスタイルを調整する
   - Grid の第3列として機能することを確認
   - `flex: 1` を削除（Grid の列幅で制御されるため不要）
 
@@ -35,10 +35,10 @@
 
 ## 3. ビルドとテスト
 
-- [ ] 3.1 ビルドが成功することを確認する
+- [x] 3.1 ビルドが成功することを確認する
   - `IS_UNSTABLE=true npm run build` を実行
   - エラーがないことを確認
 
-- [ ] 3.2 既存のテストが通ることを確認する
+- [x] 3.2 既存のテストが通ることを確認する
   - `npm run test` を実行
   - すべてのテストが通過することを確認

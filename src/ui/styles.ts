@@ -509,8 +509,9 @@ export const styles = `
   }
 
   .comic-helper-shortcut-row {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 180px 140px 1fr;
+    gap: 12px;
     align-items: center;
     padding: 8px 0;
     border-bottom: 1px solid #222;
@@ -520,7 +521,6 @@ export const styles = `
     display: flex;
     gap: 4px;
     flex-wrap: wrap;
-    max-width: 40%;
   }
 
   .comic-helper-kbd {
@@ -542,14 +542,11 @@ export const styles = `
     color: #eee;
     font-size: 13px;
     font-weight: bold;
-    flex: 1;
-    margin: 0 12px;
   }
 
   .comic-helper-shortcut-desc {
     color: #bbb;
     font-size: 13px;
-    flex: 1;
   }
 
   /* Progress Bar Styles */
