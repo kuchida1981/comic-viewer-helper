@@ -232,6 +232,16 @@ describe('UI Components', () => {
       expect(onTagClick).toHaveBeenCalledWith(mockMetadata.tags[0]);
     });
 
+    it('should call onClose when Escape key is pressed in content', () => {
+      const onClose = vi.fn();
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
+      const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
+      
+      const event = new KeyboardEvent('keydown', { key: 'Escape' });
+      content.dispatchEvent(event);
+      expect(onClose).toHaveBeenCalled();
+    });
+
     it('should have an empty update method', () => {
       const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => Promise.resolve() });
       expect(typeof update).toBe('function');
@@ -252,6 +262,16 @@ describe('UI Components', () => {
       const { update } = createHelpModal({ onClose: () => {} });
       expect(typeof update).toBe('function');
       update();
+    });
+
+    it('should call onClose when Escape key is pressed in content', () => {
+      const onClose = vi.fn();
+      const { el } = createHelpModal({ onClose });
+      const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
+      
+      const event = new KeyboardEvent('keydown', { key: 'Escape' });
+      content.dispatchEvent(event);
+      expect(onClose).toHaveBeenCalled();
     });
 
     it('should call onClose when clicking overlay', () => {

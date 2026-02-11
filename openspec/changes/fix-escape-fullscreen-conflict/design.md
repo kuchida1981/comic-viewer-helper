@@ -24,10 +24,10 @@
   - 入力欄自体に `keydown` リスナーを付けて `Escape` をトラップする：モーダルごとにリスナーを設定する必要があり、管理が煩雑になる。
   - `isInputField` 内で `Escape` の場合のみ例外を設ける：判定関数がイベントの詳細を知りすぎるため、責務が曖昧になる。
 
-### 2. `_handleModalCloseShortcuts` での `preventDefault` 徹底
-モーダルを閉じる条件（`Escape` キーかついずれかのモーダルがオープン）に合致した場合、必ず `e.preventDefault()` を呼び出します。
+### 2. `_handleModalCloseShortcuts` での `preventDefault` および `stopImmediatePropagation` の徹底
+モーダルを閉じる条件（`Escape` キーかついずれかのモーダルがオープン）に合致した場合、必ず `e.preventDefault()` および `e.stopImmediatePropagation()` を呼び出します。
 
-- **Rationale**: ブラウザの「フルスクリーン解除」などのデフォルト挙動が意図せず発火するのを防ぐため。
+- **Rationale**: ブラウザの「フルスクリーン解除」などのデフォルト挙動が意図せず発火するのを防ぎ、かつ他のリスナー（サイト側スクリプトなど）への伝搬を確実に遮断するため。
 
 ## Risks / Trade-offs
 

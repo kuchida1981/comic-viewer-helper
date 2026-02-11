@@ -97,14 +97,53 @@ describe('SearchModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('should focus input after a delay', () => {
-    const { input } = createSearchModal(defaultProps);
-    const focusSpy = vi.spyOn(input, 'focus');
-    vi.advanceTimersByTime(50);
-    expect(focusSpy).toHaveBeenCalled();
-  });
+      it('should focus input after a delay', () => {
 
-  it('should render search history chips when provided', () => {
+      const { input } = createSearchModal(defaultProps);
+
+      const focusSpy = vi.spyOn(input, 'focus');
+
+      vi.advanceTimersByTime(50);
+
+      expect(focusSpy).toHaveBeenCalled();
+
+    });
+
+  
+
+    it('should call onClose when Escape key is pressed in form', () => {
+
+      const onClose = vi.fn();
+
+      const { el } = createSearchModal({ ...defaultProps, onClose });
+
+      const form = el.querySelector('form') as HTMLFormElement;
+
+      
+
+      const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+
+      const stopSpy = vi.spyOn(event, 'stopPropagation');
+
+      const preventSpy = vi.spyOn(event, 'preventDefault');
+
+      
+
+      form.dispatchEvent(event);
+
+      expect(onClose).toHaveBeenCalled();
+
+      expect(stopSpy).toHaveBeenCalled();
+
+      expect(preventSpy).toHaveBeenCalled();
+
+    });
+
+  
+
+    it('should render search history chips when provided', () => {
+
+  
     const history = ['query 1', 'query 2'];
     const { el } = createSearchModal({ ...defaultProps, searchHistory: history });
     const chips = el.querySelectorAll('.comic-helper-search-history-item');

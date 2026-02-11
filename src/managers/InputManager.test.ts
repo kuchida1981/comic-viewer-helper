@@ -165,7 +165,7 @@ describe('InputManager', () => {
 
   it('onKeyDown should handle Escape', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isSearchModalOpen: false });
-    const event = { key: 'Escape', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    const event = { key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
     expect(store.setState).toHaveBeenCalledWith({
       isMetadataModalOpen: false,
@@ -177,11 +177,12 @@ describe('InputManager', () => {
   it('onKeyDown should handle Escape even when an input field is focused if a modal is open', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isSearchModalOpen: true });
     const input = document.createElement('input');
-    const event = { key: 'Escape', preventDefault: vi.fn(), target: input } as unknown as KeyboardEvent;
+    const event = { key: 'Escape', preventDefault: vi.fn(), stopImmediatePropagation: vi.fn(), target: input } as unknown as KeyboardEvent;
     
     inputManager.onKeyDown(event);
     
     expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopImmediatePropagation).toHaveBeenCalled();
     expect(store.setState).toHaveBeenCalledWith({
       isMetadataModalOpen: false,
       isHelpModalOpen: false,

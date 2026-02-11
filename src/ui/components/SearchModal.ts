@@ -136,6 +136,14 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
         e.preventDefault();
         e.stopPropagation();
         handleSubmit();
+      },
+      keydown: (e: Event) => {
+        const ke = e as KeyboardEvent;
+        if (ke.key === 'Escape' || ke.key === 'Esc' || ke.keyCode === 27) {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }
       }
     }
   }, [input, submitBtn]);

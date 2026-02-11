@@ -56,7 +56,15 @@ export function createHelpModal({ onClose }: HelpModalProps): HelpModalComponent
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
     events: {
-      click: (e) => e.stopPropagation()
+      click: (e) => e.stopPropagation(),
+      keydown: (e: Event) => {
+        const ke = e as KeyboardEvent;
+        if (ke.key === 'Escape' || ke.key === 'Esc' || ke.keyCode === 27) {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }
+      }
     }
   }, [closeBtn, titleEl, shortcutList]);
 

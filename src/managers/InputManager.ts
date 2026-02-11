@@ -123,8 +123,10 @@ export class InputManager {
   };
 
   private _handleModalCloseShortcuts = (e: KeyboardEvent): boolean => {
-    if (e.key === 'Escape' && this._isAnyModalOpen()) {
+    const isEscape = e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27;
+    if (isEscape && this._isAnyModalOpen()) {
       e.preventDefault();
+      e.stopImmediatePropagation();
       this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
       return true;
     }
