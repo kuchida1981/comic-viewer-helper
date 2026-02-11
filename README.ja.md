@@ -67,6 +67,25 @@
    npm install
    ```
 
+### 開発ワークフロー
+
+プルリクエストを作成する前に、全ての品質チェックが通ることを確認してください：
+
+```bash
+make all
+# または
+make pre-pr
+```
+
+このコマンドは以下を実行します：
+1. `npm test` - ユニットテスト（コアロジックは100%カバレッジ必須）
+2. `npm run lint` - ESLint チェック
+3. `npm run check-types` - TypeScript 型チェック
+4. `openspec validate --strict --all` - 仕様書の検証
+5. `IS_UNSTABLE=true npm run build` - ビルドの検証
+
+**全てのチェックが成功してから** プルリクエストを作成してください。
+
 ### ビルド
 ソースコードから `dist/comic-viewer-helper.user.js` を生成します：
 ```bash
