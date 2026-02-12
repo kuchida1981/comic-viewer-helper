@@ -1,8 +1,4 @@
-## Purpose
-
-コミット前にコード品質（Lint, 型チェック, テスト, ビルド）および OpenSpec の整合性を自動検証することで、プロジェクトの健全性を維持し、不具合の混入を早期に防止する。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: プロジェクト全体の Lint 検証
 システムは、プロジェクトの `src` ディレクトリ配下の TypeScript ファイルに対して ESLint を実行し、規約違反がないことを確認しなければならない (MUST)。

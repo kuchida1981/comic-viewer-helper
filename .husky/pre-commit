@@ -1,8 +1,25 @@
 #!/bin/sh
 set -e
 
-npm run lint
-npm run check-types
-npm run test
-npm run build
-npx openspec validate --strict --all
+# Temporary file for log buffering
+LOG_FILE=$(mktemp)
+trap 'rm -f "$LOG_FILE"' EXIT
+
+run_quietly() {
+  label=$1
+  shift
+  printf "Running %s... " "$label"
+  if "$@" > "$LOG_FILE" 2>&1; then
+    printf "OK\n"
+  else
+    printf "FAILED\n"
+    cat "$LOG_FILE"
+    exit 1
+  fi
+}
+
+run_quietly "lint" npm run lint
+run_quietly "type check" npm run check-types
+run_quietly "test" npm run test
+run_quietly "build" npm run build
+run_quietly "openspec validation" npx openspec validate --strict --all
