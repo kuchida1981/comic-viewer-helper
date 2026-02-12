@@ -2,6 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import pluginUserscripts from "eslint-plugin-userscripts";
+import pluginBoundaries from "eslint-plugin-boundaries";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -22,6 +23,42 @@ export default [
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+    plugins: {
+      boundaries: pluginBoundaries,
+    },
+    settings: {
+      "boundaries/elements": [
+        {
+          "type": "shared",
+          "pattern": ["src/types.ts", "src/type-guards.ts", "src/ui/utils.ts", "src/ui/styles.ts"]
+        },
+        {
+          "type": "logic",
+          "pattern": ["src/logic.ts"]
+        },
+        {
+          "type": "store",
+          "pattern": ["src/store.ts"]
+        },
+        {
+          "type": "adapters",
+          "pattern": ["src/adapters/**/*"]
+        },
+        {
+          "type": "ui",
+          "pattern": ["src/ui/**/*"],
+          "mode": "full"
+        },
+        {
+          "type": "managers",
+          "pattern": ["src/managers/**/*"]
+        },
+        {
+          "type": "entry",
+          "pattern": ["src/main.ts", "src/header.ts"]
+        }
+      ]
     }
   },
   // JavaScript rules
@@ -77,6 +114,46 @@ export default [
       "@typescript-eslint/require-await": "off"
     }
   },
+  // Layered architecture dependency enforcement
+  {
+    files: ["src/**/*.ts"],
+    rules: {
+      "boundaries/element-types": ["error", {
+        "default": "disallow",
+        "message": "${from.type} is not allowed to import ${to.type}",
+        "rules": [
+          {
+            "from": "entry",
+            "allow": ["managers", "ui", "adapters", "store", "logic", "shared"]
+          },
+          {
+            "from": "managers",
+            "allow": ["ui", "adapters", "store", "logic", "shared"]
+          },
+          {
+            "from": "ui",
+            "allow": ["shared"]
+          },
+          {
+            "from": "adapters",
+            "allow": ["store", "logic", "shared"]
+          },
+          {
+            "from": "store",
+            "allow": ["logic", "shared"]
+          },
+          {
+            "from": "logic",
+            "allow": ["shared"]
+          },
+          {
+            "from": "shared",
+            "allow": ["shared"]
+          }
+        ]
+      }]
+    }
+  },
   // Specific suppressions for files with persistent overlap/safety issues
   {
     files: ["src/logic.ts", "src/ui/utils.ts", "src/adapters/DefaultAdapter.ts", "src/managers/Navigator.ts"],
@@ -96,7 +173,8 @@ export default [
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-unsafe-argument": "off"
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "boundaries/element-types": "off"
     }
   }
 ];
