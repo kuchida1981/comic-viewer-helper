@@ -1,4 +1,5 @@
 import { Store } from './store';
+const unusedVariable = 'I will cause a lint error';
 import { DefaultAdapter } from './adapters/DefaultAdapter';
 import { Navigator } from './managers/Navigator';
 import { UIManager } from './managers/UIManager';
