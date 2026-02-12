@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.34bf8a9
+// @version         1.4.0-unstable.b015079
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1788,24 +1788,12 @@
       createElement("div", { className: "comic-helper-section-title", textContent: t("ui.related") }),
       createElement("div", { className: "comic-helper-related-grid" }, relatedItems)
     ]);
-    const versionTag = createElement("div", {
-      className: "comic-helper-modal-version",
-      style: {
-        fontSize: "11px",
-        color: "#888",
-        marginTop: "15px",
-        textAlign: "right",
-        borderTop: "1px solid #eee",
-        paddingTop: "5px"
-      },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.34bf8a9"} (${t("ui.unstable")})`
-    });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
         click: (e) => e.stopPropagation()
       }
-    }, [closeBtn, titleEl, tagSection, relatedSection, versionTag]);
+    }, [closeBtn, titleEl, tagSection, relatedSection]);
     const overlay = createElement("div", {
       className: "comic-helper-modal-overlay",
       events: {
@@ -1924,12 +1912,24 @@
       return createElement("div", { className: "comic-helper-shortcut-row" }, [keyContainer, labelEl, descEl]);
     });
     const shortcutList = createElement("div", { className: "comic-helper-shortcut-list" }, shortcutRows);
+    const versionTag = createElement("div", {
+      className: "comic-helper-modal-version",
+      style: {
+        fontSize: "11px",
+        color: "#888",
+        marginTop: "15px",
+        textAlign: "right",
+        borderTop: "1px solid #333",
+        paddingTop: "5px"
+      },
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.b015079"} (${t("ui.unstable")})`
+    });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
         click: (e) => e.stopPropagation()
       }
-    }, [closeBtn, titleEl, shortcutList]);
+    }, [closeBtn, titleEl, shortcutList, versionTag]);
     const overlay = createElement("div", {
       className: "comic-helper-modal-overlay",
       events: {
