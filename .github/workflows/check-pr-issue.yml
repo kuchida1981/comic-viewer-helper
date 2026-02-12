@@ -18,12 +18,7 @@ jobs:
             const regex = /#\d+/;
 
             if (!regex.test(text)) {
-              core.warning("This PR is not linked to any issue (#123). Please link one if applicable.");
-              // Note: We are using core.warning, but to show up in PR status checks effectively, 
-              // sometimes people prefer failure. But the requirement was "warning".
-              // To make it visible as a "neutral" or "warning" status check is tricky with just core.warning.
-              // If we want it to show up as a failed status check but allow merging, we'd need a different approach.
-              // For now, let's stick to core.warning and see.
+              core.setFailed("This PR is not linked to any issue (#123). Please include the issue number in the title or body (e.g., 'Closes #123').");
             } else {
               console.log("Issue link found.");
             }
