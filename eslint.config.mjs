@@ -2,6 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import pluginUserscripts from "eslint-plugin-userscripts";
+import pluginImportX from "eslint-plugin-import-x";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -22,14 +23,25 @@ export default [
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
-    }
+    },
+    plugins: {
+      "import-x": pluginImportX,
+    },
+    settings: {
+      "import-x/resolver": {
+        "typescript": {
+          "alwaysTryTypes": true,
+          "project": "./tsconfig.json"
+        }
+      }
+    },
   },
   // JavaScript rules
   {
     files: ["**/*.js", "**/*.mjs"],
     ...pluginJs.configs.recommended,
   },
-  // TypeScript rules: Start with strictTypeChecked but suppress unsafe rules for Phase 1
+  // TypeScript rules
   ...tseslint.configs.strictTypeChecked.map(config => ({
     ...config,
     files: ["**/*.ts"],
@@ -77,16 +89,53 @@ export default [
       "@typescript-eslint/require-await": "off"
     }
   },
-  // Specific suppressions for files with persistent overlap/safety issues
+  // Layered architecture dependency enforcement
+  {
+    files: ["src/**/*.ts"],
+    rules: {
+      "import-x/no-restricted-paths": ["error", {
+        "basePath": import.meta.dirname,
+        "zones": [
+          // logic.ts must not import from any other layers except shared (types.ts, etc.)
+          {
+            "target": "./src/logic.ts",
+            "from": "./src",
+            "except": ["./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*"],
+            "message": "Logic layer must not depend on other layers (pure functions only)."
+          },
+          // store.ts can only depend on logic and shared
+          {
+            "target": "./src/store.ts",
+            "from": "./src",
+            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*"],
+            "message": "Store layer can only depend on Logic and Shared layers."
+          },
+          // adapters can only depend on logic, store and shared
+          {
+            "target": "./src/adapters",
+            "from": "./src",
+            "except": ["./logic.ts", "./store.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./adapters/**/*"],
+            "message": "Adapters can only depend on Logic, Store, and Shared layers."
+          },
+          // UI components can only depend on shared (should be autonomous)
+          {
+            "target": "./src/ui",
+            "from": "./src",
+            "except": ["./types.ts", "./type-guards.ts", "./ui/utils.ts", "./ui/styles.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./ui/**/*"],
+            "message": "UI components should only depend on Shared/UI Utilities (autonomous components)."
+          }
+        ]
+      }]
+    }
+  },
+  // Specific suppressions
   {
     files: ["src/logic.ts", "src/ui/utils.ts", "src/adapters/DefaultAdapter.ts", "src/managers/Navigator.ts"],
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "off"
     }
   },
-  // Test files: relaxed rules for mocks and DOM manipulations.
-  // Note: Unsafe rules are disabled here because Vitest mock APIs (mock.calls, etc.) 
-  // return 'any' values that are difficult to type-safely handle without excessive casting.
+  // Test files: relaxed rules
   {
     files: ["**/*.test.ts"],
     rules: {
@@ -96,7 +145,8 @@ export default [
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-unsafe-argument": "off"
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "import-x/no-restricted-paths": "off"
     }
   }
 ];
