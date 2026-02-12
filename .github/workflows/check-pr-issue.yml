@@ -1,0 +1,29 @@
+name: PR Issue Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  check-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR body and title
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const text = (pr.title + "
+" + (pr.body || "")).toLowerCase();
+            const regex = /#\d+/;
+
+            if (!regex.test(text)) {
+              core.warning("This PR is not linked to any issue (#123). Please link one if applicable.");
+              // Note: We are using core.warning, but to show up in PR status checks effectively, 
+              // sometimes people prefer failure. But the requirement was "warning".
+              // To make it visible as a "neutral" or "warning" status check is tricky with just core.warning.
+              // If we want it to show up as a failed status check but allow merging, we'd need a different approach.
+              // For now, let's stick to core.warning and see.
+            } else {
+              console.log("Issue link found.");
+            }
