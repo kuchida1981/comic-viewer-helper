@@ -7,7 +7,8 @@
     "test": "vitest run --coverage",
     "check-types": "tsc",
     "build": "node scripts/build.mjs",
-    "lint": "eslint src --max-warnings 0"
+    "lint": "eslint src --max-warnings 0",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -30,6 +31,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-userscripts": "^0.5.6",
     "globals": "^17.2.0",
+    "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",
