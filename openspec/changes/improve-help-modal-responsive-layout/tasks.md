@@ -13,4 +13,4 @@
 ## 3. 完了処理
 
 - [x] 3.1 `npm run lint` でスタイル違反がないか確認
-- [ ] 3.2 OpenSpec の変更を検証・アーカイブ (`/opsx:verify`, `/opsx:archive`)
+- [x] 3.2 OpenSpec の変更を検証・アーカイブ (`/opsx:verify`, `/opsx:archive`)
