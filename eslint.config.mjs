@@ -100,28 +100,28 @@ export default [
           {
             "target": "./src/logic.ts",
             "from": "./src",
-            "except": ["./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks"],
+            "except": ["./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*"],
             "message": "Logic layer must not depend on other layers (pure functions only)."
           },
           // store.ts can only depend on logic and shared
           {
             "target": "./src/store.ts",
             "from": "./src",
-            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks"],
+            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*"],
             "message": "Store layer can only depend on Logic and Shared layers."
           },
           // adapters can only depend on logic, store and shared
           {
             "target": "./src/adapters",
             "from": "./src",
-            "except": ["./logic.ts", "./store.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks", "./adapters"],
+            "except": ["./logic.ts", "./store.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./adapters/**/*"],
             "message": "Adapters can only depend on Logic, Store, and Shared layers."
           },
           // UI components can only depend on shared (should be autonomous)
           {
             "target": "./src/ui",
             "from": "./src",
-            "except": ["./types.ts", "./type-guards.ts", "./ui/utils.ts", "./ui/styles.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks", "./ui"],
+            "except": ["./types.ts", "./type-guards.ts", "./ui/utils.ts", "./ui/styles.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./ui/**/*"],
             "message": "UI components should only depend on Shared/UI Utilities (autonomous components)."
           }
         ]

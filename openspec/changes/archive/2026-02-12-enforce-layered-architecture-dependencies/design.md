@@ -32,7 +32,7 @@
 
 ### 2. eslint-plugin-import-x の設定方法
 `eslint.config.mjs` (Flat Config) に `import-x/no-restricted-paths` を追加します。
-`basePath` をプロジェクトルートに設定し、`zones` を用いて各レイヤー（target）からの不適切なインポート元（from）を制限します。TypeScript のパス解決には `eslint-import-resolver-typescript` を併用します。
+`basePath` をプロジェクトルートに設定し、`zones` を用いて各レイヤー（target）からの不適切なインポート元（from）を制限します。ディレクトリを指定する場合は `/**/*` 形式の glob パターンを用い、配下のファイルやレイヤー内参照を適切に許可します。TypeScript のパス解決には `eslint-import-resolver-typescript` を併用します。
 
 ### 3. テストファイルの扱い
 `**/*.test.ts` に対しては、依存関係ルールを無効化します。テスト時にはモック作成のために例外的なインポートが必要になるためです。
