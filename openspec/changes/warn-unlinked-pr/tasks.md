@@ -12,6 +12,7 @@
 - [x] 3.1 `.github/workflows/check-pr-issue.yml` を作成する
 - [x] 3.2 `actions/github-script` を使用して、タイトルと本文のイシュー番号を検証するロジックを実装する
 - [x] 3.3 イシュー番号がない場合に警告（Warning）を出すように構成する
+- [x] 3.4 より目立たせるため、未紐付け時にジョブを失敗（setFailed）させるように調整する
 
 ## 4. 検証
 
