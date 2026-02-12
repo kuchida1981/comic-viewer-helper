@@ -237,6 +237,11 @@ describe('UI Components', () => {
       expect(typeof update).toBe('function');
       update();
     });
+
+    it('should not render version information', () => {
+      const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => Promise.resolve() });
+      expect(el.textContent).not.toContain('Version');
+    });
   });
 
   describe('HelpModal', () => {
@@ -246,6 +251,11 @@ describe('UI Components', () => {
       expect(el.textContent).toContain('Next Page');
       expect(el.textContent).toContain('j');
       expect(el.textContent).toContain('Space');
+    });
+
+    it('should render version information', () => {
+      const { el } = createHelpModal({ onClose: () => {} });
+      expect(el.textContent).toContain('Version');
     });
 
     it('should have an empty update method', () => {

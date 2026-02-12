@@ -82,25 +82,12 @@ export function createMetadataModal({ metadata, onClose, onTagClick }: MetadataM
     createElement('div', { className: 'comic-helper-related-grid' }, relatedItems)
   ]);
 
-  const versionTag = createElement('div', {
-    className: 'comic-helper-modal-version',
-    style: {
-      fontSize: '11px',
-      color: '#888',
-      marginTop: '15px',
-      textAlign: 'right',
-      borderTop: '1px solid #eee',
-      paddingTop: '5px'
-    },
-    textContent: `${t('ui.version')}: v${__APP_VERSION__} (${__IS_UNSTABLE__ ? t('ui.unstable') : t('ui.stable')})`
-  });
-
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
     events: {
       click: (e) => e.stopPropagation()
     }
-  }, [closeBtn, titleEl, tagSection, relatedSection, versionTag]);
+  }, [closeBtn, titleEl, tagSection, relatedSection]);
 
   const overlay = createElement('div', {
     className: 'comic-helper-modal-overlay',
