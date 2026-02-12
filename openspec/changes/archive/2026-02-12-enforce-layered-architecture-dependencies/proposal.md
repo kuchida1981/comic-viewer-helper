@@ -4,8 +4,8 @@
 
 ## What Changes
 
-- `eslint-plugin-boundaries` を導入し、レイヤー間の依存関係を制限します。
-- `eslint.config.mjs` にレイヤー定義と依存ルールを追加します。
+- `eslint-plugin-import-x` を導入し、レイヤー間の依存関係を制限します。
+- `eslint.config.mjs` に `no-restricted-paths` ルールを追加し、レイヤー定義と依存ルールを記述します。
 - 下位レイヤーから上位レイヤーへの不適切なインポートをエラーとして検出します。
 - 全てのレイヤーから参照可能な `Shared` 要素（型定義やユーティリティ）を定義し、生産性を維持します。
 
@@ -20,6 +20,6 @@
 ## Impact
 
 - `eslint.config.mjs`: 設定の追加。
-- `package.json`: `eslint-plugin-boundaries` の追加。
+- `package.json`: `eslint-plugin-import-x` の追加。
 - `src/**/*`: 既存のインポート関係のチェック（現状の調査では違反なし）。
 - 開発ワークフロー: CIでのリンターチェックにより、不適切な依存関係を持つコードのコミットを阻止。

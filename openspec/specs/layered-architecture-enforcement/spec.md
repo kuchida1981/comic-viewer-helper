@@ -10,14 +10,14 @@
 
 #### Scenario: 不適切なインポートの検出
 - **WHEN** `src/logic.ts` が `src/managers/Navigator.ts` をインポートしようとした場合
-- **THEN** ESLint が依存関係違反としてエラーを報告する
+- **THEN** ESLint が依存関係違反としてエラー（import-x/no-restricted-paths 等）を報告する
 
 #### Scenario: 適切なインポートの許容
 - **WHEN** `src/managers/UIManager.ts` が `src/logic.ts` をインポートした場合
 - **THEN** ESLint はエラーを報告せず、パスする
 
 ### Requirement: Shared層の例外規定
-システムは、`Shared` と定義されたファイル（`types.ts`, `type-guards.ts`, `ui/utils.ts`, `ui/styles.ts`）へのインポートを全てのレイヤーから許可しなければならない（SHALL）。
+システムは、`Shared` と定義されたファイル（`types.ts`, `type-guards.ts`, `ui/utils.ts`, `ui/styles.ts`, `i18n.ts`, `shortcuts.ts`）へのインポートを全てのレイヤーから許可しなければならない（SHALL）。
 
 #### Scenario: Logic層からShared層へのアクセス
 - **WHEN** `src/logic.ts` が `src/types.ts` をインポートした場合
