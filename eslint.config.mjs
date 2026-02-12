@@ -2,7 +2,7 @@ import globals from "globals";
 import pluginJs from "@eslint/js";
 import tseslint from "typescript-eslint";
 import pluginUserscripts from "eslint-plugin-userscripts";
-import pluginBoundaries from "eslint-plugin-boundaries";
+import pluginImportX from "eslint-plugin-import-x";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
@@ -25,48 +25,23 @@ export default [
       },
     },
     plugins: {
-      boundaries: pluginBoundaries,
+      "import-x": pluginImportX,
     },
     settings: {
-      "boundaries/elements": [
-        {
-          "type": "shared",
-          "pattern": ["src/types.ts", "src/type-guards.ts", "src/ui/utils.ts", "src/ui/styles.ts"]
-        },
-        {
-          "type": "logic",
-          "pattern": ["src/logic.ts"]
-        },
-        {
-          "type": "store",
-          "pattern": ["src/store.ts"]
-        },
-        {
-          "type": "adapters",
-          "pattern": ["src/adapters/**/*"]
-        },
-        {
-          "type": "ui",
-          "pattern": ["src/ui/**/*", "!src/ui/utils.ts", "!src/ui/styles.ts"],
-          "mode": "full"
-        },
-        {
-          "type": "managers",
-          "pattern": ["src/managers/**/*"]
-        },
-        {
-          "type": "entry",
-          "pattern": ["src/main.ts", "src/header.ts"]
+      "import-x/resolver": {
+        "typescript": {
+          "alwaysTryTypes": true,
+          "project": "./tsconfig.json"
         }
-      ]
-    }
+      }
+    },
   },
   // JavaScript rules
   {
     files: ["**/*.js", "**/*.mjs"],
     ...pluginJs.configs.recommended,
   },
-  // TypeScript rules: Start with strictTypeChecked but suppress unsafe rules for Phase 1
+  // TypeScript rules
   ...tseslint.configs.strictTypeChecked.map(config => ({
     ...config,
     files: ["**/*.ts"],
@@ -118,52 +93,49 @@ export default [
   {
     files: ["src/**/*.ts"],
     rules: {
-      "boundaries/element-types": ["error", {
-        "default": "disallow",
-        "message": "${from.type} is not allowed to import ${to.type}",
-        "rules": [
+      "import-x/no-restricted-paths": ["error", {
+        "basePath": import.meta.dirname,
+        "zones": [
+          // logic.ts must not import from any other layers except shared (types.ts, etc.)
           {
-            "from": "entry",
-            "allow": ["managers", "ui", "adapters", "store", "logic", "shared"]
+            "target": "./src/logic.ts",
+            "from": "./src",
+            "except": ["./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks"],
+            "message": "Logic layer must not depend on other layers (pure functions only)."
           },
+          // store.ts can only depend on logic and shared
           {
-            "from": "managers",
-            "allow": ["ui", "adapters", "store", "logic", "shared"]
+            "target": "./src/store.ts",
+            "from": "./src",
+            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks"],
+            "message": "Store layer can only depend on Logic and Shared layers."
           },
+          // adapters can only depend on logic, store and shared
           {
-            "from": "ui",
-            "allow": ["shared"]
+            "target": "./src/adapters",
+            "from": "./src",
+            "except": ["./logic.ts", "./store.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks", "./adapters"],
+            "message": "Adapters can only depend on Logic, Store, and Shared layers."
           },
+          // UI components can only depend on shared (should be autonomous)
           {
-            "from": "adapters",
-            "allow": ["store", "logic", "shared"]
-          },
-          {
-            "from": "store",
-            "allow": ["logic", "shared"]
-          },
-          {
-            "from": "logic",
-            "allow": ["shared"]
-          },
-          {
-            "from": "shared",
-            "allow": ["shared"]
+            "target": "./src/ui",
+            "from": "./src",
+            "except": ["./types.ts", "./type-guards.ts", "./ui/utils.ts", "./ui/styles.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks", "./ui"],
+            "message": "UI components should only depend on Shared/UI Utilities (autonomous components)."
           }
         ]
       }]
     }
   },
-  // Specific suppressions for files with persistent overlap/safety issues
+  // Specific suppressions
   {
     files: ["src/logic.ts", "src/ui/utils.ts", "src/adapters/DefaultAdapter.ts", "src/managers/Navigator.ts"],
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "off"
     }
   },
-  // Test files: relaxed rules for mocks and DOM manipulations.
-  // Note: Unsafe rules are disabled here because Vitest mock APIs (mock.calls, etc.) 
-  // return 'any' values that are difficult to type-safely handle without excessive casting.
+  // Test files: relaxed rules
   {
     files: ["**/*.test.ts"],
     rules: {
@@ -174,7 +146,7 @@ export default [
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
-      "boundaries/element-types": "off"
+      "import-x/no-restricted-paths": "off"
     }
   }
 ];
