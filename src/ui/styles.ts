@@ -510,11 +510,21 @@ export const styles = `
 
   .comic-helper-shortcut-row {
     display: grid;
-    grid-template-columns: 180px 140px 1fr;
+    grid-template-columns: minmax(120px, 1.5fr) minmax(100px, 1fr) 2fr;
     gap: 12px;
     align-items: center;
     padding: 8px 0;
     border-bottom: 1px solid #222;
+  }
+
+  @media (max-width: 600px) {
+    .comic-helper-shortcut-row {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      padding: 12px 0;
+    }
   }
 
   .comic-helper-shortcut-keys {
