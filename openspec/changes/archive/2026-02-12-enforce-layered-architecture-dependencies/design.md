@@ -20,7 +20,7 @@
 
 | 要素名 | パス / ファイルパターン | 依存可能な層 |
 | :--- | :--- | :--- |
-| **shared** | `src/{types,type-guards,ui/utils,ui/styles}.ts` | (なし) |
+| **shared** | `src/{types,type-guards,ui/utils,ui/styles}.ts` | shared |
 | **logic** | `src/logic.ts` | shared |
 | **store** | `src/store.ts` | logic, shared |
 | **adapters** | `src/adapters/**` | logic, store, shared |

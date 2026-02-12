@@ -47,7 +47,7 @@ export default [
         },
         {
           "type": "ui",
-          "pattern": ["src/ui/**/*"],
+          "pattern": ["src/ui/**/*", "!src/ui/utils.ts", "!src/ui/styles.ts"],
           "mode": "full"
         },
         {
