@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
-### Requirement: ステージングされたファイルに対する Lint 検証
-システムは、Git でステージングされた TypeScript ファイルに対して ESLint を自動実行し、規約違反がないことを確認しなければならない (MUST)。
+### Requirement: プロジェクト全体の Lint 検証
+システムは、プロジェクトの `src` ディレクトリ配下の TypeScript ファイルに対して ESLint を実行し、規約違反がないことを確認しなければならない (MUST)。
 
 #### Scenario: Lint エラーがある場合のコミット阻止
-- **WHEN** ステージングされたファイルに ESLint エラーが含まれた状態で `git commit` を実行したとき
+- **WHEN** プロジェクト内に ESLint エラーが含まれた状態で `git commit` を実行したとき
 - **THEN** コミットが中断され、エラー内容が表示されること
 
 ### Requirement: プロジェクト全体の型チェック
