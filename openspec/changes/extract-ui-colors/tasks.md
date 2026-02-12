@@ -19,3 +19,8 @@
 - [x] 4.1 プロジェクトのビルドが正常に完了することを確認する (`npm run build`)
 - [x] 4.2 既存のテストがすべてパスすることを確認する (`npm run test`)
 - [x] 4.3 OpenSpecの検証を実行し、成果物の不整合がないことを確認する (`npx openspec validate --strict --all`)
+
+## 5. 指践事項の修正
+
+- [x] 5.1 Gemini Code Assist からのレビュー指摘（PR #197）に対応する
+- [x] 5.2 修正後の再検証を行う

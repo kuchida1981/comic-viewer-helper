@@ -1,12 +1,16 @@
 const PALETTE = {
   white: '#fff',
   nearWhite: '#eee',
+  lightGray: '#ccc',
   gray: '#888',
   darkGray: '#444',
   veryDarkGray: '#333',
   deepBlack: '#1a1a1a',
   overlayBlack: 'rgba(0, 0, 0, 0.7)',
   modalOverlay: 'rgba(0, 0, 0, 0.6)',
+  shadow: 'rgba(0, 0, 0, 0.3)',
+  shadowLarge: 'rgba(0, 0, 0, 0.5)',
+  shadowLight: 'rgba(0, 0, 0, 0.2)',
   success: '#4CAF50',
   successHover: '#45a049',
   border: '#333',
@@ -20,24 +24,32 @@ export const COLORS = {
     button: PALETTE.white,
     buttonHover: PALETTE.nearWhite,
     modal: PALETTE.deepBlack,
+    modalOverlay: PALETTE.modalOverlay,
     input: PALETTE.darkBorder,
     tag: PALETTE.veryDarkGray,
     tagHover: PALETTE.darkGray,
     tooltip: PALETTE.overlayBlack,
     progress: PALETTE.success,
+    successHover: PALETTE.successHover,
   },
   text: {
     primary: PALETTE.nearWhite,
-    secondary: '#ccc',
+    secondary: PALETTE.lightGray,
     muted: PALETTE.gray,
     inverted: PALETTE.veryDarkGray,
     success: PALETTE.success,
+    white: PALETTE.white,
   },
   border: {
     default: PALETTE.border,
     light: PALETTE.lightBorder,
     dark: PALETTE.darkBorder,
     accent: PALETTE.success,
+  },
+  shadow: {
+    default: PALETTE.shadow,
+    large: PALETTE.shadowLarge,
+    light: PALETTE.shadowLight,
   }
 } as const;
 
@@ -52,7 +64,7 @@ export const styles = `
     background-color: ${COLORS.background.panel};
     padding: 8px;
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 10px ${COLORS.shadow.default};
     cursor: move;
     user-select: none;
     touch-action: none;
@@ -171,7 +183,7 @@ export const styles = `
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: ${PALETTE.modalOverlay};
+    background: ${COLORS.background.modalOverlay};
     backdrop-filter: blur(4px);
     z-index: 20000;
     display: flex;
@@ -187,7 +199,7 @@ export const styles = `
     max-height: 80%;
     padding: 24px;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px ${COLORS.shadow.large};
     overflow-y: auto;
     position: relative;
     border: 1px solid ${COLORS.border.default};
@@ -374,7 +386,7 @@ export const styles = `
 
   .comic-helper-search-submit {
     background: ${COLORS.background.progress};
-    color: white;
+    color: ${COLORS.text.white};
     border: none;
     padding: 8px 16px;
     border-radius: 4px;
@@ -384,7 +396,7 @@ export const styles = `
   }
 
   .comic-helper-search-submit:hover {
-    background: ${PALETTE.successHover};
+    background: ${COLORS.background.successHover};
   }
 
   /* Search History Styles */
@@ -495,7 +507,7 @@ export const styles = `
 
   .comic-helper-search-page-btn.active {
     background: ${COLORS.background.progress};
-    color: white;
+    color: ${COLORS.text.white};
     border-color: ${COLORS.border.accent};
     cursor: default;
   }
@@ -580,7 +592,7 @@ export const styles = `
     background: ${COLORS.background.tagHover};
     border: 1px solid #555;
     border-radius: 4px;
-    box-shadow: 0 1px 0 rgba(0,0,0,0.2), 0 0 0 2px ${COLORS.border.default} inset;
+    box-shadow: 0 1px 0 ${COLORS.shadow.light}, 0 0 0 2px ${COLORS.border.default} inset;
     color: ${COLORS.text.primary};
     display: inline-block;
     font-size: 11px;
@@ -630,13 +642,13 @@ export const styles = `
     transform: translateX(-50%);
     z-index: 10002;
     background: rgba(0, 0, 0, 0.9);
-    color: white;
+    color: ${COLORS.text.white};
     padding: 12px 16px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 12px ${COLORS.shadow.large};
     font-size: 14px;
   }
 
@@ -651,16 +663,16 @@ export const styles = `
 
   .comic-helper-resume-continue {
     background: ${COLORS.background.progress};
-    color: white;
+    color: ${COLORS.text.white};
   }
 
   .comic-helper-resume-continue:hover {
-    background: ${PALETTE.successHover};
+    background: ${COLORS.background.successHover};
   }
 
   .comic-helper-resume-skip {
     background: #666;
-    color: white;
+    color: ${COLORS.text.white};
   }
 
   .comic-helper-resume-skip:hover {
@@ -669,7 +681,7 @@ export const styles = `
 
   .comic-helper-resume-close {
     background: transparent;
-    color: white;
+    color: ${COLORS.text.white};
     padding: 2px 8px;
     font-size: 18px;
   }
@@ -686,14 +698,14 @@ export const styles = `
     transform: translate(-50%, -50%);
     z-index: 10003;
     background: ${COLORS.background.tooltip};
-    color: white;
+    color: ${COLORS.text.white};
     padding: 16px 24px;
     border-radius: 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 12px ${COLORS.shadow.large};
     font-size: 14px;
     pointer-events: none;
     opacity: 0;
@@ -708,7 +720,7 @@ export const styles = `
     width: 24px;
     height: 24px;
     border: 3px solid rgba(255, 255, 255, 0.3);
-    border-top: 3px solid #fff;
+    border-top: 3px solid ${COLORS.text.white};
     border-radius: 50%;
     animation: comic-helper-spin 1s linear infinite;
   }
