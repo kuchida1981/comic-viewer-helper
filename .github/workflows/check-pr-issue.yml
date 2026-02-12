@@ -2,6 +2,7 @@ name: PR Issue Check
 
 on:
   pull_request:
+    branches: [ master ]
     types: [opened, edited, synchronize]
 
 jobs:
@@ -13,8 +14,7 @@ jobs:
         with:
           script: |
             const pr = context.payload.pull_request;
-            const text = (pr.title + "
-" + (pr.body || "")).toLowerCase();
+            const text = (pr.title + "\n" + (pr.body || "")).toLowerCase();
             const regex = /#\d+/;
 
             if (!regex.test(text)) {
