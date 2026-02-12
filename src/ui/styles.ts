@@ -1,3 +1,46 @@
+const PALETTE = {
+  white: '#fff',
+  nearWhite: '#eee',
+  gray: '#888',
+  darkGray: '#444',
+  veryDarkGray: '#333',
+  deepBlack: '#1a1a1a',
+  overlayBlack: 'rgba(0, 0, 0, 0.7)',
+  modalOverlay: 'rgba(0, 0, 0, 0.6)',
+  success: '#4CAF50',
+  successHover: '#45a049',
+  border: '#333',
+  lightBorder: '#444',
+  darkBorder: '#222',
+} as const;
+
+export const COLORS = {
+  background: {
+    panel: PALETTE.overlayBlack,
+    button: PALETTE.white,
+    buttonHover: PALETTE.nearWhite,
+    modal: PALETTE.deepBlack,
+    input: PALETTE.darkBorder,
+    tag: PALETTE.veryDarkGray,
+    tagHover: PALETTE.darkGray,
+    tooltip: PALETTE.overlayBlack,
+    progress: PALETTE.success,
+  },
+  text: {
+    primary: PALETTE.nearWhite,
+    secondary: '#ccc',
+    muted: PALETTE.gray,
+    inverted: PALETTE.veryDarkGray,
+    success: PALETTE.success,
+  },
+  border: {
+    default: PALETTE.border,
+    light: PALETTE.lightBorder,
+    dark: PALETTE.darkBorder,
+    accent: PALETTE.success,
+  }
+} as const;
+
 export const styles = `
   #comic-helper-ui {
     position: fixed;
@@ -6,7 +49,7 @@ export const styles = `
     z-index: 10000;
     display: flex;
     gap: 8px;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: ${COLORS.background.panel};
     padding: 8px;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
@@ -28,8 +71,8 @@ export const styles = `
     cursor: pointer;
     padding: 6px 12px;
     border: none;
-    background: #fff;
-    color: #333;
+    background: ${COLORS.background.button};
+    color: ${COLORS.text.inverted};
     border-radius: 4px;
     font-size: 12px;
     font-weight: bold;
@@ -37,7 +80,7 @@ export const styles = `
     transition: background 0.2s;
   }
   .comic-helper-button:hover {
-    background: #eee;
+    background: ${COLORS.background.buttonHover};
   }
 
   .comic-helper-icon-btn {
@@ -52,11 +95,11 @@ export const styles = `
   .comic-helper-icon-btn:hover {
     opacity: 0.8;
   }
-  .comic-helper-power-btn.enabled { color: #4CAF50; }
-  .comic-helper-power-btn.disabled { color: #888; }
+  .comic-helper-power-btn.enabled { color: ${COLORS.text.success}; }
+  .comic-helper-power-btn.disabled { color: ${COLORS.text.muted}; }
 
   .comic-helper-counter-wrapper {
-    color: #fff;
+    color: ${COLORS.text.primary};
     font-size: 14px;
     font-weight: bold;
     padding: 0 8px;
@@ -69,7 +112,7 @@ export const styles = `
     width: 45px;
     background: transparent;
     border: 1px solid transparent;
-    color: #fff;
+    color: ${COLORS.text.primary};
     font-size: 14px;
     font-weight: bold;
     text-align: right;
@@ -79,7 +122,7 @@ export const styles = `
     transition: border 0.2s, background 0.2s;
   }
   .comic-helper-page-input:focus {
-    border: 1px solid #fff;
+    border: 1px solid ${COLORS.border.light};
     background: rgba(255, 255, 255, 0.1);
   }
   /* Hide spin buttons */
@@ -95,7 +138,7 @@ export const styles = `
   .comic-helper-label {
     display: flex;
     align-items: center;
-    color: #fff;
+    color: ${COLORS.text.primary};
     font-size: 12px;
     cursor: pointer;
     user-select: none;
@@ -108,9 +151,9 @@ export const styles = `
   .comic-helper-adjust-btn {
     cursor: pointer;
     padding: 2px 6px;
-    border: 1px solid #fff;
+    border: 1px solid ${COLORS.border.light};
     background: transparent;
-    color: #fff;
+    color: ${COLORS.text.primary};
     border-radius: 4px;
     font-size: 10px;
     margin-left: 4px;
@@ -128,7 +171,7 @@ export const styles = `
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.6);
+    background: ${PALETTE.modalOverlay};
     backdrop-filter: blur(4px);
     z-index: 20000;
     display: flex;
@@ -137,8 +180,8 @@ export const styles = `
   }
 
   .comic-helper-modal-content {
-    background: #1a1a1a;
-    color: #eee;
+    background: ${COLORS.background.modal};
+    color: ${COLORS.text.primary};
     width: 80%;
     max-width: 800px;
     max-height: 80%;
@@ -147,7 +190,7 @@ export const styles = `
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     overflow-y: auto;
     position: relative;
-    border: 1px solid #333;
+    border: 1px solid ${COLORS.border.default};
   }
 
   .comic-helper-modal-close {
@@ -156,26 +199,26 @@ export const styles = `
     right: 16px;
     background: transparent;
     border: none;
-    color: #888;
+    color: ${COLORS.text.muted};
     font-size: 24px;
     cursor: pointer;
     line-height: 1;
   }
   .comic-helper-modal-close:hover {
-    color: #fff;
+    color: ${COLORS.text.primary};
   }
 
   .comic-helper-modal-title {
     margin-top: 0;
     margin-bottom: 20px;
     font-size: 20px;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid ${COLORS.border.default};
     padding-bottom: 10px;
   }
 
   .comic-helper-section-title {
     font-size: 14px;
-    color: #888;
+    color: ${COLORS.text.muted};
     margin: 20px 0 10px;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -188,8 +231,8 @@ export const styles = `
   }
 
   .comic-helper-tag-chip {
-    background: #333;
-    color: #ccc;
+    background: ${COLORS.background.tag};
+    color: ${COLORS.text.secondary};
     padding: 4px 12px;
     border-radius: 16px;
     font-size: 12px;
@@ -197,8 +240,8 @@ export const styles = `
     transition: background 0.2s, color 0.2s;
   }
   .comic-helper-tag-chip:hover {
-    background: #444;
-    color: #fff;
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
   }
 
   /* Tag type color variants */
@@ -287,7 +330,7 @@ export const styles = `
     aspect-ratio: 3 / 4;
     object-fit: cover;
     border-radius: 4px;
-    background: #222;
+    background: ${COLORS.border.dark};
     margin-bottom: 6px;
   }
 
@@ -315,9 +358,9 @@ export const styles = `
 
   .comic-helper-search-input {
     flex: 1;
-    background: #222;
-    border: 1px solid #444;
-    color: #fff;
+    background: ${COLORS.background.input};
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.primary};
     padding: 8px 12px;
     border-radius: 4px;
     font-size: 16px;
@@ -326,11 +369,11 @@ export const styles = `
   }
 
   .comic-helper-search-input:focus {
-    border-color: #4CAF50;
+    border-color: ${COLORS.border.accent};
   }
 
   .comic-helper-search-submit {
-    background: #4CAF50;
+    background: ${COLORS.background.progress};
     color: white;
     border: none;
     padding: 8px 16px;
@@ -341,7 +384,7 @@ export const styles = `
   }
 
   .comic-helper-search-submit:hover {
-    background: #45a049;
+    background: ${PALETTE.successHover};
   }
 
   /* Search History Styles */
@@ -356,14 +399,14 @@ export const styles = `
 
   .comic-helper-search-history-label {
     font-size: 12px;
-    color: #888;
+    color: ${COLORS.text.muted};
     margin-right: 4px;
   }
 
   .comic-helper-search-history-item {
-    background: #333;
-    color: #ccc;
-    border: 1px solid #444;
+    background: ${COLORS.background.tag};
+    color: ${COLORS.text.secondary};
+    border: 1px solid ${COLORS.border.light};
     padding: 2px 10px;
     border-radius: 12px;
     font-size: 12px;
@@ -372,8 +415,8 @@ export const styles = `
   }
 
   .comic-helper-search-history-item:hover {
-    background: #444;
-    color: #fff;
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
     border-color: #666;
   }
 
@@ -383,7 +426,7 @@ export const styles = `
   }
 
   .comic-helper-search-no-results {
-    color: #888;
+    color: ${COLORS.text.muted};
     font-size: 14px;
     padding: 12px 0;
   }
@@ -397,7 +440,7 @@ export const styles = `
 
   .comic-helper-search-result-item {
     text-decoration: none;
-    color: #ccc;
+    color: ${COLORS.text.secondary};
     font-size: 11px;
     transition: transform 0.2s;
   }
@@ -410,7 +453,7 @@ export const styles = `
     aspect-ratio: 3 / 4;
     object-fit: cover;
     border-radius: 4px;
-    background: #222;
+    background: ${COLORS.border.dark};
     margin-bottom: 6px;
   }
 
@@ -428,14 +471,14 @@ export const styles = `
     gap: 4px;
     margin-top: 20px;
     padding-top: 16px;
-    border-top: 1px solid #333;
+    border-top: 1px solid ${COLORS.border.default};
     justify-content: center;
   }
 
   .comic-helper-search-page-btn {
-    background: #333;
-    color: #ccc;
-    border: 1px solid #444;
+    background: ${COLORS.background.tag};
+    color: ${COLORS.text.secondary};
+    border: 1px solid ${COLORS.border.light};
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
@@ -445,15 +488,15 @@ export const styles = `
   }
 
   .comic-helper-search-page-btn:hover:not(:disabled) {
-    background: #444;
-    color: #fff;
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
     border-color: #666;
   }
 
   .comic-helper-search-page-btn.active {
-    background: #4CAF50;
+    background: ${COLORS.background.progress};
     color: white;
-    border-color: #4CAF50;
+    border-color: ${COLORS.border.accent};
     cursor: default;
   }
 
@@ -498,7 +541,7 @@ export const styles = `
   .comic-helper-search-updating {
     margin-left: 8px;
     font-size: 0.8em;
-    color: #888;
+    color: ${COLORS.text.muted};
   }
 
   /* Help Modal Styles */
@@ -514,7 +557,7 @@ export const styles = `
     gap: 12px;
     align-items: center;
     padding: 8px 0;
-    border-bottom: 1px solid #222;
+    border-bottom: 1px solid ${COLORS.border.dark};
   }
 
   @media (max-width: 600px) {
@@ -534,11 +577,11 @@ export const styles = `
   }
 
   .comic-helper-kbd {
-    background: #444;
+    background: ${COLORS.background.tagHover};
     border: 1px solid #555;
     border-radius: 4px;
-    box-shadow: 0 1px 0 rgba(0,0,0,0.2), 0 0 0 2px #333 inset;
-    color: #eee;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.2), 0 0 0 2px ${COLORS.border.default} inset;
+    color: ${COLORS.text.primary};
     display: inline-block;
     font-size: 11px;
     font-family: monospace;
@@ -549,7 +592,7 @@ export const styles = `
   }
 
   .comic-helper-shortcut-label {
-    color: #eee;
+    color: ${COLORS.text.primary};
     font-size: 13px;
     font-weight: bold;
   }
@@ -573,7 +616,7 @@ export const styles = `
 
   .comic-helper-progress-fill {
     height: 100%;
-    background: #4CAF50;
+    background: ${COLORS.background.progress};
     width: 0;
     transition: width 0.2s ease-out;
     box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
@@ -607,12 +650,12 @@ export const styles = `
   }
 
   .comic-helper-resume-continue {
-    background: #4CAF50;
+    background: ${COLORS.background.progress};
     color: white;
   }
 
   .comic-helper-resume-continue:hover {
-    background: #45a049;
+    background: ${PALETTE.successHover};
   }
 
   .comic-helper-resume-skip {
@@ -642,7 +685,7 @@ export const styles = `
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 10003;
-    background: rgba(0, 0, 0, 0.7);
+    background: ${COLORS.background.tooltip};
     color: white;
     padding: 16px 24px;
     border-radius: 8px;
