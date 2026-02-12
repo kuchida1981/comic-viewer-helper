@@ -525,9 +525,6 @@ export const styles = `
       gap: 4px;
       padding: 12px 0;
     }
-    .comic-helper-shortcut-keys {
-      margin-bottom: 4px;
-    }
   }
 
   .comic-helper-shortcut-keys {
