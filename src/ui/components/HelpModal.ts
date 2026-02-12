@@ -1,6 +1,7 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
 import { SHORTCUTS } from '../../shortcuts';
+import { COLORS } from '../styles';
 
 export interface HelpModalProps {
   onClose: () => void;
@@ -57,10 +58,10 @@ export function createHelpModal({ onClose }: HelpModalProps): HelpModalComponent
     className: 'comic-helper-modal-version',
     style: {
       fontSize: '11px',
-      color: '#888',
+      color: COLORS.text.muted,
       marginTop: '15px',
       textAlign: 'right',
-      borderTop: '1px solid #333',
+      borderTop: `1px solid ${COLORS.border.default}`,
       paddingTop: '5px'
     },
     textContent: `${t('ui.version')}: v${__APP_VERSION__} (${__IS_UNSTABLE__ ? t('ui.unstable') : t('ui.stable')})`
