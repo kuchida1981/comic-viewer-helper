@@ -199,6 +199,13 @@ describe('InputManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
   });
 
+  it('onKeyDown should toggle metadata modal even when it is already open', () => {
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true });
+    const event = { key: 'i', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(event);
+    expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false });
+  });
+
   it('onKeyDown should block other shortcuts during search modal', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true });
     const event = { key: 'ArrowRight', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
