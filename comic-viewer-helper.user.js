@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.0-unstable.8e41c02
+// @version         1.4.0-unstable.c49223f
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1985,7 +1985,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.0-unstable.8e41c02"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0-unstable.c49223f"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2805,10 +2805,15 @@
         this.store.setState({ isSearchModalOpen: !this.store.getState().isSearchModalOpen });
         return true;
       }
+      if (matchesShortcut(e, "metadata")) {
+        e.preventDefault();
+        this.store.setState({ isMetadataModalOpen: !this.store.getState().isMetadataModalOpen });
+        return true;
+      }
       return false;
     };
     _handleShortcutAction = (e) => {
-      const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
+      const { isDualViewEnabled, spreadOffset, metadata, searchCache } = this.store.getState();
       const actions = {
         nextPage: () => this.navigator.scrollToImage(1),
         prevPage: () => this.navigator.scrollToImage(-1),
@@ -2816,8 +2821,6 @@
         spreadOffset: () => {
           if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
         },
-        metadata: () => this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen }),
-        help: () => this.store.setState({ isHelpModalOpen: !isHelpModalOpen }),
         fullscreen: () => this._toggleFullscreen(),
         randomJump: () => {
           jumpToRandomWork(metadata, searchCache);
