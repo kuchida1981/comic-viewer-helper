@@ -373,7 +373,7 @@ describe('InputManager', () => {
     it('mousedown対象と異なる画像でmouseupされた場合は無視する', () => {
       const otherImg = document.createElement('img');
       inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
-      inputManager.on MouseUp({ target: otherImg, clientX: 100, clientY: 100 } as unknown as MouseEvent);
+      inputManager.onMouseUp({ target: otherImg, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       expect(navigator.scrollToImage).not.toHaveBeenCalled();
     });
 
