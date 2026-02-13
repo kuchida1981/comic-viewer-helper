@@ -141,19 +141,22 @@ export class InputManager {
       this.store.setState({ isSearchModalOpen: !this.store.getState().isSearchModalOpen });
       return true;
     }
+    if (matchesShortcut(e, 'metadata')) {
+      e.preventDefault();
+      this.store.setState({ isMetadataModalOpen: !this.store.getState().isMetadataModalOpen });
+      return true;
+    }
     return false;
   };
 
   private _handleShortcutAction = (e: KeyboardEvent): void => {
-    const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
+    const { isDualViewEnabled, spreadOffset, metadata, searchCache } = this.store.getState();
 
     const actions: Record<string, () => void | Promise<void>> = {
       nextPage: () => this.navigator.scrollToImage(1),
       prevPage: () => this.navigator.scrollToImage(-1),
       dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
       spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
-      metadata: () => this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen }),
-      help: () => this.store.setState({ isHelpModalOpen: !isHelpModalOpen }),
       fullscreen: () => this._toggleFullscreen(),
       randomJump: () => { jumpToRandomWork(metadata, searchCache); }
     };

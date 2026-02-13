@@ -199,6 +199,13 @@ describe('InputManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ isSearchModalOpen: false });
   });
 
+  it('onKeyDown should toggle metadata modal even when it is already open', () => {
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true });
+    const event = { key: 'i', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(event);
+    expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: false });
+  });
+
   it('onKeyDown should block other shortcuts during search modal', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true });
     const event = { key: 'ArrowRight', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
@@ -366,7 +373,7 @@ describe('InputManager', () => {
     it('mousedown対象と異なる画像でmouseupされた場合は無視する', () => {
       const otherImg = document.createElement('img');
       inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
-      inputManager.onMouseUp({ target: otherImg, clientX: 100, clientY: 100 } as unknown as MouseEvent);
+      inputManager.on MouseUp({ target: otherImg, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       expect(navigator.scrollToImage).not.toHaveBeenCalled();
     });
 
