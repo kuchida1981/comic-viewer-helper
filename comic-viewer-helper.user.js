@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.3.0
+// @version         1.4.0
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -22,11 +22,46 @@
  */
 (function() {
   "use strict";
+  function isObject(value) {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+  function isStringArray(value) {
+    return Array.isArray(value) && value.every((item) => typeof item === "string");
+  }
+  function isGuiPos(value) {
+    if (!isObject(value)) return false;
+    return typeof value.top === "number" && typeof value.left === "number";
+  }
+  function isResumeData(value) {
+    if (!isObject(value)) return false;
+    return typeof value.pageIndex === "number";
+  }
+  function isResumeDataMap(value) {
+    if (!isObject(value)) return false;
+    return Object.values(value).every(isResumeData);
+  }
+  function isSearchContext(value) {
+    if (!isObject(value)) return false;
+    if (typeof value.type !== "string") return false;
+    return ["keyword", "tag", "genre", "artist"].includes(value.type);
+  }
+  function isSearchCache(value) {
+    if (!isObject(value)) return false;
+    if (typeof value.query !== "string") return false;
+    if (typeof value.fetchedAt !== "number") return false;
+    if (!isObject(value.results)) return false;
+    return Array.isArray(value.results["results"]);
+  }
   const STORAGE_KEYS = {
     DUAL_VIEW: "comic-viewer-helper-dual-view",
     GUI_POS: "comic-viewer-helper-gui-pos",
-    ENABLED: "comic-viewer-helper-enabled"
+    ENABLED: "comic-viewer-helper-enabled",
+    SEARCH_QUERY: "comic-viewer-helper-search-query",
+    SEARCH_CONTEXT: "comic-viewer-helper-search-context",
+    SEARCH_CACHE: "comic-viewer-helper-search-cache",
+    SEARCH_HISTORY: "comic-viewer-helper-search-history"
   };
+  const MAX_SEARCH_HISTORY = 3;
   class Store {
     state;
     listeners;
@@ -44,14 +79,20 @@
         },
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
-        isLoading: false
+        isSearchModalOpen: false,
+        isLoading: false,
+        searchResults: null,
+        searchQuery: this._loadSearchQuery(),
+        searchContext: this._loadSearchContext(),
+        searchCache: this._loadSearchCache(),
+        searchHistory: this._loadSearchHistory()
       };
       this.listeners = [];
     }
-    getState() {
+    getState = () => {
       return { ...this.state };
-    }
-    setState(patch) {
+    };
+    setState = (patch) => {
       let changed = false;
       for (const key of Object.keys(patch)) {
         if (this.state[key] !== patch[key]) {
@@ -59,44 +100,109 @@
           changed = true;
         }
       }
-      if (!changed) return;
-      if ("enabled" in patch) {
-        localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
+      if (changed) {
+        this._persistChanges(patch);
+        this._notify();
       }
-      if ("isDualViewEnabled" in patch) {
-        localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
+    };
+    _persistChanges = (patch) => {
+      if ("enabled" in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
+      if ("isDualViewEnabled" in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
+      if ("guiPos" in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      this._persistSearchRelatedChanges(patch);
+    };
+    _persistSearchRelatedChanges = (patch) => {
+      const host = window.location.hostname;
+      if ("searchQuery" in patch) {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
       }
-      if ("guiPos" in patch) {
-        localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      if ("searchContext" in patch) {
+        const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
+        if (patch.searchContext) {
+          localStorage.setItem(key, JSON.stringify(patch.searchContext));
+        } else {
+          localStorage.removeItem(key);
+        }
       }
-      this._notify();
-    }
-    subscribe(callback) {
+      if ("searchCache" in patch) {
+        try {
+          localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
+        } catch (e) {
+          console.warn("Failed to save search cache to localStorage:", e);
+        }
+      }
+      if ("searchHistory" in patch) {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+      }
+    };
+    subscribe = (callback) => {
       this.listeners.push(callback);
       return () => {
         this.listeners = this.listeners.filter((l) => l !== callback);
       };
-    }
-    _notify() {
+    };
+    _notify = () => {
       this.listeners.forEach((callback) => callback(this.getState()));
-    }
-    _applyPatch(key, value) {
+    };
+    _applyPatch = (key, value) => {
       this.state[key] = value;
-    }
-    _loadGuiPos() {
+    };
+    _loadSearchHistory = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (isStringArray(parsed)) {
+            return parsed;
+          }
+        }
+        return [];
+      } catch {
+        return [];
+      }
+    };
+    _loadSearchCache = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
+        if (!saved) return null;
+        const parsed = JSON.parse(saved);
+        return isSearchCache(parsed) ? parsed : null;
+      } catch {
+        return null;
+      }
+    };
+    _loadSearchQuery = () => {
+      const host = window.location.hostname;
+      return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
+    };
+    _loadSearchContext = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+        if (!saved) return void 0;
+        const parsed = JSON.parse(saved);
+        return isSearchContext(parsed) ? parsed : void 0;
+      } catch {
+        return void 0;
+      }
+    };
+    _loadGuiPos = () => {
       try {
         const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
         if (!saved) return null;
         const pos = JSON.parse(saved);
+        if (!isGuiPos(pos)) return null;
         const buffer = 50;
-        if (typeof pos.left !== "number" || typeof pos.top !== "number" || pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
+        if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
           return null;
         }
         return pos;
       } catch {
         return null;
       }
-    }
+    };
   }
   const CONTAINER_SELECTOR = "#post-comic";
   const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
@@ -119,8 +225,20 @@
     match: () => true,
     getContainer: () => document.querySelector(CONTAINER_SELECTOR),
     getImages: () => Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`)),
+    searchConfig: {
+      baseUrl: "/",
+      queryParam: "s"
+    },
+    getSearchUrl: function(query) {
+      const config = this.searchConfig;
+      if (!config) return "";
+      const url = new URL(config.baseUrl, window.location.origin);
+      url.searchParams.set(config.queryParam, query);
+      return url.toString();
+    },
     getMetadata: () => {
-      const title = document.querySelector("h1")?.textContent?.trim() || "Unknown Title";
+      const titleEl = document.querySelector("h1");
+      const title = titleEl?.textContent?.trim() || "Unknown Title";
       const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
         const href = a.href;
         return {
@@ -132,8 +250,8 @@
       const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
         const anchor = el.closest("a");
         const img = el.querySelector("img");
-        const titleEl = el.querySelector("span") || anchor?.querySelector("span");
-        const title2 = titleEl?.textContent?.trim() || "Untitled";
+        const titleEl2 = el.querySelector("span") || anchor?.querySelector("span");
+        const title2 = titleEl2?.textContent?.trim() || "Untitled";
         return {
           title: title2,
           href: anchor?.href || "",
@@ -142,6 +260,45 @@
         };
       });
       return { title, tags, relatedWorks };
+    },
+    parseSearchResults: (doc) => {
+      const results = Array.from(doc.querySelectorAll("div.post-list > a")).map((a) => {
+        const img = a.querySelector(".post-list-image img");
+        const titleEl = a.querySelector(":scope > span");
+        return {
+          title: titleEl?.textContent?.trim() || "",
+          href: a.getAttribute("href") || "",
+          thumb: img?.getAttribute("src") || ""
+        };
+      });
+      const totalCountEl = doc.querySelector("div.page-h > span");
+      const totalCount = totalCountEl?.textContent?.trim() || null;
+      const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
+      const pagination = [];
+      const pagenavi = doc.querySelector(".wp-pagenavi");
+      if (pagenavi) {
+        pagenavi.childNodes.forEach((node) => {
+          if (node.nodeType === 1) {
+            const el = node;
+            if (el.classList.contains("pages")) return;
+            const isCurrent = el.classList.contains("current");
+            const isNext = el.classList.contains("nextpostslink");
+            const isPrev = el.classList.contains("previouspostslink");
+            const isExtend = el.classList.contains("extend");
+            let type = "page";
+            if (isNext) type = "next";
+            else if (isPrev) type = "prev";
+            else if (isExtend) type = "extend";
+            pagination.push({
+              label: el.textContent?.trim() || "",
+              url: el.getAttribute("href"),
+              isCurrent,
+              type
+            });
+          }
+        });
+      }
+      return { results, totalCount, nextPageUrl, pagination };
     }
   };
   function calculateVisibleHeight(rect, windowHeight) {
@@ -157,12 +314,15 @@
     return true;
   }
   function getPrimaryVisibleImageIndex(imgs, windowHeight) {
-    if (imgs.length === 0) return -1;
+    if (!imgs || !Array.isArray(imgs) || imgs.length === 0) return -1;
     let maxVisibleHeight = 0;
     let minDistanceToCenter = Infinity;
     let primaryIndex = -1;
     const viewportCenter = windowHeight / 2;
     imgs.forEach((img, index) => {
+      if (!img || typeof img.getBoundingClientRect !== "function") {
+        return;
+      }
       const rect = img.getBoundingClientRect();
       const visibleHeight = calculateVisibleHeight(rect, windowHeight);
       if (visibleHeight > 0) {
@@ -181,20 +341,78 @@
     if (index < 0 || index >= imgs.length) return null;
     return imgs[index];
   }
-  function cleanupDOM(container) {
-    const allImages = Array.from(container.querySelectorAll("img"));
-    const wrappers = container.querySelectorAll(".comic-row-wrapper");
-    wrappers.forEach((w) => w.remove());
-    allImages.forEach((img) => {
-      img.style.cssText = "";
+  function isEligibleForPairing(i, total, spreadOffset) {
+    const effectiveIndex = i - spreadOffset;
+    const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
+    const isFirstPage = i === 0;
+    const isNextLastPage = i + 1 === total - 1;
+    return isPairingPosition && i + 1 < total && !isFirstPage && !isNextLastPage;
+  }
+  function getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled) {
+    if (!isDualViewEnabled || !isEligibleForPairing(i, allImages.length, spreadOffset)) {
+      return { pairWithNext: false, nextImg: null };
+    }
+    const img = allImages[i];
+    const candidate = allImages[i + 1];
+    if (img && candidate && typeof img.naturalWidth === "number" && typeof candidate.naturalWidth === "number") {
+      const isLandscape = img.naturalWidth > img.naturalHeight;
+      const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
+      if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
+        return { pairWithNext: true, nextImg: candidate };
+      }
+    }
+    return { pairWithNext: false, nextImg: null };
+  }
+  function applyRowLayout(wrapper, img, nextImg, viewport) {
+    Object.assign(wrapper.style, {
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      width: "100vw",
+      maxWidth: "100vw",
+      marginLeft: "calc(50% - 50vw)",
+      marginRight: "calc(50% - 50vw)",
+      height: "100vh",
+      marginBottom: "0",
+      position: "relative",
+      boxSizing: "border-box"
     });
-    return allImages;
+    if (nextImg) {
+      wrapper.style.flexDirection = "row-reverse";
+      [img, nextImg].forEach((im) => {
+        Object.assign(im.style, {
+          maxWidth: "50%",
+          maxHeight: "100%",
+          width: "auto",
+          height: "auto",
+          objectFit: "contain",
+          margin: "0",
+          display: "block"
+        });
+      });
+      if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
+        wrapper.replaceChildren(img, nextImg);
+      }
+    } else {
+      wrapper.style.flexDirection = "row";
+      Object.assign(img.style, {
+        maxWidth: `${viewport.vw}px`,
+        maxHeight: `${viewport.vh}px`,
+        width: "auto",
+        height: "auto",
+        display: "block",
+        margin: "0 auto",
+        flexShrink: "0",
+        objectFit: "contain"
+      });
+      if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
+        wrapper.replaceChildren(img);
+      }
+    }
   }
   function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
     if (!container) return;
-    const allImages = cleanupDOM(container);
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const viewport = { vw: window.innerWidth, vh: window.innerHeight };
     Object.assign(container.style, {
       display: "flex",
       flexDirection: "column",
@@ -204,76 +422,42 @@
       width: "100%",
       maxWidth: "none"
     });
+    const allImages = Array.from(container.querySelectorAll("img"));
+    const existingWrappers = Array.from(container.querySelectorAll(".comic-row-wrapper"));
+    let wrapperIndex = 0;
     for (let i = 0; i < allImages.length; i++) {
       const img = allImages[i];
-      const isLandscape = img.naturalWidth > img.naturalHeight;
-      let pairWithNext = false;
-      const effectiveIndex = i - spreadOffset;
-      const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
-      const isFirstPage = i === 0;
-      const isNextLastPage = i + 1 === allImages.length - 1;
-      if (isDualViewEnabled && isPairingPosition && i + 1 < allImages.length && !isFirstPage && !isNextLastPage) {
-        const nextImg = allImages[i + 1];
-        const nextIsLandscape = nextImg.naturalWidth > nextImg.naturalHeight;
-        if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
-          pairWithNext = true;
-        }
-      }
-      const row = document.createElement("div");
-      row.className = "comic-row-wrapper";
-      Object.assign(row.style, {
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        width: "100vw",
-        maxWidth: "100vw",
-        marginLeft: "calc(50% - 50vw)",
-        marginRight: "calc(50% - 50vw)",
-        height: "100vh",
-        marginBottom: "0",
-        position: "relative",
-        boxSizing: "border-box"
-      });
-      if (pairWithNext) {
-        const nextImg = allImages[i + 1];
-        row.style.flexDirection = "row-reverse";
-        [img, nextImg].forEach((im) => {
-          Object.assign(im.style, {
-            maxWidth: "50%",
-            maxHeight: "100%",
-            width: "auto",
-            height: "auto",
-            objectFit: "contain",
-            margin: "0",
-            display: "block"
-          });
-        });
-        row.appendChild(img);
-        row.appendChild(nextImg);
-        container.appendChild(row);
-        i++;
+      if (!img || typeof img.naturalWidth !== "number") continue;
+      const { pairWithNext, nextImg } = getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled);
+      const wrapper = existingWrappers[wrapperIndex];
+      if (wrapper === void 0) {
+        const newWrapper = document.createElement("div");
+        newWrapper.className = "comic-row-wrapper";
+        container.appendChild(newWrapper);
+        applyRowLayout(newWrapper, img, nextImg, viewport);
       } else {
-        Object.assign(img.style, {
-          maxWidth: `${vw}px`,
-          maxHeight: `${vh}px`,
-          width: "auto",
-          height: "auto",
-          display: "block",
-          margin: "0 auto",
-          flexShrink: "0",
-          objectFit: "contain"
-        });
-        row.appendChild(img);
-        container.appendChild(row);
+        container.appendChild(wrapper);
+        applyRowLayout(wrapper, img, nextImg, viewport);
       }
+      if (pairWithNext) i++;
+      wrapperIndex++;
+    }
+    while (wrapperIndex < existingWrappers.length) {
+      existingWrappers[wrapperIndex].remove();
+      wrapperIndex++;
     }
   }
   function revertToOriginal(originalImages, container) {
     if (!container) return;
     container.style.cssText = "";
+    if (!originalImages || !Array.isArray(originalImages)) return;
     originalImages.forEach((img) => {
-      img.style.cssText = "";
-      container.appendChild(img);
+      if (img && img.style) {
+        img.style.cssText = "";
+      }
+      if (img instanceof Node) {
+        container.appendChild(img);
+      }
     });
     const wrappers = container.querySelectorAll(".comic-row-wrapper");
     wrappers.forEach((w) => w.remove());
@@ -296,6 +480,7 @@
     return event.deltaY > 0 ? "next" : "prev";
   }
   async function waitForImageLoad(img, timeout = 5e3) {
+    if (!img) return Promise.resolve();
     if (img.complete && img.naturalHeight !== 0) {
       return;
     }
@@ -314,55 +499,68 @@
       };
       const cleanup = () => {
         clearTimeout(timer);
-        img.removeEventListener("load", onLoad);
-        img.removeEventListener("error", onError);
+        if (img && typeof img.removeEventListener === "function") {
+          img.removeEventListener("load", onLoad);
+          img.removeEventListener("error", onError);
+        }
       };
-      img.addEventListener("load", onLoad);
-      img.addEventListener("error", onError);
+      if (img && typeof img.addEventListener === "function") {
+        img.addEventListener("load", onLoad);
+        img.addEventListener("error", onError);
+      } else {
+        clearTimeout(timer);
+        resolve();
+      }
     });
   }
   function forceImageLoad(img) {
-    if (img.getAttribute("loading") === "lazy") {
+    if (!img) return;
+    if (typeof img.getAttribute === "function" && img.getAttribute("loading") === "lazy") {
       img.setAttribute("loading", "eager");
     }
-    if ("decode" in img) {
+    if ("decode" in img && typeof img.decode === "function") {
       img.decode().catch(() => {
       });
     }
   }
-  function preloadImages(images, currentIndex, count = 3) {
-    if (images.length === 0) return;
-    for (let i = 1; i <= count; i++) {
-      const nextIndex = currentIndex + i;
-      if (nextIndex < images.length) {
-        const img = images[nextIndex];
-        if (!img.complete) {
-          img.loading = "eager";
-          if ("decode" in img) {
-            img.decode().catch(() => {
-            });
-          }
-        }
-      }
-    }
-    for (let i = 1; i <= Math.min(count, 2); i++) {
-      const prevIndex = currentIndex - i;
-      if (prevIndex >= 0) {
-        const img = images[prevIndex];
-        if (!img.complete) {
-          img.loading = "eager";
-          if ("decode" in img) {
-            img.decode().catch(() => {
-            });
-          }
-        }
+  function triggerImageDecode(img) {
+    if (img && !img.complete) {
+      img.loading = "eager";
+      if ("decode" in img && typeof img.decode === "function") {
+        img.decode().catch(() => {
+        });
       }
     }
   }
-  function jumpToRandomWork(metadata) {
-    if (!metadata?.relatedWorks) return;
-    const works = metadata.relatedWorks.filter((w) => !w.isPrivate);
-    const randomWork = works[Math.floor(Math.random() * works.length)];
+  function preloadImages(images, currentIndex, count = 3) {
+    if (!images || !Array.isArray(images) || images.length === 0) return;
+    for (let i = 1; i <= count; i++) {
+      const nextIndex = currentIndex + i;
+      if (nextIndex < images.length) {
+        triggerImageDecode(images[nextIndex]);
+      }
+    }
+    const prevCount = Math.min(count, 2);
+    for (let i = 1; i <= prevCount; i++) {
+      const prevIndex = currentIndex - i;
+      if (prevIndex >= 0) {
+        triggerImageDecode(images[prevIndex]);
+      }
+    }
+  }
+  function jumpToRandomWork(metadata, searchCache) {
+    const sources = [];
+    if (metadata.relatedWorks) {
+      sources.push(...metadata.relatedWorks.filter((w) => !w.isPrivate));
+    }
+    if (searchCache && searchCache.results) {
+      sources.push(...searchCache.results.results);
+    }
+    if (sources.length === 0) return;
+    const uniqueWorks = Array.from(
+      new Map(sources.map((w) => [w.href, w])).values()
+    );
+    const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];
     if (randomWork?.href) {
       window.location.href = randomWork.href;
     }
@@ -379,19 +577,12 @@
       this.adapter = adapter;
       this.store = store;
       this.originalImages = [];
-      this.getImages = this.getImages.bind(this);
-      this.jumpToPage = this.jumpToPage.bind(this);
-      this.scrollToImage = this.scrollToImage.bind(this);
-      this.scrollToEdge = this.scrollToEdge.bind(this);
-      this.applyLayout = this.applyLayout.bind(this);
-      this.updatePageCounter = this.updatePageCounter.bind(this);
-      this.init = this.init.bind(this);
       this._lastEnabled = void 0;
       this._lastDualView = void 0;
       this._lastSpreadOffset = void 0;
       this.pendingTargetIndex = null;
     }
-    init() {
+    init = () => {
       this.store.subscribe((state) => {
         const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
         if (layoutChanged) {
@@ -409,10 +600,7 @@
       imgs.forEach((img) => {
         if (!img.complete) {
           img.addEventListener("load", () => {
-            if (this.pendingTargetIndex !== null) {
-              console.log("[Navigator] Skipping auto applyLayout because navigation is pending");
-              return;
-            }
+            if (this.pendingTargetIndex !== null) return;
             requestAnimationFrame(() => this.applyLayout());
           });
         }
@@ -420,36 +608,32 @@
       if (initialState.enabled) {
         this.applyLayout();
       }
-    }
-    getImages() {
+    };
+    getImages = () => {
       if (this.originalImages.length > 0) return this.originalImages;
       this.originalImages = this.adapter.getImages();
       return this.originalImages;
-    }
-    updatePageCounter() {
+    };
+    updatePageCounter = () => {
       const state = this.store.getState();
-      const { enabled } = state;
-      if (!enabled) return;
+      if (!state.enabled) return;
       const imgs = this.getImages();
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       if (currentIndex !== -1) {
         this.store.setState({ currentVisibleIndex: currentIndex });
         preloadImages(imgs, currentIndex);
       }
-    }
+    };
     async jumpToPage(pageNumber) {
       const imgs = this.getImages();
       const index = typeof pageNumber === "string" ? parseInt(pageNumber, 10) - 1 : pageNumber - 1;
       const targetImg = getImageElementByIndex(imgs, index);
-      console.log(`[Navigator] jumpToPage: ${pageNumber} (index: ${index})`, { complete: targetImg?.complete, height: targetImg?.naturalHeight });
       if (targetImg) {
         this.pendingTargetIndex = index;
         forceImageLoad(targetImg);
         if (!targetImg.complete || targetImg.naturalHeight === 0) {
-          console.log(`[Navigator] Waiting for image load...`);
           this.store.setState({ isLoading: true });
           await waitForImageLoad(targetImg);
-          console.log(`[Navigator] Image loaded. Applying layout...`);
           this.applyLayout(index);
           this.store.setState({ isLoading: false });
         } else {
@@ -459,52 +643,51 @@
           this.pendingTargetIndex = null;
         });
         return true;
-      } else {
-        this.updatePageCounter();
-        return false;
       }
+      this.updatePageCounter();
+      return false;
     }
-    async scrollToImage(direction) {
-      const imgs = this.getImages();
-      if (imgs.length === 0) return;
+    _calculateTargetIndex = (imgs, direction) => {
       const { isDualViewEnabled } = this.store.getState();
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       let targetIndex = currentIndex + direction;
-      if (targetIndex < 0) targetIndex = 0;
+      if (targetIndex < 0) return 0;
       if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
         const currentImg = imgs[currentIndex];
-        if (targetIndex < imgs.length) {
-          const prospectiveTargetImg = imgs[targetIndex];
-          if (currentImg && prospectiveTargetImg && prospectiveTargetImg.parentElement === currentImg.parentElement && prospectiveTargetImg.parentElement?.classList.contains("comic-row-wrapper")) {
-            targetIndex += direction;
-          }
+        const prospective = imgs[targetIndex];
+        if (currentImg && prospective && prospective.parentElement === currentImg.parentElement && prospective.parentElement?.classList.contains("comic-row-wrapper")) {
+          targetIndex += direction;
         }
       }
+      return targetIndex;
+    };
+    async scrollToImage(direction) {
+      const imgs = this.getImages();
+      if (imgs.length === 0) return;
+      const targetIndex = this._calculateTargetIndex(imgs, direction);
       if (targetIndex >= imgs.length) {
         if (direction > 0 && !this.store.getState().isMetadataModalOpen) {
           this.store.setState({ isMetadataModalOpen: true });
         }
         return;
       }
-      console.log(`[Navigator] scrollToImage: ${direction} (target: ${targetIndex})`);
       const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
-      const finalTarget = imgs[finalIndex];
-      if (finalTarget) {
-        this.pendingTargetIndex = finalIndex;
-        forceImageLoad(finalTarget);
-        if (!finalTarget.complete || finalTarget.naturalHeight === 0) {
-          console.log(`[Navigator] Waiting for image load...`);
-          this.store.setState({ isLoading: true });
-          await waitForImageLoad(finalTarget);
-          this.applyLayout(finalIndex);
-          this.store.setState({ isLoading: false });
-        } else {
-          finalTarget.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-        requestAnimationFrame(() => {
-          this.pendingTargetIndex = null;
-        });
+      await this._performScrollToImage(imgs[finalIndex], finalIndex);
+    }
+    async _performScrollToImage(target, index) {
+      this.pendingTargetIndex = index;
+      forceImageLoad(target);
+      if (!target.complete || target.naturalHeight === 0) {
+        this.store.setState({ isLoading: true });
+        await waitForImageLoad(target);
+        this.applyLayout(index);
+        this.store.setState({ isLoading: false });
+      } else {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
       }
+      requestAnimationFrame(() => {
+        this.pendingTargetIndex = null;
+      });
     }
     async scrollToEdge(position) {
       const imgs = this.getImages();
@@ -523,7 +706,7 @@
         this.pendingTargetIndex = null;
       });
     }
-    applyLayout(forcedIndex) {
+    applyLayout = (forcedIndex) => {
       const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
       const container = this.adapter.getContainer();
       if (!container) return;
@@ -534,20 +717,17 @@
       const imgs = this.getImages();
       const viewportIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       const currentIndex = this.pendingTargetIndex !== null ? this.pendingTargetIndex : forcedIndex !== void 0 ? forcedIndex : viewportIndex;
-      console.log(`[Navigator] applyLayout: current=${currentIndex}, pending=${this.pendingTargetIndex}, forced=${forcedIndex}, viewport=${viewportIndex}`);
       fitImagesToViewport(container, spreadOffset, isDualViewEnabled);
-      this.updatePageCounter();
       if (currentIndex !== -1) {
         const targetImg = imgs[currentIndex];
-        if (targetImg) {
+        requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            console.log(`[Navigator] Executing scrollIntoView for index ${currentIndex}`);
             targetImg.scrollIntoView({ block: "center" });
           });
-          preloadImages(imgs, currentIndex);
-        }
+        });
+        preloadImages(imgs, currentIndex);
       }
-    }
+    };
   }
   const styles = `
   #comic-helper-ui {
@@ -850,6 +1030,208 @@
     line-height: 1.4;
   }
 
+  /* Search Modal Styles */
+  .comic-helper-search-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .comic-helper-search-form {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .comic-helper-search-input {
+    flex: 1;
+    background: #222;
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .comic-helper-search-input:focus {
+    border-color: #4CAF50;
+  }
+
+  .comic-helper-search-submit {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+
+  .comic-helper-search-submit:hover {
+    background: #45a049;
+  }
+
+  /* Search History Styles */
+  .comic-helper-search-history {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: -8px;
+    align-items: center;
+    min-height: 24px;
+  }
+
+  .comic-helper-search-history-label {
+    font-size: 12px;
+    color: #888;
+    margin-right: 4px;
+  }
+
+  .comic-helper-search-history-item {
+    background: #333;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-search-history-item:hover {
+    background: #444;
+    color: #fff;
+    border-color: #666;
+  }
+
+  /* Search Results Styles */
+  .comic-helper-search-results-section {
+    margin-top: 4px;
+  }
+
+  .comic-helper-search-no-results {
+    color: #888;
+    font-size: 14px;
+    padding: 12px 0;
+  }
+
+  .comic-helper-search-result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 10px;
+  }
+
+  .comic-helper-search-result-item {
+    text-decoration: none;
+    color: #ccc;
+    font-size: 11px;
+    transition: transform 0.2s;
+  }
+  .comic-helper-search-result-item:hover {
+    transform: translateY(-4px);
+  }
+
+  .comic-helper-search-result-thumb {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 4px;
+    background: #222;
+    margin-bottom: 6px;
+  }
+
+  .comic-helper-search-result-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
+
+  .comic-helper-search-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #333;
+    justify-content: center;
+  }
+
+  .comic-helper-search-page-btn {
+    background: #333;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    min-width: 32px;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-search-page-btn:hover:not(:disabled) {
+    background: #444;
+    color: #fff;
+    border-color: #666;
+  }
+
+  .comic-helper-search-page-btn.active {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+    cursor: default;
+  }
+
+  .comic-helper-search-page-btn:disabled:not(.active) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .comic-helper-search-page-btn.type-next,
+  .comic-helper-search-page-btn.type-prev {
+    font-weight: bold;
+    padding: 4px 12px;
+  }
+
+  .comic-helper-search-results-wrapper {
+    position: relative;
+    min-height: 100px;
+  }
+
+  .comic-helper-search-spinner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    border-radius: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  .comic-helper-search-spinner-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .comic-helper-search-updating {
+    margin-left: 8px;
+    font-size: 0.8em;
+    color: #888;
+  }
+
   /* Help Modal Styles */
   .comic-helper-shortcut-list {
     display: flex;
@@ -1030,29 +1412,34 @@
     style.textContent = styles;
     document.head.appendChild(style);
   }
-  function createElement(tag, options = {}, children = []) {
-    const el = document.createElement(tag);
-    if (options.id) el.id = options.id;
-    if (options.className) el.className = options.className;
-    if (options.textContent) el.textContent = options.textContent;
-    if (options.title) el.title = options.title;
-    if (el instanceof HTMLInputElement) {
-      if (options.type) el.type = options.type;
-      if (options.checked !== void 0) el.checked = options.checked;
+  function applyBasicProperties(el, opts) {
+    if (opts.id) el.id = opts.id;
+    if (opts.className) el.className = opts.className;
+    if (opts.textContent) el.textContent = opts.textContent;
+    if (opts.title) el.title = opts.title;
+  }
+  function applyInputProperties(el, opts) {
+    if (el.tagName === "INPUT") {
+      const input = el;
+      if (opts.type) input.type = opts.type;
+      if (opts.checked !== void 0) input.checked = opts.checked;
     }
-    if (options.style) {
-      Object.assign(el.style, options.style);
-    }
-    if (options.attributes) {
-      for (const [key, value] of Object.entries(options.attributes)) {
+  }
+  function applyAttributes(el, attributes) {
+    if (!attributes) return;
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value !== null && value !== void 0) {
         el.setAttribute(key, String(value));
       }
     }
-    if (options.events) {
-      for (const [type, listener] of Object.entries(options.events)) {
-        el.addEventListener(type, listener);
-      }
+  }
+  function applyEvents(el, events) {
+    if (!events) return;
+    for (const [type, listener] of Object.entries(events)) {
+      el.addEventListener(type, listener);
     }
+  }
+  function appendChildren(el, children) {
     children.forEach((child) => {
       if (typeof child === "string") {
         el.appendChild(document.createTextNode(child));
@@ -1060,6 +1447,18 @@
         el.appendChild(child);
       }
     });
+  }
+  function createElement(tag, options = {}, children = []) {
+    const el = document.createElement(tag);
+    const opts = options || {};
+    applyBasicProperties(el, opts);
+    applyInputProperties(el, opts);
+    if (opts.style) {
+      Object.assign(el.style, opts.style);
+    }
+    applyAttributes(el, opts.attributes);
+    applyEvents(el, opts.events);
+    appendChildren(el, children);
     return el;
   }
   const MESSAGES = {
@@ -1083,6 +1482,13 @@
         lucky: "I'm feeling lucky",
         showMetadata: "Show Metadata",
         showHelp: "Show Help",
+        showSearch: "Show Search",
+        search: "Search",
+        searchPlaceholder: "Enter keyword...",
+        searchHistory: "Recent",
+        searchResults: "Search Results",
+        searchNoResults: "No results found.",
+        searchMoreLink: "Show more →",
         shiftOffset: "Shift spread pairing by 1 page (Offset)",
         space: "Space",
         enable: "Enable Comic Viewer Helper",
@@ -1100,6 +1506,7 @@
         metadata: { label: "Metadata", desc: "Show metadata" },
         fullscreen: { label: "Fullscreen", desc: "Toggle Fullscreen" },
         help: { label: "Help", desc: "Show this help" },
+        search: { label: "Search", desc: "Start search" },
         closeModal: { label: "Close Modal", desc: "Close modal" },
         randomJump: { label: "Random Jump", desc: "Jump to a random related work" }
       }
@@ -1124,6 +1531,13 @@
         lucky: "おすすめ（ランダム）",
         showMetadata: "作品情報を表示",
         showHelp: "ヘルプを表示",
+        showSearch: "サイト内検索を表示",
+        search: "検索",
+        searchPlaceholder: "キーワードを入力...",
+        searchHistory: "最近の検索",
+        searchResults: "検索結果",
+        searchNoResults: "結果が見つかりませんでした。",
+        searchMoreLink: "もっと見る →",
         shiftOffset: "見開きペアを1ページ分ずらす（オフセット）",
         space: "スペース",
         enable: "スクリプトを有効にする",
@@ -1141,6 +1555,7 @@
         metadata: { label: "作品情報", desc: "作品情報（メタデータ）の表示" },
         fullscreen: { label: "フルスクリーン", desc: "フルスクリーンの切り替え" },
         help: { label: "ヘルプ", desc: "このヘルプの表示" },
+        search: { label: "検索", desc: "検索の開始" },
         closeModal: { label: "閉じる", desc: "モーダルを閉じる" },
         randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" }
       }
@@ -1285,6 +1700,7 @@
     onLast,
     onInfo,
     onHelp,
+    onSearch,
     onLucky
   }) {
     const configs = [
@@ -1294,7 +1710,8 @@
       { text: ">", title: t("ui.goPrev"), action: onPrev },
       { text: ">>", title: t("ui.goFirst"), action: onFirst },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
-      { text: "?", title: t("ui.showHelp"), action: onHelp }
+      { text: "?", title: t("ui.showHelp"), action: onHelp },
+      { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" }
     ];
     const elements = configs.map((cfg) => createElement("button", {
       className: cfg.className || "comic-helper-button",
@@ -1304,11 +1721,8 @@
         click: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (cfg.action) cfg.action();
-          const target = e.currentTarget;
-          if (target && typeof target.blur === "function") {
-            target.blur();
-          }
+          cfg.action();
+          e.currentTarget.blur();
         }
       }
     }));
@@ -1319,7 +1733,7 @@
       // No dynamic state for these buttons yet
     };
   }
-  function createMetadataModal({ metadata, onClose }) {
+  function createMetadataModal({ metadata, onClose, onTagClick }) {
     const { title, tags, relatedWorks } = metadata;
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
@@ -1341,9 +1755,14 @@
       return createElement("a", {
         className,
         textContent: tag.text,
-        attributes: { href: tag.href, target: "_blank" },
+        style: { cursor: "pointer" },
         events: {
-          click: (e) => e.stopPropagation()
+          click: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void onTagClick(tag);
+            onClose();
+          }
         }
       });
     });
@@ -1382,7 +1801,7 @@
         borderTop: "1px solid #eee",
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.3.0"} (${t("ui.stable")})`
+      textContent: `${t("ui.version")}: v${"1.4.0"} (${t("ui.stable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -1455,6 +1874,12 @@
       description: t("shortcuts.help.desc")
     },
     {
+      id: "search",
+      label: t("shortcuts.search.label"),
+      keys: ["/"],
+      description: t("shortcuts.search.desc")
+    },
+    {
       id: "randomJump",
       label: t("shortcuts.randomJump.label"),
       keys: ["p"],
@@ -1520,6 +1945,223 @@
     return {
       el: overlay,
       update: () => {
+      }
+    };
+  }
+  function createResultsSection(searchResults, onPageChange) {
+    const section = createElement("div", {
+      className: "comic-helper-search-results-section"
+    });
+    if (!searchResults) return section;
+    const { results, totalCount, pagination, searchContext } = searchResults;
+    const header = createElement("div", {
+      className: "comic-helper-section-title"
+    });
+    let titleText = t("ui.searchResults");
+    if (searchContext?.label) {
+      const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
+      titleText = `${prefix}: ${searchContext.label}`;
+    }
+    header.textContent = totalCount ? `${titleText} (${totalCount})` : titleText;
+    section.appendChild(header);
+    if (results.length === 0) {
+      section.appendChild(createElement("div", {
+        className: "comic-helper-search-no-results",
+        textContent: t("ui.searchNoResults")
+      }));
+      return section;
+    }
+    const grid = createElement("div", {
+      className: "comic-helper-search-result-grid"
+    });
+    results.forEach((item) => {
+      const thumb = createElement("img", {
+        className: "comic-helper-search-result-thumb",
+        attributes: { src: item.thumb, loading: "lazy" }
+      });
+      const title = createElement("div", {
+        className: "comic-helper-search-result-title",
+        textContent: item.title
+      });
+      const link = createElement("a", {
+        className: "comic-helper-search-result-item",
+        attributes: { href: item.href, target: "_blank" },
+        events: { click: (e) => e.stopPropagation() }
+      }, [thumb, title]);
+      grid.appendChild(link);
+    });
+    section.appendChild(grid);
+    if (pagination.length > 0) {
+      const nav = createElement("div", {
+        className: "comic-helper-search-pagination"
+      });
+      pagination.forEach((item) => {
+        const label = item.type === "next" ? t("ui.goNext") : item.type === "prev" ? t("ui.goPrev") : item.label;
+        const btn = createElement("button", {
+          className: `comic-helper-search-page-btn${item.isCurrent ? " active" : ""} type-${item.type}`,
+          textContent: item.label,
+          attributes: {
+            title: label,
+            ...!item.url || item.isCurrent ? { disabled: "true" } : {}
+          },
+          events: {
+            click: (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (item.url) onPageChange(item.url);
+            }
+          }
+        });
+        nav.appendChild(btn);
+      });
+      section.appendChild(nav);
+    }
+    return section;
+  }
+  function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchContext, searchHistory }) {
+    const displayValue = searchContext?.type === "keyword" ? searchQuery || "" : "";
+    const input = createElement("input", {
+      className: "comic-helper-search-input",
+      attributes: {
+        type: "text",
+        placeholder: t("ui.searchPlaceholder"),
+        autofocus: "true",
+        value: displayValue
+      }
+    });
+    const submitBtn = createElement("button", {
+      className: "comic-helper-search-submit",
+      textContent: t("ui.search"),
+      attributes: {
+        type: "submit"
+      }
+    });
+    const handleSubmit = () => {
+      const query = input.value.trim();
+      if (query) onSearch(query);
+    };
+    const form = createElement("form", {
+      className: "comic-helper-search-form",
+      events: {
+        submit: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleSubmit();
+        }
+      }
+    }, [input, submitBtn]);
+    const historySection = createElement("div", {
+      className: "comic-helper-search-history"
+    });
+    if (searchHistory.length > 0) {
+      historySection.appendChild(createElement("span", {
+        className: "comic-helper-search-history-label",
+        textContent: `${t("ui.searchHistory")}:`
+      }));
+      searchHistory.forEach((historyItem) => {
+        const btn = createElement("button", {
+          className: "comic-helper-search-history-item",
+          textContent: historyItem,
+          events: {
+            click: (e) => {
+              e.preventDefault();
+              input.value = historyItem;
+              onSearch(historyItem);
+            }
+          }
+        });
+        historySection.appendChild(btn);
+      });
+    }
+    let resultsSection = createResultsSection(searchResults, onPageChange);
+    const container = createElement("div", {
+      className: "comic-helper-search-container"
+    }, [form, historySection, resultsSection]);
+    const closeBtn = createElement("button", {
+      className: "comic-helper-modal-close",
+      textContent: "×",
+      title: t("ui.close"),
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onClose();
+        }
+      }
+    });
+    const title = createElement("h2", {
+      className: "comic-helper-modal-title",
+      textContent: t("ui.search")
+    });
+    const updatingIndicator = createElement("span", {
+      className: "comic-helper-search-updating",
+      textContent: "...",
+      style: { display: "none" }
+    });
+    title.appendChild(updatingIndicator);
+    const spinner = createElement("div", { className: "comic-helper-spinner" });
+    const spinnerOverlay = createElement("div", {
+      className: "comic-helper-search-spinner-overlay"
+    }, [spinner]);
+    const content = createElement("div", {
+      className: "comic-helper-modal-content",
+      events: {
+        click: (e) => e.stopPropagation()
+      }
+    }, [closeBtn, title, container, spinnerOverlay]);
+    content.addEventListener("click", (e) => e.stopPropagation());
+    content.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+    const overlay = createElement("div", {
+      className: "comic-helper-modal-overlay",
+      events: {
+        click: onClose
+      }
+    }, [content]);
+    overlay.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+    setTimeout(() => input.focus(), 50);
+    let loadingTimeout = null;
+    let loadingStartTime = 0;
+    const SHOW_DELAY_MS = 200;
+    const MIN_SHOW_TIME_MS = 400;
+    return {
+      el: overlay,
+      input,
+      updateResults: (newResults) => {
+        const newSection = createResultsSection(newResults, onPageChange);
+        container.replaceChild(newSection, resultsSection);
+        resultsSection = newSection;
+        content.scrollTop = 0;
+      },
+      setUpdating: (updating) => {
+        updatingIndicator.style.display = updating ? "inline" : "none";
+        if (loadingTimeout) {
+          clearTimeout(loadingTimeout);
+          loadingTimeout = null;
+        }
+        if (updating) {
+          input.disabled = true;
+          submitBtn.disabled = true;
+          loadingTimeout = window.setTimeout(() => {
+            spinnerOverlay.classList.add("visible");
+            loadingStartTime = Date.now();
+            loadingTimeout = null;
+          }, SHOW_DELAY_MS);
+        } else {
+          const hide = () => {
+            spinnerOverlay.classList.remove("visible");
+            input.disabled = false;
+            submitBtn.disabled = false;
+          };
+          const shownDuration = Date.now() - loadingStartTime;
+          if (loadingStartTime > 0 && shownDuration < MIN_SHOW_TIME_MS) {
+            window.setTimeout(hide, MIN_SHOW_TIME_MS - shownDuration);
+          } else {
+            hide();
+          }
+          loadingStartTime = 0;
+        }
       }
     };
   }
@@ -1619,12 +2261,9 @@
       this.dragStartY = 0;
       this.initialTop = 0;
       this.initialLeft = 0;
-      this._onMouseDown = this._onMouseDown.bind(this);
-      this._onMouseMove = this._onMouseMove.bind(this);
-      this._onMouseUp = this._onMouseUp.bind(this);
       this.element.addEventListener("mousedown", this._onMouseDown);
     }
-    _onMouseDown(e) {
+    _onMouseDown = (e) => {
       if (e.button !== 0 || !(e.target instanceof HTMLElement)) return;
       if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
       this.isDragging = true;
@@ -1642,12 +2281,12 @@
       document.addEventListener("mousemove", this._onMouseMove);
       document.addEventListener("mouseup", this._onMouseUp);
       e.preventDefault();
-    }
+    };
     /**
      * Clamp the element's position to keep it within the viewport
      * @returns {{top: number, left: number}} The clamped position
      */
-    clampToViewport() {
+    clampToViewport = () => {
       const rect = this.element.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -1665,58 +2304,64 @@
         right: "auto"
       });
       return { top, left };
-    }
-    _onMouseMove(e) {
+    };
+    _onMouseMove = (e) => {
       if (!this.isDragging) return;
       const deltaX = e.clientX - this.dragStartX;
       const deltaY = e.clientY - this.dragStartY;
       this.element.style.top = `${this.initialTop + deltaY}px`;
       this.element.style.left = `${this.initialLeft + deltaX}px`;
       this.clampToViewport();
-    }
-    _onMouseUp() {
+    };
+    _onMouseUp = () => {
       if (!this.isDragging) return;
       this.isDragging = false;
       document.removeEventListener("mousemove", this._onMouseMove);
       document.removeEventListener("mouseup", this._onMouseUp);
       const { top, left } = this.clampToViewport();
       this.onDragEnd(top, left);
-    }
-    destroy() {
+    };
+    destroy = () => {
       this.element.removeEventListener("mousedown", this._onMouseDown);
       document.removeEventListener("mousemove", this._onMouseMove);
       document.removeEventListener("mouseup", this._onMouseUp);
-    }
+    };
+  }
+  function isSearchableAdapter(adapter) {
+    return typeof adapter.getSearchUrl === "function" && typeof adapter.parseSearchResults === "function";
+  }
+  function isMetadataAdapter(adapter) {
+    return typeof adapter.getMetadata === "function";
+  }
+  const SEARCH_TTL = 60 * 60 * 1e3;
+  function normalizeQuery(query) {
+    return query.trim().toLowerCase().split(/\s+/).sort().join(" ");
+  }
+  function contextsMatch(c1, c2) {
+    if (!c1 && !c2) return true;
+    if (!c1 || !c2) return false;
+    return c1.type === c2.type && c1.label === c2.label;
   }
   class UIManager {
     adapter;
     store;
     navigator;
     // Component references
-    powerComp;
-    counterComp;
-    spreadComp;
-    progressComp;
-    loadingComp;
-    draggable;
-    modalEl;
-    helpModalEl;
+    powerComp = null;
+    counterComp = null;
+    spreadComp = null;
+    progressComp = null;
+    loadingComp = null;
+    draggable = null;
+    modalEl = null;
+    helpModalEl = null;
+    searchModalComp = null;
     constructor(adapter, store, navigator2) {
       this.adapter = adapter;
       this.store = store;
       this.navigator = navigator2;
-      this.powerComp = null;
-      this.counterComp = null;
-      this.spreadComp = null;
-      this.progressComp = null;
-      this.loadingComp = null;
-      this.draggable = null;
-      this.modalEl = null;
-      this.helpModalEl = null;
-      this.updateUI = this.updateUI.bind(this);
-      this.init = this.init.bind(this);
     }
-    init() {
+    init = () => {
       injectStyles();
       this.updateUI();
       this.store.subscribe(this.updateUI);
@@ -1726,66 +2371,56 @@
           this.store.setState({ guiPos: { top, left } });
         }
       });
-    }
-    updateUI() {
+    };
+    updateUI = () => {
       const state = this.store.getState();
-      const { enabled, isDualViewEnabled, guiPos, currentVisibleIndex, isLoading } = state;
+      const container = this._ensureRootContainer(state.guiPos);
+      this._initializeComponents(container);
+      this._updateModals(state);
+      this.powerComp?.update(state.enabled);
+      this.loadingComp?.update(state.isLoading);
+      document.documentElement.classList.toggle("comic-helper-enabled", state.enabled);
+      this._updateVisibility(container, state);
+    };
+    _ensureRootContainer = (guiPos) => {
       let container = document.getElementById("comic-helper-ui");
       if (!container) {
         container = createElement("div", { id: "comic-helper-ui" });
         if (guiPos) {
-          Object.assign(container.style, {
-            top: `${guiPos.top}px`,
-            left: `${guiPos.left}px`,
-            bottom: "auto",
-            right: "auto"
-          });
+          Object.assign(container.style, { top: `${guiPos.top}px`, left: `${guiPos.left}px`, bottom: "auto", right: "auto" });
         }
         this.draggable = new Draggable(container, {
           onDragEnd: (top, left) => this.store.setState({ guiPos: { top, left } })
         });
         document.body.appendChild(container);
       }
+      return container;
+    };
+    _initializeComponents = (container) => {
+      const state = this.store.getState();
+      const imgs = this.navigator.getImages();
       if (!this.powerComp) {
         this.powerComp = createPowerButton({
-          isEnabled: enabled,
-          onClick: () => {
-            const newState = !this.store.getState().enabled;
-            this.store.setState({ enabled: newState });
-          }
+          isEnabled: state.enabled,
+          onClick: () => this.store.setState({ enabled: !this.store.getState().enabled })
         });
         container.appendChild(this.powerComp.el);
       }
-      const imgs = this.navigator.getImages();
       if (!this.counterComp) {
         this.counterComp = createPageCounter({
-          current: currentVisibleIndex + 1,
+          current: state.currentVisibleIndex + 1,
           total: imgs.length,
           onJump: (val) => {
-            (async () => {
-              const success = await this.navigator.jumpToPage(val);
-              if (this.counterComp) {
-                this.counterComp.input.blur();
-                if (!success) {
-                  this.counterComp.input.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
-                  setTimeout(() => {
-                    if (this.counterComp) this.counterComp.input.style.backgroundColor = "";
-                  }, 500);
-                }
-              }
-            })();
+            void this._handleJump(val);
           }
         });
         container.appendChild(this.counterComp.el);
       }
       if (!this.spreadComp) {
         this.spreadComp = createSpreadControls({
-          isDualViewEnabled,
+          isDualViewEnabled: state.isDualViewEnabled,
           onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
-          onAdjust: () => {
-            const { spreadOffset } = this.store.getState();
-            this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-          }
+          onAdjust: () => this.store.setState({ spreadOffset: this.store.getState().spreadOffset === 0 ? 1 : 0 })
         });
         container.appendChild(this.spreadComp.el);
       }
@@ -1794,78 +2429,130 @@
         document.body.appendChild(this.progressComp.el);
       }
       if (!this.loadingComp) {
-        this.loadingComp = createLoadingIndicator({ isLoading });
+        this.loadingComp = createLoadingIndicator({ isLoading: state.isLoading });
         document.body.appendChild(this.loadingComp.el);
       }
       if (container.querySelectorAll(".comic-helper-button").length === 0) {
-        const { metadata: metadata2 } = state;
-        const navBtns = createNavigationButtons({
-          onFirst: () => {
-            void this.navigator.scrollToEdge("start");
-          },
-          onPrev: () => {
-            void this.navigator.scrollToImage(-1);
-          },
-          onNext: () => {
-            void this.navigator.scrollToImage(1);
-          },
-          onLast: () => {
-            void this.navigator.scrollToEdge("end");
-          },
-          onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
-          onHelp: () => this.store.setState({ isHelpModalOpen: true }),
-          onLucky: () => {
-            jumpToRandomWork(metadata2);
-          }
-        });
-        navBtns.elements.forEach((btn) => container?.appendChild(btn));
+        this._addNavigationButtons(container);
       }
-      const { isMetadataModalOpen, isHelpModalOpen, metadata } = state;
-      if (isHelpModalOpen) {
-        if (!this.helpModalEl) {
-          const modal = createHelpModal({
-            onClose: () => this.store.setState({ isHelpModalOpen: false })
+    };
+    _handleJump = async (val) => {
+      const success = await this.navigator.jumpToPage(val);
+      if (this.counterComp) {
+        this.counterComp.input.blur();
+        if (!success) {
+          this.counterComp.input.style.backgroundColor = "rgba(255, 0, 0, 0.3)";
+          setTimeout(() => {
+            if (this.counterComp) this.counterComp.input.style.backgroundColor = "";
+          }, 500);
+        }
+      }
+    };
+    _addNavigationButtons = (container) => {
+      const navBtns = createNavigationButtons({
+        onFirst: () => {
+          void this.navigator.scrollToEdge("start");
+        },
+        onPrev: () => {
+          void this.navigator.scrollToImage(-1);
+        },
+        onNext: () => {
+          void this.navigator.scrollToImage(1);
+        },
+        onLast: () => {
+          void this.navigator.scrollToEdge("end");
+        },
+        onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
+        onHelp: () => this.store.setState({ isHelpModalOpen: true }),
+        onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
+        onLucky: () => {
+          jumpToRandomWork(this.store.getState().metadata, this.store.getState().searchCache);
+        }
+      });
+      navBtns.elements.forEach((btn) => container.appendChild(btn));
+    };
+    _updateModals = (state) => {
+      this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
+        onClose: () => this.store.setState({ isHelpModalOpen: false })
+      }));
+      this._updateSearchModal(state);
+      this.modalEl = this._manageModal(state.isMetadataModalOpen, this.modalEl, () => createMetadataModal({
+        metadata: state.metadata,
+        onClose: () => this.store.setState({ isMetadataModalOpen: false }),
+        onTagClick: async (tag) => {
+          await this._handleTagClick(tag);
+        }
+      }));
+    };
+    _updateSearchModal = (state) => {
+      if (state.isSearchModalOpen) {
+        if (!this.searchModalComp) {
+          this.searchModalComp = createSearchModal({
+            searchResults: state.searchResults,
+            searchQuery: state.searchQuery,
+            searchContext: state.searchContext,
+            searchHistory: state.searchHistory,
+            onSearch: (q, ctx) => {
+              void this._performSearch(q, false, ctx);
+            },
+            onPageChange: (url) => {
+              void this._performSearch(url);
+            },
+            onClose: () => this.store.setState({ isSearchModalOpen: false })
           });
-          this.helpModalEl = modal.el;
-          document.body.appendChild(this.helpModalEl);
+          document.body.appendChild(this.searchModalComp.el);
+          this._handleSearchSWR(state);
         }
-      } else {
-        if (this.helpModalEl) {
-          this.helpModalEl.remove();
-          this.helpModalEl = null;
-        }
+      } else if (this.searchModalComp) {
+        this.searchModalComp.el.remove();
+        this.searchModalComp = null;
       }
-      if (isMetadataModalOpen) {
-        if (!this.modalEl) {
-          const modal = createMetadataModal({
-            metadata,
-            onClose: () => this.store.setState({ isMetadataModalOpen: false })
-          });
-          this.modalEl = modal.el;
-          document.body.appendChild(this.modalEl);
+    };
+    _handleSearchSWR = (state) => {
+      const { searchCache, searchQuery, searchContext } = state;
+      if (!searchCache) {
+        if (searchQuery && searchContext?.type === "keyword") {
+          void this._performSearch(searchQuery);
         }
-      } else {
-        if (this.modalEl) {
-          this.modalEl.remove();
-          this.modalEl = null;
-        }
+        return;
       }
-      this.powerComp.update(enabled);
-      this.loadingComp.update(isLoading);
-      document.documentElement.classList.toggle("comic-helper-enabled", enabled);
+      this._processSearchCache(searchCache, searchQuery, searchContext);
+    };
+    _processSearchCache = (searchCache, searchQuery, searchContext) => {
+      if (searchCache.query === searchQuery && contextsMatch(searchCache.context, searchContext)) {
+        this.store.setState({ searchResults: searchCache.results });
+        this.searchModalComp?.updateResults(searchCache.results);
+        this._revalidateCacheIfNeeded(searchCache, searchQuery, searchContext);
+      } else if (searchQuery && searchContext?.type === "keyword") {
+        void this._performSearch(searchQuery);
+      }
+    };
+    _revalidateCacheIfNeeded = (searchCache, searchQuery, searchContext) => {
+      if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
+        void this._performSearch(searchQuery, true, searchContext);
+      }
+    };
+    _handleTagClick = async (tag) => {
+      this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
+      const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
+      return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
+    };
+    _updateVisibility = (container, state) => {
+      const imgs = this.navigator.getImages();
+      const { enabled, currentVisibleIndex, isDualViewEnabled } = state;
       if (!enabled) {
         container.style.padding = "4px 8px";
-        this.counterComp.el.style.display = "none";
-        this.spreadComp.el.style.display = "none";
-        if (this.progressComp) this.progressComp.el.style.display = "none";
+        [this.counterComp, this.spreadComp, this.progressComp].forEach((c) => {
+          if (c) c.el.style.display = "none";
+        });
         container.querySelectorAll(".comic-helper-button").forEach((btn) => {
           btn.style.display = "none";
         });
         return;
       }
       container.style.padding = "8px";
-      this.counterComp.el.style.display = "flex";
-      this.spreadComp.el.style.display = "flex";
+      if (this.counterComp) this.counterComp.el.style.display = "flex";
+      if (this.spreadComp) this.spreadComp.el.style.display = "flex";
       if (this.progressComp) {
         this.progressComp.el.style.display = "block";
         this.progressComp.update(currentVisibleIndex, imgs.length);
@@ -1873,25 +2560,99 @@
       container.querySelectorAll(".comic-helper-button").forEach((btn) => {
         btn.style.display = "inline-block";
       });
-      this.counterComp.update(currentVisibleIndex + 1, imgs.length);
-      this.spreadComp.update(isDualViewEnabled);
-    }
-    /**
-     * Show resume notification
-     */
-    showResumeNotification(savedIndex) {
+      this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
+      this.spreadComp?.update(isDualViewEnabled);
+    };
+    showResumeNotification = (savedIndex) => {
       const notification = createResumeNotification({
         savedIndex,
         onResume: () => {
-          this.navigator.jumpToPage(savedIndex + 1);
+          void this.navigator.jumpToPage(savedIndex + 1);
         },
         onSkip: () => {
         }
       });
       document.body.appendChild(notification.el);
-    }
+    };
+    _manageModal = (isOpen, modalEl, createFn) => {
+      if (isOpen) {
+        if (!modalEl) {
+          const newModal = createFn();
+          modalEl = newModal.el;
+          document.body.appendChild(modalEl);
+        }
+      } else if (modalEl) {
+        modalEl.remove();
+        modalEl = null;
+      }
+      return modalEl;
+    };
+    _performSearch = async (queryOrUrl, silent = false, context) => {
+      if (!isSearchableAdapter(this.adapter)) return;
+      if (!silent) this.store.setState({ searchResults: null });
+      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
+      const { url, query, searchContext } = this._getSearchParameters(queryOrUrl, context);
+      this._updateStoreBeforeSearch(query, searchContext, silent, isUrl);
+      this.searchModalComp?.setUpdating(true);
+      try {
+        const results = await this._fetchSearchResults(url);
+        results.searchContext = searchContext;
+        this.store.setState({ searchResults: results, searchCache: { query, results, fetchedAt: Date.now(), context: searchContext } });
+        this.searchModalComp?.updateResults(results);
+      } catch (error) {
+        console.error("Failed to fetch search results:", error);
+      } finally {
+        this.searchModalComp?.setUpdating(false);
+      }
+    };
+    _updateStoreBeforeSearch = (query, context, silent, isUrl) => {
+      this.store.setState({ searchContext: context });
+      if (!silent && !isUrl && context.type === "keyword") {
+        this.store.setState({ searchQuery: query });
+        this._updateSearchHistory(query);
+      }
+    };
+    _getSearchParameters = (queryOrUrl, context) => {
+      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
+      if (isUrl) {
+        const query2 = context ? context.label || "" : this.store.getState().searchQuery;
+        const searchContext2 = context || this.store.getState().searchContext || { type: "keyword", label: query2 };
+        return { url: queryOrUrl, query: query2, searchContext: searchContext2 };
+      }
+      const query = queryOrUrl;
+      const searchableAdapter = this.adapter;
+      const url = searchableAdapter.getSearchUrl(query);
+      const searchContext = context || { type: "keyword", label: query };
+      return { url, query, searchContext };
+    };
+    _fetchSearchResults = async (url) => {
+      const searchableAdapter = this.adapter;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return searchableAdapter.parseSearchResults(doc);
+    };
+    _updateSearchHistory = (query) => {
+      const { searchHistory } = this.store.getState();
+      const normalizedNew = normalizeQuery(query);
+      const filtered = searchHistory.filter((h) => normalizeQuery(h) !== normalizedNew);
+      const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
+      this.store.setState({ searchHistory: newHistory });
+    };
   }
   const CLICK_THRESHOLD_PX = 5;
+  function matchesShortcut(e, id) {
+    const sc = SHORTCUTS.find((s) => s.id === id);
+    if (!sc) return false;
+    return sc.keys.some((k) => {
+      if (k.startsWith("Shift+")) {
+        const baseKey = k.replace("Shift+", "");
+        return e.shiftKey && e.key === (baseKey === "Space" ? " " : baseKey);
+      }
+      return e.key === (k === "Space" ? " " : k);
+    });
+  }
   class InputManager {
     store;
     navigator;
@@ -1906,38 +2667,34 @@
       this.store = store;
       this.navigator = navigator2;
       this.lastWheelTime = 0;
-      this.resizeReq = void 0;
-      this.scrollReq = void 0;
       this.mouseDownPos = null;
       this.mouseDownTarget = null;
-      this.handleWheel = this.handleWheel.bind(this);
-      this.onKeyDown = this.onKeyDown.bind(this);
-      this.handleResize = this.handleResize.bind(this);
-      this.handleScroll = this.handleScroll.bind(this);
-      this.onMouseDown = this.onMouseDown.bind(this);
-      this.onMouseUp = this.onMouseUp.bind(this);
     }
-    init() {
+    init = () => {
       window.addEventListener("wheel", this.handleWheel, { passive: false });
       document.addEventListener("keydown", this.onKeyDown, true);
       document.addEventListener("mousedown", this.onMouseDown);
       document.addEventListener("mouseup", this.onMouseUp);
       window.addEventListener("resize", this.handleResize);
+      document.addEventListener("fullscreenchange", this.handleFullscreenChange);
       window.addEventListener("scroll", this.handleScroll);
-    }
-    isInputField(target) {
+    };
+    isInputField = (target) => {
       if (!(target instanceof HTMLElement)) return false;
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
-    }
-    handleWheel(e) {
-      const { enabled, isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-      if (!enabled) return;
-      if (isMetadataModalOpen || isHelpModalOpen) {
+    };
+    _isAnyModalOpen = () => {
+      const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+      return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+    };
+    handleWheel = (e) => {
+      const state = this.store.getState();
+      if (!state.enabled) return;
+      if (this._isAnyModalOpen()) {
         const modalContent = document.querySelector(".comic-helper-modal-content");
-        if (modalContent && modalContent.contains(e.target)) {
-          return;
+        if (!modalContent || !modalContent.contains(e.target)) {
+          e.preventDefault();
         }
-        e.preventDefault();
         return;
       }
       e.preventDefault();
@@ -1945,9 +2702,13 @@
       if (now - this.lastWheelTime < this.WHEEL_THROTTLE_MS) return;
       const direction = getNavigationDirection(e, this.WHEEL_THRESHOLD);
       if (direction === "none") return;
+      this.lastWheelTime = now;
+      this._navigateByWheel(direction);
+    };
+    _navigateByWheel = (direction) => {
+      const { isDualViewEnabled, currentVisibleIndex, isMetadataModalOpen } = this.store.getState();
       const imgs = this.navigator.getImages();
       if (imgs.length === 0) return;
-      this.lastWheelTime = now;
       const step = isDualViewEnabled ? 2 : 1;
       if (direction === "next" && currentVisibleIndex + step >= imgs.length) {
         if (!isMetadataModalOpen) {
@@ -1956,101 +2717,111 @@
         return;
       }
       const nextIndex = direction === "next" ? currentVisibleIndex + step : Math.max(currentVisibleIndex - step, 0);
-      this.navigator.jumpToPage(nextIndex + 1);
-    }
-    onKeyDown(e) {
+      void this.navigator.jumpToPage(nextIndex + 1);
+    };
+    onKeyDown = (e) => {
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-      const { enabled, isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-      if (e.key === "Escape") {
-        if (isMetadataModalOpen || isHelpModalOpen) {
-          e.preventDefault();
-          this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false });
-          return;
-        }
+      if (this._handleModalCloseShortcuts(e)) return;
+      if (this._handleToggleShortcuts(e)) return;
+      if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
+      this._handleShortcutAction(e);
+    };
+    _handleModalCloseShortcuts = (e) => {
+      if (e.key === "Escape" && this._isAnyModalOpen()) {
+        e.preventDefault();
+        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+        return true;
       }
-      const isKey = (id) => {
-        const sc = SHORTCUTS.find((s) => s.id === id);
-        if (!sc) return false;
-        return sc.keys.some((k) => {
-          if (k.startsWith("Shift+")) {
-            const baseKey = k.replace("Shift+", "");
-            return e.shiftKey && e.key === (baseKey === "Space" ? " " : baseKey);
-          }
-          return !e.shiftKey && e.key === (k === "Space" ? " " : k);
-        });
+      return false;
+    };
+    _handleToggleShortcuts = (e) => {
+      if (matchesShortcut(e, "help")) {
+        e.preventDefault();
+        this.store.setState({ isHelpModalOpen: !this.store.getState().isHelpModalOpen });
+        return true;
+      }
+      if (matchesShortcut(e, "search")) {
+        e.preventDefault();
+        this.store.setState({ isSearchModalOpen: !this.store.getState().isSearchModalOpen });
+        return true;
+      }
+      return false;
+    };
+    _handleShortcutAction = (e) => {
+      const { isDualViewEnabled, isMetadataModalOpen, isHelpModalOpen, spreadOffset, metadata, searchCache } = this.store.getState();
+      const actions = {
+        nextPage: () => this.navigator.scrollToImage(1),
+        prevPage: () => this.navigator.scrollToImage(-1),
+        dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
+        spreadOffset: () => {
+          if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
+        },
+        metadata: () => this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen }),
+        help: () => this.store.setState({ isHelpModalOpen: !isHelpModalOpen }),
+        fullscreen: () => this._toggleFullscreen(),
+        randomJump: () => {
+          jumpToRandomWork(metadata, searchCache);
+        }
       };
-      if (isKey("help") && isHelpModalOpen) {
-        e.preventDefault();
-        this.store.setState({ isHelpModalOpen: false });
-        return;
-      }
-      if (isMetadataModalOpen || isHelpModalOpen || !enabled) return;
-      if (isKey("nextPage")) {
-        e.preventDefault();
-        this.navigator.scrollToImage(1);
-      } else if (isKey("prevPage")) {
-        e.preventDefault();
-        this.navigator.scrollToImage(-1);
-      } else if (isKey("dualView")) {
-        e.preventDefault();
-        this.store.setState({ isDualViewEnabled: !isDualViewEnabled });
-      } else if (isKey("spreadOffset") && isDualViewEnabled) {
-        e.preventDefault();
-        const { spreadOffset } = this.store.getState();
-        this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
-      } else if (isKey("metadata")) {
-        e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: !isMetadataModalOpen });
-      } else if (isKey("help")) {
-        e.preventDefault();
-        this.store.setState({ isHelpModalOpen: !isHelpModalOpen });
-      } else if (isKey("fullscreen")) {
-        e.preventDefault();
-        if (!document.documentElement.requestFullscreen) return;
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => {
-          });
-        } else {
-          document.documentElement.requestFullscreen().catch(() => {
-          });
+      for (const [id, action] of Object.entries(actions)) {
+        if (matchesShortcut(e, id)) {
+          e.preventDefault();
+          const result = action();
+          if (result instanceof Promise) {
+            void result.catch((err) => {
+              console.error("Shortcut action failed:", err);
+            });
+          }
+          break;
         }
-      } else if (isKey("randomJump")) {
-        e.preventDefault();
-        const { metadata } = this.store.getState();
-        jumpToRandomWork(metadata);
       }
-    }
-    handleResize() {
+    };
+    _toggleFullscreen = () => {
+      if (!document.documentElement.requestFullscreen) return;
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {
+        });
+      } else {
+        document.documentElement.requestFullscreen().catch(() => {
+        });
+      }
+    };
+    handleResize = () => {
       const { enabled, currentVisibleIndex } = this.store.getState();
       if (!enabled) return;
       if (this.resizeReq) cancelAnimationFrame(this.resizeReq);
       this.resizeReq = requestAnimationFrame(() => this.navigator.applyLayout(currentVisibleIndex));
-    }
-    handleScroll() {
+    };
+    handleFullscreenChange = () => {
+      const { enabled, currentVisibleIndex } = this.store.getState();
+      if (!enabled) return;
+      requestAnimationFrame(() => {
+        this.navigator.applyLayout(currentVisibleIndex);
+      });
+    };
+    handleScroll = () => {
       if (!this.store.getState().enabled) return;
       if (this.scrollReq) cancelAnimationFrame(this.scrollReq);
       this.scrollReq = requestAnimationFrame(() => this.navigator.updatePageCounter());
-    }
-    onMouseDown(e) {
+    };
+    onMouseDown = (e) => {
       if (!(e.target instanceof HTMLImageElement)) return;
       this.mouseDownPos = { x: e.clientX, y: e.clientY };
       this.mouseDownTarget = e.target;
-    }
-    onMouseUp(e) {
+    };
+    onMouseUp = (e) => {
       const target = this.mouseDownTarget;
       const startPos = this.mouseDownPos;
       this.mouseDownTarget = null;
       this.mouseDownPos = null;
-      if (!target || !startPos) return;
-      if (!(e.target instanceof HTMLImageElement) || e.target !== target) return;
+      if (!target || !startPos || !(e.target instanceof HTMLImageElement) || e.target !== target) return;
       const dx = e.clientX - startPos.x;
       const dy = e.clientY - startPos.y;
       if (Math.sqrt(dx * dx + dy * dy) >= CLICK_THRESHOLD_PX) return;
-      const { enabled, isMetadataModalOpen, isHelpModalOpen } = this.store.getState();
-      if (!enabled || isMetadataModalOpen || isHelpModalOpen) return;
+      if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
       const direction = getClickNavigationDirection(target);
-      this.navigator.scrollToImage(direction === "next" ? 1 : -1);
-    }
+      void this.navigator.scrollToImage(direction === "next" ? 1 : -1);
+    };
   }
   class ResumeManager {
     store;
@@ -2058,42 +2829,43 @@
     constructor(store) {
       this.store = store;
     }
-    isEnabled() {
+    isEnabled = () => {
       return true;
-    }
-    savePosition(url, pageIndex) {
+    };
+    savePosition = (url, pageIndex) => {
       const data = this._loadData();
       data[url] = { pageIndex };
       localStorage.setItem(this.storageKey, JSON.stringify(data));
-    }
-    loadPosition(url) {
+    };
+    loadPosition = (url) => {
       const data = this._loadData();
-      return data[url]?.pageIndex ?? null;
-    }
-    _loadData() {
+      const entry = data[url];
+      return entry ? entry.pageIndex : null;
+    };
+    _loadData = () => {
       try {
-        return JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+        const parsed = JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+        return isResumeDataMap(parsed) ? parsed : {};
       } catch {
         return {};
       }
-    }
+    };
     /**
      * Clear all saved positions
      */
-    clearAll() {
+    clearAll = () => {
       localStorage.removeItem(this.storageKey);
-    }
+    };
   }
   class PopUnderBlocker {
     store;
     constructor(store) {
       this.store = store;
-      this.handleClick = this.handleClick.bind(this);
     }
-    init() {
+    init = () => {
       document.addEventListener("click", this.handleClick, true);
-    }
-    handleClick(e) {
+    };
+    handleClick = (e) => {
       if (!this.store.getState().enabled) return;
       const target = e.target;
       const link = target.closest("a");
@@ -2106,7 +2878,7 @@
       e.stopImmediatePropagation();
       e.preventDefault();
       window.location.href = link.href;
-    }
+    };
   }
   class App {
     store;
@@ -2125,12 +2897,11 @@
       this.inputManager = new InputManager(this.store, this.navigator);
       this.resumeManager = new ResumeManager(this.store);
       this.popUnderBlocker = new PopUnderBlocker(this.store);
-      this.init = this.init.bind(this);
     }
-    init() {
+    init = () => {
       const container = this.adapter.getContainer();
       if (!container) return;
-      const metadata = this.adapter.getMetadata?.() ?? { title: "Unknown Title", tags: [], relatedWorks: [] };
+      const metadata = isMetadataAdapter(this.adapter) ? this.adapter.getMetadata() : { title: "Unknown Title", tags: [], relatedWorks: [] };
       this.store.setState({ metadata });
       this.navigator.init();
       this.uiManager.init();
@@ -2150,7 +2921,7 @@
           this.resumeManager.savePosition(workKey, currentIndex);
         }
       });
-    }
+    };
   }
   const app = new App();
   if (document.readyState === "loading") {
