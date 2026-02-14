@@ -5,6 +5,7 @@
 ## 2. 実装
 
 - [x] 2.1 `src/managers/InputManager.ts` の `matchesShortcut` 関数を修正し、名前付きキーと文字キーを区別して判定するロジックを実装
+- [x] 2.2 `matchesShortcut` をコードレビューの提案に基づきリファクタリングし、可読性と共通化を改善
 
 ## 3. 検証
 
