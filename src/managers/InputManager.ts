@@ -12,14 +12,17 @@ function matchesShortcut(e: KeyboardEvent, id: string): boolean {
   const sc = SHORTCUTS.find(s => s.id === id);
   if (!sc) return false;
   return sc.keys.some(k => {
-    if (k.startsWith('Shift+')) {
-      const baseKey = k.replace('Shift+', '');
-      const expectedKey = baseKey === 'Space' ? ' ' : baseKey;
-      return e.shiftKey && e.key === expectedKey;
+    const wantsShift = k.startsWith('Shift+');
+    const baseKey = wantsShift ? k.replace('Shift+', '') : k;
+    const expectedKey = baseKey === 'Space' ? ' ' : baseKey;
+
+    if (e.key !== expectedKey) {
+      return false;
     }
 
-    const expectedKey = k === 'Space' ? ' ' : k;
-    if (e.key !== expectedKey) return false;
+    if (wantsShift) {
+      return e.shiftKey;
+    }
 
     // For single character keys other than Space (e.g. '?', 'j', '1'),
     // we match regardless of the Shift state because the character itself
