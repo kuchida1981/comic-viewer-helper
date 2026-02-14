@@ -12,7 +12,7 @@ vi.mock('../logic.js', () => ({
 
 vi.mock('../shortcuts.js', () => ({
   SHORTCUTS: [
-    { id: 'nextPage', keys: ['ArrowRight'] },
+    { id: 'nextPage', keys: ['ArrowRight', 'Space'] },
     { id: 'prevPage', keys: ['ArrowLeft', 'Shift+Space'] },
     { id: 'dualView', keys: ['d'] },
     { id: 'spreadOffset', keys: ['s'] },
@@ -218,6 +218,23 @@ describe('InputManager', () => {
     inputManager.onKeyDown(event);
     expect(event.preventDefault).toHaveBeenCalled();
     expect(navigator.scrollToImage).toHaveBeenCalledWith(-1);
+    expect(navigator.scrollToImage).not.toHaveBeenCalledWith(1);
+  });
+
+  it('onKeyDown should distinguish between Space and Shift+Space', () => {
+    // Only Space (nextPage)
+    const eventSpace = { key: ' ', shiftKey: false, preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(eventSpace);
+    expect(navigator.scrollToImage).toHaveBeenCalledWith(1);
+    expect(navigator.scrollToImage).not.toHaveBeenCalledWith(-1);
+
+    vi.clearAllMocks();
+
+    // Shift + Space (prevPage)
+    const eventShiftSpace = { key: ' ', shiftKey: true, preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(eventShiftSpace);
+    expect(navigator.scrollToImage).toHaveBeenCalledWith(-1);
+    expect(navigator.scrollToImage).not.toHaveBeenCalledWith(1);
   });
 
   it('onKeyDown should handle other metadata/help triggers', () => {

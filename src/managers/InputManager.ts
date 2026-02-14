@@ -12,13 +12,28 @@ function matchesShortcut(e: KeyboardEvent, id: string): boolean {
   const sc = SHORTCUTS.find(s => s.id === id);
   if (!sc) return false;
   return sc.keys.some(k => {
-    if (k.startsWith('Shift+')) {
-      const baseKey = k.replace('Shift+', '');
-      return e.shiftKey && e.key === (baseKey === 'Space' ? ' ' : baseKey);
+    const wantsShift = k.startsWith('Shift+');
+    const baseKey = wantsShift ? k.replace('Shift+', '') : k;
+    const expectedKey = baseKey === 'Space' ? ' ' : baseKey;
+
+    if (e.key !== expectedKey) {
+      return false;
     }
-    // If it's a direct key match (like '?'), allow it regardless of Shift state
-    // because Shift+'/' becomes '?' in event.key.
-    return e.key === (k === 'Space' ? ' ' : k);
+
+    if (wantsShift) {
+      return e.shiftKey;
+    }
+
+    // For single character keys other than Space (e.g. '?', 'j', '1'),
+    // we match regardless of the Shift state because the character itself
+    // often implies Shift (Shift + '/' -> '?').
+    if (expectedKey.length === 1 && expectedKey !== ' ') {
+      return true;
+    }
+
+    // For named keys (e.g. 'ArrowDown', 'PageDown') or Space, 
+    // we strictly check that Shift is NOT pressed if it's not specified in the shortcut.
+    return !e.shiftKey;
   });
 }
 
