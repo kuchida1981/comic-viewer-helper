@@ -8,7 +8,9 @@ export const STORAGE_KEYS = {
   SEARCH_QUERY: 'comic-viewer-helper-search-query',
   SEARCH_CONTEXT: 'comic-viewer-helper-search-context',
   SEARCH_CACHE: 'comic-viewer-helper-search-cache',
-  SEARCH_HISTORY: 'comic-viewer-helper-search-history'
+  SEARCH_HISTORY: 'comic-viewer-helper-search-history',
+  AUTOPLAY_ENABLED: 'comic-viewer-helper-autoplay-enabled',
+  AUTOPLAY_INTERVAL: 'comic-viewer-helper-autoplay-interval'
 } as const;
 
 export const MAX_SEARCH_HISTORY = 3;
@@ -34,6 +36,8 @@ export interface StoreState {
   searchContext?: SearchContext;
   searchCache: SearchCache | null;
   searchHistory: string[];
+  isAutoplayEnabled: boolean;
+  autoplayInterval: number;
 }
 
 export type StoreListener = (state: StoreState) => void;
@@ -62,7 +66,9 @@ export class Store {
       searchQuery: this._loadSearchQuery(),
       searchContext: this._loadSearchContext(),
       searchCache: this._loadSearchCache(),
-      searchHistory: this._loadSearchHistory()
+      searchHistory: this._loadSearchHistory(),
+      isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
+      autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10)
     };
     this.listeners = [];
   }
@@ -90,6 +96,8 @@ export class Store {
     if ('enabled' in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
     if ('isDualViewEnabled' in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
     if ('guiPos' in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+    if ('isAutoplayEnabled' in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
+    if ('autoplayInterval' in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
 
     this._persistSearchRelatedChanges(patch);
   };

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createPowerButton } from './PowerButton.js';
 import { createPageCounter } from './PageCounter.js';
 import { createSpreadControls } from './SpreadControls.js';
+import { createAutoplayControls } from './AutoplayControls.js';
 import { createNavigationButtons } from './NavigationButtons.js';
 import { createMetadataModal } from './MetadataModal.js';
 import { createHelpModal } from './HelpModal.js';
@@ -122,6 +123,63 @@ describe('UI Components', () => {
       const adjustBtn = el.querySelector('.comic-helper-adjust-btn') as HTMLElement;
       adjustBtn.click();
       expect(onAdjust).toHaveBeenCalled();
+    });
+  });
+
+  describe('AutoplayControls', () => {
+    it('should render checkbox and input', () => {
+      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 10, onToggle: () => {}, onChangeInterval: () => {} });
+      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
+      expect(checkbox.checked).toBe(true);
+      expect(input.value).toBe('10');
+      expect(el.textContent).toContain('Autoplay');
+    });
+
+    it('should call onToggle when checkbox changes', () => {
+      const onToggle = vi.fn();
+      const { el } = createAutoplayControls({ isAutoplayEnabled: false, autoplayInterval: 5, onToggle, onChangeInterval: () => {} });
+      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+      expect(onToggle).toHaveBeenCalledWith(true);
+    });
+
+    it('should call onChangeInterval when input changes', () => {
+      const onChangeInterval = vi.fn();
+      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 5, onToggle: () => {}, onChangeInterval });
+      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
+      input.value = '15';
+      input.dispatchEvent(new Event('change'));
+      expect(onChangeInterval).toHaveBeenCalledWith(15);
+    });
+
+    it('should handle Enter key on input', () => {
+      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 5, onToggle: () => {}, onChangeInterval: () => {} });
+      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
+      const blurSpy = vi.spyOn(input, 'blur');
+      const event = new KeyboardEvent('keydown', { key: 'Enter' });
+      input.dispatchEvent(event);
+      expect(blurSpy).toHaveBeenCalled();
+    });
+
+    it('should stop propagation on keydown', () => {
+      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 5, onToggle: () => {}, onChangeInterval: () => {} });
+      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
+      const event = new KeyboardEvent('keydown', { key: 'b' });
+      const stopSpy = vi.spyOn(event, 'stopPropagation');
+      input.dispatchEvent(event);
+      expect(stopSpy).toHaveBeenCalled();
+    });
+
+    it('should update state', () => {
+      const { el, update } = createAutoplayControls({ isAutoplayEnabled: false, autoplayInterval: 5, onToggle: () => {}, onChangeInterval: () => {} });
+      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
+      
+      update(true, 20);
+      expect(checkbox.checked).toBe(true);
+      expect(input.value).toBe('20');
     });
   });
 

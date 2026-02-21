@@ -33,11 +33,14 @@ export const MESSAGES = {
       resume: 'Resume',
       resumeNotification: 'Resume from page {page}?',
       continueReading: 'Continue',
-      startFromBeginning: 'Start Over'
+      startFromBeginning: 'Start Over',
+      autoplay: 'Autoplay',
+      seconds: 'sec'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
       prevPage: { label: 'Prev Page', desc: 'Move to previous page' },
+      autoplay: { label: 'Autoplay', desc: 'Toggle Autoplay' },
       dualView: { label: 'Dual View', desc: 'Toggle Dual View' },
       spreadOffset: { label: 'Spread Offset', desc: 'Toggle Offset (0 ↔ 1)', cond: 'Dual View only' },
       metadata: { label: 'Metadata', desc: 'Show metadata' },
@@ -82,11 +85,14 @@ export const MESSAGES = {
       resume: 'レジューム',
       resumeNotification: '{page}ページから再開しますか？',
       continueReading: '続きから',
-      startFromBeginning: '最初から'
+      startFromBeginning: '最初から',
+      autoplay: 'オートプレイ',
+      seconds: '秒'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },
       prevPage: { label: '前ページ', desc: '前のページへ移動' },
+      autoplay: { label: 'オートプレイ', desc: 'オートプレイのON/OFF' },
       dualView: { label: '見開き', desc: '見開きモードのON/OFF' },
       spreadOffset: { label: '見開きオフセット', desc: '見開きオフセットの切替 (0 ↔ 1)', cond: '見開きモード中のみ' },
       metadata: { label: '作品情報', desc: '作品情報（メタデータ）の表示' },

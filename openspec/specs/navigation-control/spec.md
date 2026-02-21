@@ -20,24 +20,27 @@ The system SHALL persist the screen coordinates of the navigation panel and rest
 - **THEN** the panel appears at the same location as before the reload
 
 ### Requirement: Keyboard Navigation
-The system SHALL provide keybindings for navigating between images. ナビゲーションは、現在の画像のインデックスに基づいて行われ、遷移先の画像が読み込み完了していない場合は読み込みを待機してから実行されなければならない（SHALL）。また、ブラウザの標準スクロールバーが非表示の場合であっても、これらの操作は完全に機能し続けなければならない。
+The system SHALL provide keybindings for navigating between images. ナビゲーションは、現在の画像のインデックスに基づいて行われ、遷移先の画像が読み込み完了していない場合は読み込みを待機してから実行されなければならない（SHALL）。また、ブラウザの標準スクロールバーが非表示の場合であっても、これらの操作は完全に機能し続けなければならない。さらに、オートプレイ機能が有効な場合、手動のキーボード操作が実行された際には、現在のオートプレイタイマーを破棄し、操作完了後から新たにカウントを開始しなければならない（SHALL）。
 
 #### Scenario: 次のページへ（ロード済み）
 - **WHEN** ユーザーが「次へ」のキー（`j`, `ArrowDown`, `PageDown`, `ArrowLeft`, `Space`）を押す
 - **AND** 次の画像が既に読み込み完了している
 - **THEN** ビューポートが即座に次の画像または見開き画像までスクロールする
 - **AND** 画像/見開き画像がビューポートの垂直方向中央に配置される
+- **AND** オートプレイが有効な場合は、タイマーがリセットされる
 
 #### Scenario: 次のページへ（ロード未完了）
 - **WHEN** ユーザーが「次へ」のキーを押す
 - **AND** 次の画像がまだ読み込まれていない
 - **THEN** 画面にローディング表示が現れ、スクロールは待機される
 - **AND** 画像の読み込みが完了次第、自動的にスクロールが実行される
+- **AND** オートプレイが有効な場合は、スクロール完了後にタイマーがリセットされる
 
 #### Scenario: 前のページへ
 - **WHEN** ユーザーが「前へ」のキー（`k`, `ArrowUp`, `PageUp`, `ArrowRight`, `Shift+Space`）を押す
 - **THEN** ビューポートが前の画像または見開き画像までスクロールする
 - **AND** 画像/見開き画像がビューポートの垂直方向中央に配置される
+- **AND** オートプレイが有効な場合は、タイマーがリセットされる
 
 ### Requirement: Scroll to Edge Loading Wait
 ナビゲーションGUIの「最初に戻る」「最後に進む」ボタンを使用した移動（`scrollToEdge`）においても、移動先の画像が未ロードの場合は読み込みを待機し、完了後に適切なレイアウトでスクロールしなければならない（SHALL）。

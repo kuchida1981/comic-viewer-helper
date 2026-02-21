@@ -54,7 +54,9 @@ describe('Navigator', () => {
         enabled: true, 
         isDualViewEnabled: false, 
         spreadOffset: 0, 
-        currentVisibleIndex: 0 
+        currentVisibleIndex: 0,
+        isAutoplayEnabled: false,
+        autoplayInterval: 5
       }),
       setState: vi.fn(),
       subscribe: vi.fn()
@@ -201,7 +203,9 @@ describe('Navigator', () => {
       searchQuery: '',
       searchCache: null,
       searchHistory: [],
-      guiPos: null
+      guiPos: null,
+      isAutoplayEnabled: false,
+      autoplayInterval: 5
     });
     navigator.applyLayout();
     expect(logic.revertToOriginal).toHaveBeenCalled();
@@ -244,7 +248,9 @@ describe('Navigator', () => {
         searchQuery: '',
         searchCache: null,
         searchHistory: [],
-        guiPos: null
+        guiPos: null,
+        isAutoplayEnabled: false,
+        autoplayInterval: 5
       });
       
       expect(spy).toHaveBeenCalled();
@@ -283,10 +289,112 @@ describe('Navigator', () => {
         // Mock visible index to be 1
         vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(1);
     
-        void navigator.scrollToImage(1);
-    
-        expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
-        // Should NOT scroll to any image (early return)
-        expect(imgs[2].scrollIntoView).not.toHaveBeenCalled();
-      });
-});
+            void navigator.scrollToImage(1);
+            
+            expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
+            // Should NOT scroll to any image (early return)
+            expect(imgs[2].scrollIntoView).not.toHaveBeenCalled();
+          });
+        
+          describe('Autoplay', () => {
+            beforeEach(() => {
+              vi.useFakeTimers();
+            });
+        
+            afterEach(() => {
+              vi.useRealTimers();
+            });
+        
+            it('should start autoplay when enabled in store', () => {
+              navigator.init();
+              const subscribeCb = vi.mocked(store.subscribe).mock.calls[0][0];
+        
+              subscribeCb({
+                ...vi.mocked(store.getState)(),
+                isAutoplayEnabled: true,
+                autoplayInterval: 1
+              });
+        
+              expect(vi.getTimerCount()).toBe(1);
+              
+              vi.advanceTimersByTime(1000);
+              expect(logic.getPrimaryVisibleImageIndex).toHaveBeenCalled();
+            });
+        
+                        it('should stop autoplay when disabled in store', () => {
+                          // Start with disabled
+                          (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: false });
+                          navigator.init();
+                          const subscribeCb = vi.mocked(store.subscribe).mock.calls[0][0];
+                    
+                          // Enable
+                          vi.clearAllTimers();
+                          (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: true, autoplayInterval: 1 });
+                          subscribeCb(vi.mocked(store.getState)());
+                          const timerCount = vi.getTimerCount();
+                          expect(timerCount).toBeGreaterThan(0);
+                    
+                          // Disable
+                          (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: false, autoplayInterval: 1 });
+                          subscribeCb(vi.mocked(store.getState)());
+                          expect(vi.getTimerCount()).toBe(timerCount - 1);
+                        });
+                    
+                        it('should reset timer when manual navigation occurs', () => {
+                          (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: true, autoplayInterval: 5 });
+                          navigator.init();
+                    
+                                vi.clearAllTimers();
+                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: true, autoplayInterval: 5 });
+                                // Trigger a start
+                                void navigator.scrollToImage(1); // scrollToImage calls _resetAutoplayTimer
+                                const initialCount = vi.getTimerCount();
+                          
+                                void navigator.scrollToImage(1);
+                          
+                                // Timer should have been reset (cleared and restarted)
+                                expect(vi.getTimerCount()).toBe(initialCount);
+                              });
+                          
+                              it('should stop autoplay at the last page', async () => {
+                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: false });
+                                navigator.init();
+                                const subscribeCb = vi.mocked(store.subscribe).mock.calls[0][0];
+                          
+                                // 最終ページに設定
+                                vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(mockImages.length - 1);
+                          
+                                // 有効化してタイマー開始
+                                vi.clearAllTimers();
+                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: true, autoplayInterval: 1 });
+                                subscribeCb(vi.mocked(store.getState)());
+                                
+                                vi.advanceTimersByTime(1000);
+                                // Wait for async task inside setTimeout
+                                vi.runAllTicks();
+                                
+                                expect(store.setState).toHaveBeenCalledWith({ isAutoplayEnabled: false });
+                              });
+                          
+                              it('should continue autoplay after successful scroll', async () => {
+                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: false });
+                                navigator.init();
+                                const subscribeCb = vi.mocked(store.subscribe).mock.calls[0][0];
+                          
+                                // Enable and set to middle page
+                                vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(0);
+                                vi.clearAllTimers();
+                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: true, autoplayInterval: 1 });
+                                subscribeCb(vi.mocked(store.getState)());
+                          
+                                // Trigger first tick
+                                vi.advanceTimersByTime(1000);
+                                vi.runAllTicks();
+                          
+                                // Should have scrolled
+                                expect(logic.getPrimaryVisibleImageIndex).toHaveBeenCalled();                                
+                                // Should have set a NEW timer for the next page
+                                expect(vi.getTimerCount()).toBeGreaterThan(0);
+                              });
+                            });
+                          });

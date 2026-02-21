@@ -69,7 +69,9 @@ describe('UIManager - Internal Tag Search', () => {
       isHelpModalOpen: false,
       isLoading: false,
       searchResults: null,
-      searchCache: null
+      searchCache: null,
+      isAutoplayEnabled: false,
+      autoplayInterval: 5
     };
 
     store = {
