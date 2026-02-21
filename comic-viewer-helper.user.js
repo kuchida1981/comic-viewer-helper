@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.1-unstable.32d5748
+// @version         1.5.0-unstable.9fb6d2c
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -59,7 +59,9 @@
     SEARCH_QUERY: "comic-viewer-helper-search-query",
     SEARCH_CONTEXT: "comic-viewer-helper-search-context",
     SEARCH_CACHE: "comic-viewer-helper-search-cache",
-    SEARCH_HISTORY: "comic-viewer-helper-search-history"
+    SEARCH_HISTORY: "comic-viewer-helper-search-history",
+    AUTOPLAY_ENABLED: "comic-viewer-helper-autoplay-enabled",
+    AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval"
   };
   const MAX_SEARCH_HISTORY = 3;
   class Store {
@@ -85,7 +87,9 @@
         searchQuery: this._loadSearchQuery(),
         searchContext: this._loadSearchContext(),
         searchCache: this._loadSearchCache(),
-        searchHistory: this._loadSearchHistory()
+        searchHistory: this._loadSearchHistory(),
+        isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
+        autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
       };
       this.listeners = [];
     }
@@ -109,6 +113,8 @@
       if ("enabled" in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
       if ("isDualViewEnabled" in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
       if ("guiPos" in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      if ("isAutoplayEnabled" in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
+      if ("autoplayInterval" in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
       this._persistSearchRelatedChanges(patch);
     };
     _persistSearchRelatedChanges = (patch) => {
@@ -572,7 +578,10 @@
     _lastEnabled;
     _lastDualView;
     _lastSpreadOffset;
+    _lastAutoplayEnabled;
+    _lastAutoplayInterval;
     pendingTargetIndex;
+    autoplayTimer;
     constructor(adapter, store) {
       this.adapter = adapter;
       this.store = store;
@@ -580,7 +589,10 @@
       this._lastEnabled = void 0;
       this._lastDualView = void 0;
       this._lastSpreadOffset = void 0;
+      this._lastAutoplayEnabled = void 0;
+      this._lastAutoplayInterval = void 0;
       this.pendingTargetIndex = null;
+      this.autoplayTimer = null;
     }
     init = () => {
       this.store.subscribe((state) => {
@@ -591,11 +603,22 @@
           this._lastDualView = state.isDualViewEnabled;
           this._lastSpreadOffset = state.spreadOffset;
         }
+        if (state.isAutoplayEnabled !== this._lastAutoplayEnabled || state.autoplayInterval !== this._lastAutoplayInterval) {
+          if (state.isAutoplayEnabled) {
+            this._startAutoplay();
+          } else {
+            this._stopAutoplay();
+          }
+          this._lastAutoplayEnabled = state.isAutoplayEnabled;
+          this._lastAutoplayInterval = state.autoplayInterval;
+        }
       });
       const initialState = this.store.getState();
       this._lastEnabled = initialState.enabled;
       this._lastDualView = initialState.isDualViewEnabled;
       this._lastSpreadOffset = initialState.spreadOffset;
+      this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
+      this._lastAutoplayInterval = initialState.autoplayInterval;
       const imgs = this.getImages();
       imgs.forEach((img) => {
         if (!img.complete) {
@@ -642,6 +665,7 @@
         requestAnimationFrame(() => {
           this.pendingTargetIndex = null;
         });
+        this._resetAutoplayTimer();
         return true;
       }
       this.updatePageCounter();
@@ -673,6 +697,7 @@
       }
       const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
       await this._performScrollToImage(imgs[finalIndex], finalIndex);
+      this._resetAutoplayTimer();
     }
     async _performScrollToImage(target, index) {
       this.pendingTargetIndex = index;
@@ -705,6 +730,7 @@
       requestAnimationFrame(() => {
         this.pendingTargetIndex = null;
       });
+      this._resetAutoplayTimer();
     }
     applyLayout = (forcedIndex) => {
       const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
@@ -726,6 +752,34 @@
           });
         });
         preloadImages(imgs, currentIndex);
+      }
+    };
+    _startAutoplay = () => {
+      this._stopAutoplay();
+      const { isAutoplayEnabled, autoplayInterval } = this.store.getState();
+      if (!isAutoplayEnabled) return;
+      this.autoplayTimer = setTimeout(async () => {
+        const imgs = this.getImages();
+        const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+        if (currentIndex >= imgs.length - 1) {
+          this._stopAutoplay();
+          this.store.setState({ isAutoplayEnabled: false });
+          return;
+        }
+        await this.scrollToImage(1);
+        this._startAutoplay();
+      }, autoplayInterval * 1e3);
+    };
+    _stopAutoplay = () => {
+      if (this.autoplayTimer) {
+        clearTimeout(this.autoplayTimer);
+        this.autoplayTimer = null;
+      }
+    };
+    _resetAutoplayTimer = () => {
+      const { isAutoplayEnabled } = this.store.getState();
+      if (isAutoplayEnabled) {
+        this._startAutoplay();
       }
     };
   }
@@ -903,6 +957,30 @@
   }
   .comic-helper-adjust-btn:hover {
     background: rgba(255, 255, 255, 0.2);
+  }
+
+  .comic-helper-autoplay-wrapper {
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid ${COLORS.border.light};
+  }
+
+  .comic-helper-autoplay-input {
+    width: 35px;
+    background: transparent;
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.primary};
+    font-size: 12px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    outline: none;
+    text-align: center;
+    margin-right: 4px;
+  }
+
+  .comic-helper-sec-label {
+    color: ${COLORS.text.muted};
+    font-size: 10px;
   }
 
   /* Metadata Modal Styles */
@@ -1556,11 +1634,14 @@
         resume: "Resume",
         resumeNotification: "Resume from page {page}?",
         continueReading: "Continue",
-        startFromBeginning: "Start Over"
+        startFromBeginning: "Start Over",
+        autoplay: "Autoplay",
+        seconds: "sec"
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
         prevPage: { label: "Prev Page", desc: "Move to previous page" },
+        autoplay: { label: "Autoplay", desc: "Toggle Autoplay" },
         dualView: { label: "Dual View", desc: "Toggle Dual View" },
         spreadOffset: { label: "Spread Offset", desc: "Toggle Offset (0 ↔ 1)", cond: "Dual View only" },
         metadata: { label: "Metadata", desc: "Show metadata" },
@@ -1605,11 +1686,14 @@
         resume: "レジューム",
         resumeNotification: "{page}ページから再開しますか？",
         continueReading: "続きから",
-        startFromBeginning: "最初から"
+        startFromBeginning: "最初から",
+        autoplay: "オートプレイ",
+        seconds: "秒"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
         prevPage: { label: "前ページ", desc: "前のページへ移動" },
+        autoplay: { label: "オートプレイ", desc: "オートプレイのON/OFF" },
         dualView: { label: "見開き", desc: "見開きモードのON/OFF" },
         spreadOffset: { label: "見開きオフセット", desc: "見開きオフセットの切替 (0 ↔ 1)", cond: "見開きモード中のみ" },
         metadata: { label: "作品情報", desc: "作品情報（メタデータ）の表示" },
@@ -1753,6 +1837,71 @@
       }
     };
   }
+  function createAutoplayControls({
+    isAutoplayEnabled,
+    autoplayInterval,
+    onToggle,
+    onChangeInterval
+  }) {
+    const checkbox = createElement("input", {
+      type: "checkbox",
+      checked: isAutoplayEnabled,
+      events: {
+        change: (e) => {
+          const target = e.currentTarget;
+          onToggle(target.checked);
+          if (typeof target.blur === "function") {
+            target.blur();
+          }
+        }
+      }
+    });
+    const intervalInput = createElement("input", {
+      type: "number",
+      className: "comic-helper-autoplay-input",
+      attributes: { min: 1, max: 99 },
+      events: {
+        change: (e) => {
+          const target = e.currentTarget;
+          const val = parseInt(target.value, 10);
+          if (!isNaN(val) && val >= 1 && val <= 99) {
+            onChangeInterval(val);
+          }
+        },
+        keydown: (e) => {
+          if (e instanceof KeyboardEvent && e.key === "Enter") {
+            e.preventDefault();
+            intervalInput.blur();
+          }
+          e.stopPropagation();
+        },
+        focus: () => {
+          intervalInput.select();
+        }
+      }
+    });
+    intervalInput.value = String(autoplayInterval);
+    const label = createElement("label", {
+      className: "comic-helper-label"
+    }, [checkbox, t("ui.autoplay")]);
+    const secLabel = createElement("span", {
+      className: "comic-helper-sec-label",
+      textContent: t("ui.seconds")
+    });
+    const el = createElement("div", {
+      className: "comic-helper-autoplay-wrapper",
+      style: { display: "flex", alignItems: "center" }
+    }, [label, intervalInput, secLabel]);
+    return {
+      el,
+      update: (enabled, interval) => {
+        checkbox.checked = enabled;
+        if (document.activeElement !== intervalInput) {
+          intervalInput.value = String(interval);
+        }
+      }
+    };
+  }
   function createNavigationButtons({
     onFirst,
     onPrev,
@@ -1891,6 +2040,12 @@
       description: t("shortcuts.prevPage.desc")
     },
     {
+      id: "autoplay",
+      label: t("shortcuts.autoplay.label"),
+      keys: ["a"],
+      description: t("shortcuts.autoplay.desc")
+    },
+    {
       id: "dualView",
       label: t("shortcuts.dualView.label"),
       keys: ["d"],
@@ -1985,7 +2140,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.1-unstable.32d5748"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.9fb6d2c"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2410,6 +2565,7 @@
     powerComp = null;
     counterComp = null;
     spreadComp = null;
+    autoplayComp = null;
     progressComp = null;
     loadingComp = null;
     draggable = null;
@@ -2483,6 +2639,15 @@
           onAdjust: () => this.store.setState({ spreadOffset: this.store.getState().spreadOffset === 0 ? 1 : 0 })
         });
         container.appendChild(this.spreadComp.el);
+      }
+      if (!this.autoplayComp) {
+        this.autoplayComp = createAutoplayControls({
+          isAutoplayEnabled: state.isAutoplayEnabled,
+          autoplayInterval: state.autoplayInterval,
+          onToggle: (val) => this.store.setState({ isAutoplayEnabled: val }),
+          onChangeInterval: (val) => this.store.setState({ autoplayInterval: val })
+        });
+        container.appendChild(this.autoplayComp.el);
       }
       if (!this.progressComp) {
         this.progressComp = createProgressBar();
@@ -2602,7 +2767,7 @@
       const { enabled, currentVisibleIndex, isDualViewEnabled } = state;
       if (!enabled) {
         container.style.padding = "4px 8px";
-        [this.counterComp, this.spreadComp, this.progressComp].forEach((c) => {
+        [this.counterComp, this.spreadComp, this.autoplayComp, this.progressComp].forEach((c) => {
           if (c) c.el.style.display = "none";
         });
         container.querySelectorAll(".comic-helper-button").forEach((btn) => {
@@ -2613,6 +2778,7 @@
       container.style.padding = "8px";
       if (this.counterComp) this.counterComp.el.style.display = "flex";
       if (this.spreadComp) this.spreadComp.el.style.display = "flex";
+      if (this.autoplayComp) this.autoplayComp.el.style.display = "flex";
       if (this.progressComp) {
         this.progressComp.el.style.display = "block";
         this.progressComp.update(currentVisibleIndex, imgs.length);
@@ -2622,6 +2788,7 @@
       });
       this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
       this.spreadComp?.update(isDualViewEnabled);
+      this.autoplayComp?.update(state.isAutoplayEnabled, state.autoplayInterval);
     };
     showResumeNotification = (savedIndex) => {
       const notification = createResumeNotification({
@@ -2825,6 +2992,7 @@
       const actions = {
         nextPage: () => this.navigator.scrollToImage(1),
         prevPage: () => this.navigator.scrollToImage(-1),
+        autoplay: () => this.store.setState({ isAutoplayEnabled: !this.store.getState().isAutoplayEnabled }),
         dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
         spreadOffset: () => {
           if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
