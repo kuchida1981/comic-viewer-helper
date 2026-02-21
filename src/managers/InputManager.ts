@@ -170,6 +170,7 @@ export class InputManager {
     const actions: Record<string, () => void | Promise<void>> = {
       nextPage: () => this.navigator.scrollToImage(1),
       prevPage: () => this.navigator.scrollToImage(-1),
+      autoplay: () => this.store.setState({ isAutoplayEnabled: !this.store.getState().isAutoplayEnabled }),
       dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
       spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
       fullscreen: () => this._toggleFullscreen(),

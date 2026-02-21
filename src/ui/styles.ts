@@ -176,6 +176,30 @@ export const styles = `
     background: rgba(255, 255, 255, 0.2);
   }
 
+  .comic-helper-autoplay-wrapper {
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid ${COLORS.border.light};
+  }
+
+  .comic-helper-autoplay-input {
+    width: 35px;
+    background: transparent;
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.primary};
+    font-size: 12px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    outline: none;
+    text-align: center;
+    margin-right: 4px;
+  }
+
+  .comic-helper-sec-label {
+    color: ${COLORS.text.muted};
+    font-size: 10px;
+  }
+
   /* Metadata Modal Styles */
   .comic-helper-modal-overlay {
     position: fixed;

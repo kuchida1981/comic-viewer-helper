@@ -2,6 +2,7 @@ import { injectStyles } from '../ui/styles';
 import { createPowerButton, PowerButtonComponent } from '../ui/components/PowerButton';
 import { createPageCounter, PageCounterComponent } from '../ui/components/PageCounter';
 import { createSpreadControls, SpreadControlsComponent } from '../ui/components/SpreadControls';
+import { createAutoplayControls, AutoplayControlsComponent } from '../ui/components/AutoplayControls';
 import { createNavigationButtons } from '../ui/components/NavigationButtons';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
@@ -49,6 +50,7 @@ export class UIManager {
   private powerComp: PowerButtonComponent | null = null;
   private counterComp: PageCounterComponent | null = null;
   private spreadComp: SpreadControlsComponent | null = null;
+  private autoplayComp: AutoplayControlsComponent | null = null;
   private progressComp: ProgressBarComponent | null = null;
   private loadingComp: LoadingIndicatorComponent | null = null;
   private draggable: Draggable | null = null;
@@ -134,6 +136,16 @@ export class UIManager {
         onAdjust: () => this.store.setState({ spreadOffset: this.store.getState().spreadOffset === 0 ? 1 : 0 })
       });
       container.appendChild(this.spreadComp.el);
+    }
+
+    if (!this.autoplayComp) {
+      this.autoplayComp = createAutoplayControls({
+        isAutoplayEnabled: state.isAutoplayEnabled,
+        autoplayInterval: state.autoplayInterval,
+        onToggle: (val: boolean) => this.store.setState({ isAutoplayEnabled: val }),
+        onChangeInterval: (val: number) => this.store.setState({ autoplayInterval: val })
+      });
+      container.appendChild(this.autoplayComp.el);
     }
 
     if (!this.progressComp) {
@@ -251,7 +263,7 @@ export class UIManager {
 
     if (!enabled) {
       container.style.padding = '4px 8px';
-      [this.counterComp, this.spreadComp, this.progressComp].forEach(c => { if (c) c.el.style.display = 'none'; });
+      [this.counterComp, this.spreadComp, this.autoplayComp, this.progressComp].forEach(c => { if (c) c.el.style.display = 'none'; });
       container.querySelectorAll('.comic-helper-button').forEach(btn => { (btn as HTMLElement).style.display = 'none'; });
       return;
     }
@@ -259,6 +271,7 @@ export class UIManager {
     container.style.padding = '8px';
     if (this.counterComp) this.counterComp.el.style.display = 'flex';
     if (this.spreadComp) this.spreadComp.el.style.display = 'flex';
+    if (this.autoplayComp) this.autoplayComp.el.style.display = 'flex';
     if (this.progressComp) {
       this.progressComp.el.style.display = 'block';
       this.progressComp.update(currentVisibleIndex, imgs.length);
@@ -267,6 +280,7 @@ export class UIManager {
 
     this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
     this.spreadComp?.update(isDualViewEnabled);
+    this.autoplayComp?.update(state.isAutoplayEnabled, state.autoplayInterval);
   };
 
   showResumeNotification = (savedIndex: number): void => {

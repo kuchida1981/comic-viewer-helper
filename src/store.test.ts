@@ -33,8 +33,11 @@ describe('Store', () => {
       isLoading: false,
       searchResults: null,
       searchQuery: '',
+      searchContext: undefined,
       searchCache: null,
-      searchHistory: []
+      searchHistory: [],
+      isAutoplayEnabled: false,
+      autoplayInterval: 5
     });
   });
 

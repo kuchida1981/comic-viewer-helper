@@ -33,6 +33,12 @@ export const SHORTCUTS: Shortcut[] = [
     description: t('shortcuts.prevPage.desc')
   },
   {
+    id: 'autoplay',
+    label: t('shortcuts.autoplay.label'),
+    keys: ['a'],
+    description: t('shortcuts.autoplay.desc')
+  },
+  {
     id: 'dualView',
     label: t('shortcuts.dualView.label'),
     keys: ['d'],

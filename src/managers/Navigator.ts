@@ -9,7 +9,10 @@ export class Navigator {
   private _lastEnabled?: boolean;
   private _lastDualView?: boolean;
   private _lastSpreadOffset?: number;
+  private _lastAutoplayEnabled?: boolean;
+  private _lastAutoplayInterval?: number;
   private pendingTargetIndex: number | null;
+  private autoplayTimer: ReturnType<typeof setTimeout> | null;
 
   constructor(adapter: SiteAdapter, store: Store) {
     this.adapter = adapter;
@@ -19,8 +22,11 @@ export class Navigator {
     this._lastEnabled = undefined;
     this._lastDualView = undefined;
     this._lastSpreadOffset = undefined;
+    this._lastAutoplayEnabled = undefined;
+    this._lastAutoplayInterval = undefined;
 
     this.pendingTargetIndex = null;
+    this.autoplayTimer = null;
   }
 
   init = (): void => {
@@ -36,12 +42,24 @@ export class Navigator {
         this._lastDualView = state.isDualViewEnabled;
         this._lastSpreadOffset = state.spreadOffset;
       }
+
+      if (state.isAutoplayEnabled !== this._lastAutoplayEnabled || state.autoplayInterval !== this._lastAutoplayInterval) {
+        if (state.isAutoplayEnabled) {
+          this._startAutoplay();
+        } else {
+          this._stopAutoplay();
+        }
+        this._lastAutoplayEnabled = state.isAutoplayEnabled;
+        this._lastAutoplayInterval = state.autoplayInterval;
+      }
     });
 
     const initialState = this.store.getState();
     this._lastEnabled = initialState.enabled;
     this._lastDualView = initialState.isDualViewEnabled;
     this._lastSpreadOffset = initialState.spreadOffset;
+    this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
+    this._lastAutoplayInterval = initialState.autoplayInterval;
 
     const imgs = this.getImages();
     imgs.forEach(img => {
@@ -91,13 +109,13 @@ export class Navigator {
         this.applyLayout(index);
         this.store.setState({ isLoading: false });
       } else {
-        this.applyLayout(index);
-      }
-
-      requestAnimationFrame(() => { this.pendingTargetIndex = null; });
-      return true;
-    }
-    this.updatePageCounter();
+              this.applyLayout(index);
+            }
+        
+            requestAnimationFrame(() => { this.pendingTargetIndex = null; });
+            this._resetAutoplayTimer();
+            return true;
+          }    this.updatePageCounter();
     return false;
   }
 
@@ -134,6 +152,7 @@ export class Navigator {
 
     const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
     await this._performScrollToImage(imgs[finalIndex], finalIndex);
+    this._resetAutoplayTimer();
   }
 
   private async _performScrollToImage(target: HTMLImageElement, index: number): Promise<void> {
@@ -169,6 +188,7 @@ export class Navigator {
 
     this.applyLayout(targetIndex);
     requestAnimationFrame(() => { this.pendingTargetIndex = null; });
+    this._resetAutoplayTimer();
   }
 
   applyLayout = (forcedIndex?: number): void => {
@@ -197,6 +217,40 @@ export class Navigator {
         });
       });
       preloadImages(imgs, currentIndex);
+    }
+  };
+
+  private _startAutoplay = (): void => {
+    this._stopAutoplay();
+    const { isAutoplayEnabled, autoplayInterval } = this.store.getState();
+    // console.log('_startAutoplay', { isAutoplayEnabled, autoplayInterval });
+    if (!isAutoplayEnabled) return;
+
+    this.autoplayTimer = setTimeout(async () => {
+      const imgs = this.getImages();
+      const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+      // console.log('Autoplay tick', { currentIndex, total: imgs.length });
+      if (currentIndex >= imgs.length - 1) {
+        // console.log('End of pages, stopping autoplay');
+        this.store.setState({ isAutoplayEnabled: false });
+        return;
+      }
+      await this.scrollToImage(1);
+      this._startAutoplay();
+    }, autoplayInterval * 1000);
+  };
+
+  private _stopAutoplay = (): void => {
+    if (this.autoplayTimer) {
+      clearTimeout(this.autoplayTimer);
+      this.autoplayTimer = null;
+    }
+  };
+
+  private _resetAutoplayTimer = (): void => {
+    const { isAutoplayEnabled } = this.store.getState();
+    if (isAutoplayEnabled) {
+      this._startAutoplay();
     }
   };
 }
