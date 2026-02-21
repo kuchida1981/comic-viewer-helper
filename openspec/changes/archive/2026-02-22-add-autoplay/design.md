@@ -43,5 +43,5 @@
 ## 永続化設計
 
 `Store` の `STORAGE_KEYS` に以下を追加する：
-- `AUTOPLAY_ENABLED`: 'true' | 'false'
-- `AUTOPLAY_INTERVAL`: '1'〜'99' (string)
+- `AUTOPLAY_ENABLED`: `'true'` | `'false'` (boolean として扱う)
+- `AUTOPLAY_INTERVAL`: `'1'`〜`'99'` (number として扱う)

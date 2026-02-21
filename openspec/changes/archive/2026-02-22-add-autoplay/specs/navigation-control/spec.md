@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Keyboard Navigation
-The system SHALL provide keybindings for navigating between images. ナビゲーションは、現在の画像のインデックスに基づいて行われ、遷移先の画像が読み込み完了していない場合は読み込みを待機してから実行されなければならない（SHALL）。また、ブラウザの標準スクロールバーが非表示の場合であっても、これらの操作は完全に 機能し続けなければならない。さらに、オートプレイ機能が有効な場合、手動のキーボード操作が実行された際には、現在のオートプレイタイマーを破棄し、操作完了後から新たにカウントを開始しなければならない（SHALL）。
+The system SHALL provide keybindings for navigating between images. ナビゲーションは、現在の画像のインデックスに基づいて行われ、遷移先の画像が読み込み完了していない場合は読み込みを待機してから実行されなければならない（SHALL）。また、ブラウザの標準スクロールバーが非表示の場合であっても、これらの操作は完全に機能し続けなければならない。さらに、オートプレイ機能が有効な場合、手動のキーボード操作が実行された際には、現在のオートプレイタイマーを破棄し、操作完了後から新たにカウントを開始しなければならない（SHALL）。
 
 #### Scenario: 次のページへ（ロード済み）
 - **WHEN** ユーザーが「次へ」のキー（`j`, `ArrowDown`, `PageDown`, `ArrowLeft`, `Space`）を押す

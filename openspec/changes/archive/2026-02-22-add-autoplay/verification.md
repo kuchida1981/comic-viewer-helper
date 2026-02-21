@@ -14,16 +14,15 @@
 
 ### Notes
 
-- **Completeness**: All tasks in `tasks.md` are marked as complete. All requirements in `specs/**/*.md` have corresponding implementation code.
+- **Completeness**: All tasks in `tasks.md` including review fixes (Section 5) are marked as complete.
 - **Correctness**:
   - `Autoplay Execution`: Implemented in `Navigator._startAutoplay`.
   - `Timer Reset`: Implemented in `Navigator` public methods calling `_resetAutoplayTimer`.
-  - `Termination at Last Page`: Implemented in `Navigator._startAutoplay` check.
+  - `Termination at Last Page`: Improved logic to call `_stopAutoplay` before setting state.
   - `Toggle Shortcut`: Implemented in `InputManager` and `shortcuts.ts`.
-  - `UI`: Implemented in `AutoplayControls.ts` and `UIManager`.
+  - `UI`: Added validation (1-99) and improved event handling in `AutoplayControls.ts`.
 - **Coherence**:
-  - Implementation follows `design.md` decisions (timer in Navigator, reset strategy).
-  - Code style matches existing patterns (managers, store, UI components).
-  - Tests cover new functionality and edge cases (last page, manual navigation).
+  - Documented design decisions match implementation.
+  - Review comments addressed (responsibility separation, validation, typos).
 
-All checks passed. Ready for archive.
+All checks passed. Ready for re-archive.

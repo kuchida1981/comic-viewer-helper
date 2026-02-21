@@ -232,6 +232,7 @@ export class Navigator {
       // console.log('Autoplay tick', { currentIndex, total: imgs.length });
       if (currentIndex >= imgs.length - 1) {
         // console.log('End of pages, stopping autoplay');
+        this._stopAutoplay();
         this.store.setState({ isAutoplayEnabled: false });
         return;
       }

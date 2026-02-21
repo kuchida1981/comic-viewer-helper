@@ -32,7 +32,7 @@
 #### Scenario: 最終ページ到達での停止
 - **WHEN** オートプレイによる自動遷移または手動操作により、最終ページに到達する
 - **AND** 作品情報モーダルが表示される
-- **THEN** オートプレイのタイマーは解除される（`isAutoplayEnabled` 自体を `false` にするか、タイマーのみを停止するかは実装設計に従う）
+- **THEN** オートプレイのタイマーは解除され、`isAutoplayEnabled` は `false` に変更される
 
 ### Requirement: Autoplay Toggle Shortcut
 システムは、オートプレイの有効/無効を素早く切り替えるためのキーボードショートカット（`a` キー）を提供しなければならない（SHALL）。

@@ -41,12 +41,13 @@ export function createAutoplayControls({
       change: (e) => {
         const target = e.currentTarget as HTMLInputElement;
         const val = parseInt(target.value, 10);
-        if (!isNaN(val) && val >= 1) {
+        if (!isNaN(val) && val >= 1 && val <= 99) {
           onChangeInterval(val);
         }
       },
       keydown: (e) => {
         if (e instanceof KeyboardEvent && e.key === 'Enter') {
+          e.preventDefault();
           intervalInput.blur();
         }
         e.stopPropagation();
