@@ -390,21 +390,20 @@ export function preloadImages(images: HTMLImageElement[], currentIndex: number, 
 
 /**
  * Select a random non-private work from related works and search cache, and jump to it
+ * Returns true if a jump was attempted, false otherwise.
  */
-export function jumpToRandomWork(metadata: Metadata, searchCache?: SearchCache | null): void {
+export function jumpToRandomWork(metadata: Metadata, searchCache?: SearchCache | null): boolean {
   const sources: { href: string }[] = [];
 
-   
   if (metadata.relatedWorks) {
     sources.push(...metadata.relatedWorks.filter(w => !w.isPrivate));
   }
 
-   
   if (searchCache && searchCache.results) {
     sources.push(...searchCache.results.results);
   }
 
-  if (sources.length === 0) return;
+  if (sources.length === 0) return false;
 
   const uniqueWorks = Array.from(
     new Map(sources.map(w => [w.href, w])).values()
@@ -413,5 +412,8 @@ export function jumpToRandomWork(metadata: Metadata, searchCache?: SearchCache |
   const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];
   if (randomWork?.href) {
     window.location.href = randomWork.href;
+    return true;
   }
+  return false;
 }
+
