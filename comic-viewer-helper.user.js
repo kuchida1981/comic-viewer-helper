@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.73c10be
+// @version         1.5.0-unstable.1a2a170
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -582,6 +582,9 @@
     _lastSpreadOffset;
     _lastAutoplayEnabled;
     _lastAutoplayInterval;
+    _lastIsMetadataModalOpen;
+    _lastIsHelpModalOpen;
+    _lastIsSearchModalOpen;
     pendingTargetIndex;
     autoplayTimer;
     constructor(adapter, store) {
@@ -603,23 +606,12 @@
       this._lastSpreadOffset = initialState.spreadOffset;
       this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
       this._lastAutoplayInterval = initialState.autoplayInterval;
+      this._lastIsMetadataModalOpen = initialState.isMetadataModalOpen;
+      this._lastIsHelpModalOpen = initialState.isHelpModalOpen;
+      this._lastIsSearchModalOpen = initialState.isSearchModalOpen;
       this.store.subscribe((state) => {
-        const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
-        if (layoutChanged) {
-          this.applyLayout();
-          this._lastEnabled = state.enabled;
-          this._lastDualView = state.isDualViewEnabled;
-          this._lastSpreadOffset = state.spreadOffset;
-        }
-        if (state.isAutoplayEnabled !== this._lastAutoplayEnabled || state.autoplayInterval !== this._lastAutoplayInterval) {
-          if (state.isAutoplayEnabled) {
-            this._startAutoplay();
-          } else {
-            this._stopAutoplay();
-          }
-          this._lastAutoplayEnabled = state.isAutoplayEnabled;
-          this._lastAutoplayInterval = state.autoplayInterval;
-        }
+        this._handleLayoutStateChange(state);
+        this._handleAutoplayStateChange(state);
       });
       const imgs = this.getImages();
       imgs.forEach((img) => {
@@ -676,6 +668,31 @@
       this.updatePageCounter();
       return false;
     }
+    _handleLayoutStateChange = (state) => {
+      const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
+      if (layoutChanged) {
+        this.applyLayout();
+        this._lastEnabled = state.enabled;
+        this._lastDualView = state.isDualViewEnabled;
+        this._lastSpreadOffset = state.spreadOffset;
+      }
+    };
+    _handleAutoplayStateChange = (state) => {
+      const modalChanged = state.isMetadataModalOpen !== this._lastIsMetadataModalOpen || state.isHelpModalOpen !== this._lastIsHelpModalOpen || state.isSearchModalOpen !== this._lastIsSearchModalOpen;
+      if (state.isAutoplayEnabled !== this._lastAutoplayEnabled || state.autoplayInterval !== this._lastAutoplayInterval || modalChanged) {
+        const isAnyModalOpen = state.isMetadataModalOpen || state.isHelpModalOpen || state.isSearchModalOpen;
+        if (state.isAutoplayEnabled && !isAnyModalOpen) {
+          this._startAutoplay();
+        } else {
+          this._stopAutoplay();
+        }
+        this._lastAutoplayEnabled = state.isAutoplayEnabled;
+        this._lastAutoplayInterval = state.autoplayInterval;
+        this._lastIsMetadataModalOpen = state.isMetadataModalOpen;
+        this._lastIsHelpModalOpen = state.isHelpModalOpen;
+        this._lastIsSearchModalOpen = state.isSearchModalOpen;
+      }
+    };
     _getPreloadCount = () => {
       const { isDualViewEnabled, isAutoplayEnabled, autoplayInterval } = this.store.getState();
       let count = 5;
@@ -776,8 +793,9 @@
     };
     _startAutoplay = () => {
       this._stopAutoplay();
-      const { isAutoplayEnabled, autoplayInterval } = this.store.getState();
-      if (!isAutoplayEnabled) return;
+      const { isAutoplayEnabled, autoplayInterval, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+      const isAnyModalOpen = isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+      if (!isAutoplayEnabled || isAnyModalOpen) return;
       this.autoplayTimer = setTimeout(async () => {
         const imgs = this.getImages();
         const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
@@ -786,7 +804,6 @@
           const jumped = jumpToRandomWork(metadata, searchCache);
           if (!jumped) {
             this._stopAutoplay();
-            this.store.setState({ isAutoplayEnabled: false });
           }
           return;
         }
@@ -2164,7 +2181,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.73c10be"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.1a2a170"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
