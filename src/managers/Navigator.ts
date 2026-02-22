@@ -30,6 +30,13 @@ export class Navigator {
   }
 
   init = (): void => {
+    const initialState = this.store.getState();
+    this._lastEnabled = initialState.enabled;
+    this._lastDualView = initialState.isDualViewEnabled;
+    this._lastSpreadOffset = initialState.spreadOffset;
+    this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
+    this._lastAutoplayInterval = initialState.autoplayInterval;
+
     this.store.subscribe((state: StoreState) => {
       const layoutChanged =
         state.enabled !== this._lastEnabled ||
@@ -54,13 +61,6 @@ export class Navigator {
       }
     });
 
-    const initialState = this.store.getState();
-    this._lastEnabled = initialState.enabled;
-    this._lastDualView = initialState.isDualViewEnabled;
-    this._lastSpreadOffset = initialState.spreadOffset;
-    this._lastAutoplayEnabled = undefined; // Initialize to undefined to trigger subscription on first run
-    this._lastAutoplayInterval = initialState.autoplayInterval;
-
     const imgs = this.getImages();
     imgs.forEach(img => {
       if (!img.complete) {
@@ -73,6 +73,10 @@ export class Navigator {
 
     if (initialState.enabled) {
       this.applyLayout();
+    }
+
+    if (initialState.enabled && initialState.isAutoplayEnabled) {
+      this._startAutoplay();
     }
   };
 
