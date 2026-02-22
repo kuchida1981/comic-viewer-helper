@@ -131,7 +131,7 @@ export class Navigator {
       count *= 2;
     }
 
-    return count;
+    return Math.min(count, 20);
   };
 
   private _triggerPreload = (imgs: HTMLImageElement[], currentIndex: number): void => {
