@@ -31,10 +31,26 @@ Please modify files in the `src/` directory and run the build command.
    ```bash
    npm install
    ```
+   Note: Git hooks (husky) are automatically set up during `npm install`.
+   If you need to manually set up husky, run the following command:
+   ```bash
+   npx husky
+   ```
 
 ### Development Workflow
 
-Before creating a pull request, ensure all quality checks pass:
+This project uses Git hooks (husky) to automatically perform quality checks before each commit.
+
+When you run `git commit`, the following checks are automatically executed:
+1. `npm run lint` - ESLint checks
+2. `npm run check-types` - TypeScript type checking
+3. `npm test` - Unit tests (100% coverage required for core logic)
+4. `npm run build` - Build verification
+5. `openspec validate --strict --all` - Specification validation
+
+If any of these checks fail, the commit will be blocked.
+
+To manually run all quality checks before creating a pull request:
 
 ```bash
 make all
