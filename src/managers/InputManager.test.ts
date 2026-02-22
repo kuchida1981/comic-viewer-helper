@@ -20,7 +20,9 @@ vi.mock('../shortcuts.js', () => ({
     { id: 'fullscreen', keys: ['f'] },
     { id: 'help', keys: ['?'] },
     { id: 'search', keys: ['/'] },
-    { id: 'randomJump', keys: ['p'] }
+    { id: 'randomJump', keys: ['p'] },
+    { id: 'speedUpAutoplay', keys: [']'] },
+    { id: 'slowDownAutoplay', keys: ['['] }
   ]
 }));
 
@@ -38,7 +40,8 @@ describe('InputManager', () => {
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
         isSearchModalOpen: false,
-        spreadOffset: 0
+        spreadOffset: 0,
+        autoplayInterval: 5
       }),
       setState: vi.fn()
     } as unknown as Store;
@@ -246,6 +249,32 @@ describe('InputManager', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, isDualViewEnabled: true, spreadOffset: 0 });
     inputManager.onKeyDown(event2);
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
+  });
+
+  it('onKeyDown should handle autoplay speed up/slow down', () => {
+    (store.getState as Mock).mockReturnValue({ enabled: true, autoplayInterval: 5 });
+
+    const eventInc = { key: ']', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(eventInc);
+    expect(store.setState).toHaveBeenCalledWith({ autoplayInterval: 4 });
+
+    const eventDec = { key: '[', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(eventDec);
+    expect(store.setState).toHaveBeenCalledWith({ autoplayInterval: 6 });
+  });
+
+  it('onKeyDown should respect autoplay interval limits', () => {
+    // Min limit
+    (store.getState as Mock).mockReturnValue({ enabled: true, autoplayInterval: 1 });
+    const eventInc = { key: ']', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(eventInc);
+    expect(store.setState).not.toHaveBeenCalled();
+
+    // Max limit
+    (store.getState as Mock).mockReturnValue({ enabled: true, autoplayInterval: 99 });
+    const eventDec = { key: '[', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(eventDec);
+    expect(store.setState).not.toHaveBeenCalled();
   });
 
   it('onKeyDown should handle randomJump', () => {
