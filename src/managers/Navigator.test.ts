@@ -189,6 +189,63 @@ describe('Navigator', () => {
     expect(logic.fitImagesToViewport).toHaveBeenCalled();
   });
 
+  describe('Dynamic Preloading', () => {
+    it('should use base preload count (5) in default mode', () => {
+      (store.getState as Mock).mockReturnValue({
+        enabled: true,
+        isDualViewEnabled: false,
+        isAutoplayEnabled: false,
+        autoplayInterval: 5
+      });
+      navigator.updatePageCounter();
+      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 5);
+    });
+
+    it('should double preload count (10) in dual view mode', () => {
+      (store.getState as Mock).mockReturnValue({
+        enabled: true,
+        isDualViewEnabled: true,
+        isAutoplayEnabled: false,
+        autoplayInterval: 5
+      });
+      navigator.updatePageCounter();
+      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 10);
+    });
+
+    it('should double preload count (10) during fast autoplay', () => {
+      (store.getState as Mock).mockReturnValue({
+        enabled: true,
+        isDualViewEnabled: false,
+        isAutoplayEnabled: true,
+        autoplayInterval: 1
+      });
+      navigator.updatePageCounter();
+      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 10);
+    });
+
+    it('should quadruple preload count (20) during fast autoplay in dual view mode', () => {
+      (store.getState as Mock).mockReturnValue({
+        enabled: true,
+        isDualViewEnabled: true,
+        isAutoplayEnabled: true,
+        autoplayInterval: 1
+      });
+      navigator.updatePageCounter();
+      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 20);
+    });
+
+    it('should use base count (5) during slow autoplay', () => {
+      (store.getState as Mock).mockReturnValue({
+        enabled: true,
+        isDualViewEnabled: false,
+        isAutoplayEnabled: true,
+        autoplayInterval: 5
+      });
+      navigator.updatePageCounter();
+      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 5);
+    });
+  });
+
   it('should revert when disabled via applyLayout', () => {
     vi.mocked(store.getState).mockReturnValue({ 
       enabled: false,
