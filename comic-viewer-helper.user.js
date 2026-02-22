@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.23284ed
+// @version         1.5.0-unstable.73c10be
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -597,6 +597,12 @@
       this.autoplayTimer = null;
     }
     init = () => {
+      const initialState = this.store.getState();
+      this._lastEnabled = initialState.enabled;
+      this._lastDualView = initialState.isDualViewEnabled;
+      this._lastSpreadOffset = initialState.spreadOffset;
+      this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
+      this._lastAutoplayInterval = initialState.autoplayInterval;
       this.store.subscribe((state) => {
         const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
         if (layoutChanged) {
@@ -615,12 +621,6 @@
           this._lastAutoplayInterval = state.autoplayInterval;
         }
       });
-      const initialState = this.store.getState();
-      this._lastEnabled = initialState.enabled;
-      this._lastDualView = initialState.isDualViewEnabled;
-      this._lastSpreadOffset = initialState.spreadOffset;
-      this._lastAutoplayEnabled = void 0;
-      this._lastAutoplayInterval = initialState.autoplayInterval;
       const imgs = this.getImages();
       imgs.forEach((img) => {
         if (!img.complete) {
@@ -632,6 +632,9 @@
       });
       if (initialState.enabled) {
         this.applyLayout();
+      }
+      if (initialState.enabled && initialState.isAutoplayEnabled) {
+        this._startAutoplay();
       }
     };
     getImages = () => {
@@ -2161,7 +2164,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.23284ed"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.73c10be"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
