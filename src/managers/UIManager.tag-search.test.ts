@@ -70,6 +70,7 @@ describe('UIManager - Internal Tag Search', () => {
       isLoading: false,
       searchResults: null,
       searchCache: null,
+      favorites: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5
     };

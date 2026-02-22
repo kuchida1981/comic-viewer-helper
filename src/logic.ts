@@ -1,4 +1,4 @@
-import { Metadata, SearchCache } from './types';
+import { Metadata, SearchCache, RelatedWork } from './types';
 
 export interface ImageInfo {
   isLandscape: boolean;
@@ -389,29 +389,74 @@ export function preloadImages(images: HTMLImageElement[], currentIndex: number, 
 }
 
 /**
- * Select a random non-private work from related works and search cache, and jump to it
- * Returns true if a jump was attempted, false otherwise.
+ * Internal helper to map various work types to a common interface safely
  */
-export function jumpToRandomWork(metadata: Metadata, searchCache?: SearchCache | null): boolean {
+function toCandidates(works: unknown): { href: string }[] {
+  if (!Array.isArray(works)) return [];
+  const res: { href: string }[] = [];
+  for (const w of works) {
+    if (typeof w === 'object' && w !== null && 'href' in w && typeof (w as { href: unknown }).href === 'string') {
+      res.push({ href: (w as { href: string }).href });
+    }
+  }
+  return res;
+}
+
+/**
+ * Collect all available works for discovery, filtered and deduplicated
+ */
+function getDiscoveryPool(metadata: Metadata, searchCache?: SearchCache | null, favorites: RelatedWork[] = []): { href: string }[] {
   const sources: { href: string }[] = [];
 
   if (metadata.relatedWorks) {
-    sources.push(...metadata.relatedWorks.filter(w => !w.isPrivate));
+    for (const w of metadata.relatedWorks) {
+      if (!w.isPrivate && w.href) sources.push({ href: w.href });
+    }
   }
 
   if (searchCache && searchCache.results) {
-    sources.push(...searchCache.results.results);
+    sources.push(...toCandidates(searchCache.results.results));
   }
 
-  if (sources.length === 0) return false;
+  sources.push(...toCandidates(favorites));
 
-  const uniqueWorks = Array.from(
-    new Map(sources.map(w => [w.href, w])).values()
-  );
+  const uniquePool: { href: string }[] = [];
+  const seenHrefs = new Set<string>();
+  for (const work of sources) {
+    const href = work.href;
+    if (!seenHrefs.has(href)) {
+      seenHrefs.add(href);
+      uniquePool.push({ href });
+    }
+  }
+  return uniquePool;
+}
 
-  const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];
-  if (randomWork?.href) {
-    window.location.href = randomWork.href;
+/**
+ * Select a random non-private work from related works and search cache, and jump to it
+ * Uses a 2-step slot algorithm: 25% chance for a favorite, 75% for discovery (all candidates)
+ * Returns true if a jump was attempted, false otherwise.
+ */
+export function jumpToRandomWork(
+  metadata: Metadata,
+  searchCache?: SearchCache | null,
+  favorites: RelatedWork[] = []
+): boolean {
+  const discoveryPool = getDiscoveryPool(metadata, searchCache, favorites);
+  if (discoveryPool.length === 0) return false;
+
+  const favoritePool = toCandidates(favorites);
+  let target: { href: string } | undefined;
+
+  // 2-step slot selection
+  if (favoritePool.length > 0 && Math.random() < 0.25) {
+    target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
+  } else {
+    target = discoveryPool[Math.floor(Math.random() * discoveryPool.length)];
+  }
+
+  if (target?.href) {
+    window.location.href = target.href;
     return true;
   }
   return false;

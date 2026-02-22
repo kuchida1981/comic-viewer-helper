@@ -1,6 +1,6 @@
 import { GuiPos } from './store';
 import { ResumeData } from './managers/ResumeManager';
-import { SearchCache, SearchContext } from './types';
+import { SearchCache, SearchContext, RelatedWork } from './types';
 
 /**
  * Checks if the value is a non-null object (and not an array)
@@ -14,6 +14,21 @@ export function isObject(value: unknown): value is Record<string, unknown> {
  */
 export function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string');
+}
+
+/**
+ * Type guard for RelatedWork
+ */
+export function isRelatedWork(value: unknown): value is RelatedWork {
+  if (!isObject(value)) return false;
+  return typeof value.title === 'string' && typeof value.href === 'string' && typeof value.thumb === 'string';
+}
+
+/**
+ * Type guard for RelatedWork[]
+ */
+export function isRelatedWorkArray(value: unknown): value is RelatedWork[] {
+  return Array.isArray(value) && value.every(isRelatedWork);
 }
 
 /**

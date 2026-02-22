@@ -261,6 +261,7 @@ describe('Navigator', () => {
       searchQuery: '',
       searchCache: null,
       searchHistory: [],
+      favorites: [],
       guiPos: null,
       isAutoplayEnabled: false,
       autoplayInterval: 5
@@ -306,6 +307,7 @@ describe('Navigator', () => {
         searchQuery: '',
         searchCache: null,
         searchHistory: [],
+        favorites: [],
         guiPos: null,
         isAutoplayEnabled: false,
         autoplayInterval: 5

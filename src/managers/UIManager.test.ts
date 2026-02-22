@@ -15,6 +15,7 @@ import { Store, StoreState } from '../store.js';
 import { Navigator } from './Navigator.js';
 import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
 import * as logic from '../logic.js';
+import { setupLocationMock } from '../test/mocks/dom.js';
 
 // Define Prop Interfaces for safe mocking
 interface PowerButtonProps { onClick: () => void; }
@@ -97,8 +98,10 @@ describe('UIManager', () => {
   let navigator: Navigator;
   let uiManager: UIManager;
 
-  beforeEach(() => {
-    adapter = { 
+    beforeEach(() => {
+      setupLocationMock('http://site.com/work/1');
+      adapter = {
+   
       match: vi.fn().mockReturnValue(true),
       getContainer: vi.fn().mockReturnValue(null), // Default to null for container check
       getImages: vi.fn().mockReturnValue([])
@@ -161,7 +164,12 @@ describe('UIManager', () => {
     };
     (createElement as unknown as Mock).mockReturnValue(mockContainer);
 
-    vi.stubGlobal('window', { addEventListener: vi.fn(), innerWidth: 1000, innerHeight: 1000 });
+    vi.stubGlobal('window', { 
+      addEventListener: vi.fn(), 
+      innerWidth: 1000, 
+      innerHeight: 1000,
+      location: { href: 'http://site.com/work/1' }
+    });
   });
 
   afterEach(() => {
@@ -188,19 +196,19 @@ describe('UIManager', () => {
     });
     
     // Disabled
-    (store.getState as Mock).mockReturnValue({ enabled: false, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: false, metadata: {}, favorites: [], isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
     uiManager.updateUI();
     expect(mockBtn.style.display).toBe('none');
     
     // Enabled
-    (store.getState as Mock).mockReturnValue({ enabled: true, metadata: {}, isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
+    (store.getState as Mock).mockReturnValue({ enabled: true, metadata: {}, favorites: [], isMetadataModalOpen: false, isHelpModalOpen: false, currentVisibleIndex: 0 });
     uiManager.updateUI();
     expect(mockBtn.style.display).toBe('inline-block');
   });
 
         it('should handle modals and their onClose callbacks', () => {
 
-          (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: true, isSearchModalOpen: true, metadata: {}, currentVisibleIndex: 0, searchResults: null });
+          (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: true, isSearchModalOpen: true, metadata: {}, favorites: [], currentVisibleIndex: 0, searchResults: null });
 
           uiManager.updateUI();
 
@@ -234,7 +242,7 @@ describe('UIManager', () => {
 
           // Close modals in state and update UI
 
-          (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, metadata: {}, currentVisibleIndex: 0, searchResults: null });
+          (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, metadata: {}, favorites: [], currentVisibleIndex: 0, searchResults: null });
 
           uiManager.updateUI();
 
@@ -265,6 +273,8 @@ describe('UIManager', () => {
             isSearchModalOpen: true,
 
             metadata: { title: '', tags: [], relatedWorks: [] },
+
+            favorites: [],
 
             currentVisibleIndex: 0,
 
@@ -368,6 +378,8 @@ describe('UIManager', () => {
 
             metadata: {},
 
+            favorites: [],
+
             currentVisibleIndex: 0,
 
             searchHistory: ['key 1', 'key 2'],
@@ -408,6 +420,8 @@ describe('UIManager', () => {
 
             enabled: true,
 
+            favorites: [],
+
             searchHistory: ['new key', 'key 1', 'key 2']
 
           });
@@ -428,6 +442,8 @@ describe('UIManager', () => {
 
             enabled: true,
 
+            favorites: [],
+
             searchHistory: ['key 1 a', 'new key', 'key 2']
 
           });
@@ -447,6 +463,8 @@ describe('UIManager', () => {
           (store.getState as Mock).mockReturnValue({
 
             enabled: true,
+
+            favorites: [],
 
             searchHistory: ['c', 'b', 'a']
 
@@ -501,6 +519,8 @@ describe('UIManager', () => {
             isSearchModalOpen: true, 
 
             metadata: { title: '', tags: [], relatedWorks: [] }, 
+
+            favorites: [],
 
             currentVisibleIndex: 0, 
 
@@ -596,6 +616,8 @@ describe('UIManager', () => {
 
             metadata: { title: '', tags: [], relatedWorks: [] }, 
 
+            favorites: [],
+
             currentVisibleIndex: 0, 
 
             searchResults: null,
@@ -645,6 +667,8 @@ describe('UIManager', () => {
             isSearchModalOpen: true,
 
             metadata: { title: '', tags: [], relatedWorks: [] },
+
+            favorites: [],
 
             currentVisibleIndex: 0,
 
@@ -749,6 +773,8 @@ describe('UIManager', () => {
             isSearchModalOpen: true,
 
             metadata: { title: '', tags: [], relatedWorks: [] },
+
+            favorites: [],
 
             currentVisibleIndex: 0,
 
@@ -862,7 +888,7 @@ describe('UIManager', () => {
 
           const powerOnClick = createPowerButtonMock.mock.calls[0][0].onClick;
 
-          (store.getState as Mock).mockReturnValue({ enabled: true });
+          (store.getState as Mock).mockReturnValue({ enabled: true, favorites: [] });
 
           powerOnClick();
 
@@ -892,7 +918,7 @@ describe('UIManager', () => {
 
           const spreadOnAdjust = createSpreadControlsMock.mock.calls[0][0].onAdjust;
 
-          (store.getState as Mock).mockReturnValue({ spreadOffset: 0 });
+          (store.getState as Mock).mockReturnValue({ spreadOffset: 0, favorites: [] });
 
           spreadOnAdjust();
 
@@ -1026,8 +1052,42 @@ describe('UIManager', () => {
 
           
 
-          callbacks.onLucky();
-
-          expect(logic.jumpToRandomWork).toHaveBeenCalled();
-
-        });      });
+                    callbacks.onLucky();
+                    expect(logic.jumpToRandomWork).toHaveBeenCalled();
+          
+                  });
+          
+                  it('should toggle favorites when heart button is clicked', () => {
+                    const mockMetadata = { title: 'Fav Manga', tags: [], relatedWorks: [] };
+                    (store.getState as Mock).mockReturnValue({ 
+                      enabled: true, 
+                      isMetadataModalOpen: true, 
+                      metadata: mockMetadata, 
+                      favorites: [] 
+                    });
+                    uiManager.updateUI();
+          
+                    const createMetadataModalMock = createMetadataModal as unknown as Mock;
+                    const { onToggleFavorite } = createMetadataModalMock.mock.calls[0][0];
+          
+                    // 1. Add to favorites
+                    onToggleFavorite();
+                    expect(store.setState).toHaveBeenCalledWith({
+                      favorites: expect.arrayContaining([
+                        expect.objectContaining({ title: 'Fav Manga' })
+                      ])
+                    });
+          
+                    // 2. Remove from favorites
+                    const currentHref = window.location.href;
+                    (store.getState as Mock).mockReturnValue({ 
+                      enabled: true, 
+                      isMetadataModalOpen: true, 
+                      metadata: mockMetadata, 
+                      favorites: [{ title: 'Fav Manga', href: currentHref, thumb: '' }] 
+                    });
+                    onToggleFavorite();
+                    expect(store.setState).toHaveBeenCalledWith({ favorites: [] });
+                  });
+                });
+          

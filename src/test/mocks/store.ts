@@ -16,6 +16,7 @@ const DEFAULT_STATE: StoreState = {
   searchQuery: '',
   searchCache: null,
   searchHistory: [],
+  favorites: [],
   isAutoplayEnabled: false,
   autoplayInterval: 5
 };
