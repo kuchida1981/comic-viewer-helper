@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.1a2a170
+// @version         1.5.0-unstable.15e22ac
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1690,7 +1690,9 @@
         help: { label: "Help", desc: "Show this help" },
         search: { label: "Search", desc: "Start search" },
         closeModal: { label: "Close Modal", desc: "Close modal" },
-        randomJump: { label: "Random Jump", desc: "Jump to a random related work" }
+        randomJump: { label: "Random Jump", desc: "Jump to a random related work" },
+        speedUpAutoplay: { label: "Speed Up Autoplay", desc: "Decrease wait time (speed up)" },
+        slowDownAutoplay: { label: "Slow Down Autoplay", desc: "Increase wait time (slow down)" }
       }
     },
     ja: {
@@ -1742,7 +1744,9 @@
         help: { label: "ヘルプ", desc: "このヘルプの表示" },
         search: { label: "検索", desc: "検索の開始" },
         closeModal: { label: "閉じる", desc: "モーダルを閉じる" },
-        randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" }
+        randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" },
+        speedUpAutoplay: { label: "オートプレイ加速", desc: "待機時間を減らす（速くする）" },
+        slowDownAutoplay: { label: "オートプレイ減速", desc: "待機時間を増やす（遅くする）" }
       }
     }
   };
@@ -2130,6 +2134,18 @@
       description: t("shortcuts.randomJump.desc")
     },
     {
+      id: "speedUpAutoplay",
+      label: t("shortcuts.speedUpAutoplay.label"),
+      keys: ["]"],
+      description: t("shortcuts.speedUpAutoplay.desc")
+    },
+    {
+      id: "slowDownAutoplay",
+      label: t("shortcuts.slowDownAutoplay.label"),
+      keys: ["["],
+      description: t("shortcuts.slowDownAutoplay.desc")
+    },
+    {
       id: "closeModal",
       label: t("shortcuts.closeModal.label"),
       keys: ["Escape"],
@@ -2181,7 +2197,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.1a2a170"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.15e22ac"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -3041,6 +3057,14 @@
         fullscreen: () => this._toggleFullscreen(),
         randomJump: () => {
           jumpToRandomWork(metadata, searchCache);
+        },
+        speedUpAutoplay: () => {
+          const { autoplayInterval } = this.store.getState();
+          if (autoplayInterval > 1) this.store.setState({ autoplayInterval: autoplayInterval - 1 });
+        },
+        slowDownAutoplay: () => {
+          const { autoplayInterval } = this.store.getState();
+          if (autoplayInterval < 99) this.store.setState({ autoplayInterval: autoplayInterval + 1 });
         }
       };
       for (const [id, action] of Object.entries(actions)) {
