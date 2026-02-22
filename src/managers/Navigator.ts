@@ -11,6 +11,9 @@ export class Navigator {
   private _lastSpreadOffset?: number;
   private _lastAutoplayEnabled?: boolean;
   private _lastAutoplayInterval?: number;
+  private _lastIsMetadataModalOpen?: boolean;
+  private _lastIsHelpModalOpen?: boolean;
+  private _lastIsSearchModalOpen?: boolean;
   private pendingTargetIndex: number | null;
   private autoplayTimer: ReturnType<typeof setTimeout> | null;
 
@@ -36,29 +39,13 @@ export class Navigator {
     this._lastSpreadOffset = initialState.spreadOffset;
     this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
     this._lastAutoplayInterval = initialState.autoplayInterval;
+    this._lastIsMetadataModalOpen = initialState.isMetadataModalOpen;
+    this._lastIsHelpModalOpen = initialState.isHelpModalOpen;
+    this._lastIsSearchModalOpen = initialState.isSearchModalOpen;
 
     this.store.subscribe((state: StoreState) => {
-      const layoutChanged =
-        state.enabled !== this._lastEnabled ||
-        state.isDualViewEnabled !== this._lastDualView ||
-        state.spreadOffset !== this._lastSpreadOffset;
-
-      if (layoutChanged) {
-        this.applyLayout();
-        this._lastEnabled = state.enabled;
-        this._lastDualView = state.isDualViewEnabled;
-        this._lastSpreadOffset = state.spreadOffset;
-      }
-
-      if (state.isAutoplayEnabled !== this._lastAutoplayEnabled || state.autoplayInterval !== this._lastAutoplayInterval) {
-        if (state.isAutoplayEnabled) {
-          this._startAutoplay();
-        } else {
-          this._stopAutoplay();
-        }
-        this._lastAutoplayEnabled = state.isAutoplayEnabled;
-        this._lastAutoplayInterval = state.autoplayInterval;
-      }
+      this._handleLayoutStateChange(state);
+      this._handleAutoplayStateChange(state);
     });
 
     const imgs = this.getImages();
@@ -122,6 +109,46 @@ export class Navigator {
           }    this.updatePageCounter();
     return false;
   }
+
+  private _handleLayoutStateChange = (state: StoreState): void => {
+    const layoutChanged =
+      state.enabled !== this._lastEnabled ||
+      state.isDualViewEnabled !== this._lastDualView ||
+      state.spreadOffset !== this._lastSpreadOffset;
+
+    if (layoutChanged) {
+      this.applyLayout();
+      this._lastEnabled = state.enabled;
+      this._lastDualView = state.isDualViewEnabled;
+      this._lastSpreadOffset = state.spreadOffset;
+    }
+  };
+
+  private _handleAutoplayStateChange = (state: StoreState): void => {
+    const modalChanged =
+      state.isMetadataModalOpen !== this._lastIsMetadataModalOpen ||
+      state.isHelpModalOpen !== this._lastIsHelpModalOpen ||
+      state.isSearchModalOpen !== this._lastIsSearchModalOpen;
+
+    if (state.isAutoplayEnabled !== this._lastAutoplayEnabled ||
+      state.autoplayInterval !== this._lastAutoplayInterval ||
+      modalChanged) {
+
+      const isAnyModalOpen = state.isMetadataModalOpen || state.isHelpModalOpen || state.isSearchModalOpen;
+
+      if (state.isAutoplayEnabled && !isAnyModalOpen) {
+        this._startAutoplay();
+      } else {
+        this._stopAutoplay();
+      }
+
+      this._lastAutoplayEnabled = state.isAutoplayEnabled;
+      this._lastAutoplayInterval = state.autoplayInterval;
+      this._lastIsMetadataModalOpen = state.isMetadataModalOpen;
+      this._lastIsHelpModalOpen = state.isHelpModalOpen;
+      this._lastIsSearchModalOpen = state.isSearchModalOpen;
+    }
+  };
 
   private _getPreloadCount = (): number => {
     const { isDualViewEnabled, isAutoplayEnabled, autoplayInterval } = this.store.getState();
@@ -246,9 +273,10 @@ export class Navigator {
 
   private _startAutoplay = (): void => {
     this._stopAutoplay();
-    const { isAutoplayEnabled, autoplayInterval } = this.store.getState();
-    // console.log('_startAutoplay', { isAutoplayEnabled, autoplayInterval });
-    if (!isAutoplayEnabled) return;
+    const { isAutoplayEnabled, autoplayInterval, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+    const isAnyModalOpen = isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+
+    if (!isAutoplayEnabled || isAnyModalOpen) return;
 
     this.autoplayTimer = setTimeout(async () => {
       const imgs = this.getImages();
@@ -259,9 +287,7 @@ export class Navigator {
         const { metadata, searchCache } = this.store.getState();
         const jumped = jumpToRandomWork(metadata, searchCache);
         if (!jumped) {
-          // console.log('No random jump candidates, stopping autoplay');
           this._stopAutoplay();
-          this.store.setState({ isAutoplayEnabled: false });
         }
         return;
       }

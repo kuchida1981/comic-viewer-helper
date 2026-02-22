@@ -465,7 +465,9 @@ describe('Navigator', () => {
                                 vi.runAllTicks();
                                 
                                 expect(logic.jumpToRandomWork).toHaveBeenCalled();
-                                expect(store.setState).toHaveBeenCalledWith({ isAutoplayEnabled: false });
+                                // 仕様変更: isAutoplayEnabled: false はセットせず、タイマーだけ止める
+                                expect(store.setState).not.toHaveBeenCalledWith({ isAutoplayEnabled: false });
+                                expect(vi.getTimerCount()).toBe(0);
                               });
 
                               it('should attempt random jump at the last page and continue if jump occurs', async () => {
@@ -511,6 +513,43 @@ describe('Navigator', () => {
                                 expect(logic.getPrimaryVisibleImageIndex).toHaveBeenCalled();                                
                                 // Should have set a NEW timer for the next page
                                 expect(vi.getTimerCount()).toBeGreaterThan(0);
+                              });
+
+                              it('should suspend autoplay when a modal is open and resume when closed', () => {
+                                (store.getState as Mock).mockReturnValue({ 
+                                  ...vi.mocked(store.getState)(), 
+                                  isAutoplayEnabled: true, 
+                                  autoplayInterval: 1,
+                                  isSearchModalOpen: false,
+                                  isHelpModalOpen: false,
+                                  isMetadataModalOpen: false
+                                });
+                                navigator.init();
+                                const subscribeCb = vi.mocked(store.subscribe).mock.calls[0][0];
+
+                                // 最初はタイマーが動いている
+                                const initialTimers = vi.getTimerCount();
+                                expect(initialTimers).toBeGreaterThan(0);
+
+                                // 検索モーダルを開く
+                                (store.getState as Mock).mockReturnValue({ 
+                                  ...vi.mocked(store.getState)(), 
+                                  isSearchModalOpen: true 
+                                });
+                                subscribeCb(vi.mocked(store.getState)());
+
+                                // オートプレイタイマーが止まるはず（タイマー数が減少する）
+                                expect(vi.getTimerCount()).toBeLessThan(initialTimers);
+
+                                // 検索モーダルを閉じる
+                                (store.getState as Mock).mockReturnValue({ 
+                                  ...vi.mocked(store.getState)(), 
+                                  isSearchModalOpen: false 
+                                });
+                                subscribeCb(vi.mocked(store.getState)());
+
+                                // タイマーが再開するはず
+                                expect(vi.getTimerCount()).toBe(initialTimers);
                               });
                             });
                           });
