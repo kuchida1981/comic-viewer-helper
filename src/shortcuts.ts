@@ -82,16 +82,16 @@ export const SHORTCUTS: Shortcut[] = [
     description: t('shortcuts.randomJump.desc')
   },
   {
-    id: 'increaseAutoplayInterval',
-    label: t('shortcuts.increaseAutoplayInterval.label'),
+    id: 'speedUpAutoplay',
+    label: t('shortcuts.speedUpAutoplay.label'),
     keys: [']'],
-    description: t('shortcuts.increaseAutoplayInterval.desc')
+    description: t('shortcuts.speedUpAutoplay.desc')
   },
   {
-    id: 'decreaseAutoplayInterval',
-    label: t('shortcuts.decreaseAutoplayInterval.label'),
+    id: 'slowDownAutoplay',
+    label: t('shortcuts.slowDownAutoplay.label'),
     keys: ['['],
-    description: t('shortcuts.decreaseAutoplayInterval.desc')
+    description: t('shortcuts.slowDownAutoplay.desc')
   },
   {
     id: 'closeModal',

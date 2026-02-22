@@ -21,8 +21,8 @@ vi.mock('../shortcuts.js', () => ({
     { id: 'help', keys: ['?'] },
     { id: 'search', keys: ['/'] },
     { id: 'randomJump', keys: ['p'] },
-    { id: 'increaseAutoplayInterval', keys: [']'] },
-    { id: 'decreaseAutoplayInterval', keys: ['['] }
+    { id: 'speedUpAutoplay', keys: [']'] },
+    { id: 'slowDownAutoplay', keys: ['['] }
   ]
 }));
 
@@ -251,7 +251,7 @@ describe('InputManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
   });
 
-  it('onKeyDown should handle autoplay interval increase/decrease', () => {
+  it('onKeyDown should handle autoplay speed up/slow down', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, autoplayInterval: 5 });
 
     const eventInc = { key: ']', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;

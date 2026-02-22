@@ -175,11 +175,11 @@ export class InputManager {
       spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
       fullscreen: () => this._toggleFullscreen(),
       randomJump: () => { jumpToRandomWork(metadata, searchCache); },
-      increaseAutoplayInterval: () => {
+      speedUpAutoplay: () => {
         const { autoplayInterval } = this.store.getState();
         if (autoplayInterval > 1) this.store.setState({ autoplayInterval: autoplayInterval - 1 });
       },
-      decreaseAutoplayInterval: () => {
+      slowDownAutoplay: () => {
         const { autoplayInterval } = this.store.getState();
         if (autoplayInterval < 99) this.store.setState({ autoplayInterval: autoplayInterval + 1 });
       }
