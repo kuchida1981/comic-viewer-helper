@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.da1fee7
+// @version         1.5.0-unstable.23284ed
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -646,7 +646,7 @@
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       if (currentIndex !== -1) {
         this.store.setState({ currentVisibleIndex: currentIndex });
-        preloadImages(imgs, currentIndex);
+        this._triggerPreload(imgs, currentIndex);
       }
     };
     async jumpToPage(pageNumber) {
@@ -673,6 +673,21 @@
       this.updatePageCounter();
       return false;
     }
+    _getPreloadCount = () => {
+      const { isDualViewEnabled, isAutoplayEnabled, autoplayInterval } = this.store.getState();
+      let count = 5;
+      if (isDualViewEnabled) {
+        count *= 2;
+      }
+      if (isAutoplayEnabled && autoplayInterval < 3) {
+        count *= 2;
+      }
+      return Math.min(count, 20);
+    };
+    _triggerPreload = (imgs, currentIndex) => {
+      const count = this._getPreloadCount();
+      preloadImages(imgs, currentIndex, count);
+    };
     _calculateTargetIndex = (imgs, direction) => {
       const { isDualViewEnabled } = this.store.getState();
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
@@ -753,7 +768,7 @@
             targetImg.scrollIntoView({ block: "center" });
           });
         });
-        preloadImages(imgs, currentIndex);
+        this._triggerPreload(imgs, currentIndex);
       }
     };
     _startAutoplay = () => {
@@ -2146,7 +2161,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.da1fee7"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.23284ed"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
