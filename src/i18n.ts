@@ -48,7 +48,9 @@ export const MESSAGES = {
       help: { label: 'Help', desc: 'Show this help' },
       search: { label: 'Search', desc: 'Start search' },
       closeModal: { label: 'Close Modal', desc: 'Close modal' },
-      randomJump: { label: 'Random Jump', desc: 'Jump to a random related work' }
+      randomJump: { label: 'Random Jump', desc: 'Jump to a random related work' },
+      increaseAutoplayInterval: { label: 'Speed Up Autoplay', desc: 'Decrease wait time (speed up)' },
+      decreaseAutoplayInterval: { label: 'Slow Down Autoplay', desc: 'Increase wait time (slow down)' }
     }
   },
   ja: {
@@ -100,7 +102,9 @@ export const MESSAGES = {
       help: { label: 'ヘルプ', desc: 'このヘルプの表示' },
       search: { label: '検索', desc: '検索の開始' },
       closeModal: { label: '閉じる', desc: 'モーダルを閉じる' },
-      randomJump: { label: 'ランダムジャンプ', desc: 'おすすめ（ランダム）へ遷移' }
+      randomJump: { label: 'ランダムジャンプ', desc: 'おすすめ（ランダム）へ遷移' },
+      increaseAutoplayInterval: { label: 'オートプレイ加速', desc: '待機時間を減らす（速くする）' },
+      decreaseAutoplayInterval: { label: 'オートプレイ減速', desc: '待機時間を増やす（遅くする）' }
     }
   }
 } as const;
