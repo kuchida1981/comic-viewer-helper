@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.9fb6d2c
+// @version         1.5.0-unstable.da1fee7
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -562,14 +562,16 @@
     if (searchCache && searchCache.results) {
       sources.push(...searchCache.results.results);
     }
-    if (sources.length === 0) return;
+    if (sources.length === 0) return false;
     const uniqueWorks = Array.from(
       new Map(sources.map((w) => [w.href, w])).values()
     );
     const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];
     if (randomWork?.href) {
       window.location.href = randomWork.href;
+      return true;
     }
+    return false;
   }
   class Navigator {
     adapter;
@@ -617,7 +619,7 @@
       this._lastEnabled = initialState.enabled;
       this._lastDualView = initialState.isDualViewEnabled;
       this._lastSpreadOffset = initialState.spreadOffset;
-      this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
+      this._lastAutoplayEnabled = void 0;
       this._lastAutoplayInterval = initialState.autoplayInterval;
       const imgs = this.getImages();
       imgs.forEach((img) => {
@@ -762,8 +764,12 @@
         const imgs = this.getImages();
         const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
         if (currentIndex >= imgs.length - 1) {
-          this._stopAutoplay();
-          this.store.setState({ isAutoplayEnabled: false });
+          const { metadata, searchCache } = this.store.getState();
+          const jumped = jumpToRandomWork(metadata, searchCache);
+          if (!jumped) {
+            this._stopAutoplay();
+            this.store.setState({ isAutoplayEnabled: false });
+          }
           return;
         }
         await this.scrollToImage(1);
@@ -2140,7 +2146,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.9fb6d2c"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.da1fee7"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
