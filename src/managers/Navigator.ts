@@ -90,7 +90,7 @@ export class Navigator {
     const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
     if (currentIndex !== -1) {
       this.store.setState({ currentVisibleIndex: currentIndex });
-      preloadImages(imgs, currentIndex);
+      this._triggerPreload(imgs, currentIndex);
     }
   };
 
@@ -118,6 +118,26 @@ export class Navigator {
           }    this.updatePageCounter();
     return false;
   }
+
+  private _getPreloadCount = (): number => {
+    const { isDualViewEnabled, isAutoplayEnabled, autoplayInterval } = this.store.getState();
+    let count = 5; // Base count
+
+    if (isDualViewEnabled) {
+      count *= 2;
+    }
+
+    if (isAutoplayEnabled && autoplayInterval < 3) {
+      count *= 2;
+    }
+
+    return Math.min(count, 20);
+  };
+
+  private _triggerPreload = (imgs: HTMLImageElement[], currentIndex: number): void => {
+    const count = this._getPreloadCount();
+    preloadImages(imgs, currentIndex, count);
+  };
 
   private _calculateTargetIndex = (imgs: HTMLImageElement[], direction: number): number => {
     const { isDualViewEnabled } = this.store.getState();
@@ -216,7 +236,7 @@ export class Navigator {
           targetImg.scrollIntoView({ block: 'center' });
         });
       });
-      preloadImages(imgs, currentIndex);
+      this._triggerPreload(imgs, currentIndex);
     }
   };
 
