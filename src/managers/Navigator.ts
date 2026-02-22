@@ -75,7 +75,7 @@ export class Navigator {
       this.applyLayout();
     }
 
-    if (initialState.isAutoplayEnabled) {
+    if (initialState.enabled && initialState.isAutoplayEnabled) {
       this._startAutoplay();
     }
   };

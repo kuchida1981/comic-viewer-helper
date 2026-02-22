@@ -391,6 +391,24 @@ describe('Navigator', () => {
               // Expect at least 1 timer (autoplay), but ignore RAF timers if any
               expect(vi.getTimerCount()).toBeGreaterThanOrEqual(1);
             });
+
+            it('should NOT start autoplay automatically if isAutoplayEnabled is true but enabled is false', () => {
+              (store.getState as Mock).mockReturnValue({
+                ...vi.mocked(store.getState)(),
+                enabled: false,
+                isAutoplayEnabled: true,
+                autoplayInterval: 5
+              });
+              
+              vi.clearAllTimers();
+              navigator.init();
+              // Autoplay timer should not be started, but RAF might still be present
+              // Wait for a tick to ensure no async start occurs
+              vi.runAllTicks();
+              // We expect no autoplay timer, but RAF might be counted.
+              // We rely on the logic that only _startAutoplay uses setTimeout in this class.
+              expect(vi.getTimerCount()).toBe(0); 
+            });
         
                         it('should stop autoplay when disabled in store', () => {
                           // Start with disabled

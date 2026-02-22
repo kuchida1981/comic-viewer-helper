@@ -5,7 +5,7 @@
 ## Goals / Non-Goals
 
 **Goals:**
-- ページロード完了時に `Store` の `isAutoplayEnabled` が `true` であれば、ユーザー操作なしにオートプレイを開始する。
+- ページロード完了時に `Store` の `enabled` と `isAutoplayEnabled` が共に `true` であれば、ユーザー操作なしにオートプレイを開始する。
 - ページ遷移（リロードを伴う）後もオートプレイ設定が維持され、継続して閲覧できるようにする。
 
 **Non-Goals:**
@@ -15,7 +15,7 @@
 
 - **Decision:** `Navigator.init` メソッドの末尾に、初期状態チェックロジックを追加する。
   - **Rationale:** 既存の `subscribe` 内のロジックは状態変化時のみ発火するため、初期化時の状態を反映させるには明示的な呼び出しが必要であるため。
-  - 具体的には、`isAutoplayEnabled` が `true` の場合、`_startAutoplay()` を呼び出す。
+  - 具体的には、`enabled` と `isAutoplayEnabled` が共に `true` の場合に限り、`_startAutoplay()` を呼び出す。
 
 ## Risks / Trade-offs
 
