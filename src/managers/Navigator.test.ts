@@ -15,7 +15,8 @@ vi.mock('../logic.js', async (importOriginal) => {
     revertToOriginal: vi.fn(),
     forceImageLoad: vi.fn(),
     waitForImageLoad: vi.fn().mockResolvedValue(undefined),
-    preloadImages: vi.fn()
+    preloadImages: vi.fn(),
+    jumpToRandomWork: vi.fn()
   };
 });
 
@@ -320,6 +321,18 @@ describe('Navigator', () => {
               vi.advanceTimersByTime(1000);
               expect(logic.getPrimaryVisibleImageIndex).toHaveBeenCalled();
             });
+
+            it('should start autoplay automatically if enabled in initial state', () => {
+              (store.getState as Mock).mockReturnValue({
+                ...vi.mocked(store.getState)(),
+                isAutoplayEnabled: true,
+                autoplayInterval: 5
+              });
+              
+              vi.clearAllTimers();
+              navigator.init();
+              expect(vi.getTimerCount()).toBe(1);
+            });
         
                         it('should stop autoplay when disabled in store', () => {
                           // Start with disabled
@@ -356,13 +369,15 @@ describe('Navigator', () => {
                                 expect(vi.getTimerCount()).toBe(initialCount);
                               });
                           
-                              it('should stop autoplay at the last page', async () => {
+                              it('should attempt random jump at the last page and stop if no candidates', async () => {
                                 (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: false });
                                 navigator.init();
                                 const subscribeCb = vi.mocked(store.subscribe).mock.calls[0][0];
                           
                                 // 最終ページに設定
                                 vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(mockImages.length - 1);
+                                // ジャンプ候補なし
+                                vi.mocked(logic.jumpToRandomWork).mockReturnValue(false);
                           
                                 // 有効化してタイマー開始
                                 vi.clearAllTimers();
@@ -373,7 +388,32 @@ describe('Navigator', () => {
                                 // Wait for async task inside setTimeout
                                 vi.runAllTicks();
                                 
+                                expect(logic.jumpToRandomWork).toHaveBeenCalled();
                                 expect(store.setState).toHaveBeenCalledWith({ isAutoplayEnabled: false });
+                              });
+
+                              it('should attempt random jump at the last page and continue if jump occurs', async () => {
+                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: false });
+                                navigator.init();
+                                const subscribeCb = vi.mocked(store.subscribe).mock.calls[0][0];
+                          
+                                // 最終ページに設定
+                                vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(mockImages.length - 1);
+                                // ジャンプ成功
+                                vi.mocked(logic.jumpToRandomWork).mockReturnValue(true);
+                          
+                                // 有効化してタイマー開始
+                                vi.clearAllTimers();
+                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: true, autoplayInterval: 1 });
+                                subscribeCb(vi.mocked(store.getState)());
+                                
+                                vi.advanceTimersByTime(1000);
+                                // Wait for async task inside setTimeout
+                                vi.runAllTicks();
+                                
+                                expect(logic.jumpToRandomWork).toHaveBeenCalled();
+                                // Should NOT set isAutoplayEnabled to false
+                                expect(store.setState).not.toHaveBeenCalledWith({ isAutoplayEnabled: false });
                               });
                           
                               it('should continue autoplay after successful scroll', async () => {

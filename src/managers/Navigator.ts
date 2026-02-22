@@ -1,4 +1,4 @@
-import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, waitForImageLoad, preloadImages, forceImageLoad } from '../logic';
+import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, waitForImageLoad, preloadImages, forceImageLoad, jumpToRandomWork } from '../logic';
 import { SiteAdapter } from '../types';
 import { Store, StoreState } from '../store';
 
@@ -58,7 +58,7 @@ export class Navigator {
     this._lastEnabled = initialState.enabled;
     this._lastDualView = initialState.isDualViewEnabled;
     this._lastSpreadOffset = initialState.spreadOffset;
-    this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
+    this._lastAutoplayEnabled = undefined; // Initialize to undefined to trigger subscription on first run
     this._lastAutoplayInterval = initialState.autoplayInterval;
 
     const imgs = this.getImages();
@@ -231,9 +231,14 @@ export class Navigator {
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       // console.log('Autoplay tick', { currentIndex, total: imgs.length });
       if (currentIndex >= imgs.length - 1) {
-        // console.log('End of pages, stopping autoplay');
-        this._stopAutoplay();
-        this.store.setState({ isAutoplayEnabled: false });
+        // console.log('End of pages, attempting random jump');
+        const { metadata, searchCache } = this.store.getState();
+        const jumped = jumpToRandomWork(metadata, searchCache);
+        if (!jumped) {
+          // console.log('No random jump candidates, stopping autoplay');
+          this._stopAutoplay();
+          this.store.setState({ isAutoplayEnabled: false });
+        }
         return;
       }
       await this.scrollToImage(1);
