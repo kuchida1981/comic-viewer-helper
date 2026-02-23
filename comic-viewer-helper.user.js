@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.dd143ee
+// @version         1.5.0-unstable.4caa82c
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -27,6 +27,13 @@
   }
   function isStringArray(value) {
     return Array.isArray(value) && value.every((item) => typeof item === "string");
+  }
+  function isRelatedWork(value) {
+    if (!isObject(value)) return false;
+    return typeof value.title === "string" && typeof value.href === "string" && typeof value.thumb === "string";
+  }
+  function isRelatedWorkArray(value) {
+    return Array.isArray(value) && value.every(isRelatedWork);
   }
   function isGuiPos(value) {
     if (!isObject(value)) return false;
@@ -60,6 +67,7 @@
     SEARCH_CONTEXT: "comic-viewer-helper-search-context",
     SEARCH_CACHE: "comic-viewer-helper-search-cache",
     SEARCH_HISTORY: "comic-viewer-helper-search-history",
+    FAVORITES: "comic-viewer-helper-favorites",
     AUTOPLAY_ENABLED: "comic-viewer-helper-autoplay-enabled",
     AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval"
   };
@@ -88,6 +96,7 @@
         searchContext: this._loadSearchContext(),
         searchCache: this._loadSearchCache(),
         searchHistory: this._loadSearchHistory(),
+        favorites: this._loadFavorites(),
         isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
         autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
       };
@@ -139,6 +148,9 @@
       }
       if ("searchHistory" in patch) {
         localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+      }
+      if ("favorites" in patch) {
+        localStorage.setItem(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
       }
     };
     subscribe = (callback) => {
@@ -192,6 +204,17 @@
         return isSearchContext(parsed) ? parsed : void 0;
       } catch {
         return void 0;
+      }
+    };
+    _loadFavorites = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`);
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        return isRelatedWorkArray(parsed) ? parsed : [];
+      } catch {
+        return [];
       }
     };
     _loadGuiPos = () => {
@@ -554,21 +577,50 @@
       }
     }
   }
-  function jumpToRandomWork(metadata, searchCache) {
+  function toCandidates(works) {
+    if (!Array.isArray(works)) return [];
+    const res = [];
+    for (const w of works) {
+      if (typeof w === "object" && w !== null && "href" in w && typeof w.href === "string") {
+        res.push({ href: w.href });
+      }
+    }
+    return res;
+  }
+  function getDiscoveryPool(metadata, searchCache, favorites = []) {
     const sources = [];
     if (metadata.relatedWorks) {
-      sources.push(...metadata.relatedWorks.filter((w) => !w.isPrivate));
+      for (const w of metadata.relatedWorks) {
+        if (!w.isPrivate && w.href) sources.push({ href: w.href });
+      }
     }
     if (searchCache && searchCache.results) {
-      sources.push(...searchCache.results.results);
+      sources.push(...toCandidates(searchCache.results.results));
     }
-    if (sources.length === 0) return false;
-    const uniqueWorks = Array.from(
-      new Map(sources.map((w) => [w.href, w])).values()
-    );
-    const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];
-    if (randomWork?.href) {
-      window.location.href = randomWork.href;
+    sources.push(...toCandidates(favorites));
+    const uniquePool = [];
+    const seenHrefs = /* @__PURE__ */ new Set();
+    for (const work of sources) {
+      const href = work.href;
+      if (!seenHrefs.has(href)) {
+        seenHrefs.add(href);
+        uniquePool.push({ href });
+      }
+    }
+    return uniquePool;
+  }
+  function jumpToRandomWork(metadata, searchCache, favorites = []) {
+    const discoveryPool = getDiscoveryPool(metadata, searchCache, favorites);
+    if (discoveryPool.length === 0) return false;
+    const favoritePool = toCandidates(favorites);
+    let target;
+    if (favoritePool.length > 0 && Math.random() < 0.25) {
+      target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
+    } else {
+      target = discoveryPool[Math.floor(Math.random() * discoveryPool.length)];
+    }
+    if (target?.href) {
+      window.location.href = target.href;
       return true;
     }
     return false;
@@ -933,6 +985,25 @@
   }
   .comic-helper-power-btn.enabled { color: ${COLORS.text.success}; }
   .comic-helper-power-btn.disabled { color: ${COLORS.text.muted}; }
+
+  .comic-helper-favorite-btn {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    padding: 0 4px;
+    transition: color 0.2s, transform 0.2s;
+    user-select: none;
+  }
+  .comic-helper-favorite-btn:hover {
+    transform: scale(1.2);
+  }
+  .comic-helper-favorite-btn.active {
+    color: #ff4081; /* Pinkish heart */
+  }
+  .comic-helper-favorite-btn.inactive {
+    color: ${COLORS.text.muted};
+  }
 
   .comic-helper-counter-wrapper {
     color: ${COLORS.text.primary};
@@ -1955,7 +2026,8 @@
     onInfo,
     onHelp,
     onSearch,
-    onLucky
+    onLucky,
+    onToggleFavorite
   }) {
     const configs = [
       { text: "<<", title: t("ui.goLast"), action: onLast },
@@ -1963,11 +2035,13 @@
       { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn" },
       { text: ">", title: t("ui.goPrev"), action: onPrev },
       { text: ">>", title: t("ui.goFirst"), action: onFirst },
+      { text: "♡", title: "Toggle Favorite", action: onToggleFavorite, id: "fav" },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
       { text: "?", title: t("ui.showHelp"), action: onHelp },
       { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" }
     ];
     const elements = configs.map((cfg) => createElement("button", {
+      id: cfg.id ? `comic-helper-nav-${cfg.id}` : void 0,
       className: cfg.className || "comic-helper-button",
       textContent: cfg.text,
       title: cfg.title,
@@ -1982,12 +2056,17 @@
     }));
     return {
       elements,
-      update: () => {
+      update: (isFavorite) => {
+        const favBtn = elements.find((el) => el.id === "comic-helper-nav-fav");
+        if (favBtn) {
+          favBtn.textContent = isFavorite ? "♥" : "♡";
+          favBtn.classList.toggle("active", isFavorite);
+          favBtn.classList.toggle("inactive", !isFavorite);
+        }
       }
-      // No dynamic state for these buttons yet
     };
   }
-  function createMetadataModal({ metadata, onClose, onTagClick }) {
+  function createMetadataModal({ metadata, isFavorite, onClose, onTagClick, onToggleFavorite }) {
     const { title, tags, relatedWorks } = metadata;
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
@@ -2000,10 +2079,23 @@
         }
       }
     });
-    const titleEl = createElement("h2", {
-      className: "comic-helper-modal-title",
-      textContent: title
+    const favBtn = createElement("button", {
+      className: `comic-helper-favorite-btn ${isFavorite ? "active" : "inactive"}`,
+      textContent: isFavorite ? "♥" : "♡",
+      title: isFavorite ? "Remove from Favorites" : "Add to Favorites",
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onToggleFavorite();
+        }
+      }
     });
+    const titleEl = createElement("h2", {
+      className: "comic-helper-modal-title"
+    }, [
+      createElement("span", { textContent: title + " " }),
+      favBtn
+    ]);
     const tagChips = tags.map((tag) => {
       const className = tag.type ? `comic-helper-tag-chip comic-helper-tag-chip--${tag.type}` : "comic-helper-tag-chip";
       return createElement("a", {
@@ -2062,9 +2154,11 @@
     }, [content]);
     return {
       el: overlay,
-      update: () => {
+      update: (newIsFavorite) => {
+        favBtn.className = `comic-helper-favorite-btn ${newIsFavorite ? "active" : "inactive"}`;
+        favBtn.textContent = newIsFavorite ? "♥" : "♡";
+        favBtn.title = newIsFavorite ? "Remove from Favorites" : "Add to Favorites";
       }
-      // No dynamic update needed once opened
     };
   }
   const NAV_ARROW_KEYS = {
@@ -2197,7 +2291,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.dd143ee"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.4caa82c"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2623,10 +2717,11 @@
     counterComp = null;
     spreadComp = null;
     autoplayComp = null;
+    navBtnsComp = null;
     progressComp = null;
     loadingComp = null;
     draggable = null;
-    modalEl = null;
+    modalComp = null;
     helpModalEl = null;
     searchModalComp = null;
     constructor(adapter, store, navigator2) {
@@ -2672,6 +2767,25 @@
     _initializeComponents = (container) => {
       const state = this.store.getState();
       const imgs = this.navigator.getImages();
+      this._ensureMainControls(container, state, imgs.length);
+      this._ensureOverlayComponents(state);
+      this._ensureNavigationButtons(container);
+      this._updateComponentStates(state);
+    };
+    _ensureNavigationButtons = (container) => {
+      if (container.querySelectorAll(".comic-helper-button").length === 0) {
+        this._addNavigationButtons(container);
+      }
+    };
+    _updateComponentStates = (state) => {
+      const favorites = state.favorites;
+      const isFavorite = favorites?.some((f) => f.href === window.location.href) ?? false;
+      this.navBtnsComp?.update(isFavorite);
+      if (this.modalComp && state.isMetadataModalOpen) {
+        this.modalComp.update(isFavorite);
+      }
+    };
+    _ensureMainControls = (container, state, totalImgs) => {
       if (!this.powerComp) {
         this.powerComp = createPowerButton({
           isEnabled: state.enabled,
@@ -2682,7 +2796,7 @@
       if (!this.counterComp) {
         this.counterComp = createPageCounter({
           current: state.currentVisibleIndex + 1,
-          total: imgs.length,
+          total: totalImgs,
           onJump: (val) => {
             void this._handleJump(val);
           }
@@ -2706,6 +2820,8 @@
         });
         container.appendChild(this.autoplayComp.el);
       }
+    };
+    _ensureOverlayComponents = (state) => {
       if (!this.progressComp) {
         this.progressComp = createProgressBar();
         document.body.appendChild(this.progressComp.el);
@@ -2713,9 +2829,6 @@
       if (!this.loadingComp) {
         this.loadingComp = createLoadingIndicator({ isLoading: state.isLoading });
         document.body.appendChild(this.loadingComp.el);
-      }
-      if (container.querySelectorAll(".comic-helper-button").length === 0) {
-        this._addNavigationButtons(container);
       }
     };
     _handleJump = async (val) => {
@@ -2731,7 +2844,7 @@
       }
     };
     _addNavigationButtons = (container) => {
-      const navBtns = createNavigationButtons({
+      this.navBtnsComp = createNavigationButtons({
         onFirst: () => {
           void this.navigator.scrollToEdge("start");
         },
@@ -2748,23 +2861,40 @@
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
         onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
         onLucky: () => {
-          jumpToRandomWork(this.store.getState().metadata, this.store.getState().searchCache);
+          const state = this.store.getState();
+          jumpToRandomWork(state.metadata, state.searchCache, state.favorites);
+        },
+        onToggleFavorite: () => {
+          this._toggleFavorite();
         }
       });
-      navBtns.elements.forEach((btn) => container.appendChild(btn));
+      this.navBtnsComp.elements.forEach((btn) => container.appendChild(btn));
     };
     _updateModals = (state) => {
       this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
         onClose: () => this.store.setState({ isHelpModalOpen: false })
       }));
       this._updateSearchModal(state);
-      this.modalEl = this._manageModal(state.isMetadataModalOpen, this.modalEl, () => createMetadataModal({
-        metadata: state.metadata,
-        onClose: () => this.store.setState({ isMetadataModalOpen: false }),
-        onTagClick: async (tag) => {
-          await this._handleTagClick(tag);
+      if (state.isMetadataModalOpen) {
+        if (!this.modalComp) {
+          const isFavorite = state.favorites.some((f) => f.href === window.location.href);
+          this.modalComp = createMetadataModal({
+            metadata: state.metadata,
+            isFavorite,
+            onClose: () => this.store.setState({ isMetadataModalOpen: false }),
+            onTagClick: async (tag) => {
+              await this._handleTagClick(tag);
+            },
+            onToggleFavorite: () => {
+              this._toggleFavorite();
+            }
+          });
+          document.body.appendChild(this.modalComp.el);
         }
-      }));
+      } else if (this.modalComp) {
+        this.modalComp.el.remove();
+        this.modalComp = null;
+      }
     };
     _updateSearchModal = (state) => {
       if (state.isSearchModalOpen) {
@@ -2818,6 +2948,23 @@
       this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
       const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
       return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
+    };
+    _toggleFavorite = () => {
+      const state = this.store.getState();
+      const currentUrl = window.location.href;
+      const isFavorite = state.favorites.some((f) => f.href === currentUrl);
+      if (isFavorite) {
+        const newFavorites = state.favorites.filter((f) => f.href !== currentUrl);
+        this.store.setState({ favorites: newFavorites });
+      } else {
+        const currentWork = {
+          title: state.metadata.title,
+          href: currentUrl,
+          thumb: this.navigator.getImages()[0]?.src || ""
+          // Use first image as thumbnail
+        };
+        this.store.setState({ favorites: [...state.favorites, currentWork] });
+      }
     };
     _updateVisibility = (container, state) => {
       const imgs = this.navigator.getImages();
