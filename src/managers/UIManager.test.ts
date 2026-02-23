@@ -1093,19 +1093,17 @@ describe('UIManager', () => {
                               expect(store.setState).toHaveBeenCalledWith({ favorites: [] });
                             });
                     
-                            it('should toggle favorites from navigation button', () => {
-                              uiManager.updateUI();
-                              const createNavigationButtonsMock = createNavigationButtons as unknown as Mock;
-                              const { onToggleFavorite } = createNavigationButtonsMock.mock.calls[0][0];
-                    
-                              const currentHref = window.location.href;
-                              (store.getState as Mock).mockReturnValue({ 
-                                enabled: true, 
-                                metadata: { title: 'Nav Fav' }, 
-                                favorites: [] 
-                              });
-                    
-                              onToggleFavorite();
+                                    it('should toggle favorites from navigation button', () => {
+                                      uiManager.updateUI();
+                                      const createNavigationButtonsMock = createNavigationButtons as unknown as Mock;
+                                      const { onToggleFavorite } = createNavigationButtonsMock.mock.calls[0][0];
+                            
+                                      (store.getState as Mock).mockReturnValue({ 
+                                        enabled: true, 
+                                        metadata: { title: 'Nav Fav' }, 
+                                        favorites: [] 
+                                      });
+                                                          onToggleFavorite();
                               expect(store.setState).toHaveBeenCalledWith({
                                 favorites: expect.arrayContaining([
                                   expect.objectContaining({ title: 'Nav Fav' })

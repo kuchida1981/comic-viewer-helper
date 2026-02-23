@@ -112,6 +112,29 @@ export class UIManager {
     const state = this.store.getState();
     const imgs = this.navigator.getImages();
 
+    this._ensureMainControls(container, state, imgs.length);
+    this._ensureOverlayComponents(state);
+    this._ensureNavigationButtons(container);
+    this._updateComponentStates(state);
+  };
+
+  private _ensureNavigationButtons = (container: HTMLElement): void => {
+    if (container.querySelectorAll('.comic-helper-button').length === 0) {
+      this._addNavigationButtons(container);
+    }
+  };
+
+  private _updateComponentStates = (state: StoreState): void => {
+    const favorites = state.favorites as RelatedWork[] | undefined;
+    const isFavorite = favorites?.some(f => f.href === window.location.href) ?? false;
+    this.navBtnsComp?.update(isFavorite);
+
+    if (this.modalComp && state.isMetadataModalOpen) {
+      this.modalComp.update(isFavorite);
+    }
+  };
+
+  private _ensureMainControls = (container: HTMLElement, state: StoreState, totalImgs: number): void => {
     if (!this.powerComp) {
       this.powerComp = createPowerButton({
         isEnabled: state.enabled,
@@ -123,7 +146,7 @@ export class UIManager {
     if (!this.counterComp) {
       this.counterComp = createPageCounter({
         current: state.currentVisibleIndex + 1,
-        total: imgs.length,
+        total: totalImgs,
         onJump: (val: string) => { void this._handleJump(val); }
       });
       container.appendChild(this.counterComp.el);
@@ -147,7 +170,9 @@ export class UIManager {
       });
       container.appendChild(this.autoplayComp.el);
     }
+  };
 
+  private _ensureOverlayComponents = (state: StoreState): void => {
     if (!this.progressComp) {
       this.progressComp = createProgressBar();
       document.body.appendChild(this.progressComp.el);
@@ -156,21 +181,6 @@ export class UIManager {
     if (!this.loadingComp) {
       this.loadingComp = createLoadingIndicator({ isLoading: state.isLoading });
       document.body.appendChild(this.loadingComp.el);
-    }
-
-    if (container.querySelectorAll('.comic-helper-button').length === 0) {
-      this._addNavigationButtons(container);
-    }
-
-    if (this.navBtnsComp) {
-      const favorites = state.favorites || [];
-      const isFavorite = favorites.some(f => f.href === window.location.href);
-      this.navBtnsComp.update(isFavorite);
-    }
-
-    if (this.modalComp && state.isMetadataModalOpen) {
-      const isFavorite = state.favorites.some(f => f.href === window.location.href);
-      this.modalComp.update(isFavorite);
     }
   };
 
