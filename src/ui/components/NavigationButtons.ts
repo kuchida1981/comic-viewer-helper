@@ -10,44 +10,55 @@ export interface NavigationButtonsProps {
   onHelp: () => void;
   onSearch: () => void;
   onLucky: () => void;
+  onToggleFavorite: () => void;
 }
 
 export interface NavigationButtonsComponent {
   elements: HTMLElement[];
-  update: () => void;
+  update: (isFavorite: boolean) => void;
 }
 
 export function createNavigationButtons({
-  onFirst, onPrev, onNext, onLast, onInfo, onHelp, onSearch, onLucky
+  onFirst, onPrev, onNext, onLast, onInfo, onHelp, onSearch, onLucky, onToggleFavorite
 }: NavigationButtonsProps): NavigationButtonsComponent {
   const configs = [
     { text: '<<', title: t('ui.goLast'), action: onLast },
     { text: '<', title: t('ui.goNext'), action: onNext },
     { text: '🎲', title: t('ui.lucky'), action: onLucky, className: 'comic-helper-button comic-helper-icon-btn' },
-    { text: '>', title: t('ui.goPrev'), action: onPrev },
-    { text: '>>', title: t('ui.goFirst'), action: onFirst },
-    { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
-    { text: '?', title: t('ui.showHelp'), action: onHelp },
-    { text: '🔍', title: t('ui.showSearch'), action: onSearch, className: 'comic-helper-button comic-helper-icon-btn' }
-  ];
-
-  const elements = configs
-    .map(cfg => createElement('button', {
-      className: cfg.className || 'comic-helper-button',
-      textContent: cfg.text,
-      title: cfg.title,
-      events: {
-        click: (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          cfg.action();
-          (e.currentTarget as HTMLElement).blur();
+        { text: '>', title: t('ui.goPrev'), action: onPrev },
+        { text: '>>', title: t('ui.goFirst'), action: onFirst },
+        { text: '♡', title: 'Toggle Favorite', action: onToggleFavorite, id: 'fav' },
+        { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
+        { text: '?', title: t('ui.showHelp'), action: onHelp },
+        { text: '🔍', title: t('ui.showSearch'), action: onSearch, className: 'comic-helper-button comic-helper-icon-btn' }
+      ];
+    
+      const elements = configs
+        .map(cfg => createElement('button', {
+          id: cfg.id ? `comic-helper-nav-${cfg.id}` : undefined,
+          className: cfg.className || 'comic-helper-button',
+          textContent: cfg.text,
+          title: cfg.title,
+          events: {
+            click: (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              cfg.action();
+              (e.currentTarget as HTMLElement).blur();
+            }
+          }
+        }));
+    
+      return {
+        elements,
+        update: (isFavorite: boolean) => {
+          const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav');
+          if (favBtn) {
+            favBtn.textContent = isFavorite ? '♥' : '♡';
+            favBtn.classList.toggle('active', isFavorite);
+            favBtn.classList.toggle('inactive', !isFavorite);
+          }
         }
-      }
-    }));
-
-  return {
-    elements,
-    update: () => { } // No dynamic state for these buttons yet
-  };
-}
+      };
+    }
+    

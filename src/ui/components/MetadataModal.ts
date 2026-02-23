@@ -45,7 +45,7 @@ export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick,
   const titleEl = createElement('h2', {
     className: 'comic-helper-modal-title',
   }, [
-    title + ' ',
+    createElement('span', { textContent: title + ' ' }),
     favBtn
   ]);
 

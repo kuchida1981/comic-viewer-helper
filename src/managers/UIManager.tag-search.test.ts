@@ -36,7 +36,9 @@ vi.mock('../ui/components/SearchModal.js', () => ({
 vi.mock('../ui/components/PowerButton.js', () => ({ createPowerButton: vi.fn(() => ({ el: {}, update: vi.fn() })) }));
 vi.mock('../ui/components/PageCounter.js', () => ({ createPageCounter: vi.fn(() => ({ el: { style: {} }, update: vi.fn() })) }));
 vi.mock('../ui/components/SpreadControls.js', () => ({ createSpreadControls: vi.fn(() => ({ el: { style: {} }, update: vi.fn() })) }));
-vi.mock('../ui/components/NavigationButtons.js', () => ({ createNavigationButtons: vi.fn(() => ({ elements: [], update: vi.fn() })) }));
+vi.mock('../ui/components/NavigationButtons.js', () => ({ 
+  createNavigationButtons: vi.fn(() => ({ elements: [], update: vi.fn() })) 
+}));
 vi.mock('../ui/components/ProgressBar.js', () => ({ createProgressBar: vi.fn(() => ({ el: { style: {} }, update: vi.fn() })) }));
 vi.mock('../ui/components/LoadingIndicator.js', () => ({ createLoadingIndicator: vi.fn(() => ({ el: {}, update: vi.fn() })) }));
 vi.mock('../ui/Draggable.js', () => ({ Draggable: vi.fn() }));

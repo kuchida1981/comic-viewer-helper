@@ -184,17 +184,24 @@ describe('UI Components', () => {
   });
 
   describe('NavigationButtons', () => {
-    it('should render 8 navigation buttons', () => {
-      const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {} });
-      expect(elements.length).toBe(8);
+    const mockProps = { 
+      onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, 
+      onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {},
+      onToggleFavorite: () => {} 
+    };
+
+    it('should render 9 navigation buttons', () => {
+      const { elements } = createNavigationButtons(mockProps);
+      expect(elements.length).toBe(9);
       expect(elements[0].textContent).toBe('<<');
       expect(elements[1].textContent).toBe('<');
       expect(elements[2].textContent).toBe('🎲');
       expect(elements[3].textContent).toBe('>');
       expect(elements[4].textContent).toBe('>>');
-      expect(elements[5].textContent).toBe('Info');
-      expect(elements[6].textContent).toBe('?');
-      expect(elements[7].textContent).toBe('🔍');
+      expect(elements[5].textContent).toBe('♡');
+      expect(elements[6].textContent).toBe('Info');
+      expect(elements[7].textContent).toBe('?');
+      expect(elements[8].textContent).toBe('🔍');
     });
 
     it('should call correct actions and blur', () => {
@@ -206,7 +213,8 @@ describe('UI Components', () => {
         onInfo: vi.fn(),
         onHelp: vi.fn(),
         onSearch: vi.fn(),
-        onLucky: vi.fn()
+        onLucky: vi.fn(),
+        onToggleFavorite: vi.fn()
       };
       const { elements } = createNavigationButtons(actions);
       
@@ -222,10 +230,19 @@ describe('UI Components', () => {
       expect(actions.onNext).toHaveBeenCalled();
     });
 
-    it('should have an empty update method', () => {
-      const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {} });
-      expect(typeof update).toBe('function');
-      update();
+    it('should update heart button state', () => {
+      const { elements, update } = createNavigationButtons(mockProps);
+      const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;
+      expect(favBtn).toBeDefined();
+      expect(favBtn.textContent).toBe('♡');
+
+      update(true);
+      expect(favBtn.textContent).toBe('♥');
+      expect(favBtn.classList.contains('active')).toBe(true);
+
+      update(false);
+      expect(favBtn.textContent).toBe('♡');
+      expect(favBtn.classList.contains('inactive')).toBe(true);
     });
   });
 

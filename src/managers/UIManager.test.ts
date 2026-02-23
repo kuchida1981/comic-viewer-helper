@@ -77,7 +77,10 @@ vi.mock('../ui/components/LoadingIndicator.js', () => ({
   createLoadingIndicator: vi.fn(() => ({ el: { style: {}, display: '' }, update: vi.fn() }))
 }));
 vi.mock('../ui/components/NavigationButtons.js', () => ({
-  createNavigationButtons: vi.fn((_props: NavigationButtonsProps) => ({ elements: [{ style: {}, querySelectorAll: vi.fn() }], update: vi.fn() }))
+  createNavigationButtons: vi.fn((_props: NavigationButtonsProps) => ({ 
+    elements: [{ style: {}, querySelectorAll: vi.fn() }], 
+    update: vi.fn() 
+  }))
 }));
 vi.mock('../ui/components/MetadataModal.js', () => ({
   createMetadataModal: vi.fn((_props: ModalProps) => ({ el: { style: {}, remove: vi.fn() }, update: vi.fn() }))
@@ -1086,8 +1089,28 @@ describe('UIManager', () => {
                       metadata: mockMetadata, 
                       favorites: [{ title: 'Fav Manga', href: currentHref, thumb: '' }] 
                     });
-                    onToggleFavorite();
-                    expect(store.setState).toHaveBeenCalledWith({ favorites: [] });
-                  });
-                });
-          
+                              onToggleFavorite();
+                              expect(store.setState).toHaveBeenCalledWith({ favorites: [] });
+                            });
+                    
+                            it('should toggle favorites from navigation button', () => {
+                              uiManager.updateUI();
+                              const createNavigationButtonsMock = createNavigationButtons as unknown as Mock;
+                              const { onToggleFavorite } = createNavigationButtonsMock.mock.calls[0][0];
+                    
+                              const currentHref = window.location.href;
+                              (store.getState as Mock).mockReturnValue({ 
+                                enabled: true, 
+                                metadata: { title: 'Nav Fav' }, 
+                                favorites: [] 
+                              });
+                    
+                              onToggleFavorite();
+                              expect(store.setState).toHaveBeenCalledWith({
+                                favorites: expect.arrayContaining([
+                                  expect.objectContaining({ title: 'Nav Fav' })
+                                ])
+                              });
+                            });
+                          });
+                    

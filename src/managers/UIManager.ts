@@ -3,7 +3,7 @@ import { createPowerButton, PowerButtonComponent } from '../ui/components/PowerB
 import { createPageCounter, PageCounterComponent } from '../ui/components/PageCounter';
 import { createSpreadControls, SpreadControlsComponent } from '../ui/components/SpreadControls';
 import { createAutoplayControls, AutoplayControlsComponent } from '../ui/components/AutoplayControls';
-import { createNavigationButtons } from '../ui/components/NavigationButtons';
+import { createNavigationButtons, NavigationButtonsComponent } from '../ui/components/NavigationButtons';
 import { createMetadataModal, MetadataModalComponent } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
 import { createSearchModal, SearchModalComponent } from '../ui/components/SearchModal';
@@ -50,6 +50,7 @@ export class UIManager {
   private counterComp: PageCounterComponent | null = null;
   private spreadComp: SpreadControlsComponent | null = null;
   private autoplayComp: AutoplayControlsComponent | null = null;
+  private navBtnsComp: NavigationButtonsComponent | null = null;
   private progressComp: ProgressBarComponent | null = null;
   private loadingComp: LoadingIndicatorComponent | null = null;
   private draggable: Draggable | null = null;
@@ -161,6 +162,12 @@ export class UIManager {
       this._addNavigationButtons(container);
     }
 
+    if (this.navBtnsComp) {
+      const favorites = state.favorites || [];
+      const isFavorite = favorites.some(f => f.href === window.location.href);
+      this.navBtnsComp.update(isFavorite);
+    }
+
     if (this.modalComp && state.isMetadataModalOpen) {
       const isFavorite = state.favorites.some(f => f.href === window.location.href);
       this.modalComp.update(isFavorite);
@@ -179,7 +186,7 @@ export class UIManager {
   };
 
   private _addNavigationButtons = (container: HTMLElement): void => {
-    const navBtns = createNavigationButtons({
+    this.navBtnsComp = createNavigationButtons({
       onFirst: () => { void this.navigator.scrollToEdge('start'); },
       onPrev: () => { void this.navigator.scrollToImage(-1); },
       onNext: () => { void this.navigator.scrollToImage(1); },
@@ -190,9 +197,10 @@ export class UIManager {
       onLucky: () => {
         const state = this.store.getState();
         jumpToRandomWork(state.metadata, state.searchCache, state.favorites);
-      }
+      },
+      onToggleFavorite: () => { this._toggleFavorite(); }
     });
-    navBtns.elements.forEach(btn => container.appendChild(btn));
+    this.navBtnsComp.elements.forEach(btn => container.appendChild(btn));
   };
 
   private _updateModals = (state: StoreState): void => {
