@@ -590,9 +590,50 @@ describe('logic.js', () => {
         relatedWorks: [{ href: 'http://example.com/1', isPrivate: false }]
       } as unknown as Metadata;
 
-      const result = jumpToRandomWork(metadata, null);
-      expect(window.location.href).toBe('http://example.com/1');
-      expect(result).toBe(true);
-    });
-  });
-});
+            const result = jumpToRandomWork(metadata, null);
+            expect(window.location.href).toBe('http://example.com/1');
+            expect(result).toBe(true);
+          });
+      
+          it('should select from favoritePool with 25% chance', () => {
+            const metadata = {
+              relatedWorks: [{ href: 'http://discovery/1', isPrivate: false }]
+            } as unknown as Metadata;
+            const favorites = [{ href: 'http://favorite/1', title: 'Fave 1', thumb: 'img1' }];
+      
+            // Case 1: Slot < 0.25 selects from favorite pool
+            vi.spyOn(Math, 'random').mockReturnValueOnce(0.24); // Step 2 (Slot selection)
+            vi.spyOn(Math, 'random').mockReturnValueOnce(0);    // Step 3 (Random within pool)
+      
+            jumpToRandomWork(metadata, null, favorites);
+            expect(window.location.href).toBe('http://favorite/1');
+      
+            // Case 2: Slot >= 0.25 selects from discovery pool
+            vi.spyOn(Math, 'random').mockReturnValueOnce(0.25); // Step 2 (Slot selection)
+            vi.spyOn(Math, 'random').mockReturnValueOnce(0.5);  // Step 3 (Random within pool)
+      
+            jumpToRandomWork(metadata, null, favorites);
+            // discovery pool has [discovery/1, favorite/1]
+            // index 1 selected (0.5 * 2 = 1.0 -> 1)
+            expect(window.location.href).toBe('http://favorite/1');
+            
+            // Select index 0 from discovery
+            vi.spyOn(Math, 'random').mockReturnValueOnce(0.25);
+            vi.spyOn(Math, 'random').mockReturnValueOnce(0);
+            jumpToRandomWork(metadata, null, favorites);
+            expect(window.location.href).toBe('http://discovery/1');
+          });
+      
+          it('should use discovery pool 100% of the time if favorites is empty', () => {
+            const metadata = {
+              relatedWorks: [{ href: 'http://discovery/1', isPrivate: false }]
+            } as unknown as Metadata;
+            
+            vi.spyOn(Math, 'random').mockReturnValue(0.01); // Slot < 0.25
+            
+            jumpToRandomWork(metadata, null, []);
+            expect(window.location.href).toBe('http://discovery/1');
+          });
+        });
+      });
+      

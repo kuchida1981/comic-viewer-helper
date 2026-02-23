@@ -184,17 +184,24 @@ describe('UI Components', () => {
   });
 
   describe('NavigationButtons', () => {
-    it('should render 8 navigation buttons', () => {
-      const { elements } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {} });
-      expect(elements.length).toBe(8);
+    const mockProps = { 
+      onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, 
+      onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {},
+      onToggleFavorite: () => {} 
+    };
+
+    it('should render 9 navigation buttons', () => {
+      const { elements } = createNavigationButtons(mockProps);
+      expect(elements.length).toBe(9);
       expect(elements[0].textContent).toBe('<<');
       expect(elements[1].textContent).toBe('<');
       expect(elements[2].textContent).toBe('🎲');
       expect(elements[3].textContent).toBe('>');
       expect(elements[4].textContent).toBe('>>');
-      expect(elements[5].textContent).toBe('Info');
-      expect(elements[6].textContent).toBe('?');
-      expect(elements[7].textContent).toBe('🔍');
+      expect(elements[5].textContent).toBe('♡');
+      expect(elements[6].textContent).toBe('Info');
+      expect(elements[7].textContent).toBe('?');
+      expect(elements[8].textContent).toBe('🔍');
     });
 
     it('should call correct actions and blur', () => {
@@ -206,7 +213,8 @@ describe('UI Components', () => {
         onInfo: vi.fn(),
         onHelp: vi.fn(),
         onSearch: vi.fn(),
-        onLucky: vi.fn()
+        onLucky: vi.fn(),
+        onToggleFavorite: vi.fn()
       };
       const { elements } = createNavigationButtons(actions);
       
@@ -222,10 +230,19 @@ describe('UI Components', () => {
       expect(actions.onNext).toHaveBeenCalled();
     });
 
-    it('should have an empty update method', () => {
-      const { update } = createNavigationButtons({ onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {} });
-      expect(typeof update).toBe('function');
-      update();
+    it('should update heart button state', () => {
+      const { elements, update } = createNavigationButtons(mockProps);
+      const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;
+      expect(favBtn).toBeDefined();
+      expect(favBtn.textContent).toBe('♡');
+
+      update(true);
+      expect(favBtn.textContent).toBe('♥');
+      expect(favBtn.classList.contains('active')).toBe(true);
+
+      update(false);
+      expect(favBtn.textContent).toBe('♡');
+      expect(favBtn.classList.contains('inactive')).toBe(true);
     });
   });
 
@@ -237,22 +254,41 @@ describe('UI Components', () => {
     };
 
     it('should render title and content', () => {
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => Promise.resolve() });
-      expect(el.textContent).toContain('Test Manga');
+      const { el } = createMetadataModal({
+        metadata: mockMetadata,
+        isFavorite: false,
+        onClose: () => { },
+        onTagClick: () => Promise.resolve(),
+        onToggleFavorite: () => { }
+      });
+      // The heart button is now part of the title
+      expect(el.querySelector('.comic-helper-modal-title')?.textContent).toContain('Test Manga');
       expect(el.textContent).toContain('Action');
       expect(el.textContent).toContain('Manga B');
     });
 
     it('should call onClose when clicking overlay', () => {
       const onClose = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
+      const { el } = createMetadataModal({
+        metadata: mockMetadata,
+        isFavorite: false,
+        onClose,
+        onTagClick: () => Promise.resolve(),
+        onToggleFavorite: () => { }
+      });
       el.click();
       expect(onClose).toHaveBeenCalled();
     });
 
     it('should call onClose when clicking close button', () => {
       const onClose = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
+      const { el } = createMetadataModal({
+        metadata: mockMetadata,
+        isFavorite: false,
+        onClose,
+        onTagClick: () => Promise.resolve(),
+        onToggleFavorite: () => { }
+      });
       const closeBtn = el.querySelector('.comic-helper-modal-close') as HTMLElement;
       closeBtn.click();
       expect(onClose).toHaveBeenCalled();
@@ -260,7 +296,13 @@ describe('UI Components', () => {
 
     it('should not call onClose when clicking content', () => {
       const onClose = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
+      const { el } = createMetadataModal({
+        metadata: mockMetadata,
+        isFavorite: false,
+        onClose,
+        onTagClick: () => Promise.resolve(),
+        onToggleFavorite: () => { }
+      });
       const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
       content.click();
       expect(onClose).not.toHaveBeenCalled();
@@ -268,7 +310,13 @@ describe('UI Components', () => {
 
     it('should stop propagation and close modal when clicking tags', () => {
       const onClose = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose, onTagClick: () => Promise.resolve() });
+      const { el } = createMetadataModal({
+        metadata: mockMetadata,
+        isFavorite: false,
+        onClose,
+        onTagClick: () => Promise.resolve(),
+        onToggleFavorite: () => { }
+      });
       
       const tag = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
       tag.click();
@@ -282,7 +330,13 @@ describe('UI Components', () => {
 
     it('should call onTagClick when a tag is clicked', () => {
       const onTagClick = vi.fn();
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick });
+      const { el } = createMetadataModal({
+        metadata: mockMetadata,
+        isFavorite: false,
+        onClose: () => { },
+        onTagClick,
+        onToggleFavorite: () => { }
+      });
       
       const tag = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
       tag.click();
@@ -290,14 +344,36 @@ describe('UI Components', () => {
       expect(onTagClick).toHaveBeenCalledWith(mockMetadata.tags[0]);
     });
 
-    it('should have an empty update method', () => {
-      const { update } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => Promise.resolve() });
-      expect(typeof update).toBe('function');
-      update();
+    it('should update heart button state', () => {
+      const onToggleFavorite = vi.fn();
+      const { el, update } = createMetadataModal({
+        metadata: mockMetadata,
+        isFavorite: false,
+        onClose: () => { },
+        onTagClick: () => Promise.resolve(),
+        onToggleFavorite
+      });
+
+      const favBtn = el.querySelector('.comic-helper-favorite-btn') as HTMLElement;
+      expect(favBtn.textContent).toBe('♡');
+      expect(favBtn.className).toContain('inactive');
+
+      favBtn.click();
+      expect(onToggleFavorite).toHaveBeenCalled();
+
+      update(true);
+      expect(favBtn.textContent).toBe('♥');
+      expect(favBtn.className).toContain('active');
     });
 
     it('should not render version information', () => {
-      const { el } = createMetadataModal({ metadata: mockMetadata, onClose: () => {}, onTagClick: () => Promise.resolve() });
+      const { el } = createMetadataModal({
+        metadata: mockMetadata,
+        isFavorite: false,
+        onClose: () => { },
+        onTagClick: () => Promise.resolve(),
+        onToggleFavorite: () => { }
+      });
       expect(el.textContent).not.toContain('Version');
     });
   });

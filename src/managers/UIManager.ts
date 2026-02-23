@@ -3,8 +3,8 @@ import { createPowerButton, PowerButtonComponent } from '../ui/components/PowerB
 import { createPageCounter, PageCounterComponent } from '../ui/components/PageCounter';
 import { createSpreadControls, SpreadControlsComponent } from '../ui/components/SpreadControls';
 import { createAutoplayControls, AutoplayControlsComponent } from '../ui/components/AutoplayControls';
-import { createNavigationButtons } from '../ui/components/NavigationButtons';
-import { createMetadataModal } from '../ui/components/MetadataModal';
+import { createNavigationButtons, NavigationButtonsComponent } from '../ui/components/NavigationButtons';
+import { createMetadataModal, MetadataModalComponent } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
 import { createSearchModal, SearchModalComponent } from '../ui/components/SearchModal';
 import { createProgressBar, ProgressBarComponent } from '../ui/components/ProgressBar';
@@ -15,8 +15,7 @@ import { createElement } from '../ui/utils';
 import { jumpToRandomWork } from '../logic';
 import { Store, MAX_SEARCH_HISTORY, StoreState } from '../store';
 import { Navigator } from './Navigator';
-import { SiteAdapter, SearchContext, isSearchableAdapter, SearchResultsState, Tag, SearchCache, SearchableAdapter } from '../types';
-
+import { SiteAdapter, SearchContext, isSearchableAdapter, SearchResultsState, Tag, SearchCache, SearchableAdapter, RelatedWork } from '../types';
 
 const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
 
@@ -51,10 +50,11 @@ export class UIManager {
   private counterComp: PageCounterComponent | null = null;
   private spreadComp: SpreadControlsComponent | null = null;
   private autoplayComp: AutoplayControlsComponent | null = null;
+  private navBtnsComp: NavigationButtonsComponent | null = null;
   private progressComp: ProgressBarComponent | null = null;
   private loadingComp: LoadingIndicatorComponent | null = null;
   private draggable: Draggable | null = null;
-  private modalEl: HTMLElement | null = null;
+  private modalComp: MetadataModalComponent | null = null;
   private helpModalEl: HTMLElement | null = null;
   private searchModalComp: SearchModalComponent | null = null;
 
@@ -112,6 +112,29 @@ export class UIManager {
     const state = this.store.getState();
     const imgs = this.navigator.getImages();
 
+    this._ensureMainControls(container, state, imgs.length);
+    this._ensureOverlayComponents(state);
+    this._ensureNavigationButtons(container);
+    this._updateComponentStates(state);
+  };
+
+  private _ensureNavigationButtons = (container: HTMLElement): void => {
+    if (container.querySelectorAll('.comic-helper-button').length === 0) {
+      this._addNavigationButtons(container);
+    }
+  };
+
+  private _updateComponentStates = (state: StoreState): void => {
+    const favorites = state.favorites as RelatedWork[] | undefined;
+    const isFavorite = favorites?.some(f => f.href === window.location.href) ?? false;
+    this.navBtnsComp?.update(isFavorite);
+
+    if (this.modalComp && state.isMetadataModalOpen) {
+      this.modalComp.update(isFavorite);
+    }
+  };
+
+  private _ensureMainControls = (container: HTMLElement, state: StoreState, totalImgs: number): void => {
     if (!this.powerComp) {
       this.powerComp = createPowerButton({
         isEnabled: state.enabled,
@@ -123,7 +146,7 @@ export class UIManager {
     if (!this.counterComp) {
       this.counterComp = createPageCounter({
         current: state.currentVisibleIndex + 1,
-        total: imgs.length,
+        total: totalImgs,
         onJump: (val: string) => { void this._handleJump(val); }
       });
       container.appendChild(this.counterComp.el);
@@ -147,7 +170,9 @@ export class UIManager {
       });
       container.appendChild(this.autoplayComp.el);
     }
+  };
 
+  private _ensureOverlayComponents = (state: StoreState): void => {
     if (!this.progressComp) {
       this.progressComp = createProgressBar();
       document.body.appendChild(this.progressComp.el);
@@ -156,10 +181,6 @@ export class UIManager {
     if (!this.loadingComp) {
       this.loadingComp = createLoadingIndicator({ isLoading: state.isLoading });
       document.body.appendChild(this.loadingComp.el);
-    }
-
-    if (container.querySelectorAll('.comic-helper-button').length === 0) {
-      this._addNavigationButtons(container);
     }
   };
 
@@ -175,7 +196,7 @@ export class UIManager {
   };
 
   private _addNavigationButtons = (container: HTMLElement): void => {
-    const navBtns = createNavigationButtons({
+    this.navBtnsComp = createNavigationButtons({
       onFirst: () => { void this.navigator.scrollToEdge('start'); },
       onPrev: () => { void this.navigator.scrollToImage(-1); },
       onNext: () => { void this.navigator.scrollToImage(1); },
@@ -183,9 +204,13 @@ export class UIManager {
       onInfo: () => this.store.setState({ isMetadataModalOpen: true }),
       onHelp: () => this.store.setState({ isHelpModalOpen: true }),
       onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
-      onLucky: () => { jumpToRandomWork(this.store.getState().metadata, this.store.getState().searchCache); }
+      onLucky: () => {
+        const state = this.store.getState();
+        jumpToRandomWork(state.metadata, state.searchCache, state.favorites);
+      },
+      onToggleFavorite: () => { this._toggleFavorite(); }
     });
-    navBtns.elements.forEach(btn => container.appendChild(btn));
+    this.navBtnsComp.elements.forEach(btn => container.appendChild(btn));
   };
 
   private _updateModals = (state: StoreState): void => {
@@ -195,11 +220,22 @@ export class UIManager {
 
     this._updateSearchModal(state);
 
-    this.modalEl = this._manageModal(state.isMetadataModalOpen, this.modalEl, () => createMetadataModal({
-      metadata: state.metadata,
-      onClose: () => this.store.setState({ isMetadataModalOpen: false }),
-      onTagClick: async (tag) => { await this._handleTagClick(tag); }
-    }));
+    if (state.isMetadataModalOpen) {
+      if (!this.modalComp) {
+        const isFavorite = state.favorites.some(f => f.href === window.location.href);
+        this.modalComp = createMetadataModal({
+          metadata: state.metadata,
+          isFavorite,
+          onClose: () => this.store.setState({ isMetadataModalOpen: false }),
+          onTagClick: async (tag) => { await this._handleTagClick(tag); },
+          onToggleFavorite: () => { this._toggleFavorite(); }
+        });
+        document.body.appendChild(this.modalComp.el);
+      }
+    } else if (this.modalComp) {
+      this.modalComp.el.remove();
+      this.modalComp = null;
+    }
   };
 
   private _updateSearchModal = (state: StoreState): void => {
@@ -255,6 +291,24 @@ export class UIManager {
     this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
     const contextType = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
     return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
+  };
+
+  private _toggleFavorite = (): void => {
+    const state = this.store.getState();
+    const currentUrl = window.location.href;
+    const isFavorite = state.favorites.some(f => f.href === currentUrl);
+
+    if (isFavorite) {
+      const newFavorites = state.favorites.filter(f => f.href !== currentUrl);
+      this.store.setState({ favorites: newFavorites });
+    } else {
+      const currentWork: RelatedWork = {
+        title: state.metadata.title,
+        href: currentUrl,
+        thumb: this.navigator.getImages()[0]?.src || '' // Use first image as thumbnail
+      };
+      this.store.setState({ favorites: [...state.favorites, currentWork] });
+    }
   };
 
   private _updateVisibility = (container: HTMLElement, state: StoreState): void => {

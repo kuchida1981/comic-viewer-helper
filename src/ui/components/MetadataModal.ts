@@ -4,16 +4,18 @@ import { Metadata, Tag } from '../../types';
 
 export interface MetadataModalProps {
   metadata: Metadata;
+  isFavorite: boolean;
   onClose: () => void;
   onTagClick: (tag: Tag) => Promise<void>;
+  onToggleFavorite: () => void;
 }
 
 export interface MetadataModalComponent {
   el: HTMLElement;
-  update: () => void;
+  update: (isFavorite: boolean) => void;
 }
 
-export function createMetadataModal({ metadata, onClose, onTagClick }: MetadataModalProps): MetadataModalComponent {
+export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick, onToggleFavorite }: MetadataModalProps): MetadataModalComponent {
   const { title, tags, relatedWorks } = metadata;
 
   const closeBtn = createElement('button', {
@@ -28,10 +30,24 @@ export function createMetadataModal({ metadata, onClose, onTagClick }: MetadataM
     }
   });
 
+  const favBtn = createElement('button', {
+    className: `comic-helper-favorite-btn ${isFavorite ? 'active' : 'inactive'}`,
+    textContent: isFavorite ? '♥' : '♡',
+    title: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+    events: {
+      click: (e) => {
+        e.preventDefault();
+        onToggleFavorite();
+      }
+    }
+  });
+
   const titleEl = createElement('h2', {
     className: 'comic-helper-modal-title',
-    textContent: title
-  });
+  }, [
+    createElement('span', { textContent: title + ' ' }),
+    favBtn
+  ]);
 
   const tagChips = tags.map(tag => {
     const className = tag.type
@@ -99,8 +115,13 @@ export function createMetadataModal({ metadata, onClose, onTagClick }: MetadataM
     }
   }, [content]);
 
-  return {
-    el: overlay,
-    update: () => { } // No dynamic update needed once opened
-  };
-}
+    return {
+      el: overlay,
+      update: (newIsFavorite: boolean) => {
+        favBtn.className = `comic-helper-favorite-btn ${newIsFavorite ? 'active' : 'inactive'}`;
+        favBtn.textContent = newIsFavorite ? '♥' : '♡';
+        favBtn.title = newIsFavorite ? 'Remove from Favorites' : 'Add to Favorites';
+      }
+    };
+  }
+  

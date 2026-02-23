@@ -1,5 +1,5 @@
-import { Metadata, SearchResultsState, SearchCache, SearchContext } from './types';
-import { isGuiPos, isStringArray, isSearchCache, isSearchContext } from './type-guards';
+import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork } from './types';
+import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray } from './type-guards';
 
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   SEARCH_CONTEXT: 'comic-viewer-helper-search-context',
   SEARCH_CACHE: 'comic-viewer-helper-search-cache',
   SEARCH_HISTORY: 'comic-viewer-helper-search-history',
+  FAVORITES: 'comic-viewer-helper-favorites',
   AUTOPLAY_ENABLED: 'comic-viewer-helper-autoplay-enabled',
   AUTOPLAY_INTERVAL: 'comic-viewer-helper-autoplay-interval'
 } as const;
@@ -36,6 +37,7 @@ export interface StoreState {
   searchContext?: SearchContext;
   searchCache: SearchCache | null;
   searchHistory: string[];
+  favorites: RelatedWork[];
   isAutoplayEnabled: boolean;
   autoplayInterval: number;
 }
@@ -67,6 +69,7 @@ export class Store {
       searchContext: this._loadSearchContext(),
       searchCache: this._loadSearchCache(),
       searchHistory: this._loadSearchHistory(),
+      favorites: this._loadFavorites(),
       isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
       autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10)
     };
@@ -124,6 +127,9 @@ export class Store {
     }
     if ('searchHistory' in patch) {
       localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+    }
+    if ('favorites' in patch) {
+      localStorage.setItem(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
     }
   };
 
@@ -184,6 +190,18 @@ export class Store {
       return isSearchContext(parsed) ? parsed : undefined;
     } catch {
       return undefined;
+    }
+  };
+
+  private _loadFavorites = (): RelatedWork[] => {
+    try {
+      const host = window.location.hostname;
+      const saved = localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`);
+      if (!saved) return [];
+      const parsed: unknown = JSON.parse(saved);
+      return isRelatedWorkArray(parsed) ? parsed : [];
+    } catch {
+      return [];
     }
   };
 

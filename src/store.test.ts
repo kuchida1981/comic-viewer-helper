@@ -36,6 +36,7 @@ describe('Store', () => {
       searchContext: undefined,
       searchCache: null,
       searchHistory: [],
+      favorites: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5
     });
@@ -91,6 +92,18 @@ describe('Store', () => {
     
     const store2 = new Store();
     expect(store2.getState().searchHistory).toEqual(history);
+  });
+
+  it('should persist favorites', () => {
+    const store = new Store();
+    const favorites = [{ title: 'Fave 1', href: 'url1', thumb: 'img1' }];
+    store.setState({ favorites });
+
+    const host = window.location.hostname;
+    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`) || '[]')).toEqual(favorites);
+    
+    const store2 = new Store();
+    expect(store2.getState().favorites).toEqual(favorites);
   });
 
   it('should notify subscribers on state change', () => {

@@ -110,6 +110,25 @@ export const styles = `
   .comic-helper-power-btn.enabled { color: ${COLORS.text.success}; }
   .comic-helper-power-btn.disabled { color: ${COLORS.text.muted}; }
 
+  .comic-helper-favorite-btn {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    padding: 0 4px;
+    transition: color 0.2s, transform 0.2s;
+    user-select: none;
+  }
+  .comic-helper-favorite-btn:hover {
+    transform: scale(1.2);
+  }
+  .comic-helper-favorite-btn.active {
+    color: #ff4081; /* Pinkish heart */
+  }
+  .comic-helper-favorite-btn.inactive {
+    color: ${COLORS.text.muted};
+  }
+
   .comic-helper-counter-wrapper {
     color: ${COLORS.text.primary};
     font-size: 14px;
