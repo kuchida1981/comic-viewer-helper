@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.4caa82c
+// @version         1.5.0-unstable.c7e8061
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1351,6 +1351,19 @@
     border-color: #666;
   }
 
+  .comic-helper-search-header-tag {
+    cursor: pointer;
+    color: ${COLORS.text.primary};
+    border-bottom: 1px dotted ${COLORS.text.muted};
+    transition: color 0.2s, border-bottom-color 0.2s;
+    margin: 0 4px;
+    display: inline-block;
+  }
+  .comic-helper-search-header-tag:hover {
+    color: ${COLORS.border.accent};
+    border-bottom-color: ${COLORS.border.accent};
+  }
+
   /* Search Results Styles */
   .comic-helper-search-results-section {
     margin-top: 4px;
@@ -2291,7 +2304,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.4caa82c"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.c7e8061"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2314,7 +2327,7 @@
       }
     };
   }
-  function createResultsSection(searchResults, onPageChange) {
+  function createResultsSection(searchResults, onPageChange, onTagCompletion) {
     const section = createElement("div", {
       className: "comic-helper-search-results-section"
     });
@@ -2323,12 +2336,27 @@
     const header = createElement("div", {
       className: "comic-helper-section-title"
     });
-    let titleText = t("ui.searchResults");
     if (searchContext?.label) {
       const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
-      titleText = `${prefix}: ${searchContext.label}`;
+      const prefixEl = document.createTextNode(`${prefix}: `);
+      const tagEl = createElement("span", {
+        className: "comic-helper-search-header-tag",
+        textContent: searchContext.label,
+        events: {
+          click: (e) => {
+            e.preventDefault();
+            onTagCompletion(searchContext.label || "");
+          }
+        }
+      });
+      header.appendChild(prefixEl);
+      header.appendChild(tagEl);
+      if (totalCount) {
+        header.appendChild(document.createTextNode(` (${totalCount})`));
+      }
+    } else {
+      header.textContent = totalCount ? `${t("ui.searchResults")} (${totalCount})` : t("ui.searchResults");
     }
-    header.textContent = totalCount ? `${titleText} (${totalCount})` : titleText;
     section.appendChild(header);
     if (results.length === 0) {
       section.appendChild(createElement("div", {
@@ -2439,7 +2467,11 @@
         historySection.appendChild(btn);
       });
     }
-    let resultsSection = createResultsSection(searchResults, onPageChange);
+    const onTagCompletion = (label) => {
+      input.value = label + " ";
+      input.focus();
+    };
+    let resultsSection = createResultsSection(searchResults, onPageChange, onTagCompletion);
     const container = createElement("div", {
       className: "comic-helper-search-container"
     }, [form, historySection, resultsSection]);
@@ -2495,7 +2527,7 @@
       el: overlay,
       input,
       updateResults: (newResults) => {
-        const newSection = createResultsSection(newResults, onPageChange);
+        const newSection = createResultsSection(newResults, onPageChange, onTagCompletion);
         container.replaceChild(newSection, resultsSection);
         resultsSection = newSection;
         content.scrollTop = 0;
