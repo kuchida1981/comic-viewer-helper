@@ -19,7 +19,11 @@ export interface SearchModalComponent {
   setUpdating: (updating: boolean) => void;
 }
 
-function createResultsSection(searchResults: SearchResultsState | null, onPageChange: (url: string) => void): HTMLElement {
+function createResultsSection(
+  searchResults: SearchResultsState | null,
+  onPageChange: (url: string) => void,
+  onTagCompletion: (label: string) => void
+): HTMLElement {
   const section = createElement('div', {
     className: 'comic-helper-search-results-section'
   });
@@ -32,15 +36,29 @@ function createResultsSection(searchResults: SearchResultsState | null, onPageCh
     className: 'comic-helper-section-title'
   });
 
-  let titleText = t('ui.searchResults');
   if (searchContext?.label) {
     const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
-    titleText = `${prefix}: ${searchContext.label}`;
+    const prefixEl = document.createTextNode(`${prefix}: `);
+    const tagEl = createElement('span', {
+      className: 'comic-helper-search-header-tag',
+      textContent: searchContext.label,
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onTagCompletion(searchContext.label || '');
+        }
+      }
+    });
+    header.appendChild(prefixEl);
+    header.appendChild(tagEl);
+    if (totalCount) {
+      header.appendChild(document.createTextNode(` (${totalCount})`));
+    }
+  } else {
+    header.textContent = totalCount
+      ? `${t('ui.searchResults')} (${totalCount})`
+      : t('ui.searchResults');
   }
-
-  header.textContent = totalCount
-    ? `${titleText} (${totalCount})`
-    : titleText;
   section.appendChild(header);
 
   if (results.length === 0) {
@@ -166,7 +184,12 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     });
   }
 
-  let resultsSection = createResultsSection(searchResults, onPageChange);
+  const onTagCompletion = (label: string) => {
+    input.value = label + ' ';
+    input.focus();
+  };
+
+  let resultsSection = createResultsSection(searchResults, onPageChange, onTagCompletion);
   const container = createElement('div', {
     className: 'comic-helper-search-container'
   }, [form, historySection, resultsSection]);
@@ -230,7 +253,7 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     el: overlay,
     input,
     updateResults: (newResults: SearchResultsState | null) => {
-      const newSection = createResultsSection(newResults, onPageChange);
+      const newSection = createResultsSection(newResults, onPageChange, onTagCompletion);
       container.replaceChild(newSection, resultsSection);
       resultsSection = newSection;
       content.scrollTop = 0;

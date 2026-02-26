@@ -178,6 +178,25 @@ describe('SearchModal', () => {
       expect(header?.textContent).toContain('Genre: Action');
     });
 
+    it('should complete input value and focus when header tag name is clicked', () => {
+      const resultsWithContext: SearchResultsState = {
+        ...sampleResults,
+        searchContext: { type: 'tag', label: 'CoolTag' }
+      };
+      const { el, input } = createSearchModal({ ...defaultProps, searchResults: resultsWithContext });
+      input.value = 'some keyword';
+
+      const tagEl = el.querySelector('.comic-helper-search-header-tag') as HTMLElement;
+      expect(tagEl).not.toBeNull();
+      expect(tagEl.textContent).toBe('CoolTag');
+
+      const focusSpy = vi.spyOn(input, 'focus');
+      tagEl.click();
+
+      expect(input.value).toBe('CoolTag ');
+      expect(focusSpy).toHaveBeenCalled();
+    });
+
     it('should render pagination buttons when pagination data exists', () => {
       const { el } = createSearchModal({ ...defaultProps, searchResults: sampleResults });
       const pagination = el.querySelector('.comic-helper-search-pagination');
