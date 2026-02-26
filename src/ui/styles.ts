@@ -475,6 +475,19 @@ export const styles = `
     border-color: #666;
   }
 
+  .comic-helper-search-header-tag {
+    cursor: pointer;
+    color: ${COLORS.text.primary};
+    border-bottom: 1px dotted ${COLORS.text.muted};
+    transition: color 0.2s, border-bottom-color 0.2s;
+    margin: 0 4px;
+    display: inline-block;
+  }
+  .comic-helper-search-header-tag:hover {
+    color: ${COLORS.border.accent};
+    border-bottom-color: ${COLORS.border.accent};
+  }
+
   /* Search Results Styles */
   .comic-helper-search-results-section {
     margin-top: 4px;
