@@ -36,6 +36,7 @@ describe('Store', () => {
       searchContext: undefined,
       searchCache: null,
       searchHistory: [],
+      luckyHistory: [],
       favorites: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5
@@ -46,22 +47,25 @@ describe('Store', () => {
     localStorage.setItem(STORAGE_KEYS.ENABLED, 'false');
     localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, 'true');
     localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify({ top: 100, left: 200 }));
+    localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`, JSON.stringify(['url1', 'url2']));
 
     const store = new Store();
     const state = store.getState();
     expect(state.enabled).toBe(false);
     expect(state.isDualViewEnabled).toBe(true);
     expect(state.guiPos).toEqual({ top: 100, left: 200 });
+    expect(state.luckyHistory).toEqual(['url1', 'url2']);
   });
 
   it('should update state and persist to localStorage', () => {
     const store = new Store();
-    store.setState({ enabled: false, isDualViewEnabled: true });
+    store.setState({ enabled: false, isDualViewEnabled: true, luckyHistory: ['new-url'] });
 
     expect(store.getState().enabled).toBe(false);
     expect(store.getState().isDualViewEnabled).toBe(true);
     expect(localStorage.getItem(STORAGE_KEYS.ENABLED)).toBe('false');
     expect(localStorage.getItem(STORAGE_KEYS.DUAL_VIEW)).toBe('true');
+    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`) || '[]')).toEqual(['new-url']);
   });
 
   it('should persist search query and cache', () => {

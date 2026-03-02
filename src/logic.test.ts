@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { calculateVisibleHeight, shouldPairWithNext, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, fitImagesToViewport, getNavigationDirection, waitForImageLoad, preloadImages, getClickNavigationDirection, jumpToRandomWork } from './logic.js';
-import { Metadata, SearchCache } from './types.js';
+import {
+  calculateVisibleHeight,
+  shouldPairWithNext,
+  getPrimaryVisibleImageIndex,
+  getImageElementByIndex,
+  revertToOriginal,
+  fitImagesToViewport,
+  getNavigationDirection,
+  waitForImageLoad,
+  preloadImages,
+  getClickNavigationDirection,
+  normalizeUrl,
+  pickRandomWork
+} from './logic.js';
+import { Metadata } from './types.js';
 import { createMockImage, setupLocationMock } from './test/mocks/dom.js';
 
 describe('logic.js', () => {
@@ -436,6 +449,92 @@ describe('logic.js', () => {
     });
   });
 
+  describe('normalizeUrl', () => {
+    it('should remove query parameters and hashes', () => {
+      expect(normalizeUrl('https://example.com/work/123?page=5#top')).toBe('https://example.com/work/123');
+    });
+
+    it('should handle relative URLs by resolving against origin', () => {
+      setupLocationMock('https://site.com/foo');
+      // @ts-expect-error Mocked location might lack origin
+      window.location.origin = 'https://site.com';
+      expect(normalizeUrl('/work/456')).toBe('https://site.com/work/456');
+    });
+
+    it('should return normalized URL even for strings that resolve against base', () => {
+      setupLocationMock('http://localhost/');
+      // normalizeUrl('not-a-url') will result in 'http://localhost/not-a-url'
+      // This is expected behavior for relative-like strings
+      expect(normalizeUrl('not-a-url')).toBe('http://localhost/not-a-url');
+    });
+  });
+
+  describe('pickRandomWork', () => {
+    const metadata = {
+      relatedWorks: [
+        { href: 'http://site.com/1', isPrivate: false },
+        { href: 'http://site.com/2', isPrivate: false },
+        { href: 'http://site.com/3', isPrivate: false }
+      ]
+    } as unknown as Metadata;
+
+    it('should exclude current URL and history (Strict Mode)', () => {
+      const luckyHistory = ['http://site.com/1'];
+      const currentUrl = 'http://site.com/2';
+      
+      // Should only pick /3
+      const result = pickRandomWork(metadata, luckyHistory, currentUrl);
+      expect(result).toBe('http://site.com/3');
+    });
+
+    it('should fallback to Relaxed Mode if strict mode yields no candidates', () => {
+      // History has 1, 2, 3. Current is 2.
+      // Pool is [1, 2, 3].
+      // Strict Mode (All History + Current) -> []
+      // Relaxed Mode (Last 3 + Current) -> Pool - {Last 3 + Current}
+      // Wait, let's re-verify the pool and history.
+      const luckyHistory = ['http://site.com/4', 'http://site.com/3', 'http://site.com/2', 'http://site.com/1'];
+      const currentUrl = 'http://site.com/3';
+      
+      // Pool: [1, 2, 3]
+      // Strict: Exclude [4, 3, 2, 1] + 3 -> Empty
+      // Relaxed: Exclude [4, 3, 2] (last 3) + 3 -> Pool has [1] left
+      const result = pickRandomWork(metadata, luckyHistory, currentUrl);
+      expect(result).toBe('http://site.com/1');
+    });
+
+    it('should fallback to Minimal Mode if relaxed mode also yields no candidates', () => {
+      const luckyHistory = ['http://site.com/3', 'http://site.com/2', 'http://site.com/1'];
+      const currentUrl = 'http://site.com/2';
+      
+      // Pool: [1, 2, 3]
+      // Strict/Relaxed: Exclude [3, 2, 1] + 2 -> Empty
+      // Minimal: Exclude [2] (current only) -> Pool has [1, 3] left
+      const result = pickRandomWork(metadata, luckyHistory, currentUrl);
+      expect(['http://site.com/1', 'http://site.com/3']).toContain(result);
+    });
+
+    it('should return null if discovery pool is empty', () => {
+      const emptyMetadata = { relatedWorks: [] } as unknown as Metadata;
+      expect(pickRandomWork(emptyMetadata, [], 'http://any.com')).toBe(null);
+    });
+
+    it('should use 2-step selection within filtered candidates', () => {
+      const favorites = [{ href: 'http://site.com/fave', title: 'Fave', thumb: '' }];
+      const metaWithFave = {
+        relatedWorks: [
+          { href: 'http://site.com/1', isPrivate: false },
+          { href: 'http://site.com/fave', isPrivate: false }
+        ]
+      } as unknown as Metadata;
+
+      vi.spyOn(Math, 'random').mockReturnValue(0.1); // Favorite slot
+      const result = pickRandomWork(metaWithFave, [], 'http://site.com/other', null, favorites);
+      expect(result).toBe('http://site.com/fave');
+      vi.restoreAllMocks();
+    });
+  });
+
   describe('getNavigationDirection', () => {
     it('should return "next" for positive deltaY above threshold', () => {
       const event = { deltaY: 60 } as WheelEvent;
@@ -496,144 +595,4 @@ describe('logic.js', () => {
       expect(getClickNavigationDirection(imgB)).toBe('next');
     });
   });
-
-  describe('jumpToRandomWork', () => {
-    beforeEach(() => {
-      setupLocationMock('current-page');
-    });
-
-    afterEach(() => {
-      vi.spyOn(Math, 'random').mockRestore();
-    });
-
-    it('should update window.location.href and return true for random non-private work', () => {
-      const metadata = {
-        relatedWorks: [
-          { href: 'http://example.com/1', isPrivate: false },
-          { href: 'http://example.com/2', isPrivate: true },
-          { href: 'http://example.com/3', isPrivate: false }
-        ]
-      } as unknown as Metadata;
-
-      vi.spyOn(Math, 'random').mockReturnValue(0.99); // Selects index 1 of [1, 3]
-
-      const result = jumpToRandomWork(metadata);
-
-      expect(window.location.href).toBe('http://example.com/3');
-      expect(result).toBe(true);
-    });
-
-    it('should include works from searchCache and return true', () => {
-      const metadata = { relatedWorks: [] } as unknown as Metadata;
-      const searchCache = {
-        results: {
-          results: [
-            { href: 'http://example.com/search1' },
-            { href: 'http://example.com/search2' }
-          ]
-        }
-      } as unknown as SearchCache;
-
-      vi.spyOn(Math, 'random').mockReturnValue(0); // Selects first
-
-      const result = jumpToRandomWork(metadata, searchCache);
-
-      expect(window.location.href).toBe('http://example.com/search1');
-      expect(result).toBe(true);
-    });
-
-    it('should deduplicate works by href and return true', () => {
-      const metadata = {
-        relatedWorks: [{ href: 'http://example.com/common', isPrivate: false }]
-      } as unknown as Metadata;
-      const searchCache = {
-        results: {
-          results: [{ href: 'http://example.com/common' }]
-        }
-      } as unknown as SearchCache;
-
-      // If deduplication works, there's only 1 item in the pool
-      const result = jumpToRandomWork(metadata, searchCache);
-
-      expect(window.location.href).toBe('http://example.com/common');
-      expect(result).toBe(true);
-    });
-
-    it('should filter private works and return true if search result available', () => {
-      const metadata = {
-        relatedWorks: [{ href: 'http://example.com/private', isPrivate: true }]
-      } as unknown as Metadata;
-      const searchCache = {
-        results: {
-          results: [{ href: 'http://example.com/search' }]
-        }
-      } as unknown as SearchCache;
-
-      const result = jumpToRandomWork(metadata, searchCache);
-
-      // Should skip private and pick the only search result
-      expect(window.location.href).toBe('http://example.com/search');
-      expect(result).toBe(true);
-    });
-
-    it('should return false if no works are available after filtering and merging', () => {
-      const metadata = { relatedWorks: [{ isPrivate: true }] } as unknown as Metadata;
-      const searchCache = { results: { results: [] } } as unknown as SearchCache;
-
-      const result = jumpToRandomWork(metadata, searchCache);
-      expect(window.location.href).toBe('current-page');
-      expect(result).toBe(false);
-    });
-
-    it('should handle null searchCache gracefully and return true if work exists', () => {
-      const metadata = {
-        relatedWorks: [{ href: 'http://example.com/1', isPrivate: false }]
-      } as unknown as Metadata;
-
-            const result = jumpToRandomWork(metadata, null);
-            expect(window.location.href).toBe('http://example.com/1');
-            expect(result).toBe(true);
-          });
-      
-          it('should select from favoritePool with 25% chance', () => {
-            const metadata = {
-              relatedWorks: [{ href: 'http://discovery/1', isPrivate: false }]
-            } as unknown as Metadata;
-            const favorites = [{ href: 'http://favorite/1', title: 'Fave 1', thumb: 'img1' }];
-      
-            // Case 1: Slot < 0.25 selects from favorite pool
-            vi.spyOn(Math, 'random').mockReturnValueOnce(0.24); // Step 2 (Slot selection)
-            vi.spyOn(Math, 'random').mockReturnValueOnce(0);    // Step 3 (Random within pool)
-      
-            jumpToRandomWork(metadata, null, favorites);
-            expect(window.location.href).toBe('http://favorite/1');
-      
-            // Case 2: Slot >= 0.25 selects from discovery pool
-            vi.spyOn(Math, 'random').mockReturnValueOnce(0.25); // Step 2 (Slot selection)
-            vi.spyOn(Math, 'random').mockReturnValueOnce(0.5);  // Step 3 (Random within pool)
-      
-            jumpToRandomWork(metadata, null, favorites);
-            // discovery pool has [discovery/1, favorite/1]
-            // index 1 selected (0.5 * 2 = 1.0 -> 1)
-            expect(window.location.href).toBe('http://favorite/1');
-            
-            // Select index 0 from discovery
-            vi.spyOn(Math, 'random').mockReturnValueOnce(0.25);
-            vi.spyOn(Math, 'random').mockReturnValueOnce(0);
-            jumpToRandomWork(metadata, null, favorites);
-            expect(window.location.href).toBe('http://discovery/1');
-          });
-      
-          it('should use discovery pool 100% of the time if favorites is empty', () => {
-            const metadata = {
-              relatedWorks: [{ href: 'http://discovery/1', isPrivate: false }]
-            } as unknown as Metadata;
-            
-            vi.spyOn(Math, 'random').mockReturnValue(0.01); // Slot < 0.25
-            
-            jumpToRandomWork(metadata, null, []);
-            expect(window.location.href).toBe('http://discovery/1');
-          });
-        });
-      });
-      
+});

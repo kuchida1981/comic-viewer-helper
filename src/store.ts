@@ -1,5 +1,6 @@
 import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork } from './types';
 import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray } from './type-guards';
+import { normalizeUrl } from './logic';
 
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
@@ -11,10 +12,12 @@ export const STORAGE_KEYS = {
   SEARCH_HISTORY: 'comic-viewer-helper-search-history',
   FAVORITES: 'comic-viewer-helper-favorites',
   AUTOPLAY_ENABLED: 'comic-viewer-helper-autoplay-enabled',
-  AUTOPLAY_INTERVAL: 'comic-viewer-helper-autoplay-interval'
+  AUTOPLAY_INTERVAL: 'comic-viewer-helper-autoplay-interval',
+  LUCKY_HISTORY: 'comic-viewer-helper-lucky-history'
 } as const;
 
 export const MAX_SEARCH_HISTORY = 3;
+export const MAX_LUCKY_HISTORY = 20;
 
 export interface GuiPos {
   top: number;
@@ -37,6 +40,7 @@ export interface StoreState {
   searchContext?: SearchContext;
   searchCache: SearchCache | null;
   searchHistory: string[];
+  luckyHistory: string[];
   favorites: RelatedWork[];
   isAutoplayEnabled: boolean;
   autoplayInterval: number;
@@ -69,6 +73,7 @@ export class Store {
       searchContext: this._loadSearchContext(),
       searchCache: this._loadSearchCache(),
       searchHistory: this._loadSearchHistory(),
+      luckyHistory: this._loadLuckyHistory(),
       favorites: this._loadFavorites(),
       isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
       autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10)
@@ -103,6 +108,7 @@ export class Store {
     if ('autoplayInterval' in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
 
     this._persistSearchRelatedChanges(patch);
+    this._persistLuckyHistory(patch);
   };
 
   private _persistSearchRelatedChanges = (patch: Partial<StoreState>): void => {
@@ -133,6 +139,13 @@ export class Store {
     }
   };
 
+  private _persistLuckyHistory = (patch: Partial<StoreState>): void => {
+    if ('luckyHistory' in patch) {
+      const host = window.location.hostname;
+      localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`, JSON.stringify(patch.luckyHistory));
+    }
+  };
+
   subscribe = (callback: StoreListener): () => void => {
     this.listeners.push(callback);
     return () => {
@@ -148,10 +161,34 @@ export class Store {
     this.state[key] = value;
   };
 
+  addLuckyHistory = (url: string): void => {
+    const { luckyHistory } = this.state;
+    const normalized = normalizeUrl(url);
+    const filtered = luckyHistory.filter(h => normalizeUrl(h) !== normalized);
+    const newHistory = [normalized, ...filtered].slice(0, MAX_LUCKY_HISTORY);
+    this.setState({ luckyHistory: newHistory });
+  };
+
   private _loadSearchHistory = (): string[] => {
     try {
       const host = window.location.hostname;
       const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (isStringArray(parsed)) {
+          return parsed;
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  private _loadLuckyHistory = (): string[] => {
+    try {
+      const host = window.location.hostname;
+      const saved = localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`);
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
         if (isStringArray(parsed)) {

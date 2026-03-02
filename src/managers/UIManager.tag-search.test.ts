@@ -72,6 +72,7 @@ describe('UIManager - Internal Tag Search', () => {
       isLoading: false,
       searchResults: null,
       searchCache: null,
+      luckyHistory: [],
       favorites: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5

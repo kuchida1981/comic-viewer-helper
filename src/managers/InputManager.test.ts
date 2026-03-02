@@ -3,11 +3,12 @@ import { InputManager } from './InputManager.js';
 import * as logic from '../logic.js';
 import { Store } from '../store.js';
 import { Navigator } from './Navigator.js';
+import { setupLocationMock } from '../test/mocks/dom.js';
 
 vi.mock('../logic.js', () => ({
   getNavigationDirection: vi.fn(),
   getClickNavigationDirection: vi.fn(),
-  jumpToRandomWork: vi.fn()
+  pickRandomWork: vi.fn()
 }));
 
 vi.mock('../shortcuts.js', () => ({
@@ -283,46 +284,37 @@ describe('InputManager', () => {
       { href: 'http://example.com/2', isPrivate: true, title: 't2', thumb: 't2.jpg' },
       { href: 'http://example.com/3', isPrivate: false, title: 't3', thumb: 't3.jpg' }
     ];
+    const luckyHistory = ['old-url'];
     (store.getState as Mock).mockReturnValue({ 
       enabled: true, 
-      metadata: { title: '', tags: [], relatedWorks } 
+      metadata: { title: '', tags: [], relatedWorks },
+      luckyHistory
     });
+    vi.mocked(logic.pickRandomWork).mockReturnValue('http://example.com/3');
+    setupLocationMock('current-url');
 
     const event = { key: 'p', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks }, undefined);
+    expect(logic.pickRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks }, luckyHistory, 'current-url', undefined, undefined);
+    expect(window.location.href).toBe('http://example.com/3');
   });
 
-  it('onKeyDown should not navigate if no related works', () => {
+  it('onKeyDown should not navigate if pickRandomWork returns null', () => {
     (store.getState as Mock).mockReturnValue({ 
       enabled: true, 
-      metadata: { title: '', tags: [], relatedWorks: [] } 
+      metadata: { title: '', tags: [], relatedWorks: [] },
+      luckyHistory: []
     });
+    vi.mocked(logic.pickRandomWork).mockReturnValue(null);
+    setupLocationMock('current-url');
 
     const event = { key: 'p', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
 
     expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks: [] }, undefined);
-  });
-
-  it('onKeyDown should not navigate if all related works are private', () => {
-    const relatedWorks = [
-      { href: 'private-1', isPrivate: true, title: 't1', thumb: 't1.jpg' },
-      { href: 'private-2', isPrivate: true, title: 't2', thumb: 't2.jpg' }
-    ];
-    (store.getState as Mock).mockReturnValue({ 
-      enabled: true, 
-      metadata: { title: '', tags: [], relatedWorks } 
-    });
-
-    const event = { key: 'p', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
-    inputManager.onKeyDown(event);
-
-    expect(event.preventDefault).toHaveBeenCalled();
-    expect(logic.jumpToRandomWork).toHaveBeenCalledWith({ title: '', tags: [], relatedWorks }, undefined);
+    expect(window.location.href).toBe('current-url');
   });
 
   it('onKeyDown should enter fullscreen when not in fullscreen', async () => {

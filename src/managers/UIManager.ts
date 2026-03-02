@@ -12,7 +12,7 @@ import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
 import { Draggable } from '../ui/Draggable';
 import { createElement } from '../ui/utils';
-import { jumpToRandomWork } from '../logic';
+import { pickRandomWork } from '../logic';
 import { Store, MAX_SEARCH_HISTORY, StoreState } from '../store';
 import { Navigator } from './Navigator';
 import { SiteAdapter, SearchContext, isSearchableAdapter, SearchResultsState, Tag, SearchCache, SearchableAdapter, RelatedWork } from '../types';
@@ -206,7 +206,10 @@ export class UIManager {
       onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
       onLucky: () => {
         const state = this.store.getState();
-        jumpToRandomWork(state.metadata, state.searchCache, state.favorites);
+        const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
+        if (nextUrl) {
+          window.location.href = nextUrl;
+        }
       },
       onToggleFavorite: () => { this._toggleFavorite(); }
     });
