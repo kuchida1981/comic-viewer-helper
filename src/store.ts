@@ -35,6 +35,7 @@ export interface StoreState {
   isHelpModalOpen: boolean;
   isSearchModalOpen: boolean;
   isLoading: boolean;
+  isLuckyLoading: boolean;
   searchResults: SearchResultsState | null;
   searchQuery: string;
   searchContext?: SearchContext;
@@ -68,6 +69,7 @@ export class Store {
       isHelpModalOpen: false,
       isSearchModalOpen: false,
       isLoading: false,
+      isLuckyLoading: false,
       searchResults: null,
       searchQuery: this._loadSearchQuery(),
       searchContext: this._loadSearchContext(),

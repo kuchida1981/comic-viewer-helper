@@ -31,6 +31,12 @@ describe('i18n', () => {
     expect(t('non.existent.key')).toBe('non.existent.key');
   });
 
+  it('should return path if the result is an object', async () => {
+    vi.stubGlobal('navigator', { language: 'en-US' } as unknown as Navigator);
+    const { t } = await import('./i18n.js');
+    expect(t('ui')).toBe('ui');
+  });
+
   it('should have consistent keys between en and ja dictionaries', async () => {
     const { MESSAGES } = await import('./i18n.js');
     const enKeys = Object.keys(MESSAGES.en) as Array<keyof typeof MESSAGES.en>;

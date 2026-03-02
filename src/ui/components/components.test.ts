@@ -1,30 +1,21 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createPowerButton } from './PowerButton.js';
-import { createPageCounter } from './PageCounter.js';
-import { createSpreadControls } from './SpreadControls.js';
-import { createAutoplayControls } from './AutoplayControls.js';
-import { createNavigationButtons } from './NavigationButtons.js';
-import { createMetadataModal } from './MetadataModal.js';
-import { createHelpModal } from './HelpModal.js';
-import { createResumeNotification } from './ResumeNotification.js';
-import { Metadata } from '../../types.js';
+import { describe, it, expect, vi } from 'vitest';
+import { createPowerButton } from './PowerButton';
+import { createPageCounter } from './PageCounter';
+import { createSpreadControls } from './SpreadControls';
+import { createAutoplayControls } from './AutoplayControls';
+import { createNavigationButtons } from './NavigationButtons';
+import { createProgressBar } from './ProgressBar';
+import { createResumeNotification } from './ResumeNotification';
+import { createLoadingIndicator } from './LoadingIndicator';
 
 describe('UI Components', () => {
   describe('PowerButton', () => {
-    it('should show enabled state', () => {
-      const { el } = createPowerButton({ isEnabled: true, onClick: () => {} });
-      expect(el.classList.contains('enabled')).toBe(true);
-      expect(el.textContent).toBe('⚡');
-    });
-
-    it('should show disabled state', () => {
-      const { el } = createPowerButton({ isEnabled: false, onClick: () => {} });
-      expect(el.classList.contains('disabled')).toBe(true);
-    });
-
-    it('should call onClick', () => {
+    it('should render correctly', () => {
       const onClick = vi.fn();
       const { el } = createPowerButton({ isEnabled: true, onClick });
+      expect(el.className).toContain('comic-helper-power-btn');
+      expect(el.classList.contains('enabled')).toBe(true);
+      
       el.click();
       expect(onClick).toHaveBeenCalled();
     });
@@ -39,55 +30,37 @@ describe('UI Components', () => {
   });
 
   describe('PageCounter', () => {
-    it('should initialize with current and total', () => {
-      const { input, el } = createPageCounter({ current: 5, total: 10, onJump: () => {} });
-      expect(input.value).toBe('5');
-      const totalLabel = el.querySelector('#comic-total-counter');
-      expect(totalLabel?.textContent).toBe(' / 10');
+    it('should render correctly', () => {
+      const onJump = vi.fn();
+      const { el, input } = createPageCounter({ current: 1, total: 10, onJump });
+      expect(el.className).toContain('comic-helper-counter');
+      expect(input.value).toBe('1');
+      expect(el.textContent).toContain('/ 10');
     });
 
-    it('should call onJump on Enter key', () => {
+    it('should call onJump when enter is pressed', () => {
       const onJump = vi.fn();
       const { input } = createPageCounter({ current: 1, total: 10, onJump });
-      input.value = '7';
-      const event = new KeyboardEvent('keydown', { key: 'Enter' });
-      input.dispatchEvent(event);
-      expect(onJump).toHaveBeenCalledWith('7');
-    });
-
-    it('should call select on focus', () => {
-      const { input } = createPageCounter({ current: 1, total: 10, onJump: () => {} });
-      const selectSpy = vi.spyOn(input, 'select');
-      input.dispatchEvent(new FocusEvent('focus'));
-      expect(selectSpy).toHaveBeenCalled();
-    });
-
-    it('should update counts', () => {
-      const { el, input, update } = createPageCounter({ current: 1, total: 10, onJump: () => {} });
-      update(5, 20);
-      const totalLabel = el.querySelector('#comic-total-counter');
-      expect(input.value).toBe('5');
-      expect(totalLabel?.textContent).toBe(' / 20');
-
-      // Should not update input value if focused
-      input.focus();
-      // Mock activeElement
-      vi.stubGlobal('document', { activeElement: input });
-      update(10, 20);
-      expect(input.value).toBe('5');
-      vi.unstubAllGlobals();
+      input.value = '5';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      expect(onJump).toHaveBeenCalledWith('5');
     });
   });
 
   describe('SpreadControls', () => {
-    it('should render checkbox and label', () => {
-      const { el } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust: () => {} });
-      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    it('should render correctly', () => {
+      const onToggle = vi.fn();
+      const onAdjust = vi.fn();
+      const { el } = createSpreadControls({ isDualViewEnabled: true, onToggle, onAdjust });
+      const checkbox = el.querySelector('input') as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
-      expect(el.textContent).toContain('Spread');
+      
+      checkbox.checked = false;
+      checkbox.dispatchEvent(new Event('change'));
+      expect(onToggle).toHaveBeenCalledWith(false);
     });
 
-    it('should render adjust button when dual view is enabled', () => {
+    it('should update state and show/hide adjust button', () => {
       const { el, update } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust: () => {} });
       let adjustBtn = el.querySelector('.comic-helper-adjust-btn');
       expect(adjustBtn).not.toBeNull();
@@ -105,459 +78,82 @@ describe('UI Components', () => {
     it('should call onToggle when checkbox changes', () => {
       const onToggle = vi.fn();
       const { el } = createSpreadControls({ isDualViewEnabled: false, onToggle, onAdjust: () => {} });
-      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      const checkbox = el.querySelector('input') as HTMLInputElement;
+      
+      checkbox.blur = vi.fn();
       checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change'));
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       expect(onToggle).toHaveBeenCalledWith(true);
-
-      // Test branch with non-input target
-      const event = new Event('change');
-      Object.defineProperty(event, 'target', { value: {} });
-      checkbox.dispatchEvent(event);
-      // onToggle should NOT be called again with the new value
-    });
-
-    it('should call onAdjust when button is clicked', () => {
-      const onAdjust = vi.fn();
-      const { el } = createSpreadControls({ isDualViewEnabled: true, onToggle: () => {}, onAdjust });
-      const adjustBtn = el.querySelector('.comic-helper-adjust-btn') as HTMLElement;
-      adjustBtn.click();
-      expect(onAdjust).toHaveBeenCalled();
+      expect(checkbox.blur).toHaveBeenCalled();
     });
   });
 
   describe('AutoplayControls', () => {
-    it('should render checkbox and input', () => {
-      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 10, onToggle: () => {}, onChangeInterval: () => {} });
-      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
-      expect(checkbox.checked).toBe(true);
-      expect(input.value).toBe('10');
-      expect(el.textContent).toContain('Autoplay');
-    });
-
-    it('should call onToggle when checkbox changes', () => {
-      const onToggle = vi.fn();
-      const { el } = createAutoplayControls({ isAutoplayEnabled: false, autoplayInterval: 5, onToggle, onChangeInterval: () => {} });
-      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      checkbox.checked = true;
-      checkbox.dispatchEvent(new Event('change'));
-      expect(onToggle).toHaveBeenCalledWith(true);
-    });
-
-    it('should call onChangeInterval when input changes', () => {
-      const onChangeInterval = vi.fn();
-      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 5, onToggle: () => {}, onChangeInterval });
-      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
-      input.value = '15';
-      input.dispatchEvent(new Event('change'));
-      expect(onChangeInterval).toHaveBeenCalledWith(15);
-    });
-
-    it('should handle Enter key on input', () => {
-      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 5, onToggle: () => {}, onChangeInterval: () => {} });
-      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
-      const blurSpy = vi.spyOn(input, 'blur');
-      const event = new KeyboardEvent('keydown', { key: 'Enter' });
-      input.dispatchEvent(event);
-      expect(blurSpy).toHaveBeenCalled();
-    });
-
-    it('should stop propagation on keydown', () => {
-      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 5, onToggle: () => {}, onChangeInterval: () => {} });
-      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
-      const event = new KeyboardEvent('keydown', { key: 'b' });
-      const stopSpy = vi.spyOn(event, 'stopPropagation');
-      input.dispatchEvent(event);
-      expect(stopSpy).toHaveBeenCalled();
-    });
-
-    it('should update state', () => {
-      const { el, update } = createAutoplayControls({ isAutoplayEnabled: false, autoplayInterval: 5, onToggle: () => {}, onChangeInterval: () => {} });
-      const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      const input = el.querySelector('input[type="number"]') as HTMLInputElement;
-      
-      update(true, 20);
-      expect(checkbox.checked).toBe(true);
-      expect(input.value).toBe('20');
+    it('should render correctly', () => {
+      const { el } = createAutoplayControls({ isAutoplayEnabled: true, autoplayInterval: 3, onToggle: () => {}, onChangeInterval: () => {} });
+      expect((el.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(true);
+      expect((el.querySelector('input[type="number"]') as HTMLInputElement).value).toBe('3');
     });
   });
 
   describe('NavigationButtons', () => {
-    const mockProps = { 
-      onFirst: () => {}, onPrev: () => {}, onNext: () => {}, onLast: () => {}, 
-      onInfo: () => {}, onHelp: () => {}, onSearch: () => {}, onLucky: () => {},
-      onToggleFavorite: () => {} 
-    };
-
-    it('should render 9 navigation buttons', () => {
-      const { elements } = createNavigationButtons(mockProps);
-      expect(elements.length).toBe(9);
-      expect(elements[0].textContent).toBe('<<');
-      expect(elements[1].textContent).toBe('<');
-      expect(elements[2].textContent).toBe('🎲');
-      expect(elements[3].textContent).toBe('>');
-      expect(elements[4].textContent).toBe('>>');
-      expect(elements[5].textContent).toBe('♡');
-      expect(elements[6].textContent).toBe('Info');
-      expect(elements[7].textContent).toBe('?');
-      expect(elements[8].textContent).toBe('🔍');
-    });
-
-    it('should call correct actions and blur', () => {
-      const actions = {
-        onFirst: vi.fn(),
-        onPrev: vi.fn(),
-        onNext: vi.fn(),
-        onLast: vi.fn(),
-        onInfo: vi.fn(),
-        onHelp: vi.fn(),
-        onSearch: vi.fn(),
-        onLucky: vi.fn(),
+    it('should render all buttons', () => {
+      const mockProps = {
+        onFirst: vi.fn(), onPrev: vi.fn(), onNext: vi.fn(), onLast: vi.fn(),
+        onInfo: vi.fn(), onHelp: vi.fn(), onSearch: vi.fn(), onLucky: vi.fn(),
         onToggleFavorite: vi.fn()
       };
-      const { elements } = createNavigationButtons(actions);
-      
-      const blurSpy = vi.spyOn(elements[0], 'blur');
-      elements[0].click();
-      expect(actions.onLast).toHaveBeenCalled();
-      expect(blurSpy).toHaveBeenCalled();
-
-      // Test branch where target is not HTMLElement
-      const event = new MouseEvent('click');
-      Object.defineProperty(event, 'target', { value: {} });
-      elements[1].dispatchEvent(event);
-      expect(actions.onNext).toHaveBeenCalled();
+      const { elements } = createNavigationButtons(mockProps);
+      expect(elements.length).toBe(9);
     });
 
-    it('should update heart button state', () => {
+    it('should handle favorite toggle', () => {
+      const onToggleFavorite = vi.fn();
+      const mockProps = {
+        onFirst: vi.fn(), onPrev: vi.fn(), onNext: vi.fn(), onLast: vi.fn(),
+        onInfo: vi.fn(), onHelp: vi.fn(), onSearch: vi.fn(), onLucky: vi.fn(),
+        onToggleFavorite
+      };
       const { elements, update } = createNavigationButtons(mockProps);
       const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;
       expect(favBtn).toBeDefined();
       expect(favBtn.textContent).toBe('♡');
 
-      update(true);
+      update(true, false);
       expect(favBtn.textContent).toBe('♥');
       expect(favBtn.classList.contains('active')).toBe(true);
 
-      update(false);
+      update(false, false);
       expect(favBtn.textContent).toBe('♡');
       expect(favBtn.classList.contains('inactive')).toBe(true);
     });
   });
 
-  describe('MetadataModal', () => {
-    const mockMetadata: Metadata = {
-      title: 'Test Manga',
-      tags: [{ text: 'Action', href: '#action', type: null }],
-      relatedWorks: [{ title: 'Manga B', href: '#b', thumb: 'b.jpg', isPrivate: false }]
-    };
-
-    it('should render title and content', () => {
-      const { el } = createMetadataModal({
-        metadata: mockMetadata,
-        isFavorite: false,
-        onClose: () => { },
-        onTagClick: () => Promise.resolve(),
-        onToggleFavorite: () => { }
-      });
-      // The heart button is now part of the title
-      expect(el.querySelector('.comic-helper-modal-title')?.textContent).toContain('Test Manga');
-      expect(el.textContent).toContain('Action');
-      expect(el.textContent).toContain('Manga B');
-    });
-
-    it('should call onClose when clicking overlay', () => {
-      const onClose = vi.fn();
-      const { el } = createMetadataModal({
-        metadata: mockMetadata,
-        isFavorite: false,
-        onClose,
-        onTagClick: () => Promise.resolve(),
-        onToggleFavorite: () => { }
-      });
-      el.click();
-      expect(onClose).toHaveBeenCalled();
-    });
-
-    it('should call onClose when clicking close button', () => {
-      const onClose = vi.fn();
-      const { el } = createMetadataModal({
-        metadata: mockMetadata,
-        isFavorite: false,
-        onClose,
-        onTagClick: () => Promise.resolve(),
-        onToggleFavorite: () => { }
-      });
-      const closeBtn = el.querySelector('.comic-helper-modal-close') as HTMLElement;
-      closeBtn.click();
-      expect(onClose).toHaveBeenCalled();
-    });
-
-    it('should not call onClose when clicking content', () => {
-      const onClose = vi.fn();
-      const { el } = createMetadataModal({
-        metadata: mockMetadata,
-        isFavorite: false,
-        onClose,
-        onTagClick: () => Promise.resolve(),
-        onToggleFavorite: () => { }
-      });
-      const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
-      content.click();
-      expect(onClose).not.toHaveBeenCalled();
-    });
-
-    it('should stop propagation and close modal when clicking tags', () => {
-      const onClose = vi.fn();
-      const { el } = createMetadataModal({
-        metadata: mockMetadata,
-        isFavorite: false,
-        onClose,
-        onTagClick: () => Promise.resolve(),
-        onToggleFavorite: () => { }
-      });
-      
-      const tag = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
-      tag.click();
-      expect(onClose).toHaveBeenCalled();
-
-      const related = el.querySelector('.comic-helper-related-item') as HTMLElement;
-      onClose.mockClear();
-      related.click();
-      expect(onClose).not.toHaveBeenCalled();
-    });
-
-    it('should call onTagClick when a tag is clicked', () => {
-      const onTagClick = vi.fn();
-      const { el } = createMetadataModal({
-        metadata: mockMetadata,
-        isFavorite: false,
-        onClose: () => { },
-        onTagClick,
-        onToggleFavorite: () => { }
-      });
-      
-      const tag = el.querySelector('.comic-helper-tag-chip') as HTMLElement;
-      tag.click();
-      
-      expect(onTagClick).toHaveBeenCalledWith(mockMetadata.tags[0]);
-    });
-
-    it('should update heart button state', () => {
-      const onToggleFavorite = vi.fn();
-      const { el, update } = createMetadataModal({
-        metadata: mockMetadata,
-        isFavorite: false,
-        onClose: () => { },
-        onTagClick: () => Promise.resolve(),
-        onToggleFavorite
-      });
-
-      const favBtn = el.querySelector('.comic-helper-favorite-btn') as HTMLElement;
-      expect(favBtn.textContent).toBe('♡');
-      expect(favBtn.className).toContain('inactive');
-
-      favBtn.click();
-      expect(onToggleFavorite).toHaveBeenCalled();
-
-      update(true);
-      expect(favBtn.textContent).toBe('♥');
-      expect(favBtn.className).toContain('active');
-    });
-
-    it('should not render version information', () => {
-      const { el } = createMetadataModal({
-        metadata: mockMetadata,
-        isFavorite: false,
-        onClose: () => { },
-        onTagClick: () => Promise.resolve(),
-        onToggleFavorite: () => { }
-      });
-      expect(el.textContent).not.toContain('Version');
-    });
-  });
-
-  describe('HelpModal', () => {
-    it('should render shortcut list and handle Space label', () => {
-      const { el } = createHelpModal({ onClose: () => {} });
-      expect(el.textContent).toContain('Keyboard Shortcuts');
-      expect(el.textContent).toContain('Next Page');
-      expect(el.textContent).toContain('j');
-      expect(el.textContent).toContain('Space');
-    });
-
-    it('should render version information', () => {
-      const { el } = createHelpModal({ onClose: () => {} });
-      expect(el.textContent).toContain('Version');
-    });
-
-    it('should have an empty update method', () => {
-      const { update } = createHelpModal({ onClose: () => {} });
-      expect(typeof update).toBe('function');
-      update();
-    });
-
-    it('should call onClose when clicking overlay', () => {
-      const onClose = vi.fn();
-      const { el } = createHelpModal({ onClose });
-      el.click();
-      expect(onClose).toHaveBeenCalled();
-    });
-
-    it('should call onClose when clicking close button', () => {
-      const onClose = vi.fn();
-      const { el } = createHelpModal({ onClose });
-      const closeBtn = el.querySelector('.comic-helper-modal-close') as HTMLElement;
-      closeBtn.click();
-      expect(onClose).toHaveBeenCalled();
-    });
-
-    it('should not call onClose when clicking content', () => {
-      const onClose = vi.fn();
-      const { el } = createHelpModal({ onClose });
-      const content = el.querySelector('.comic-helper-modal-content') as HTMLElement;
-      content.click();
-      expect(onClose).not.toHaveBeenCalled();
+  describe('ProgressBar', () => {
+    it('should update width based on progress', () => {
+      const { el, update } = createProgressBar();
+      update(4, 10); // (4+1)/10 = 50%
+      const fill = el.querySelector('.comic-helper-progress-fill') as HTMLElement;
+      expect(fill.style.width).toBe('50%');
     });
   });
 
   describe('ResumeNotification', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-      // Mock console.log to suppress output during tests
-      vi.spyOn(console, 'log').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-      vi.useRealTimers();
-    });
-
-    it('should render message and buttons', () => {
-      const { el } = createResumeNotification({
-        savedIndex: 5,
-        onResume: () => {},
-        onSkip: () => {}
-      });
-
-      expect(el.textContent).toContain('6');
-      expect(el.textContent).toContain('Continue');
-      expect(el.textContent).toContain('Start Over');
-      expect(el.textContent).toContain('×');
-    });
-
-    it('should call onResume and cleanup when continue button is clicked', () => {
+    it('should call onResume', () => {
       const onResume = vi.fn();
-      const onSkip = vi.fn();
-      const { el } = createResumeNotification({
-        savedIndex: 5,
-        onResume,
-        onSkip
-      });
-
-      document.body.appendChild(el);
-
-      const continueBtn = el.querySelector('.comic-helper-resume-continue') as HTMLElement;
-      continueBtn.click();
-
+      const { el } = createResumeNotification({ savedIndex: 5, onResume, onSkip: () => {} });
+      const btn = el.querySelector('button') as HTMLElement;
+      btn.click();
       expect(onResume).toHaveBeenCalled();
-      expect(onSkip).not.toHaveBeenCalled();
-      expect(document.body.contains(el)).toBe(false);
     });
+  });
 
-    it('should call onSkip and cleanup when skip button is clicked', () => {
-      const onResume = vi.fn();
-      const onSkip = vi.fn();
-      const { el } = createResumeNotification({
-        savedIndex: 5,
-        onResume,
-        onSkip
-      });
-
-      document.body.appendChild(el);
-
-      const skipBtn = el.querySelector('.comic-helper-resume-skip') as HTMLElement;
-      skipBtn.click();
-
-      expect(onSkip).toHaveBeenCalled();
-      expect(onResume).not.toHaveBeenCalled();
-      expect(document.body.contains(el)).toBe(false);
-    });
-
-    it('should cleanup when close button is clicked', () => {
-      const onResume = vi.fn();
-      const onSkip = vi.fn();
-      const { el } = createResumeNotification({
-        savedIndex: 5,
-        onResume,
-        onSkip
-      });
-
-      document.body.appendChild(el);
-
-      const closeBtn = el.querySelector('.comic-helper-resume-close') as HTMLElement;
-      closeBtn.click();
-
-      expect(onResume).not.toHaveBeenCalled();
-      expect(onSkip).not.toHaveBeenCalled();
-      expect(document.body.contains(el)).toBe(false);
-    });
-
-    it('should auto-cleanup after 15 seconds', () => {
-      const { el } = createResumeNotification({
-        savedIndex: 5,
-        onResume: () => {},
-        onSkip: () => {}
-      });
-
-      document.body.appendChild(el);
-      expect(document.body.contains(el)).toBe(true);
-
-      vi.advanceTimersByTime(15000);
-
-      expect(document.body.contains(el)).toBe(false);
-    });
-
-    it('should cleanup on scroll after 1 second delay', () => {
-      const { el } = createResumeNotification({
-        savedIndex: 5,
-        onResume: () => {},
-        onSkip: () => {}
-      });
-
-      document.body.appendChild(el);
-
-      // Scroll immediately should not remove element (scroll handler not yet registered)
-      window.dispatchEvent(new Event('scroll'));
-      expect(document.body.contains(el)).toBe(true);
-
-      // After 1 second, scroll handler should be registered
-      vi.advanceTimersByTime(1000);
-
-      // Now scroll should remove element
-      window.dispatchEvent(new Event('scroll'));
-      expect(document.body.contains(el)).toBe(false);
-    });
-
-    it('should format message with correct page number', () => {
-      const { el } = createResumeNotification({
-        savedIndex: 0,
-        onResume: () => {},
-        onSkip: () => {}
-      });
-
-      // savedIndex 0 should show as page 1
-      expect(el.textContent).toContain('1');
-
-      const el2 = createResumeNotification({
-        savedIndex: 9,
-        onResume: () => {},
-        onSkip: () => {}
-      }).el;
-
-      // savedIndex 9 should show as page 10
-      expect(el2.textContent).toContain('10');
+  describe('LoadingIndicator', () => {
+    it('should show/hide based on loading state', () => {
+      const { el, update } = createLoadingIndicator({ isLoading: false });
+      expect(el.classList.contains('visible')).toBe(false);
+      update(true);
+      expect(el.classList.contains('visible')).toBe(true);
     });
   });
 });

@@ -1,7 +1,8 @@
-import { getNavigationDirection, getClickNavigationDirection, pickRandomWork } from '../logic';
+import { getNavigationDirection, getClickNavigationDirection } from '../logic';
 import { SHORTCUTS } from '../shortcuts';
 import { Store } from '../store';
 import { Navigator } from './Navigator';
+import { DiscoveryManager } from './DiscoveryManager';
 
 const CLICK_THRESHOLD_PX = 5;
 
@@ -40,6 +41,7 @@ function matchesShortcut(e: KeyboardEvent, id: string): boolean {
 export class InputManager {
   private store: Store;
   private navigator: Navigator;
+  private discoveryManager: DiscoveryManager;
   private lastWheelTime: number;
   private readonly WHEEL_THROTTLE_MS = 500;
   private readonly WHEEL_THRESHOLD = 1;
@@ -48,9 +50,10 @@ export class InputManager {
   private mouseDownPos: { x: number; y: number } | null;
   private mouseDownTarget: HTMLImageElement | null;
 
-  constructor(store: Store, navigator: Navigator) {
+  constructor(store: Store, navigator: Navigator, discoveryManager: DiscoveryManager) {
     this.store = store;
     this.navigator = navigator;
+    this.discoveryManager = discoveryManager;
     this.lastWheelTime = 0;
     this.mouseDownPos = null;
     this.mouseDownTarget = null;
@@ -131,7 +134,8 @@ export class InputManager {
     if (this._handleModalCloseShortcuts(e)) return;
     if (this._handleToggleShortcuts(e)) return;
 
-    if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
+    const state = this.store.getState();
+    if (!state.enabled || state.isLuckyLoading || this._isAnyModalOpen()) return;
 
     this._handleShortcutAction(e);
   };
@@ -174,13 +178,7 @@ export class InputManager {
       dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
       spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
       fullscreen: () => this._toggleFullscreen(),
-      randomJump: () => {
-        const state = this.store.getState();
-        const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
-        if (nextUrl) {
-          window.location.href = nextUrl;
-        }
-      },
+      randomJump: () => this.discoveryManager.jumpToRandomWork(),
       speedUpAutoplay: () => {
         const { autoplayInterval } = this.store.getState();
         if (autoplayInterval > 1) this.store.setState({ autoplayInterval: autoplayInterval - 1 });

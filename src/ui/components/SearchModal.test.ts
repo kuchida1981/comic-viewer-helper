@@ -305,5 +305,15 @@ describe('SearchModal', () => {
       expect(propagateSpy).toHaveBeenCalled();
       expect(wheelEvent.defaultPrevented).toBe(false);
     });
+    it('should handle setUpdating', () => {
+      const { setUpdating } = createSearchModal(defaultProps);
+      setUpdating(true);
+      setUpdating(false);
+    });
+
+    it('should handle updateResults with null pagination', () => {
+      const { updateResults } = createSearchModal(defaultProps);
+      updateResults({ results: [], totalCount: '0', nextPageUrl: null, pagination: [] });
+    });
   });
 });

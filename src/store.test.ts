@@ -31,6 +31,7 @@ describe('Store', () => {
       isHelpModalOpen: false,
       isSearchModalOpen: false,
       isLoading: false,
+      isLuckyLoading: false,
       searchResults: null,
       searchQuery: '',
       searchContext: undefined,

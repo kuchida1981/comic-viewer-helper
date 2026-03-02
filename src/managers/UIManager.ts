@@ -12,38 +12,18 @@ import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
 import { Draggable } from '../ui/Draggable';
 import { createElement } from '../ui/utils';
-import { pickRandomWork } from '../logic';
-import { Store, MAX_SEARCH_HISTORY, StoreState } from '../store';
+import { Store, StoreState } from '../store';
 import { Navigator } from './Navigator';
-import { SiteAdapter, SearchContext, isSearchableAdapter, SearchResultsState, Tag, SearchCache, SearchableAdapter, RelatedWork } from '../types';
+import { DiscoveryManager } from './DiscoveryManager';
+import { SiteAdapter, SearchContext, SearchCache, Tag, RelatedWork } from '../types';
 
 const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
-
-/**
- * Normalize query for comparison (lowercase, trim, sort tokens)
- */
-function normalizeQuery(query: string): string {
-  return query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .sort()
-    .join(' ');
-}
-
-/**
- * Check if search contexts match
- */
-function contextsMatch(c1?: SearchContext, c2?: SearchContext): boolean {
-  if (!c1 && !c2) return true;
-  if (!c1 || !c2) return false;
-  return c1.type === c2.type && c1.label === c2.label;
-}
 
 export class UIManager {
   private adapter: SiteAdapter;
   private store: Store;
   private navigator: Navigator;
+  private discoveryManager: DiscoveryManager;
 
   // Component references
   private powerComp: PowerButtonComponent | null = null;
@@ -58,10 +38,11 @@ export class UIManager {
   private helpModalEl: HTMLElement | null = null;
   private searchModalComp: SearchModalComponent | null = null;
 
-  constructor(adapter: SiteAdapter, store: Store, navigator: Navigator) {
+  constructor(adapter: SiteAdapter, store: Store, navigator: Navigator, discoveryManager: DiscoveryManager) {
     this.adapter = adapter;
     this.store = store;
     this.navigator = navigator;
+    this.discoveryManager = discoveryManager;
   }
 
   init = (): void => {
@@ -127,7 +108,7 @@ export class UIManager {
   private _updateComponentStates = (state: StoreState): void => {
     const favorites = state.favorites as RelatedWork[] | undefined;
     const isFavorite = favorites?.some(f => f.href === window.location.href) ?? false;
-    this.navBtnsComp?.update(isFavorite);
+    this.navBtnsComp?.update(isFavorite, state.isLuckyLoading);
 
     if (this.modalComp && state.isMetadataModalOpen) {
       this.modalComp.update(isFavorite);
@@ -205,11 +186,7 @@ export class UIManager {
       onHelp: () => this.store.setState({ isHelpModalOpen: true }),
       onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
       onLucky: () => {
-        const state = this.store.getState();
-        const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
-        if (nextUrl) {
-          window.location.href = nextUrl;
-        }
+        void this.discoveryManager.jumpToRandomWork();
       },
       onToggleFavorite: () => { this._toggleFavorite(); }
     });
@@ -249,8 +226,8 @@ export class UIManager {
           searchQuery: state.searchQuery,
           searchContext: state.searchContext,
           searchHistory: state.searchHistory,
-          onSearch: (q, ctx) => { void this._performSearch(q, false, ctx); },
-          onPageChange: (url) => { void this._performSearch(url); },
+          onSearch: (q, ctx) => { void this.discoveryManager.performSearch(q, false, ctx); },
+          onPageChange: (url) => { void this.discoveryManager.performSearch(url); },
           onClose: () => this.store.setState({ isSearchModalOpen: false })
         });
         document.body.appendChild(this.searchModalComp.el);
@@ -266,7 +243,7 @@ export class UIManager {
     const { searchCache, searchQuery, searchContext } = state;
     if (!searchCache) {
       if (searchQuery && searchContext?.type === 'keyword') {
-        void this._performSearch(searchQuery);
+        void this.discoveryManager.performSearch(searchQuery);
       }
       return;
     }
@@ -275,25 +252,25 @@ export class UIManager {
   };
 
   private _processSearchCache = (searchCache: SearchCache, searchQuery: string, searchContext?: SearchContext): void => {
-    if (searchCache.query === searchQuery && contextsMatch(searchCache.context, searchContext)) {
+    if (searchCache.query === searchQuery && this.discoveryManager.contextsMatch(searchCache.context, searchContext)) {
       this.store.setState({ searchResults: searchCache.results });
       this.searchModalComp?.updateResults(searchCache.results);
       this._revalidateCacheIfNeeded(searchCache, searchQuery, searchContext);
     } else if (searchQuery && searchContext?.type === 'keyword') {
-      void this._performSearch(searchQuery);
+      void this.discoveryManager.performSearch(searchQuery);
     }
   };
 
   private _revalidateCacheIfNeeded = (searchCache: SearchCache, searchQuery: string, searchContext?: SearchContext): void => {
     if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
-      void this._performSearch(searchQuery, true, searchContext);
+      void this.discoveryManager.performSearch(searchQuery, true, searchContext);
     }
   };
 
   private _handleTagClick = async (tag: Tag): Promise<void> => {
     this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
     const contextType = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
-    return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
+    return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
   };
 
   private _toggleFavorite = (): void => {
@@ -361,66 +338,5 @@ export class UIManager {
       modalEl = null;
     }
     return modalEl;
-  };
-
-  private _performSearch = async (queryOrUrl: string, silent = false, context?: SearchContext): Promise<void> => {
-    if (!isSearchableAdapter(this.adapter)) return;
-    if (!silent) this.store.setState({ searchResults: null });
-
-    const isUrl = queryOrUrl.startsWith('http') || queryOrUrl.startsWith('/');
-    const { url, query, searchContext } = this._getSearchParameters(queryOrUrl, context);
-
-    this._updateStoreBeforeSearch(query, searchContext, silent, isUrl);
-
-    this.searchModalComp?.setUpdating(true);
-    try {
-      const results = await this._fetchSearchResults(url);
-      results.searchContext = searchContext;
-      this.store.setState({ searchResults: results, searchCache: { query, results, fetchedAt: Date.now(), context: searchContext } });
-      this.searchModalComp?.updateResults(results);
-    } catch (error) {
-      console.error('Failed to fetch search results:', error);
-    } finally {
-      this.searchModalComp?.setUpdating(false);
-    }
-  };
-
-  private _updateStoreBeforeSearch = (query: string, context: SearchContext, silent: boolean, isUrl: boolean): void => {
-    this.store.setState({ searchContext: context });
-    if (!silent && !isUrl && context.type === 'keyword') {
-      this.store.setState({ searchQuery: query });
-      this._updateSearchHistory(query);
-    }
-  };
-
-  private _getSearchParameters = (queryOrUrl: string, context?: SearchContext): { url: string; query: string; searchContext: SearchContext } => {
-    const isUrl = queryOrUrl.startsWith('http') || queryOrUrl.startsWith('/');
-    if (isUrl) {
-      const query = context ? (context.label || '') : this.store.getState().searchQuery;
-      const searchContext = context || this.store.getState().searchContext || { type: 'keyword', label: query };
-      return { url: queryOrUrl, query, searchContext };
-    }
-    const query = queryOrUrl;
-    const searchableAdapter = this.adapter as SearchableAdapter;
-    const url = searchableAdapter.getSearchUrl(query);
-    const searchContext = context || { type: 'keyword', label: query };
-    return { url, query, searchContext };
-  };
-
-  private _fetchSearchResults = async (url: string): Promise<SearchResultsState> => {
-    const searchableAdapter = this.adapter as SearchableAdapter;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const html = await res.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    return searchableAdapter.parseSearchResults(doc);
-  };
-
-  private _updateSearchHistory = (query: string): void => {
-    const { searchHistory } = this.store.getState();
-    const normalizedNew = normalizeQuery(query);
-    const filtered = searchHistory.filter(h => normalizeQuery(h) !== normalizedNew);
-    const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
-    this.store.setState({ searchHistory: newHistory });
   };
 }

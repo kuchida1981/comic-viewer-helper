@@ -15,7 +15,7 @@ export interface NavigationButtonsProps {
 
 export interface NavigationButtonsComponent {
   elements: HTMLElement[];
-  update: (isFavorite: boolean) => void;
+  update: (isFavorite: boolean, isLuckyLoading: boolean) => void;
 }
 
 export function createNavigationButtons({
@@ -24,8 +24,9 @@ export function createNavigationButtons({
   const configs = [
     { text: '<<', title: t('ui.goLast'), action: onLast },
     { text: '<', title: t('ui.goNext'), action: onNext },
-    { text: '🎲', title: t('ui.lucky'), action: onLucky, className: 'comic-helper-button comic-helper-icon-btn' },
-        { text: '>', title: t('ui.goPrev'), action: onPrev },
+    { text: '🎲', title: t('ui.lucky'), action: onLucky, className: 'comic-helper-button comic-helper-icon-btn', id: 'lucky' },
+    { text: '>', title: t('ui.goPrev'), action: onPrev },
+
         { text: '>>', title: t('ui.goFirst'), action: onFirst },
         { text: '♡', title: 'Toggle Favorite', action: onToggleFavorite, id: 'fav' },
         { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
@@ -51,12 +52,23 @@ export function createNavigationButtons({
     
       return {
         elements,
-        update: (isFavorite: boolean) => {
+        update: (isFavorite: boolean, isLuckyLoading: boolean) => {
           const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav');
           if (favBtn) {
             favBtn.textContent = isFavorite ? '♥' : '♡';
             favBtn.classList.toggle('active', isFavorite);
             favBtn.classList.toggle('inactive', !isFavorite);
+          }
+
+          const luckyBtn = elements.find(el => el.id === 'comic-helper-nav-lucky');
+          if (luckyBtn instanceof HTMLButtonElement) {
+            luckyBtn.disabled = isLuckyLoading;
+            luckyBtn.classList.toggle('loading', isLuckyLoading);
+            if (isLuckyLoading) {
+              luckyBtn.textContent = '⏳';
+            } else {
+              luckyBtn.textContent = '🎲';
+            }
           }
         }
       };

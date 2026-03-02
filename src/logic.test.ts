@@ -11,8 +11,11 @@ import {
   preloadImages,
   getClickNavigationDirection,
   normalizeUrl,
-  pickRandomWork
-} from './logic.js';
+  pickRandomWork,
+  getLuckyCandidatesCount,
+  isLuckyPoolDepleted
+  } from './logic';
+
 import { Metadata } from './types.js';
 import { createMockImage, setupLocationMock } from './test/mocks/dom.js';
 
@@ -466,6 +469,62 @@ describe('logic.js', () => {
       // normalizeUrl('not-a-url') will result in 'http://localhost/not-a-url'
       // This is expected behavior for relative-like strings
       expect(normalizeUrl('not-a-url')).toBe('http://localhost/not-a-url');
+    });
+  });
+
+  describe('getLuckyCandidatesCount', () => {
+    const metadata = {
+      title: 'T',
+      tags: [],
+      relatedWorks: [
+        { href: 'http://site.com/1', title: '1', thumb: '1.jpg' },
+        { href: 'http://site.com/2', title: '2', thumb: '2.jpg' },
+        { href: 'http://site.com/3', title: '3', thumb: '3.jpg' }
+      ]
+    };
+
+    it('should count candidates correctly excluding history and current', () => {
+      const history = ['http://site.com/1'];
+      const current = 'http://site.com/2';
+      // Only http://site.com/3 should remain
+      expect(getLuckyCandidatesCount(metadata, history, current)).toBe(1);
+    });
+
+    it('should include favorites and search cache in count', () => {
+      const searchCache = {
+        query: 'q',
+        results: {
+          results: [{ href: 'http://site.com/4', title: '4', thumb: '4.jpg' }],
+          totalCount: '1',
+          nextPageUrl: null,
+          pagination: []
+        },
+        fetchedAt: 0
+      };
+      const favorites = [{ href: 'http://site.com/5', title: '5', thumb: '5.jpg' }];
+      
+      // related(3) + cache(1) + favorites(1) = 5
+      // Current is 'other', history is []
+      expect(getLuckyCandidatesCount(metadata, [], 'http://site.com/other', searchCache, favorites)).toBe(5);
+    });
+  });
+
+  describe('isLuckyPoolDepleted', () => {
+    const metadata = {
+      title: 'T',
+      tags: [],
+      relatedWorks: [
+        { href: 'http://site.com/1', title: '1', thumb: '1.jpg' },
+        { href: 'http://site.com/2', title: '2', thumb: '2.jpg' }
+      ]
+    };
+
+    it('should return true if count is below threshold', () => {
+      expect(isLuckyPoolDepleted(metadata, [], 'http://site.com/other', null, [], 5)).toBe(true);
+    });
+
+    it('should return false if count is at or above threshold', () => {
+      expect(isLuckyPoolDepleted(metadata, [], 'http://site.com/other', null, [], 2)).toBe(false);
     });
   });
 
