@@ -1,7 +1,7 @@
 ## Purpose
-ユーザーが訪れた作品のURL履歴（lucky-history）をサイトごとに保持し、ランダム遷移（Lucky Navigation）などの機能で、最近閲覧した作品を除外するために使用する。
+閲覧履歴の保存時における正規化の徹底を定義する。
 
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: サイト別の閲覧履歴の保持
 システムは、表示された作品のURLを正規化して保存し、localStorage を用いてサイト（ホスト）ごとに最大20件まで永続化しなければならない (SHALL)。
@@ -16,10 +16,3 @@
 #### Scenario: 重複したURLの履歴追加
 - **WHEN** 履歴に既に存在する作品ページ（正規化後の比較で判定）を再度読み込んだとき
 - **THEN** システムは既存の履歴からそのURL（およびその正規化形式に一致するもの）を全て削除し、再度正規化されたURLを先頭に追加する（最新順を維持）
-
-### Requirement: URLの正規化
-システムは、URLの比較や保存を行う際、クエリパラメータおよびハッシュを除去した正規化されたURL（origin + pathname）を使用しなければならない (SHALL)。
-
-#### Scenario: クエリパラメータを含むURLの正規化
-- **WHEN** URL `https://example.com/work/123?page=5&source=nav#top` を正規化するとき
-- **THEN** 正規化されたURLは `https://example.com/work/123` となる
