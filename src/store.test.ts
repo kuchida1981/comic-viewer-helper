@@ -68,6 +68,24 @@ describe('Store', () => {
     expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`) || '[]')).toEqual(['new-url']);
   });
 
+  it('addLuckyHistory should normalize and deduplicate URLs', () => {
+    const store = new Store();
+    const host = window.location.hostname;
+    
+    // Initial state
+    store.setState({ luckyHistory: [`http://${host}/old?q=1`] });
+    
+    // Add same URL with different params
+    store.addLuckyHistory(`http://${host}/old?q=2#hash`);
+    
+    // Should result in a single normalized URL
+    expect(store.getState().luckyHistory).toEqual([`http://${host}/old`]);
+    
+    // Add another new URL
+    store.addLuckyHistory(`http://${host}/new?param=val`);
+    expect(store.getState().luckyHistory).toEqual([`http://${host}/new`, `http://${host}/old`]);
+  });
+
   it('should persist search query and cache', () => {
     const store = new Store();
     const cache = {

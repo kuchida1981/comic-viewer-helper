@@ -9,6 +9,8 @@ export interface Rect {
   bottom: number;
 }
 
+const FAVORITE_PICK_CHANCE = 0.25;
+
 /**
  * Calculate visible height of an image in the viewport
  */
@@ -473,7 +475,7 @@ export function pickRandomWork(
     candidates.some(c => normalizeUrl(c.href) === normalizeUrl(f.href))
   );
 
-  if (favoritePool.length > 0 && Math.random() < 0.25) {
+  if (favoritePool.length > 0 && Math.random() < FAVORITE_PICK_CHANCE) {
     const target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
     return target.href;
   } else {

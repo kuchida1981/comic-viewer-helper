@@ -162,10 +162,11 @@ export class Store {
   };
 
   addLuckyHistory = (url: string): void => {
-    const { luckyHistory } = this.state;
-    const normalized = normalizeUrl(url);
-    const filtered = luckyHistory.filter(h => normalizeUrl(h) !== normalized);
-    const newHistory = [normalized, ...filtered].slice(0, MAX_LUCKY_HISTORY);
+    const normalizedUrl = normalizeUrl(url);
+    const newHistory = Array.from(new Set([
+      normalizedUrl,
+      ...this.state.luckyHistory.map(normalizeUrl)
+    ])).slice(0, MAX_LUCKY_HISTORY);
     this.setState({ luckyHistory: newHistory });
   };
 
