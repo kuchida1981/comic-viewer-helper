@@ -46,6 +46,9 @@ class App {
     this.inputManager.init();
     this.popUnderBlocker.init();
 
+    // Add current URL to lucky history
+    this.store.addLuckyHistory(window.location.href);
+
     // Resume position logic
     if (this.resumeManager.isEnabled()) {
       const workKey = window.location.origin + window.location.pathname;

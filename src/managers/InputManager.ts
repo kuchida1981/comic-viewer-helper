@@ -1,4 +1,4 @@
-import { getNavigationDirection, getClickNavigationDirection, jumpToRandomWork } from '../logic';
+import { getNavigationDirection, getClickNavigationDirection, pickRandomWork } from '../logic';
 import { SHORTCUTS } from '../shortcuts';
 import { Store } from '../store';
 import { Navigator } from './Navigator';
@@ -165,7 +165,7 @@ export class InputManager {
   };
 
   private _handleShortcutAction = (e: KeyboardEvent): void => {
-    const { isDualViewEnabled, spreadOffset, metadata, searchCache } = this.store.getState();
+    const { isDualViewEnabled, spreadOffset } = this.store.getState();
 
     const actions: Record<string, () => void | Promise<void>> = {
       nextPage: () => this.navigator.scrollToImage(1),
@@ -174,7 +174,13 @@ export class InputManager {
       dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
       spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
       fullscreen: () => this._toggleFullscreen(),
-      randomJump: () => { jumpToRandomWork(metadata, searchCache); },
+      randomJump: () => {
+        const state = this.store.getState();
+        const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
+        if (nextUrl) {
+          window.location.href = nextUrl;
+        }
+      },
       speedUpAutoplay: () => {
         const { autoplayInterval } = this.store.getState();
         if (autoplayInterval > 1) this.store.setState({ autoplayInterval: autoplayInterval - 1 });

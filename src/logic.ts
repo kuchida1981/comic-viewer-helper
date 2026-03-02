@@ -9,6 +9,8 @@ export interface Rect {
   bottom: number;
 }
 
+const FAVORITE_PICK_CHANCE = 0.25;
+
 /**
  * Calculate visible height of an image in the viewport
  */
@@ -403,6 +405,86 @@ function toCandidates(works: unknown): { href: string }[] {
 }
 
 /**
+ * Normalize URL by removing search parameters and hashes.
+ * Returns origin + pathname.
+ */
+export function normalizeUrl(url: string): string {
+  try {
+    // Try to use window.location.origin if available, otherwise default to a dummy base
+    let base: string | undefined;
+    if (typeof window !== 'undefined' && window.location) {
+      base = window.location.origin;
+    }
+    if (!base || base === 'null' || base === 'undefined') {
+      base = 'http://localhost';
+    }
+
+    const u = new URL(url, base);
+    return u.origin + u.pathname;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Select a random work from candidates, excluding recently visited ones.
+ * Uses a 2-step slot algorithm: 25% chance for a favorite, 75% for discovery.
+ * Implements fallback logic to avoid empty candidates.
+ */
+export function pickRandomWork(
+  metadata: Metadata,
+  luckyHistory: string[],
+  currentUrl: string,
+  searchCache?: SearchCache | null,
+  favorites: RelatedWork[] = []
+): string | null {
+  const normalizedCurrent = normalizeUrl(currentUrl);
+  const normalizedHistory = luckyHistory.map(h => normalizeUrl(h));
+
+  const getFilteredPool = (excludeHistoryCount: number | 'all'): { href: string }[] => {
+    const pool = getDiscoveryPool(metadata, searchCache, favorites);
+    const excludeSet = new Set<string>();
+    excludeSet.add(normalizedCurrent);
+
+    if (excludeHistoryCount === 'all') {
+      normalizedHistory.forEach(h => excludeSet.add(h));
+    } else if (typeof excludeHistoryCount === 'number' && excludeHistoryCount > 0) {
+      normalizedHistory.slice(0, excludeHistoryCount).forEach(h => excludeSet.add(h));
+    }
+
+    return pool.filter(w => !excludeSet.has(normalizeUrl(w.href)));
+  };
+
+  // Try strict mode (all history + current)
+  let candidates = getFilteredPool('all');
+
+  // Fallback to relaxed mode (last 3 + current)
+  if (candidates.length === 0) {
+    candidates = getFilteredPool(3);
+  }
+
+  // Fallback to minimal mode (current only)
+  if (candidates.length === 0) {
+    candidates = getFilteredPool(0);
+  }
+
+  if (candidates.length === 0) return null;
+
+  // 2-step slot selection within the final candidates
+  const favoritePool = toCandidates(favorites).filter(f =>
+    candidates.some(c => normalizeUrl(c.href) === normalizeUrl(f.href))
+  );
+
+  if (favoritePool.length > 0 && Math.random() < FAVORITE_PICK_CHANCE) {
+    const target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
+    return target.href;
+  } else {
+    const target = candidates[Math.floor(Math.random() * candidates.length)];
+    return target.href;
+  }
+}
+
+/**
  * Collect all available works for discovery, filtered and deduplicated
  */
 function getDiscoveryPool(metadata: Metadata, searchCache?: SearchCache | null, favorites: RelatedWork[] = []): { href: string }[] {
@@ -430,35 +512,5 @@ function getDiscoveryPool(metadata: Metadata, searchCache?: SearchCache | null, 
     }
   }
   return uniquePool;
-}
-
-/**
- * Select a random non-private work from related works and search cache, and jump to it
- * Uses a 2-step slot algorithm: 25% chance for a favorite, 75% for discovery (all candidates)
- * Returns true if a jump was attempted, false otherwise.
- */
-export function jumpToRandomWork(
-  metadata: Metadata,
-  searchCache?: SearchCache | null,
-  favorites: RelatedWork[] = []
-): boolean {
-  const discoveryPool = getDiscoveryPool(metadata, searchCache, favorites);
-  if (discoveryPool.length === 0) return false;
-
-  const favoritePool = toCandidates(favorites);
-  let target: { href: string } | undefined;
-
-  // 2-step slot selection
-  if (favoritePool.length > 0 && Math.random() < 0.25) {
-    target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
-  } else {
-    target = discoveryPool[Math.floor(Math.random() * discoveryPool.length)];
-  }
-
-  if (target?.href) {
-    window.location.href = target.href;
-    return true;
-  }
-  return false;
 }
 

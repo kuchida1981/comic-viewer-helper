@@ -3,6 +3,7 @@ import { Navigator } from './Navigator.js';
 import * as logic from '../logic.js';
 import { Store, StoreListener } from '../store.js';
 import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
+import { setupLocationMock } from '../test/mocks/dom.js';
 
 // Mock logic functions to isolate Navigator logic
 vi.mock('../logic.js', async (importOriginal) => {
@@ -16,7 +17,7 @@ vi.mock('../logic.js', async (importOriginal) => {
     forceImageLoad: vi.fn(),
     waitForImageLoad: vi.fn().mockResolvedValue(undefined),
     preloadImages: vi.fn(),
-    jumpToRandomWork: vi.fn()
+    pickRandomWork: vi.fn()
   };
 });
 
@@ -261,6 +262,7 @@ describe('Navigator', () => {
       searchQuery: '',
       searchCache: null,
       searchHistory: [],
+      luckyHistory: [],
       favorites: [],
       guiPos: null,
       isAutoplayEnabled: false,
@@ -307,6 +309,7 @@ describe('Navigator', () => {
         searchQuery: '',
         searchCache: null,
         searchHistory: [],
+        luckyHistory: [],
         favorites: [],
         guiPos: null,
         isAutoplayEnabled: false,
@@ -455,18 +458,24 @@ describe('Navigator', () => {
                                 // 最終ページに設定
                                 vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(mockImages.length - 1);
                                 // ジャンプ候補なし
-                                vi.mocked(logic.jumpToRandomWork).mockReturnValue(false);
+                                vi.mocked(logic.pickRandomWork).mockReturnValue(null);
+                                setupLocationMock('current-url');
                           
                                 // 有効化してタイマー開始
                                 vi.clearAllTimers();
-                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: true, autoplayInterval: 1 });
+                                (store.getState as Mock).mockReturnValue({ 
+                                  ...vi.mocked(store.getState)(), 
+                                  isAutoplayEnabled: true, 
+                                  autoplayInterval: 1,
+                                  luckyHistory: []
+                                });
                                 subscribeCb(vi.mocked(store.getState)());
                                 
                                 vi.advanceTimersByTime(1000);
                                 // Wait for async task inside setTimeout
                                 vi.runAllTicks();
                                 
-                                expect(logic.jumpToRandomWork).toHaveBeenCalled();
+                                expect(logic.pickRandomWork).toHaveBeenCalled();
                                 // 仕様変更: isAutoplayEnabled: false はセットせず、タイマーだけ止める
                                 expect(store.setState).not.toHaveBeenCalledWith({ isAutoplayEnabled: false });
                                 expect(vi.getTimerCount()).toBe(0);
@@ -480,18 +489,25 @@ describe('Navigator', () => {
                                 // 最終ページに設定
                                 vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(mockImages.length - 1);
                                 // ジャンプ成功
-                                vi.mocked(logic.jumpToRandomWork).mockReturnValue(true);
+                                vi.mocked(logic.pickRandomWork).mockReturnValue('http://new-url');
+                                setupLocationMock('current-url');
                           
                                 // 有効化してタイマー開始
                                 vi.clearAllTimers();
-                                (store.getState as Mock).mockReturnValue({ ...vi.mocked(store.getState)(), isAutoplayEnabled: true, autoplayInterval: 1 });
+                                (store.getState as Mock).mockReturnValue({ 
+                                  ...vi.mocked(store.getState)(), 
+                                  isAutoplayEnabled: true, 
+                                  autoplayInterval: 1,
+                                  luckyHistory: []
+                                });
                                 subscribeCb(vi.mocked(store.getState)());
                                 
                                 vi.advanceTimersByTime(1000);
                                 // Wait for async task inside setTimeout
                                 vi.runAllTicks();
                                 
-                                expect(logic.jumpToRandomWork).toHaveBeenCalled();
+                                expect(logic.pickRandomWork).toHaveBeenCalled();
+                                expect(window.location.href).toBe('http://new-url');
                                 // Should NOT set isAutoplayEnabled to false
                                 expect(store.setState).not.toHaveBeenCalledWith({ isAutoplayEnabled: false });
                               });

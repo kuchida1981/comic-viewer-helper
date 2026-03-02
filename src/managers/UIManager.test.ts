@@ -38,7 +38,7 @@ vi.mock('../logic.js', async () => {
   const actual = await vi.importActual('../logic.js') as typeof logic;
   return {
     ...actual,
-    jumpToRandomWork: vi.fn()
+    pickRandomWork: vi.fn()
   };
 });
 
@@ -1055,8 +1055,11 @@ describe('UIManager', () => {
 
           
 
+                    vi.mocked(logic.pickRandomWork).mockReturnValue('http://lucky-url');
+                    setupLocationMock('http://site.com/work/1');
                     callbacks.onLucky();
-                    expect(logic.jumpToRandomWork).toHaveBeenCalled();
+                    expect(logic.pickRandomWork).toHaveBeenCalled();
+                    expect(window.location.href).toBe('http://lucky-url');
           
                   });
           

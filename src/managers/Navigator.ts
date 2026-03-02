@@ -1,4 +1,4 @@
-import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, waitForImageLoad, preloadImages, forceImageLoad, jumpToRandomWork } from '../logic';
+import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, waitForImageLoad, preloadImages, forceImageLoad, pickRandomWork } from '../logic';
 import { SiteAdapter } from '../types';
 import { Store, StoreState } from '../store';
 
@@ -281,12 +281,12 @@ export class Navigator {
     this.autoplayTimer = setTimeout(async () => {
       const imgs = this.getImages();
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
-      // console.log('Autoplay tick', { currentIndex, total: imgs.length });
       if (currentIndex >= imgs.length - 1) {
-        // console.log('End of pages, attempting random jump');
-        const { metadata, searchCache } = this.store.getState();
-        const jumped = jumpToRandomWork(metadata, searchCache);
-        if (!jumped) {
+        const state = this.store.getState();
+        const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
+        if (nextUrl) {
+          window.location.href = nextUrl;
+        } else {
           this._stopAutoplay();
         }
         return;
