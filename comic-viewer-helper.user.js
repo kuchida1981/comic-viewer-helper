@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.c7e8061
+// @version         1.5.0-unstable.94a52ea
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -59,277 +59,7 @@
     if (!isObject(value.results)) return false;
     return Array.isArray(value.results["results"]);
   }
-  const STORAGE_KEYS = {
-    DUAL_VIEW: "comic-viewer-helper-dual-view",
-    GUI_POS: "comic-viewer-helper-gui-pos",
-    ENABLED: "comic-viewer-helper-enabled",
-    SEARCH_QUERY: "comic-viewer-helper-search-query",
-    SEARCH_CONTEXT: "comic-viewer-helper-search-context",
-    SEARCH_CACHE: "comic-viewer-helper-search-cache",
-    SEARCH_HISTORY: "comic-viewer-helper-search-history",
-    FAVORITES: "comic-viewer-helper-favorites",
-    AUTOPLAY_ENABLED: "comic-viewer-helper-autoplay-enabled",
-    AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval"
-  };
-  const MAX_SEARCH_HISTORY = 3;
-  class Store {
-    state;
-    listeners;
-    constructor() {
-      this.state = {
-        enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== "false",
-        isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === "true",
-        spreadOffset: 0,
-        currentVisibleIndex: 0,
-        guiPos: this._loadGuiPos(),
-        metadata: {
-          title: "",
-          tags: [],
-          relatedWorks: []
-        },
-        isMetadataModalOpen: false,
-        isHelpModalOpen: false,
-        isSearchModalOpen: false,
-        isLoading: false,
-        searchResults: null,
-        searchQuery: this._loadSearchQuery(),
-        searchContext: this._loadSearchContext(),
-        searchCache: this._loadSearchCache(),
-        searchHistory: this._loadSearchHistory(),
-        favorites: this._loadFavorites(),
-        isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
-        autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
-      };
-      this.listeners = [];
-    }
-    getState = () => {
-      return { ...this.state };
-    };
-    setState = (patch) => {
-      let changed = false;
-      for (const key of Object.keys(patch)) {
-        if (this.state[key] !== patch[key]) {
-          this._applyPatch(key, patch[key]);
-          changed = true;
-        }
-      }
-      if (changed) {
-        this._persistChanges(patch);
-        this._notify();
-      }
-    };
-    _persistChanges = (patch) => {
-      if ("enabled" in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
-      if ("isDualViewEnabled" in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
-      if ("guiPos" in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
-      if ("isAutoplayEnabled" in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
-      if ("autoplayInterval" in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
-      this._persistSearchRelatedChanges(patch);
-    };
-    _persistSearchRelatedChanges = (patch) => {
-      const host = window.location.hostname;
-      if ("searchQuery" in patch) {
-        localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
-      }
-      if ("searchContext" in patch) {
-        const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
-        if (patch.searchContext) {
-          localStorage.setItem(key, JSON.stringify(patch.searchContext));
-        } else {
-          localStorage.removeItem(key);
-        }
-      }
-      if ("searchCache" in patch) {
-        try {
-          localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
-        } catch (e) {
-          console.warn("Failed to save search cache to localStorage:", e);
-        }
-      }
-      if ("searchHistory" in patch) {
-        localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
-      }
-      if ("favorites" in patch) {
-        localStorage.setItem(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
-      }
-    };
-    subscribe = (callback) => {
-      this.listeners.push(callback);
-      return () => {
-        this.listeners = this.listeners.filter((l) => l !== callback);
-      };
-    };
-    _notify = () => {
-      this.listeners.forEach((callback) => callback(this.getState()));
-    };
-    _applyPatch = (key, value) => {
-      this.state[key] = value;
-    };
-    _loadSearchHistory = () => {
-      try {
-        const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (isStringArray(parsed)) {
-            return parsed;
-          }
-        }
-        return [];
-      } catch {
-        return [];
-      }
-    };
-    _loadSearchCache = () => {
-      try {
-        const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
-        if (!saved) return null;
-        const parsed = JSON.parse(saved);
-        return isSearchCache(parsed) ? parsed : null;
-      } catch {
-        return null;
-      }
-    };
-    _loadSearchQuery = () => {
-      const host = window.location.hostname;
-      return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
-    };
-    _loadSearchContext = () => {
-      try {
-        const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
-        if (!saved) return void 0;
-        const parsed = JSON.parse(saved);
-        return isSearchContext(parsed) ? parsed : void 0;
-      } catch {
-        return void 0;
-      }
-    };
-    _loadFavorites = () => {
-      try {
-        const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`);
-        if (!saved) return [];
-        const parsed = JSON.parse(saved);
-        return isRelatedWorkArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    };
-    _loadGuiPos = () => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
-        if (!saved) return null;
-        const pos = JSON.parse(saved);
-        if (!isGuiPos(pos)) return null;
-        const buffer = 50;
-        if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
-          return null;
-        }
-        return pos;
-      } catch {
-        return null;
-      }
-    };
-  }
-  const CONTAINER_SELECTOR = "#post-comic";
-  const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
-  function getTagType(href) {
-    try {
-      const url = new URL(href);
-      const pathname = url.pathname;
-      for (const type of TAG_TYPES) {
-        if (pathname.startsWith(`/${type}/`)) {
-          return type;
-        }
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }
-  const DefaultAdapter = {
-    // Always match as a fallback (should be checked last)
-    match: () => true,
-    getContainer: () => document.querySelector(CONTAINER_SELECTOR),
-    getImages: () => Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`)),
-    searchConfig: {
-      baseUrl: "/",
-      queryParam: "s"
-    },
-    getSearchUrl: function(query) {
-      const config = this.searchConfig;
-      if (!config) return "";
-      const url = new URL(config.baseUrl, window.location.origin);
-      url.searchParams.set(config.queryParam, query);
-      return url.toString();
-    },
-    getMetadata: () => {
-      const titleEl = document.querySelector("h1");
-      const title = titleEl?.textContent?.trim() || "Unknown Title";
-      const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
-        const href = a.href;
-        return {
-          text: a.textContent?.trim() || "",
-          href,
-          type: getTagType(href)
-        };
-      });
-      const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
-        const anchor = el.closest("a");
-        const img = el.querySelector("img");
-        const titleEl2 = el.querySelector("span") || anchor?.querySelector("span");
-        const title2 = titleEl2?.textContent?.trim() || "Untitled";
-        return {
-          title: title2,
-          href: anchor?.href || "",
-          thumb: img?.src || "",
-          isPrivate: title2.startsWith("非公開")
-        };
-      });
-      return { title, tags, relatedWorks };
-    },
-    parseSearchResults: (doc) => {
-      const results = Array.from(doc.querySelectorAll("div.post-list > a")).map((a) => {
-        const img = a.querySelector(".post-list-image img");
-        const titleEl = a.querySelector(":scope > span");
-        return {
-          title: titleEl?.textContent?.trim() || "",
-          href: a.getAttribute("href") || "",
-          thumb: img?.getAttribute("src") || ""
-        };
-      });
-      const totalCountEl = doc.querySelector("div.page-h > span");
-      const totalCount = totalCountEl?.textContent?.trim() || null;
-      const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
-      const pagination = [];
-      const pagenavi = doc.querySelector(".wp-pagenavi");
-      if (pagenavi) {
-        pagenavi.childNodes.forEach((node) => {
-          if (node.nodeType === 1) {
-            const el = node;
-            if (el.classList.contains("pages")) return;
-            const isCurrent = el.classList.contains("current");
-            const isNext = el.classList.contains("nextpostslink");
-            const isPrev = el.classList.contains("previouspostslink");
-            const isExtend = el.classList.contains("extend");
-            let type = "page";
-            if (isNext) type = "next";
-            else if (isPrev) type = "prev";
-            else if (isExtend) type = "extend";
-            pagination.push({
-              label: el.textContent?.trim() || "",
-              url: el.getAttribute("href"),
-              isCurrent,
-              type
-            });
-          }
-        });
-      }
-      return { results, totalCount, nextPageUrl, pagination };
-    }
-  };
+  const FAVORITE_PICK_CHANCE = 0.25;
   function calculateVisibleHeight(rect, windowHeight) {
     const visibleTop = Math.max(0, rect.top);
     const visibleBottom = Math.min(windowHeight, rect.bottom);
@@ -587,6 +317,54 @@
     }
     return res;
   }
+  function normalizeUrl(url) {
+    try {
+      let base;
+      if (typeof window !== "undefined" && window.location) {
+        base = window.location.origin;
+      }
+      if (!base || base === "null" || base === "undefined") {
+        base = "http://localhost";
+      }
+      const u = new URL(url, base);
+      return u.origin + u.pathname;
+    } catch {
+      return url;
+    }
+  }
+  function pickRandomWork(metadata, luckyHistory, currentUrl, searchCache, favorites = []) {
+    const normalizedCurrent = normalizeUrl(currentUrl);
+    const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h));
+    const getFilteredPool = (excludeHistoryCount) => {
+      const pool = getDiscoveryPool(metadata, searchCache, favorites);
+      const excludeSet = /* @__PURE__ */ new Set();
+      excludeSet.add(normalizedCurrent);
+      if (excludeHistoryCount === "all") {
+        normalizedHistory.forEach((h) => excludeSet.add(h));
+      } else if (typeof excludeHistoryCount === "number" && excludeHistoryCount > 0) {
+        normalizedHistory.slice(0, excludeHistoryCount).forEach((h) => excludeSet.add(h));
+      }
+      return pool.filter((w) => !excludeSet.has(normalizeUrl(w.href)));
+    };
+    let candidates = getFilteredPool("all");
+    if (candidates.length === 0) {
+      candidates = getFilteredPool(3);
+    }
+    if (candidates.length === 0) {
+      candidates = getFilteredPool(0);
+    }
+    if (candidates.length === 0) return null;
+    const favoritePool = toCandidates(favorites).filter(
+      (f) => candidates.some((c) => normalizeUrl(c.href) === normalizeUrl(f.href))
+    );
+    if (favoritePool.length > 0 && Math.random() < FAVORITE_PICK_CHANCE) {
+      const target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
+      return target.href;
+    } else {
+      const target = candidates[Math.floor(Math.random() * candidates.length)];
+      return target.href;
+    }
+  }
   function getDiscoveryPool(metadata, searchCache, favorites = []) {
     const sources = [];
     if (metadata.relatedWorks) {
@@ -609,22 +387,310 @@
     }
     return uniquePool;
   }
-  function jumpToRandomWork(metadata, searchCache, favorites = []) {
-    const discoveryPool = getDiscoveryPool(metadata, searchCache, favorites);
-    if (discoveryPool.length === 0) return false;
-    const favoritePool = toCandidates(favorites);
-    let target;
-    if (favoritePool.length > 0 && Math.random() < 0.25) {
-      target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
-    } else {
-      target = discoveryPool[Math.floor(Math.random() * discoveryPool.length)];
+  const STORAGE_KEYS = {
+    DUAL_VIEW: "comic-viewer-helper-dual-view",
+    GUI_POS: "comic-viewer-helper-gui-pos",
+    ENABLED: "comic-viewer-helper-enabled",
+    SEARCH_QUERY: "comic-viewer-helper-search-query",
+    SEARCH_CONTEXT: "comic-viewer-helper-search-context",
+    SEARCH_CACHE: "comic-viewer-helper-search-cache",
+    SEARCH_HISTORY: "comic-viewer-helper-search-history",
+    FAVORITES: "comic-viewer-helper-favorites",
+    AUTOPLAY_ENABLED: "comic-viewer-helper-autoplay-enabled",
+    AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval",
+    LUCKY_HISTORY: "comic-viewer-helper-lucky-history"
+  };
+  const MAX_SEARCH_HISTORY = 3;
+  const MAX_LUCKY_HISTORY = 20;
+  class Store {
+    state;
+    listeners;
+    constructor() {
+      this.state = {
+        enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== "false",
+        isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === "true",
+        spreadOffset: 0,
+        currentVisibleIndex: 0,
+        guiPos: this._loadGuiPos(),
+        metadata: {
+          title: "",
+          tags: [],
+          relatedWorks: []
+        },
+        isMetadataModalOpen: false,
+        isHelpModalOpen: false,
+        isSearchModalOpen: false,
+        isLoading: false,
+        searchResults: null,
+        searchQuery: this._loadSearchQuery(),
+        searchContext: this._loadSearchContext(),
+        searchCache: this._loadSearchCache(),
+        searchHistory: this._loadSearchHistory(),
+        luckyHistory: this._loadLuckyHistory(),
+        favorites: this._loadFavorites(),
+        isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
+        autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
+      };
+      this.listeners = [];
     }
-    if (target?.href) {
-      window.location.href = target.href;
-      return true;
-    }
-    return false;
+    getState = () => {
+      return { ...this.state };
+    };
+    setState = (patch) => {
+      let changed = false;
+      for (const key of Object.keys(patch)) {
+        if (this.state[key] !== patch[key]) {
+          this._applyPatch(key, patch[key]);
+          changed = true;
+        }
+      }
+      if (changed) {
+        this._persistChanges(patch);
+        this._notify();
+      }
+    };
+    _persistChanges = (patch) => {
+      if ("enabled" in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
+      if ("isDualViewEnabled" in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
+      if ("guiPos" in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      if ("isAutoplayEnabled" in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
+      if ("autoplayInterval" in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+      this._persistSearchRelatedChanges(patch);
+      this._persistLuckyHistory(patch);
+    };
+    _persistSearchRelatedChanges = (patch) => {
+      const host = window.location.hostname;
+      if ("searchQuery" in patch) {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
+      }
+      if ("searchContext" in patch) {
+        const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
+        if (patch.searchContext) {
+          localStorage.setItem(key, JSON.stringify(patch.searchContext));
+        } else {
+          localStorage.removeItem(key);
+        }
+      }
+      if ("searchCache" in patch) {
+        try {
+          localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
+        } catch (e) {
+          console.warn("Failed to save search cache to localStorage:", e);
+        }
+      }
+      if ("searchHistory" in patch) {
+        localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+      }
+      if ("favorites" in patch) {
+        localStorage.setItem(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
+      }
+    };
+    _persistLuckyHistory = (patch) => {
+      if ("luckyHistory" in patch) {
+        const host = window.location.hostname;
+        localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`, JSON.stringify(patch.luckyHistory));
+      }
+    };
+    subscribe = (callback) => {
+      this.listeners.push(callback);
+      return () => {
+        this.listeners = this.listeners.filter((l) => l !== callback);
+      };
+    };
+    _notify = () => {
+      this.listeners.forEach((callback) => callback(this.getState()));
+    };
+    _applyPatch = (key, value) => {
+      this.state[key] = value;
+    };
+    addLuckyHistory = (url) => {
+      const normalizedUrl = normalizeUrl(url);
+      const newHistory = Array.from(/* @__PURE__ */ new Set([
+        normalizedUrl,
+        ...this.state.luckyHistory.map(normalizeUrl)
+      ])).slice(0, MAX_LUCKY_HISTORY);
+      this.setState({ luckyHistory: newHistory });
+    };
+    _loadSearchHistory = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (isStringArray(parsed)) {
+            return parsed;
+          }
+        }
+        return [];
+      } catch {
+        return [];
+      }
+    };
+    _loadLuckyHistory = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (isStringArray(parsed)) {
+            return parsed;
+          }
+        }
+        return [];
+      } catch {
+        return [];
+      }
+    };
+    _loadSearchCache = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
+        if (!saved) return null;
+        const parsed = JSON.parse(saved);
+        return isSearchCache(parsed) ? parsed : null;
+      } catch {
+        return null;
+      }
+    };
+    _loadSearchQuery = () => {
+      const host = window.location.hostname;
+      return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
+    };
+    _loadSearchContext = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+        if (!saved) return void 0;
+        const parsed = JSON.parse(saved);
+        return isSearchContext(parsed) ? parsed : void 0;
+      } catch {
+        return void 0;
+      }
+    };
+    _loadFavorites = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`);
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        return isRelatedWorkArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+    _loadGuiPos = () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
+        if (!saved) return null;
+        const pos = JSON.parse(saved);
+        if (!isGuiPos(pos)) return null;
+        const buffer = 50;
+        if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
+          return null;
+        }
+        return pos;
+      } catch {
+        return null;
+      }
+    };
   }
+  const CONTAINER_SELECTOR = "#post-comic";
+  const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
+  function getTagType(href) {
+    try {
+      const url = new URL(href);
+      const pathname = url.pathname;
+      for (const type of TAG_TYPES) {
+        if (pathname.startsWith(`/${type}/`)) {
+          return type;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  const DefaultAdapter = {
+    // Always match as a fallback (should be checked last)
+    match: () => true,
+    getContainer: () => document.querySelector(CONTAINER_SELECTOR),
+    getImages: () => Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`)),
+    searchConfig: {
+      baseUrl: "/",
+      queryParam: "s"
+    },
+    getSearchUrl: function(query) {
+      const config = this.searchConfig;
+      if (!config) return "";
+      const url = new URL(config.baseUrl, window.location.origin);
+      url.searchParams.set(config.queryParam, query);
+      return url.toString();
+    },
+    getMetadata: () => {
+      const titleEl = document.querySelector("h1");
+      const title = titleEl?.textContent?.trim() || "Unknown Title";
+      const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
+        const href = a.href;
+        return {
+          text: a.textContent?.trim() || "",
+          href,
+          type: getTagType(href)
+        };
+      });
+      const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
+        const anchor = el.closest("a");
+        const img = el.querySelector("img");
+        const titleEl2 = el.querySelector("span") || anchor?.querySelector("span");
+        const title2 = titleEl2?.textContent?.trim() || "Untitled";
+        return {
+          title: title2,
+          href: anchor?.href || "",
+          thumb: img?.src || "",
+          isPrivate: title2.startsWith("非公開")
+        };
+      });
+      return { title, tags, relatedWorks };
+    },
+    parseSearchResults: (doc) => {
+      const results = Array.from(doc.querySelectorAll("div.post-list > a")).map((a) => {
+        const img = a.querySelector(".post-list-image img");
+        const titleEl = a.querySelector(":scope > span");
+        return {
+          title: titleEl?.textContent?.trim() || "",
+          href: a.getAttribute("href") || "",
+          thumb: img?.getAttribute("src") || ""
+        };
+      });
+      const totalCountEl = doc.querySelector("div.page-h > span");
+      const totalCount = totalCountEl?.textContent?.trim() || null;
+      const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
+      const pagination = [];
+      const pagenavi = doc.querySelector(".wp-pagenavi");
+      if (pagenavi) {
+        pagenavi.childNodes.forEach((node) => {
+          if (node.nodeType === 1) {
+            const el = node;
+            if (el.classList.contains("pages")) return;
+            const isCurrent = el.classList.contains("current");
+            const isNext = el.classList.contains("nextpostslink");
+            const isPrev = el.classList.contains("previouspostslink");
+            const isExtend = el.classList.contains("extend");
+            let type = "page";
+            if (isNext) type = "next";
+            else if (isPrev) type = "prev";
+            else if (isExtend) type = "extend";
+            pagination.push({
+              label: el.textContent?.trim() || "",
+              url: el.getAttribute("href"),
+              isCurrent,
+              type
+            });
+          }
+        });
+      }
+      return { results, totalCount, nextPageUrl, pagination };
+    }
+  };
   class Navigator {
     adapter;
     store;
@@ -852,9 +918,11 @@
         const imgs = this.getImages();
         const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
         if (currentIndex >= imgs.length - 1) {
-          const { metadata, searchCache } = this.store.getState();
-          const jumped = jumpToRandomWork(metadata, searchCache);
-          if (!jumped) {
+          const state = this.store.getState();
+          const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
+          if (nextUrl) {
+            window.location.href = nextUrl;
+          } else {
             this._stopAutoplay();
           }
           return;
@@ -2304,7 +2372,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.c7e8061"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.94a52ea"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2894,7 +2962,10 @@
         onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
         onLucky: () => {
           const state = this.store.getState();
-          jumpToRandomWork(state.metadata, state.searchCache, state.favorites);
+          const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
+          if (nextUrl) {
+            window.location.href = nextUrl;
+          }
         },
         onToggleFavorite: () => {
           this._toggleFavorite();
@@ -3224,7 +3295,7 @@
       return false;
     };
     _handleShortcutAction = (e) => {
-      const { isDualViewEnabled, spreadOffset, metadata, searchCache } = this.store.getState();
+      const { isDualViewEnabled, spreadOffset } = this.store.getState();
       const actions = {
         nextPage: () => this.navigator.scrollToImage(1),
         prevPage: () => this.navigator.scrollToImage(-1),
@@ -3235,7 +3306,11 @@
         },
         fullscreen: () => this._toggleFullscreen(),
         randomJump: () => {
-          jumpToRandomWork(metadata, searchCache);
+          const state = this.store.getState();
+          const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
+          if (nextUrl) {
+            window.location.href = nextUrl;
+          }
         },
         speedUpAutoplay: () => {
           const { autoplayInterval } = this.store.getState();
@@ -3390,6 +3465,7 @@
       this.uiManager.init();
       this.inputManager.init();
       this.popUnderBlocker.init();
+      this.store.addLuckyHistory(window.location.href);
       if (this.resumeManager.isEnabled()) {
         const workKey = window.location.origin + window.location.pathname;
         const savedIndex = this.resumeManager.loadPosition(workKey);
