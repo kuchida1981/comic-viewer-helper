@@ -2,10 +2,14 @@ import { Store, StoreState } from '../store';
 import { UIManager } from './UIManager';
 import { vi, describe, it, expect, beforeEach, Mock, afterEach } from 'vitest';
 import { createPowerButton } from '../ui/components/PowerButton';
+import { createPageCounter } from '../ui/components/PageCounter';
+import { createSpreadControls } from '../ui/components/SpreadControls';
+import { createAutoplayControls } from '../ui/components/AutoplayControls';
 import { createNavigationButtons } from '../ui/components/NavigationButtons';
 import { createSearchModal } from '../ui/components/SearchModal';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
+import { createResumeNotification } from '../ui/components/ResumeNotification';
 
 vi.mock('../ui/styles', () => ({ injectStyles: vi.fn() }));
 vi.mock('../ui/components/PowerButton', () => ({ createPowerButton: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
@@ -27,7 +31,7 @@ vi.mock('../ui/Draggable', () => ({
         opts.onDragEnd(100, 200);
       }
     }
-    clampToViewport() { return { top: 0, left: 0 }; }
+    clampToViewport() { return { top: 10, left: 20 }; }
   }
 }));
 
@@ -76,6 +80,7 @@ describe('UIManager', () => {
       isLuckyLoading: false,
       searchResults: null,
       searchQuery: '',
+      searchContext: undefined,
       searchCache: null,
       searchHistory: [],
       luckyHistory: [],
@@ -100,10 +105,10 @@ describe('UIManager', () => {
     } as any;
 
     const navigator = { 
-        getImages: vi.fn().mockReturnValue([{ src: '1.jpg' }]), 
+        getImages: vi.fn().mockReturnValue([{ src: '1.jpg' }, { src: '2.jpg' }]), 
         jumpToPage: vi.fn().mockResolvedValue(true),
-        scrollToEdge: vi.fn(),
-        scrollToImage: vi.fn()
+        scrollToEdge: vi.fn().mockResolvedValue(undefined),
+        scrollToImage: vi.fn().mockResolvedValue(undefined)
     } as any;
     
     const discoveryManager = {
@@ -145,54 +150,111 @@ describe('UIManager', () => {
     vi.clearAllMocks();
   });
 
-  it('init and updateUI flow', () => {
+  it('exhaustive function and branch coverage', async () => {
+    // 1. Initialization and Store Subscription
     uiManager.init();
+    expect(store.subscribe).toHaveBeenCalled();
+    
+    // 2. Resize Event
+    window.dispatchEvent(new Event('resize'));
+    expect(currentState.guiPos).toEqual({ top: 10, left: 20 });
+
+    // 3. updateUI with all components and various states
     uiManager.updateUI();
     expect(createPowerButton).toHaveBeenCalled();
     
-    const callbacks = (createNavigationButtons as Mock).mock.calls[0][0];
-    callbacks.onInfo();
-    callbacks.onHelp();
-    callbacks.onSearch();
-    callbacks.onLucky();
-    callbacks.onToggleFavorite();
-    
-    uiManager.updateUI();
-    expect(createMetadataModal).toHaveBeenCalled();
-    expect(createHelpModal).toHaveBeenCalled();
-    expect(createSearchModal).toHaveBeenCalled();
-  });
+    // 4. Trigger Power Button Click
+    const powerOnClick = (createPowerButton as Mock).mock.calls[0][0].onClick;
+    powerOnClick();
+    expect(currentState.enabled).toBe(false);
+    uiManager.updateUI(); // Cover disabled state visibility
 
-  it('search revalidation and tag clicks', async () => {
+    powerOnClick(); // Enable back
+    expect(currentState.enabled).toBe(true);
+    uiManager.updateUI();
+
+    // 5. Trigger Page Counter Jump
+    const counterOnJump = (createPageCounter as Mock).mock.calls[0][0].onJump;
+    await counterOnJump('2');
+    
+    // Test jump failure
+    (uiManager as any).navigator.jumpToPage.mockResolvedValueOnce(false);
+    await counterOnJump('invalid');
+
+    // 6. Trigger Spread Controls
+    const spreadProps = (createSpreadControls as Mock).mock.calls[0][0];
+    spreadProps.onToggle(true);
+    expect(currentState.isDualViewEnabled).toBe(true);
+    spreadProps.onAdjust();
+    expect(currentState.spreadOffset).toBe(1);
+
+    // 7. Trigger Autoplay Controls
+    const autoplayProps = (createAutoplayControls as Mock).mock.calls[0][0];
+    autoplayProps.onToggle(true);
+    expect(currentState.isAutoplayEnabled).toBe(true);
+    autoplayProps.onChangeInterval(10);
+    expect(currentState.autoplayInterval).toBe(10);
+
+    // 8. Navigation Buttons Callbacks
+    const navCallbacks = (createNavigationButtons as Mock).mock.calls[0][0];
+    navCallbacks.onFirst();
+    navCallbacks.onPrev();
+    navCallbacks.onNext();
+    navCallbacks.onLast();
+    navCallbacks.onInfo();
+    expect(currentState.isMetadataModalOpen).toBe(true);
+    navCallbacks.onHelp();
+    expect(currentState.isHelpModalOpen).toBe(true);
+    navCallbacks.onSearch();
+    expect(currentState.isSearchModalOpen).toBe(true);
+    navCallbacks.onLucky();
+    expect((uiManager as any).discoveryManager.jumpToRandomWork).toHaveBeenCalled();
+    navCallbacks.onToggleFavorite();
+    expect(currentState.favorites.length).toBe(1);
+
+    // 9. Modals updates and interactions
+    uiManager.updateUI(); // Create modal components
+    
+    // Help Modal Close
+    const helpOnClose = (createHelpModal as Mock).mock.calls[0][0].onClose;
+    helpOnClose();
+    expect(currentState.isHelpModalOpen).toBe(false);
+
+    // Metadata Modal Interactions
+    const metaProps = (createMetadataModal as Mock).mock.calls[0][0];
+    await metaProps.onTagClick({ text: 'Artist', href: '/a', type: 'artist' });
+    expect(currentState.isMetadataModalOpen).toBe(false);
+    expect(currentState.isSearchModalOpen).toBe(true);
+    
+    metaProps.onToggleFavorite(); // Toggle again
+    metaProps.onClose();
+    expect(currentState.isMetadataModalOpen).toBe(false);
+
+    // Search Modal Interactions
+    const searchProps = (createSearchModal as Mock).mock.calls[0][0];
+    searchProps.onSearch('query', { type: 'keyword', label: 'query' });
+    searchProps.onPageChange('http://site.com/p2');
+    searchProps.onClose();
+    expect(currentState.isSearchModalOpen).toBe(false);
+
+    // 10. SWR Revalidation logic
     currentState.isSearchModalOpen = true;
-    currentState.searchQuery = 'test';
-    currentState.searchContext = { type: 'keyword', label: 'test' };
+    currentState.searchQuery = 'swr';
+    currentState.searchContext = { type: 'keyword', label: 'swr' };
     currentState.searchCache = { 
-      query: 'test', 
+      query: 'swr', 
       context: currentState.searchContext,
       results: { results: [], totalCount: '0', nextPageUrl: null, pagination: [] }, 
-      fetchedAt: 0 
+      fetchedAt: 0 // Expired
     };
+    (uiManager as any).searchModalComp = null; // Force re-creation
     uiManager.updateUI();
-    
-    const tag = { text: 'Artist', href: '/a', type: 'artist' };
-    await (uiManager as any)._handleTagClick(tag);
-    expect((uiManager as any).discoveryManager.performSearch).toHaveBeenCalled();
-  });
+    expect((uiManager as any).discoveryManager.performSearch).toHaveBeenCalledWith('swr', true, currentState.searchContext);
 
-  it('visibility and helper methods', async () => {
-    const container = createMockElement('div');
-    const manager = uiManager as any;
-    
-    manager._updateVisibility(container, currentState);
-    currentState.enabled = false;
-    manager._updateVisibility(container, currentState);
-    
+    // 11. Resume Notification
     uiManager.showResumeNotification(5);
-    expect(document.body.appendChild).toHaveBeenCalled();
-    
-    manager._manageModal(true, null, () => ({ el: createMockElement('div') }));
-    await manager._handleJump('5');
-    manager._toggleFavorite();
+    const resumeOnResume = (createResumeNotification as Mock).mock.calls[0][0].onResume;
+    resumeOnResume();
+    expect((uiManager as any).navigator.jumpToPage).toHaveBeenCalledWith(6);
   });
 });

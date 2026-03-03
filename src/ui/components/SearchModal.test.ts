@@ -305,10 +305,17 @@ describe('SearchModal', () => {
       expect(propagateSpy).toHaveBeenCalled();
       expect(wheelEvent.defaultPrevented).toBe(false);
     });
-    it('should handle setUpdating', () => {
+    it('should handle setUpdating with transitions', () => {
+      vi.useFakeTimers();
       const { setUpdating } = createSearchModal(defaultProps);
+      
       setUpdating(true);
+      vi.advanceTimersByTime(1000);
+      
       setUpdating(false);
+      vi.advanceTimersByTime(1000);
+      
+      vi.useRealTimers();
     });
 
     it('should handle updateResults with null pagination', () => {
