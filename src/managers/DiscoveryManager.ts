@@ -144,10 +144,14 @@ export class DiscoveryManager {
     const { searchCache } = this.store.getState();
     if (searchCache?.results.nextPageUrl) {
       const results = await this.fetchSearchResults(searchCache.results.nextPageUrl);
-      // Merge results into cache
+      
+      // Deduplicate: only add results that are not already in cache
+      const existingHrefs = new Set(searchCache.results.results.map(r => r.href));
+      const newUniqueResults = results.results.filter(r => !existingHrefs.has(r.href));
+      
       const mergedResults: SearchResultsState = {
         ...results,
-        results: [...searchCache.results.results, ...results.results]
+        results: [...searchCache.results.results, ...newUniqueResults]
       };
       this.store.setState({
         searchCache: { ...searchCache, results: mergedResults, fetchedAt: Date.now() }

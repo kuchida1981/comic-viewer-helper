@@ -106,6 +106,38 @@ describe('DiscoveryManager', () => {
       expect(currentState.isLuckyLoading).toBe(false);
     });
 
+    it('should deduplicate results when performing deep fetch', async () => {
+      vi.mocked(logic.isLuckyPoolDepleted).mockReturnValue(true);
+      
+      currentState.searchCache = { 
+        query: 'q',
+        results: { 
+          nextPageUrl: 'http://site.com/page2', 
+          results: [{ title: 'Existing', href: 'http://site.com/existing', thumb: '' }], 
+          totalCount: '1', pagination: [] 
+        },
+        fetchedAt: Date.now()
+      };
+
+      // Mock next page results containing both new and duplicate item
+      adapter.parseSearchResults.mockReturnValue({
+        results: [
+          { title: 'New', href: 'http://site.com/new', thumb: '' },
+          { title: 'Duplicate', href: 'http://site.com/existing', thumb: '' } // Same href
+        ],
+        nextPageUrl: null,
+        totalCount: '2',
+        pagination: []
+      });
+
+      await manager.jumpToRandomWork();
+
+      const mergedResults = currentState.searchCache.results.results;
+      expect(mergedResults).toHaveLength(2); // Existing + New (Duplicate removed)
+      expect(mergedResults.map(r => r.title)).toContain('Existing');
+      expect(mergedResults.map(r => r.title)).toContain('New');
+    });
+
     it('should ignore subsequent requests while loading', async () => {
       vi.mocked(logic.isLuckyPoolDepleted).mockReturnValue(true);
       currentState.metadata.tags = [{ text: 'T', href: '/t', type: 'tag' }];
