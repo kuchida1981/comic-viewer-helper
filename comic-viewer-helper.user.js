@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.5285af5
+// @version         1.5.0-unstable.4e9f9ad
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1206,10 +1206,14 @@
     cursor: pointer;
     border: none;
     background: transparent;
-    font-size: 18px;
     padding: 0 4px;
     transition: color 0.2s, transform 0.2s;
     user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
   }
   .comic-helper-favorite-btn:hover {
     transform: scale(1.2);
@@ -1922,7 +1926,7 @@
     children.forEach((child) => {
       if (typeof child === "string") {
         el.appendChild(document.createTextNode(child));
-      } else if (child instanceof HTMLElement) {
+      } else if (child instanceof Element) {
         el.appendChild(child);
       }
     });
@@ -2249,6 +2253,26 @@
       }
     };
   }
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  function createSvg(pathD, size = 18) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", size.toString());
+    svg.setAttribute("height", size.toString());
+    svg.setAttribute("fill", "currentColor");
+    svg.style.display = "inline-block";
+    svg.style.verticalAlign = "middle";
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", pathD);
+    svg.appendChild(path);
+    return svg;
+  }
+  function createHeartFilledIcon(size = 18) {
+    return createSvg("M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z", size);
+  }
+  function createHeartOutlineIcon(size = 18) {
+    return createSvg("M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z", size);
+  }
   function createNavigationButtons({
     onFirst,
     onPrev,
@@ -2260,13 +2284,15 @@
     onLucky,
     onToggleFavorite
   }) {
+    const heartFilledIcon = createHeartFilledIcon(18);
+    const heartOutlineIcon = createHeartOutlineIcon(18);
     const configs = [
       { text: "<<", title: t("ui.goLast"), action: onLast },
       { text: "<", title: t("ui.goNext"), action: onNext },
       { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn", id: "lucky" },
       { text: ">", title: t("ui.goPrev"), action: onPrev },
       { text: ">>", title: t("ui.goFirst"), action: onFirst },
-      { text: "♡", title: "Toggle Favorite", action: onToggleFavorite, id: "fav" },
+      { text: "", title: "Toggle Favorite", action: onToggleFavorite, id: "fav", className: "comic-helper-favorite-btn" },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
       { text: "?", title: t("ui.showHelp"), action: onHelp },
       { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" }
@@ -2290,7 +2316,7 @@
       update: (isFavorite, isLuckyLoading) => {
         const favBtn = elements.find((el) => el.id === "comic-helper-nav-fav");
         if (favBtn) {
-          favBtn.textContent = isFavorite ? "♥" : "♡";
+          favBtn.replaceChildren(isFavorite ? heartFilledIcon : heartOutlineIcon);
           favBtn.classList.toggle("active", isFavorite);
           favBtn.classList.toggle("inactive", !isFavorite);
         }
@@ -2309,6 +2335,8 @@
   }
   function createMetadataModal({ metadata, isFavorite, onClose, onTagClick, onToggleFavorite }) {
     const { title, tags, relatedWorks } = metadata;
+    const heartFilledIcon = createHeartFilledIcon(18);
+    const heartOutlineIcon = createHeartOutlineIcon(18);
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -2322,7 +2350,6 @@
     });
     const favBtn = createElement("button", {
       className: `comic-helper-favorite-btn ${isFavorite ? "active" : "inactive"}`,
-      textContent: isFavorite ? "♥" : "♡",
       title: isFavorite ? "Remove from Favorites" : "Add to Favorites",
       events: {
         click: (e) => {
@@ -2330,7 +2357,7 @@
           onToggleFavorite();
         }
       }
-    });
+    }, [isFavorite ? heartFilledIcon : heartOutlineIcon]);
     const titleEl = createElement("h2", {
       className: "comic-helper-modal-title"
     }, [
@@ -2397,7 +2424,7 @@
       el: overlay,
       update: (newIsFavorite) => {
         favBtn.className = `comic-helper-favorite-btn ${newIsFavorite ? "active" : "inactive"}`;
-        favBtn.textContent = newIsFavorite ? "♥" : "♡";
+        favBtn.replaceChildren(newIsFavorite ? heartFilledIcon : heartOutlineIcon);
         favBtn.title = newIsFavorite ? "Remove from Favorites" : "Add to Favorites";
       }
     };
@@ -2538,7 +2565,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.5285af5"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.4e9f9ad"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
