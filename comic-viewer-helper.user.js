@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.2a291a6
+// @version         1.5.0-unstable.5285af5
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1992,7 +1992,8 @@
         closeModal: { label: "Close Modal", desc: "Close modal" },
         randomJump: { label: "Random Jump", desc: "Jump to a random related work" },
         speedUpAutoplay: { label: "Speed Up Autoplay", desc: "Decrease wait time (speed up)" },
-        slowDownAutoplay: { label: "Slow Down Autoplay", desc: "Increase wait time (slow down)" }
+        slowDownAutoplay: { label: "Slow Down Autoplay", desc: "Increase wait time (slow down)" },
+        toggleFavorite: { label: "Favorite", desc: "Toggle favorite for this work" }
       }
     },
     ja: {
@@ -2046,7 +2047,8 @@
         closeModal: { label: "閉じる", desc: "モーダルを閉じる" },
         randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" },
         speedUpAutoplay: { label: "オートプレイ加速", desc: "待機時間を減らす（速くする）" },
-        slowDownAutoplay: { label: "オートプレイ減速", desc: "待機時間を増やす（遅くする）" }
+        slowDownAutoplay: { label: "オートプレイ減速", desc: "待機時間を増やす（遅くする）" },
+        toggleFavorite: { label: "お気に入り", desc: "お気に入りの追加/解除" }
       }
     }
   };
@@ -2479,6 +2481,12 @@
       description: t("shortcuts.slowDownAutoplay.desc")
     },
     {
+      id: "toggleFavorite",
+      label: t("shortcuts.toggleFavorite.label"),
+      keys: ["v"],
+      description: t("shortcuts.toggleFavorite.desc")
+    },
+    {
       id: "closeModal",
       label: t("shortcuts.closeModal.label"),
       keys: ["Escape"],
@@ -2530,7 +2538,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.2a291a6"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.5285af5"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -3110,7 +3118,7 @@
           void this.discoveryManager.jumpToRandomWork();
         },
         onToggleFavorite: () => {
-          this._toggleFavorite();
+          this.toggleFavorite();
         }
       });
       this.navBtnsComp.elements.forEach((btn) => container.appendChild(btn));
@@ -3131,7 +3139,7 @@
               await this._handleTagClick(tag);
             },
             onToggleFavorite: () => {
-              this._toggleFavorite();
+              this.toggleFavorite();
             }
           });
           document.body.appendChild(this.modalComp.el);
@@ -3194,7 +3202,7 @@
       const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
       return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
     };
-    _toggleFavorite = () => {
+    toggleFavorite = () => {
       const state = this.store.getState();
       const currentUrl = window.location.href;
       const isFavorite = state.favorites.some((f) => f.href === currentUrl);
@@ -3288,6 +3296,7 @@
     store;
     navigator;
     discoveryManager;
+    uiManager;
     lastWheelTime;
     WHEEL_THROTTLE_MS = 500;
     WHEEL_THRESHOLD = 1;
@@ -3295,10 +3304,11 @@
     scrollReq;
     mouseDownPos;
     mouseDownTarget;
-    constructor(store, navigator2, discoveryManager) {
+    constructor(store, navigator2, discoveryManager, uiManager) {
       this.store = store;
       this.navigator = navigator2;
       this.discoveryManager = discoveryManager;
+      this.uiManager = uiManager;
       this.lastWheelTime = 0;
       this.mouseDownPos = null;
       this.mouseDownTarget = null;
@@ -3382,6 +3392,14 @@
       if (matchesShortcut(e, "metadata")) {
         e.preventDefault();
         this.store.setState({ isMetadataModalOpen: !this.store.getState().isMetadataModalOpen });
+        return true;
+      }
+      if (matchesShortcut(e, "toggleFavorite")) {
+        e.preventDefault();
+        const state = this.store.getState();
+        if (!state.isHelpModalOpen && !state.isSearchModalOpen) {
+          this.uiManager.toggleFavorite();
+        }
         return true;
       }
       return false;
@@ -3540,7 +3558,7 @@
       this.navigator = new Navigator(this.adapter, this.store);
       this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
       this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager);
-      this.inputManager = new InputManager(this.store, this.navigator, this.discoveryManager);
+      this.inputManager = new InputManager(this.store, this.navigator, this.discoveryManager, this.uiManager);
       this.resumeManager = new ResumeManager(this.store);
       this.popUnderBlocker = new PopUnderBlocker(this.store);
     }
