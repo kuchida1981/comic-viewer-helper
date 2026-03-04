@@ -94,6 +94,12 @@ export const SHORTCUTS: Shortcut[] = [
     description: t('shortcuts.slowDownAutoplay.desc')
   },
   {
+    id: 'toggleFavorite',
+    label: t('shortcuts.toggleFavorite.label'),
+    keys: ['v'],
+    description: t('shortcuts.toggleFavorite.desc')
+  },
+  {
     id: 'closeModal',
     label: t('shortcuts.closeModal.label'),
     keys: ['Escape'],

@@ -50,7 +50,8 @@ export const MESSAGES = {
       closeModal: { label: 'Close Modal', desc: 'Close modal' },
       randomJump: { label: 'Random Jump', desc: 'Jump to a random related work' },
       speedUpAutoplay: { label: 'Speed Up Autoplay', desc: 'Decrease wait time (speed up)' },
-      slowDownAutoplay: { label: 'Slow Down Autoplay', desc: 'Increase wait time (slow down)' }
+      slowDownAutoplay: { label: 'Slow Down Autoplay', desc: 'Increase wait time (slow down)' },
+      toggleFavorite: { label: 'Favorite', desc: 'Toggle favorite for this work' }
     }
   },
   ja: {
@@ -104,7 +105,8 @@ export const MESSAGES = {
       closeModal: { label: '閉じる', desc: 'モーダルを閉じる' },
       randomJump: { label: 'ランダムジャンプ', desc: 'おすすめ（ランダム）へ遷移' },
       speedUpAutoplay: { label: 'オートプレイ加速', desc: '待機時間を減らす（速くする）' },
-      slowDownAutoplay: { label: 'オートプレイ減速', desc: '待機時間を増やす（遅くする）' }
+      slowDownAutoplay: { label: 'オートプレイ減速', desc: '待機時間を増やす（遅くする）' },
+      toggleFavorite: { label: 'お気に入り', desc: 'お気に入りの追加/解除' }
     }
   }
 } as const;

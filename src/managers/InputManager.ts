@@ -3,6 +3,7 @@ import { SHORTCUTS } from '../shortcuts';
 import { Store } from '../store';
 import { Navigator } from './Navigator';
 import { DiscoveryManager } from './DiscoveryManager';
+import type { UIManager } from './UIManager';
 
 const CLICK_THRESHOLD_PX = 5;
 
@@ -42,6 +43,7 @@ export class InputManager {
   private store: Store;
   private navigator: Navigator;
   private discoveryManager: DiscoveryManager;
+  private uiManager: UIManager;
   private lastWheelTime: number;
   private readonly WHEEL_THROTTLE_MS = 500;
   private readonly WHEEL_THRESHOLD = 1;
@@ -50,10 +52,11 @@ export class InputManager {
   private mouseDownPos: { x: number; y: number } | null;
   private mouseDownTarget: HTMLImageElement | null;
 
-  constructor(store: Store, navigator: Navigator, discoveryManager: DiscoveryManager) {
+  constructor(store: Store, navigator: Navigator, discoveryManager: DiscoveryManager, uiManager: UIManager) {
     this.store = store;
     this.navigator = navigator;
     this.discoveryManager = discoveryManager;
+    this.uiManager = uiManager;
     this.lastWheelTime = 0;
     this.mouseDownPos = null;
     this.mouseDownTarget = null;
@@ -165,6 +168,11 @@ export class InputManager {
       this.store.setState({ isMetadataModalOpen: !this.store.getState().isMetadataModalOpen });
       return true;
     }
+    if (matchesShortcut(e, 'toggleFavorite')) {
+      e.preventDefault();
+      this.uiManager.toggleFavorite();
+      return true;
+    }
     return false;
   };
 
@@ -177,6 +185,7 @@ export class InputManager {
       autoplay: () => this.store.setState({ isAutoplayEnabled: !this.store.getState().isAutoplayEnabled }),
       dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
       spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
+      toggleFavorite: () => this.uiManager.toggleFavorite(),
       fullscreen: () => this._toggleFullscreen(),
       randomJump: () => this.discoveryManager.jumpToRandomWork(),
       speedUpAutoplay: () => {
