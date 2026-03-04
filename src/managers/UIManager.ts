@@ -188,7 +188,7 @@ export class UIManager {
       onLucky: () => {
         void this.discoveryManager.jumpToRandomWork();
       },
-      onToggleFavorite: () => { this._toggleFavorite(); }
+      onToggleFavorite: () => { this.toggleFavorite(); }
     });
     this.navBtnsComp.elements.forEach(btn => container.appendChild(btn));
   };
@@ -208,7 +208,7 @@ export class UIManager {
           isFavorite,
           onClose: () => this.store.setState({ isMetadataModalOpen: false }),
           onTagClick: async (tag) => { await this._handleTagClick(tag); },
-          onToggleFavorite: () => { this._toggleFavorite(); }
+          onToggleFavorite: () => { this.toggleFavorite(); }
         });
         document.body.appendChild(this.modalComp.el);
       }
@@ -273,7 +273,7 @@ export class UIManager {
     return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
   };
 
-  private _toggleFavorite = (): void => {
+  toggleFavorite = (): void => {
     const state = this.store.getState();
     const currentUrl = window.location.href;
     const isFavorite = state.favorites.some(f => f.href === currentUrl);

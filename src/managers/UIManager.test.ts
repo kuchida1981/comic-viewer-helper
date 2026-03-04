@@ -256,5 +256,13 @@ describe('UIManager', () => {
     const resumeOnResume = (createResumeNotification as Mock).mock.calls[0][0].onResume;
     resumeOnResume();
     expect((uiManager as any).navigator.jumpToPage).toHaveBeenCalledWith(6);
+
+    // 12. toggleFavorite explicit test (both add and remove)
+    const initialFavCount = currentState.favorites.length;
+    uiManager.toggleFavorite(); // Add current work
+    expect(currentState.favorites.length).toBe(initialFavCount + 1);
+    
+    uiManager.toggleFavorite(); // Remove current work
+    expect(currentState.favorites.length).toBe(initialFavCount);
   });
 });

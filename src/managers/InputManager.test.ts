@@ -21,7 +21,8 @@ vi.mock('../shortcuts.js', () => ({
     { id: 'search', keys: ['/'] },
     { id: 'randomJump', keys: ['p'] },
     { id: 'speedUpAutoplay', keys: [']'] },
-    { id: 'slowDownAutoplay', keys: ['['] }
+    { id: 'slowDownAutoplay', keys: ['['] },
+    { id: 'toggleFavorite', keys: ['v'] }
   ]
 }));
 
@@ -54,7 +55,10 @@ describe('InputManager', () => {
     const discoveryManager = {
       jumpToRandomWork: vi.fn()
     } as any;
-    inputManager = new InputManager(store, navigator, discoveryManager);
+    const uiManager = {
+      toggleFavorite: vi.fn()
+    } as any;
+    inputManager = new InputManager(store, navigator, discoveryManager, uiManager);
 
     vi.stubGlobal('requestAnimationFrame', vi.fn((cb: FrameRequestCallback) => { cb(0); return 1; }));
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
@@ -253,6 +257,41 @@ describe('InputManager', () => {
     expect(store.setState).toHaveBeenCalledWith({ spreadOffset: 1 });
   });
 
+  it('onKeyDown should handle toggleFavorite', () => {
+    const uiManager = (inputManager as any).uiManager;
+    const event = { key: 'v', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(event);
+    expect(uiManager.toggleFavorite).toHaveBeenCalled();
+  });
+
+  it('onKeyDown should handle toggleFavorite even when metadata modal is open', () => {
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: false, isSearchModalOpen: false });
+    const uiManager = (inputManager as any).uiManager;
+    const event = { key: 'v', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(event);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(uiManager.toggleFavorite).toHaveBeenCalled();
+  });
+
+  it('onKeyDown should block toggleFavorite when help or search modal is open but still preventDefault', () => {
+    const uiManager = (inputManager as any).uiManager;
+    const event = { key: 'v', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    
+    // Search modal open
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, isHelpModalOpen: false });
+    inputManager.onKeyDown(event);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(uiManager.toggleFavorite).not.toHaveBeenCalled();
+
+    vi.clearAllMocks();
+
+    // Help modal open
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: false, isHelpModalOpen: true });
+    inputManager.onKeyDown(event);
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(uiManager.toggleFavorite).not.toHaveBeenCalled();
+  });
+
   it('onKeyDown should handle autoplay speed up/slow down', () => {
     (store.getState as Mock).mockReturnValue({ enabled: true, autoplayInterval: 5 });
 
@@ -279,6 +318,21 @@ describe('InputManager', () => {
     expect(store.setState).not.toHaveBeenCalled();
   });
 
+  it('onKeyDown should catch errors in async actions', async () => {
+    const discoveryManager = (inputManager as any).discoveryManager;
+    discoveryManager.jumpToRandomWork.mockRejectedValue(new Error('fail'));
+    
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const event = { key: 'p', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    
+    inputManager.onKeyDown(event);
+    
+    await vi.waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Shortcut action failed:', expect.any(Error));
+    });
+    consoleSpy.mockRestore();
+  });
+
   it('onKeyDown should handle randomJump', () => {
     const discoveryManager = (inputManager as any).discoveryManager;
     const event = { key: 'p', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
@@ -298,6 +352,24 @@ describe('InputManager', () => {
     expect(event.preventDefault).toHaveBeenCalled();
     expect(mockRequestFullscreen).toHaveBeenCalled();
     await vi.waitFor(() => {});
+  });
+
+  it('onKeyDown should catch errors in toggleFullscreen', async () => {
+    const mockRequestFullscreen = vi.fn(() => Promise.reject(new Error('fail')));
+    Object.defineProperty(document.documentElement, 'requestFullscreen', { value: mockRequestFullscreen, configurable: true });
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true });
+
+    const event = { key: 'f', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(event);
+    await vi.waitFor(() => {}); // wait for catch block
+
+    // Exit fullscreen failure
+    const mockExitFullscreen = vi.fn(() => Promise.reject(new Error('fail')));
+    Object.defineProperty(document, 'fullscreenElement', { value: document.documentElement, configurable: true });
+    Object.defineProperty(document, 'exitFullscreen', { value: mockExitFullscreen, configurable: true });
+
+    inputManager.onKeyDown(event);
+    await vi.waitFor(() => {}); // wait for catch block
   });
 
   it('onKeyDown should exit fullscreen when already in fullscreen', async () => {
