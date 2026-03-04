@@ -1,6 +1,7 @@
 import { Store } from './store';
 import { DefaultAdapter } from './adapters/DefaultAdapter';
 import { Navigator } from './managers/Navigator';
+import { DiscoveryManager } from './managers/DiscoveryManager';
 import { UIManager } from './managers/UIManager';
 import { InputManager } from './managers/InputManager';
 import { ResumeManager } from './managers/ResumeManager';
@@ -11,6 +12,7 @@ class App {
   private store: Store;
   private adapter: SiteAdapter;
   private navigator: Navigator;
+  private discoveryManager: DiscoveryManager;
   private uiManager: UIManager;
   private inputManager: InputManager;
   private resumeManager: ResumeManager;
@@ -24,8 +26,9 @@ class App {
     this.adapter = adapters.find(a => a.match(window.location.href)) || DefaultAdapter;
 
     this.navigator = new Navigator(this.adapter, this.store);
-    this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
-    this.inputManager = new InputManager(this.store, this.navigator);
+    this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
+    this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager);
+    this.inputManager = new InputManager(this.store, this.navigator, this.discoveryManager);
     this.resumeManager = new ResumeManager(this.store);
     this.popUnderBlocker = new PopUnderBlocker(this.store);
   }

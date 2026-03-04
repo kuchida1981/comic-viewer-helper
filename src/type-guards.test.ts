@@ -6,7 +6,9 @@ import {
   isResumeData,
   isResumeDataMap,
   isSearchContext,
-  isSearchCache
+  isSearchCache,
+  isRelatedWork,
+  isRelatedWorkArray
 } from './type-guards';
 
 describe('Type Guards', () => {
@@ -22,6 +24,32 @@ describe('Type Guards', () => {
       expect(isObject([])).toBe(false);
       expect(isObject(123)).toBe(false);
       expect(isObject('string')).toBe(false);
+    });
+  });
+
+  describe('isRelatedWork', () => {
+    it('should return true for valid RelatedWork', () => {
+      expect(isRelatedWork({ title: 'T', href: 'H', thumb: 'Th' })).toBe(true);
+    });
+
+    it('should return false for invalid objects', () => {
+      expect(isRelatedWork(null)).toBe(false);
+      expect(isRelatedWork({})).toBe(false);
+      expect(isRelatedWork({ title: 'T' })).toBe(false);
+      expect(isRelatedWork({ title: 'T', href: 'H' })).toBe(false);
+      expect(isRelatedWork({ title: 'T', href: 'H', thumb: 123 })).toBe(false);
+    });
+  });
+
+  describe('isRelatedWorkArray', () => {
+    it('should return true for valid arrays', () => {
+      expect(isRelatedWorkArray([])).toBe(true);
+      expect(isRelatedWorkArray([{ title: 'T', href: 'H', thumb: 'Th' }])).toBe(true);
+    });
+
+    it('should return false for invalid arrays', () => {
+      expect(isRelatedWorkArray([{}])).toBe(false);
+      expect(isRelatedWorkArray('not array')).toBe(false);
     });
   });
 

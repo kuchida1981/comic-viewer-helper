@@ -78,6 +78,7 @@ Do not skip steps unless the user explicitly instructs otherwise.
 
 ### Important Rules
 
+- **NEVER use `--no-verify` or `-n` flags**: Bypassing commit hooks is strictly prohibited. If checks fail, you MUST fix the underlying code or tests.
 - **Do NOT use broad staging commands**: Never use `git add .` or `git add -A`. Always stage files individually or by specific paths to avoid including unintended files.
 - **Check status before commit**: Always run `git status` before committing to verify staged changes.
 - **Do NOT commit files in the `dist/` directory** (build artifacts are ignored by `.gitignore`)

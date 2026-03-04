@@ -427,6 +427,42 @@ export function normalizeUrl(url: string): string {
 }
 
 /**
+ * Get the current number of unique candidates for random jump,
+ * excluding history and current URL according to normal rules.
+ */
+export function getLuckyCandidatesCount(
+  metadata: Metadata,
+  luckyHistory: string[],
+  currentUrl: string,
+  searchCache?: SearchCache | null,
+  favorites: RelatedWork[] = []
+): number {
+  const normalizedCurrent = normalizeUrl(currentUrl);
+  const normalizedHistory = luckyHistory.map(h => normalizeUrl(h));
+
+  const pool = getDiscoveryPool(metadata, searchCache, favorites);
+  const excludeSet = new Set<string>();
+  excludeSet.add(normalizedCurrent);
+  normalizedHistory.forEach(h => excludeSet.add(h));
+
+  return pool.filter(w => !excludeSet.has(normalizeUrl(w.href))).length;
+}
+
+/**
+ * Check if the candidate pool is depleted (below threshold)
+ */
+export function isLuckyPoolDepleted(
+  metadata: Metadata,
+  luckyHistory: string[],
+  currentUrl: string,
+  searchCache?: SearchCache | null,
+  favorites: RelatedWork[] = [],
+  threshold = 5
+): boolean {
+  return getLuckyCandidatesCount(metadata, luckyHistory, currentUrl, searchCache, favorites) < threshold;
+}
+
+/**
  * Select a random work from candidates, excluding recently visited ones.
  * Uses a 2-step slot algorithm: 25% chance for a favorite, 75% for discovery.
  * Implements fallback logic to avoid empty candidates.
