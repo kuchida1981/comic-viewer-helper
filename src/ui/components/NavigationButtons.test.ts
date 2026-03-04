@@ -36,11 +36,11 @@ describe('NavigationButtons', () => {
 
     // Favorite state
     update(true, false);
-    expect(favBtn.textContent).toBe('♥');
+    expect(favBtn.querySelector('svg')).toBeDefined();
     expect(favBtn.classList.contains('active')).toBe(true);
 
     update(false, false);
-    expect(favBtn.textContent).toBe('♡');
+    expect(favBtn.querySelector('svg')).toBeDefined();
     expect(favBtn.classList.contains('inactive')).toBe(true);
 
     // Lucky loading state

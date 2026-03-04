@@ -1,6 +1,7 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
 import { Metadata, Tag } from '../../types';
+import { createHeartFilledIcon, createHeartOutlineIcon } from '../icons';
 
 export interface MetadataModalProps {
   metadata: Metadata;
@@ -32,7 +33,6 @@ export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick,
 
   const favBtn = createElement('button', {
     className: `comic-helper-favorite-btn ${isFavorite ? 'active' : 'inactive'}`,
-    textContent: isFavorite ? '♥' : '♡',
     title: isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
     events: {
       click: (e) => {
@@ -40,7 +40,7 @@ export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick,
         onToggleFavorite();
       }
     }
-  });
+  }, [isFavorite ? createHeartFilledIcon(18) : createHeartOutlineIcon(18)]);
 
   const titleEl = createElement('h2', {
     className: 'comic-helper-modal-title',
@@ -119,7 +119,8 @@ export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick,
       el: overlay,
       update: (newIsFavorite: boolean) => {
         favBtn.className = `comic-helper-favorite-btn ${newIsFavorite ? 'active' : 'inactive'}`;
-        favBtn.textContent = newIsFavorite ? '♥' : '♡';
+        favBtn.textContent = '';
+        favBtn.appendChild(newIsFavorite ? createHeartFilledIcon(18) : createHeartOutlineIcon(18));
         favBtn.title = newIsFavorite ? 'Remove from Favorites' : 'Add to Favorites';
       }
     };

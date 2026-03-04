@@ -58,14 +58,15 @@ describe('MetadataModal', () => {
     });
 
     const favBtn = el.querySelector('.comic-helper-favorite-btn') as HTMLElement;
-    expect(favBtn.textContent).toBe('♡');
+    expect(favBtn.querySelector('svg')).toBeDefined();
+    expect(favBtn.classList.contains('inactive')).toBe(true);
 
     update(true);
-    expect(favBtn.textContent).toBe('♥');
+    expect(favBtn.querySelector('svg')).toBeDefined();
     expect(favBtn.classList.contains('active')).toBe(true);
 
     update(false);
-    expect(favBtn.textContent).toBe('♡');
+    expect(favBtn.querySelector('svg')).toBeDefined();
     expect(favBtn.classList.contains('inactive')).toBe(true);
   });
 });

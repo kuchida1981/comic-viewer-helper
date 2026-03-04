@@ -114,10 +114,14 @@ export const styles = `
     cursor: pointer;
     border: none;
     background: transparent;
-    font-size: 18px;
     padding: 0 4px;
     transition: color 0.2s, transform 0.2s;
     user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
   }
   .comic-helper-favorite-btn:hover {
     transform: scale(1.2);

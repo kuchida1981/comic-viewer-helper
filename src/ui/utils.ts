@@ -57,11 +57,11 @@ function applyEvents(el: HTMLElement, events?: Record<string, EventListenerOrEve
 /**
  * Append children to the element
  */
-function appendChildren(el: HTMLElement, children: (HTMLElement | string | null | undefined)[]): void {
+function appendChildren(el: HTMLElement, children: (Element | string | null | undefined)[]): void {
   children.forEach(child => {
     if (typeof child === 'string') {
       el.appendChild(document.createTextNode(child));
-    } else if (child instanceof HTMLElement) {
+    } else if (child instanceof Element) {
       el.appendChild(child);
     }
   });
@@ -73,7 +73,7 @@ function appendChildren(el: HTMLElement, children: (HTMLElement | string | null 
 export function createElement<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   options: ElementOptions = {},
-  children: (HTMLElement | string | null | undefined)[] = []
+  children: (Element | string | null | undefined)[] = []
 ): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   // Ensure options is an object even if null is passed (for safety/tests)

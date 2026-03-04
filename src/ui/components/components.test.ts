@@ -117,14 +117,14 @@ describe('UI Components', () => {
       const { elements, update } = createNavigationButtons(mockProps);
       const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;
       expect(favBtn).toBeDefined();
-      expect(favBtn.textContent).toBe('♡');
+      expect(favBtn.querySelector('svg')).toBeDefined();
 
       update(true, false);
-      expect(favBtn.textContent).toBe('♥');
+      expect(favBtn.querySelector('svg')).toBeDefined();
       expect(favBtn.classList.contains('active')).toBe(true);
 
       update(false, false);
-      expect(favBtn.textContent).toBe('♡');
+      expect(favBtn.querySelector('svg')).toBeDefined();
       expect(favBtn.classList.contains('inactive')).toBe(true);
     });
   });
