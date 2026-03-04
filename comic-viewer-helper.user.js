@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.94a52ea
+// @version         1.5.0-unstable.2a291a6
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -332,6 +332,18 @@
       return url;
     }
   }
+  function getLuckyCandidatesCount(metadata, luckyHistory, currentUrl, searchCache, favorites = []) {
+    const normalizedCurrent = normalizeUrl(currentUrl);
+    const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h));
+    const pool = getDiscoveryPool(metadata, searchCache, favorites);
+    const excludeSet = /* @__PURE__ */ new Set();
+    excludeSet.add(normalizedCurrent);
+    normalizedHistory.forEach((h) => excludeSet.add(h));
+    return pool.filter((w) => !excludeSet.has(normalizeUrl(w.href))).length;
+  }
+  function isLuckyPoolDepleted(metadata, luckyHistory, currentUrl, searchCache, favorites = [], threshold = 5) {
+    return getLuckyCandidatesCount(metadata, luckyHistory, currentUrl, searchCache, favorites) < threshold;
+  }
   function pickRandomWork(metadata, luckyHistory, currentUrl, searchCache, favorites = []) {
     const normalizedCurrent = normalizeUrl(currentUrl);
     const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h));
@@ -421,6 +433,7 @@
         isHelpModalOpen: false,
         isSearchModalOpen: false,
         isLoading: false,
+        isLuckyLoading: false,
         searchResults: null,
         searchQuery: this._loadSearchQuery(),
         searchContext: this._loadSearchContext(),
@@ -942,6 +955,141 @@
       if (isAutoplayEnabled) {
         this._startAutoplay();
       }
+    };
+  }
+  function isSearchableAdapter(adapter) {
+    return typeof adapter.getSearchUrl === "function" && typeof adapter.parseSearchResults === "function";
+  }
+  function isMetadataAdapter(adapter) {
+    return typeof adapter.getMetadata === "function";
+  }
+  function normalizeQuery(query) {
+    return query.trim().toLowerCase().split(/\s+/).sort().join(" ");
+  }
+  function contextsMatch(c1, c2) {
+    if (!c1 && !c2) return true;
+    if (!c1 || !c2) return false;
+    return c1.type === c2.type && c1.label === c2.label;
+  }
+  class DiscoveryManager {
+    adapter;
+    store;
+    constructor(adapter, store) {
+      this.adapter = adapter;
+      this.store = store;
+    }
+    performSearch = async (queryOrUrl, silent = false, context) => {
+      if (!isSearchableAdapter(this.adapter)) return;
+      if (!silent) this.store.setState({ searchResults: null });
+      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
+      const { url, query, searchContext } = this._getSearchParameters(queryOrUrl, context);
+      this._updateStoreBeforeSearch(query, searchContext, silent, isUrl);
+      try {
+        const results = await this.fetchSearchResults(url);
+        results.searchContext = searchContext;
+        this.store.setState({
+          searchResults: results,
+          searchCache: { query, results, fetchedAt: Date.now(), context: searchContext }
+        });
+      } catch (error) {
+        console.error("Failed to fetch search results:", error);
+      }
+    };
+    fetchSearchResults = async (url) => {
+      const searchableAdapter = this.adapter;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return searchableAdapter.parseSearchResults(doc);
+    };
+    _updateStoreBeforeSearch = (query, context, silent, isUrl) => {
+      this.store.setState({ searchContext: context });
+      if (!silent && !isUrl && context.type === "keyword") {
+        this.store.setState({ searchQuery: query });
+        this._updateSearchHistory(query);
+      }
+    };
+    _getSearchParameters = (queryOrUrl, context) => {
+      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
+      if (isUrl) {
+        const query2 = context ? context.label || "" : this.store.getState().searchQuery;
+        const searchContext2 = context || this.store.getState().searchContext || { type: "keyword", label: query2 };
+        return { url: queryOrUrl, query: query2, searchContext: searchContext2 };
+      }
+      const query = queryOrUrl;
+      const searchableAdapter = this.adapter;
+      const url = searchableAdapter.getSearchUrl(query);
+      const searchContext = context || { type: "keyword", label: query };
+      return { url, query, searchContext };
+    };
+    _updateSearchHistory = (query) => {
+      const { searchHistory } = this.store.getState();
+      const normalizedNew = normalizeQuery(query);
+      const filtered = searchHistory.filter((h) => normalizeQuery(h) !== normalizedNew);
+      const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
+      this.store.setState({ searchHistory: newHistory });
+    };
+    /**
+     * Helper for UIManager to check context match
+     */
+    contextsMatch = (c1, c2) => {
+      return contextsMatch(c1, c2);
+    };
+    jumpToRandomWork = async () => {
+      const state = this.store.getState();
+      if (state.isLuckyLoading) return;
+      this.store.setState({ isLuckyLoading: true });
+      try {
+        const currentUrl = window.location.href;
+        if (isLuckyPoolDepleted(state.metadata, state.luckyHistory, currentUrl, state.searchCache, state.favorites)) {
+          await this._replenishCandidates();
+        }
+        const finalState = this.store.getState();
+        const nextUrl = pickRandomWork(
+          finalState.metadata,
+          finalState.luckyHistory,
+          currentUrl,
+          finalState.searchCache,
+          finalState.favorites
+        );
+        if (nextUrl) {
+          window.location.href = nextUrl;
+        }
+      } catch (error) {
+        console.error("Jump to random work failed:", error);
+      } finally {
+        this.store.setState({ isLuckyLoading: false });
+      }
+    };
+    _replenishCandidates = async () => {
+      if (await this._tryDeepFetch()) return;
+      await this._tryTagFetch();
+    };
+    _tryDeepFetch = async () => {
+      const { searchCache } = this.store.getState();
+      if (searchCache?.results.nextPageUrl) {
+        const results = await this.fetchSearchResults(searchCache.results.nextPageUrl);
+        const existingHrefs = new Set(searchCache.results.results.map((r) => r.href));
+        const newUniqueResults = results.results.filter((r) => !existingHrefs.has(r.href));
+        const mergedResults = {
+          ...results,
+          results: [...searchCache.results.results, ...newUniqueResults]
+        };
+        this.store.setState({
+          searchCache: { ...searchCache, results: mergedResults, fetchedAt: Date.now() }
+        });
+        return true;
+      }
+      return false;
+    };
+    _tryTagFetch = async () => {
+      const { metadata } = this.store.getState();
+      if (metadata.tags.length === 0) return;
+      const tag = metadata.tags[Math.floor(Math.random() * metadata.tags.length)];
+      const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
+      const context = { type: contextType, label: tag.text };
+      await this.performSearch(tag.href, true, context);
     };
   }
   const PALETTE = {
@@ -2113,7 +2261,7 @@
     const configs = [
       { text: "<<", title: t("ui.goLast"), action: onLast },
       { text: "<", title: t("ui.goNext"), action: onNext },
-      { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn" },
+      { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn", id: "lucky" },
       { text: ">", title: t("ui.goPrev"), action: onPrev },
       { text: ">>", title: t("ui.goFirst"), action: onFirst },
       { text: "♡", title: "Toggle Favorite", action: onToggleFavorite, id: "fav" },
@@ -2137,12 +2285,22 @@
     }));
     return {
       elements,
-      update: (isFavorite) => {
+      update: (isFavorite, isLuckyLoading) => {
         const favBtn = elements.find((el) => el.id === "comic-helper-nav-fav");
         if (favBtn) {
           favBtn.textContent = isFavorite ? "♥" : "♡";
           favBtn.classList.toggle("active", isFavorite);
           favBtn.classList.toggle("inactive", !isFavorite);
+        }
+        const luckyBtn = elements.find((el) => el.id === "comic-helper-nav-lucky");
+        if (luckyBtn instanceof HTMLButtonElement) {
+          luckyBtn.disabled = isLuckyLoading;
+          luckyBtn.classList.toggle("loading", isLuckyLoading);
+          if (isLuckyLoading) {
+            luckyBtn.textContent = "⏳";
+          } else {
+            luckyBtn.textContent = "🎲";
+          }
         }
       }
     };
@@ -2372,7 +2530,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.94a52ea"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.2a291a6"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2793,25 +2951,12 @@
       document.removeEventListener("mouseup", this._onMouseUp);
     };
   }
-  function isSearchableAdapter(adapter) {
-    return typeof adapter.getSearchUrl === "function" && typeof adapter.parseSearchResults === "function";
-  }
-  function isMetadataAdapter(adapter) {
-    return typeof adapter.getMetadata === "function";
-  }
   const SEARCH_TTL = 60 * 60 * 1e3;
-  function normalizeQuery(query) {
-    return query.trim().toLowerCase().split(/\s+/).sort().join(" ");
-  }
-  function contextsMatch(c1, c2) {
-    if (!c1 && !c2) return true;
-    if (!c1 || !c2) return false;
-    return c1.type === c2.type && c1.label === c2.label;
-  }
   class UIManager {
     adapter;
     store;
     navigator;
+    discoveryManager;
     // Component references
     powerComp = null;
     counterComp = null;
@@ -2824,10 +2969,11 @@
     modalComp = null;
     helpModalEl = null;
     searchModalComp = null;
-    constructor(adapter, store, navigator2) {
+    constructor(adapter, store, navigator2, discoveryManager) {
       this.adapter = adapter;
       this.store = store;
       this.navigator = navigator2;
+      this.discoveryManager = discoveryManager;
     }
     init = () => {
       injectStyles();
@@ -2880,7 +3026,7 @@
     _updateComponentStates = (state) => {
       const favorites = state.favorites;
       const isFavorite = favorites?.some((f) => f.href === window.location.href) ?? false;
-      this.navBtnsComp?.update(isFavorite);
+      this.navBtnsComp?.update(isFavorite, state.isLuckyLoading);
       if (this.modalComp && state.isMetadataModalOpen) {
         this.modalComp.update(isFavorite);
       }
@@ -2961,11 +3107,7 @@
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
         onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
         onLucky: () => {
-          const state = this.store.getState();
-          const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
-          if (nextUrl) {
-            window.location.href = nextUrl;
-          }
+          void this.discoveryManager.jumpToRandomWork();
         },
         onToggleFavorite: () => {
           this._toggleFavorite();
@@ -3008,10 +3150,10 @@
             searchContext: state.searchContext,
             searchHistory: state.searchHistory,
             onSearch: (q, ctx) => {
-              void this._performSearch(q, false, ctx);
+              void this.discoveryManager.performSearch(q, false, ctx);
             },
             onPageChange: (url) => {
-              void this._performSearch(url);
+              void this.discoveryManager.performSearch(url);
             },
             onClose: () => this.store.setState({ isSearchModalOpen: false })
           });
@@ -3027,30 +3169,30 @@
       const { searchCache, searchQuery, searchContext } = state;
       if (!searchCache) {
         if (searchQuery && searchContext?.type === "keyword") {
-          void this._performSearch(searchQuery);
+          void this.discoveryManager.performSearch(searchQuery);
         }
         return;
       }
       this._processSearchCache(searchCache, searchQuery, searchContext);
     };
     _processSearchCache = (searchCache, searchQuery, searchContext) => {
-      if (searchCache.query === searchQuery && contextsMatch(searchCache.context, searchContext)) {
+      if (searchCache.query === searchQuery && this.discoveryManager.contextsMatch(searchCache.context, searchContext)) {
         this.store.setState({ searchResults: searchCache.results });
         this.searchModalComp?.updateResults(searchCache.results);
         this._revalidateCacheIfNeeded(searchCache, searchQuery, searchContext);
       } else if (searchQuery && searchContext?.type === "keyword") {
-        void this._performSearch(searchQuery);
+        void this.discoveryManager.performSearch(searchQuery);
       }
     };
     _revalidateCacheIfNeeded = (searchCache, searchQuery, searchContext) => {
       if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
-        void this._performSearch(searchQuery, true, searchContext);
+        void this.discoveryManager.performSearch(searchQuery, true, searchContext);
       }
     };
     _handleTagClick = async (tag) => {
       this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
       const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
-      return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
+      return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
     };
     _toggleFavorite = () => {
       const state = this.store.getState();
@@ -3121,59 +3263,6 @@
       }
       return modalEl;
     };
-    _performSearch = async (queryOrUrl, silent = false, context) => {
-      if (!isSearchableAdapter(this.adapter)) return;
-      if (!silent) this.store.setState({ searchResults: null });
-      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
-      const { url, query, searchContext } = this._getSearchParameters(queryOrUrl, context);
-      this._updateStoreBeforeSearch(query, searchContext, silent, isUrl);
-      this.searchModalComp?.setUpdating(true);
-      try {
-        const results = await this._fetchSearchResults(url);
-        results.searchContext = searchContext;
-        this.store.setState({ searchResults: results, searchCache: { query, results, fetchedAt: Date.now(), context: searchContext } });
-        this.searchModalComp?.updateResults(results);
-      } catch (error) {
-        console.error("Failed to fetch search results:", error);
-      } finally {
-        this.searchModalComp?.setUpdating(false);
-      }
-    };
-    _updateStoreBeforeSearch = (query, context, silent, isUrl) => {
-      this.store.setState({ searchContext: context });
-      if (!silent && !isUrl && context.type === "keyword") {
-        this.store.setState({ searchQuery: query });
-        this._updateSearchHistory(query);
-      }
-    };
-    _getSearchParameters = (queryOrUrl, context) => {
-      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
-      if (isUrl) {
-        const query2 = context ? context.label || "" : this.store.getState().searchQuery;
-        const searchContext2 = context || this.store.getState().searchContext || { type: "keyword", label: query2 };
-        return { url: queryOrUrl, query: query2, searchContext: searchContext2 };
-      }
-      const query = queryOrUrl;
-      const searchableAdapter = this.adapter;
-      const url = searchableAdapter.getSearchUrl(query);
-      const searchContext = context || { type: "keyword", label: query };
-      return { url, query, searchContext };
-    };
-    _fetchSearchResults = async (url) => {
-      const searchableAdapter = this.adapter;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const html = await res.text();
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      return searchableAdapter.parseSearchResults(doc);
-    };
-    _updateSearchHistory = (query) => {
-      const { searchHistory } = this.store.getState();
-      const normalizedNew = normalizeQuery(query);
-      const filtered = searchHistory.filter((h) => normalizeQuery(h) !== normalizedNew);
-      const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
-      this.store.setState({ searchHistory: newHistory });
-    };
   }
   const CLICK_THRESHOLD_PX = 5;
   function matchesShortcut(e, id) {
@@ -3198,6 +3287,7 @@
   class InputManager {
     store;
     navigator;
+    discoveryManager;
     lastWheelTime;
     WHEEL_THROTTLE_MS = 500;
     WHEEL_THRESHOLD = 1;
@@ -3205,9 +3295,10 @@
     scrollReq;
     mouseDownPos;
     mouseDownTarget;
-    constructor(store, navigator2) {
+    constructor(store, navigator2, discoveryManager) {
       this.store = store;
       this.navigator = navigator2;
+      this.discoveryManager = discoveryManager;
       this.lastWheelTime = 0;
       this.mouseDownPos = null;
       this.mouseDownTarget = null;
@@ -3265,7 +3356,8 @@
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
       if (this._handleModalCloseShortcuts(e)) return;
       if (this._handleToggleShortcuts(e)) return;
-      if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
+      const state = this.store.getState();
+      if (!state.enabled || state.isLuckyLoading || this._isAnyModalOpen()) return;
       this._handleShortcutAction(e);
     };
     _handleModalCloseShortcuts = (e) => {
@@ -3305,13 +3397,7 @@
           if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
         },
         fullscreen: () => this._toggleFullscreen(),
-        randomJump: () => {
-          const state = this.store.getState();
-          const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
-          if (nextUrl) {
-            window.location.href = nextUrl;
-          }
-        },
+        randomJump: () => this.discoveryManager.jumpToRandomWork(),
         speedUpAutoplay: () => {
           const { autoplayInterval } = this.store.getState();
           if (autoplayInterval > 1) this.store.setState({ autoplayInterval: autoplayInterval - 1 });
@@ -3442,6 +3528,7 @@
     store;
     adapter;
     navigator;
+    discoveryManager;
     uiManager;
     inputManager;
     resumeManager;
@@ -3451,8 +3538,9 @@
       const adapters = [DefaultAdapter];
       this.adapter = adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
       this.navigator = new Navigator(this.adapter, this.store);
-      this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
-      this.inputManager = new InputManager(this.store, this.navigator);
+      this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
+      this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager);
+      this.inputManager = new InputManager(this.store, this.navigator, this.discoveryManager);
       this.resumeManager = new ResumeManager(this.store);
       this.popUnderBlocker = new PopUnderBlocker(this.store);
     }
