@@ -22,6 +22,9 @@ export interface NavigationButtonsComponent {
 export function createNavigationButtons({
   onFirst, onPrev, onNext, onLast, onInfo, onHelp, onSearch, onLucky, onToggleFavorite
 }: NavigationButtonsProps): NavigationButtonsComponent {
+  const heartFilledIcon = createHeartFilledIcon(18);
+  const heartOutlineIcon = createHeartOutlineIcon(18);
+
   const configs = [
     { text: '<<', title: t('ui.goLast'), action: onLast },
     { text: '<', title: t('ui.goNext'), action: onNext },
@@ -56,8 +59,7 @@ export function createNavigationButtons({
         update: (isFavorite: boolean, isLuckyLoading: boolean) => {
           const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav');
           if (favBtn) {
-            favBtn.textContent = '';
-            favBtn.appendChild(isFavorite ? createHeartFilledIcon(18) : createHeartOutlineIcon(18));
+            favBtn.replaceChildren(isFavorite ? heartFilledIcon : heartOutlineIcon);
             favBtn.classList.toggle('active', isFavorite);
             favBtn.classList.toggle('inactive', !isFavorite);
           }

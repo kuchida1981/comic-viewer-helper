@@ -19,6 +19,9 @@ export interface MetadataModalComponent {
 export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick, onToggleFavorite }: MetadataModalProps): MetadataModalComponent {
   const { title, tags, relatedWorks } = metadata;
 
+  const heartFilledIcon = createHeartFilledIcon(18);
+  const heartOutlineIcon = createHeartOutlineIcon(18);
+
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
     textContent: '×',
@@ -40,7 +43,7 @@ export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick,
         onToggleFavorite();
       }
     }
-  }, [isFavorite ? createHeartFilledIcon(18) : createHeartOutlineIcon(18)]);
+  }, [isFavorite ? heartFilledIcon : heartOutlineIcon]);
 
   const titleEl = createElement('h2', {
     className: 'comic-helper-modal-title',
@@ -119,8 +122,7 @@ export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick,
       el: overlay,
       update: (newIsFavorite: boolean) => {
         favBtn.className = `comic-helper-favorite-btn ${newIsFavorite ? 'active' : 'inactive'}`;
-        favBtn.textContent = '';
-        favBtn.appendChild(newIsFavorite ? createHeartFilledIcon(18) : createHeartOutlineIcon(18));
+        favBtn.replaceChildren(newIsFavorite ? heartFilledIcon : heartOutlineIcon);
         favBtn.title = newIsFavorite ? 'Remove from Favorites' : 'Add to Favorites';
       }
     };
