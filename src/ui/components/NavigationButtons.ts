@@ -1,5 +1,6 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
+import { createHeartFilledIcon, createHeartOutlineIcon } from '../icons';
 
 export interface NavigationButtonsProps {
   onFirst: () => void;
@@ -21,6 +22,9 @@ export interface NavigationButtonsComponent {
 export function createNavigationButtons({
   onFirst, onPrev, onNext, onLast, onInfo, onHelp, onSearch, onLucky, onToggleFavorite
 }: NavigationButtonsProps): NavigationButtonsComponent {
+  const heartFilledIcon = createHeartFilledIcon(18);
+  const heartOutlineIcon = createHeartOutlineIcon(18);
+
   const configs = [
     { text: '<<', title: t('ui.goLast'), action: onLast },
     { text: '<', title: t('ui.goNext'), action: onNext },
@@ -28,7 +32,7 @@ export function createNavigationButtons({
     { text: '>', title: t('ui.goPrev'), action: onPrev },
 
         { text: '>>', title: t('ui.goFirst'), action: onFirst },
-        { text: '♡', title: 'Toggle Favorite', action: onToggleFavorite, id: 'fav' },
+        { text: '', title: 'Toggle Favorite', action: onToggleFavorite, id: 'fav', className: 'comic-helper-favorite-btn' },
         { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
         { text: '?', title: t('ui.showHelp'), action: onHelp },
         { text: '🔍', title: t('ui.showSearch'), action: onSearch, className: 'comic-helper-button comic-helper-icon-btn' }
@@ -55,7 +59,7 @@ export function createNavigationButtons({
         update: (isFavorite: boolean, isLuckyLoading: boolean) => {
           const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav');
           if (favBtn) {
-            favBtn.textContent = isFavorite ? '♥' : '♡';
+            favBtn.replaceChildren(isFavorite ? heartFilledIcon : heartOutlineIcon);
             favBtn.classList.toggle('active', isFavorite);
             favBtn.classList.toggle('inactive', !isFavorite);
           }
