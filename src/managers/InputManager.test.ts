@@ -269,20 +269,26 @@ describe('InputManager', () => {
     const uiManager = (inputManager as any).uiManager;
     const event = { key: 'v', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
+    expect(event.preventDefault).toHaveBeenCalled();
     expect(uiManager.toggleFavorite).toHaveBeenCalled();
   });
 
-  it('onKeyDown should block toggleFavorite when help or search modal is open', () => {
-    // Search modal open
-    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, isHelpModalOpen: false });
+  it('onKeyDown should block toggleFavorite when help or search modal is open but still preventDefault', () => {
     const uiManager = (inputManager as any).uiManager;
     const event = { key: 'v', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    
+    // Search modal open
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, isHelpModalOpen: false });
     inputManager.onKeyDown(event);
+    expect(event.preventDefault).toHaveBeenCalled();
     expect(uiManager.toggleFavorite).not.toHaveBeenCalled();
+
+    vi.clearAllMocks();
 
     // Help modal open
     (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: false, isHelpModalOpen: true });
     inputManager.onKeyDown(event);
+    expect(event.preventDefault).toHaveBeenCalled();
     expect(uiManager.toggleFavorite).not.toHaveBeenCalled();
   });
 

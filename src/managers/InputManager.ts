@@ -169,13 +169,13 @@ export class InputManager {
       return true;
     }
     if (matchesShortcut(e, 'toggleFavorite')) {
-      const { isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-      // Allow only when no modal is open, or specifically when metadata modal is open
-      if (!isHelpModalOpen && !isSearchModalOpen) {
-        e.preventDefault();
+      e.preventDefault();
+      const state = this.store.getState();
+      // Allow only when no modal is open (except metadata modal is effectively treated as 'no modal' for favorites)
+      if (!state.isHelpModalOpen && !state.isSearchModalOpen) {
         this.uiManager.toggleFavorite();
-        return true;
       }
+      return true;
     }
     return false;
   };
