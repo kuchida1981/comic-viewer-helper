@@ -265,11 +265,25 @@ describe('InputManager', () => {
   });
 
   it('onKeyDown should handle toggleFavorite even when metadata modal is open', () => {
-    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true });
+    (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: false, isSearchModalOpen: false });
     const uiManager = (inputManager as any).uiManager;
     const event = { key: 'v', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
     inputManager.onKeyDown(event);
     expect(uiManager.toggleFavorite).toHaveBeenCalled();
+  });
+
+  it('onKeyDown should block toggleFavorite when help or search modal is open', () => {
+    // Search modal open
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: true, isHelpModalOpen: false });
+    const uiManager = (inputManager as any).uiManager;
+    const event = { key: 'v', preventDefault: vi.fn(), target: document.body } as unknown as KeyboardEvent;
+    inputManager.onKeyDown(event);
+    expect(uiManager.toggleFavorite).not.toHaveBeenCalled();
+
+    // Help modal open
+    (store.getState as Mock).mockReturnValue({ enabled: true, isSearchModalOpen: false, isHelpModalOpen: true });
+    inputManager.onKeyDown(event);
+    expect(uiManager.toggleFavorite).not.toHaveBeenCalled();
   });
 
   it('onKeyDown should handle autoplay speed up/slow down', () => {

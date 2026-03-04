@@ -169,9 +169,13 @@ export class InputManager {
       return true;
     }
     if (matchesShortcut(e, 'toggleFavorite')) {
-      e.preventDefault();
-      this.uiManager.toggleFavorite();
-      return true;
+      const { isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+      // Allow only when no modal is open, or specifically when metadata modal is open
+      if (!isHelpModalOpen && !isSearchModalOpen) {
+        e.preventDefault();
+        this.uiManager.toggleFavorite();
+        return true;
+      }
     }
     return false;
   };
@@ -185,7 +189,6 @@ export class InputManager {
       autoplay: () => this.store.setState({ isAutoplayEnabled: !this.store.getState().isAutoplayEnabled }),
       dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
       spreadOffset: () => { if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 }); },
-      toggleFavorite: () => this.uiManager.toggleFavorite(),
       fullscreen: () => this._toggleFullscreen(),
       randomJump: () => this.discoveryManager.jumpToRandomWork(),
       speedUpAutoplay: () => {
