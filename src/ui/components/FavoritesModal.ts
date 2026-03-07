@@ -35,6 +35,11 @@ function createGrid(favorites: RelatedWork[], onRemove: (href: string) => void):
       className: 'comic-helper-search-result-title',
       textContent: item.title
     });
+    const link = createElement('a', {
+      className: 'comic-helper-search-result-item',
+      attributes: { href: item.href, target: '_blank' },
+      events: { click: (e) => e.stopPropagation() }
+    }, [thumb, title]);
     const deleteBtn = createElement('button', {
       className: 'comic-helper-favorites-delete-btn',
       textContent: '×',
@@ -47,12 +52,10 @@ function createGrid(favorites: RelatedWork[], onRemove: (href: string) => void):
         }
       }
     });
-    const link = createElement('a', {
-      className: 'comic-helper-search-result-item',
-      attributes: { href: item.href, target: '_blank' },
-      events: { click: (e) => e.stopPropagation() }
-    }, [thumb, title, deleteBtn]);
-    grid.appendChild(link);
+    const wrapper = createElement('div', {
+      className: 'comic-helper-favorites-item'
+    }, [link, deleteBtn]);
+    grid.appendChild(wrapper);
   });
 
   return grid;
