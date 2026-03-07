@@ -295,16 +295,19 @@ export class UIManager {
     }
   };
 
-  private _handleFavoritesTagClick = async (tag: Tag): Promise<void> => {
-    this.store.setState({ isFavoritesModalOpen: false, isSearchModalOpen: true, searchResults: null });
+  private _performTagSearch = (tag: Tag): Promise<void> => {
     const contextType = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
     return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
   };
 
-  private _handleTagClick = async (tag: Tag): Promise<void> => {
+  private _handleFavoritesTagClick = (tag: Tag): Promise<void> => {
+    this.store.setState({ isFavoritesModalOpen: false, isSearchModalOpen: true, searchResults: null });
+    return this._performTagSearch(tag);
+  };
+
+  private _handleTagClick = (tag: Tag): Promise<void> => {
     this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
-    const contextType = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
-    return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
+    return this._performTagSearch(tag);
   };
 
   toggleFavorite = (): void => {
