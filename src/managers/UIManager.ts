@@ -257,6 +257,8 @@ export class UIManager {
         });
         document.body.appendChild(this.searchModalComp.el);
         this._handleSearchSWR(state);
+      } else {
+        this.searchModalComp.updateResults(state.searchResults);
       }
     } else if (this.searchModalComp) {
       this.searchModalComp.el.remove();
