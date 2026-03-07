@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.4e9f9ad
+// @version         1.5.0-unstable.17ee0cb
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -432,6 +432,7 @@
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
         isSearchModalOpen: false,
+        isFavoritesModalOpen: false,
         isLoading: false,
         isLuckyLoading: false,
         searchResults: null,
@@ -1602,6 +1603,30 @@
     margin-top: 10px;
   }
 
+  .comic-helper-favorites-item {
+    position: relative;
+  }
+  .comic-helper-favorites-delete-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 1;
+  }
+  .comic-helper-favorites-item:hover .comic-helper-favorites-delete-btn {
+    opacity: 1;
+  }
   .comic-helper-search-result-item {
     text-decoration: none;
     color: ${COLORS.text.secondary};
@@ -1966,6 +1991,9 @@
         showMetadata: "Show Metadata",
         showHelp: "Show Help",
         showSearch: "Show Search",
+        showFavoritesList: "Show Favorites List",
+        favoritesList: "Favorites List",
+        favoritesEmpty: "No favorites yet.",
         search: "Search",
         searchPlaceholder: "Enter keyword...",
         searchHistory: "Recent",
@@ -1997,7 +2025,8 @@
         randomJump: { label: "Random Jump", desc: "Jump to a random related work" },
         speedUpAutoplay: { label: "Speed Up Autoplay", desc: "Decrease wait time (speed up)" },
         slowDownAutoplay: { label: "Slow Down Autoplay", desc: "Increase wait time (slow down)" },
-        toggleFavorite: { label: "Favorite", desc: "Toggle favorite for this work" }
+        toggleFavorite: { label: "Favorite", desc: "Toggle favorite for this work" },
+        favoritesList: { label: "Favorites List", desc: "Show favorites list" }
       }
     },
     ja: {
@@ -2021,6 +2050,9 @@
         showMetadata: "作品情報を表示",
         showHelp: "ヘルプを表示",
         showSearch: "サイト内検索を表示",
+        showFavoritesList: "お気に入り一覧を表示",
+        favoritesList: "お気に入り一覧",
+        favoritesEmpty: "お気に入りはまだありません。",
         search: "検索",
         searchPlaceholder: "キーワードを入力...",
         searchHistory: "最近の検索",
@@ -2052,7 +2084,8 @@
         randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" },
         speedUpAutoplay: { label: "オートプレイ加速", desc: "待機時間を減らす（速くする）" },
         slowDownAutoplay: { label: "オートプレイ減速", desc: "待機時間を増やす（遅くする）" },
-        toggleFavorite: { label: "お気に入り", desc: "お気に入りの追加/解除" }
+        toggleFavorite: { label: "お気に入り", desc: "お気に入りの追加/解除" },
+        favoritesList: { label: "お気に入り一覧", desc: "お気に入り一覧を表示" }
       }
     }
   };
@@ -2282,7 +2315,8 @@
     onHelp,
     onSearch,
     onLucky,
-    onToggleFavorite
+    onToggleFavorite,
+    onFavoritesList
   }) {
     const heartFilledIcon = createHeartFilledIcon(18);
     const heartOutlineIcon = createHeartOutlineIcon(18);
@@ -2295,7 +2329,8 @@
       { text: "", title: "Toggle Favorite", action: onToggleFavorite, id: "fav", className: "comic-helper-favorite-btn" },
       { text: "Info", title: t("ui.showMetadata"), action: onInfo },
       { text: "?", title: t("ui.showHelp"), action: onHelp },
-      { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" }
+      { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" },
+      { text: "📚", title: t("ui.showFavoritesList"), action: onFavoritesList, className: "comic-helper-button comic-helper-icon-btn" }
     ];
     const elements = configs.map((cfg) => createElement("button", {
       id: cfg.id ? `comic-helper-nav-${cfg.id}` : void 0,
@@ -2514,6 +2549,12 @@
       description: t("shortcuts.toggleFavorite.desc")
     },
     {
+      id: "favoritesList",
+      label: t("shortcuts.favoritesList.label"),
+      keys: ["l"],
+      description: t("shortcuts.favoritesList.desc")
+    },
+    {
       id: "closeModal",
       label: t("shortcuts.closeModal.label"),
       keys: ["Escape"],
@@ -2565,7 +2606,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.4e9f9ad"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.17ee0cb"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2824,6 +2865,97 @@
       }
     };
   }
+  function createGrid(favorites, onRemove) {
+    const grid = createElement("div", {
+      className: "comic-helper-search-result-grid"
+    });
+    if (favorites.length === 0) {
+      grid.appendChild(createElement("div", {
+        className: "comic-helper-search-no-results",
+        textContent: t("ui.favoritesEmpty")
+      }));
+      return grid;
+    }
+    favorites.forEach((item) => {
+      const isSafeThumb = item.thumb.startsWith("http") || item.thumb.startsWith("https") || item.thumb.startsWith("/") || item.thumb.startsWith("blob:");
+      const thumb = createElement("img", {
+        className: "comic-helper-search-result-thumb",
+        attributes: { src: isSafeThumb ? item.thumb : "", loading: "lazy" }
+      });
+      const title = createElement("div", {
+        className: "comic-helper-search-result-title",
+        textContent: item.title
+      });
+      const link = createElement("a", {
+        className: "comic-helper-search-result-item",
+        attributes: { href: item.href, target: "_blank" },
+        events: { click: (e) => e.stopPropagation() }
+      }, [thumb, title]);
+      const deleteBtn = createElement("button", {
+        className: "comic-helper-favorites-delete-btn",
+        textContent: "×",
+        title: t("ui.close"),
+        events: {
+          click: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemove(item.href);
+          }
+        }
+      });
+      const wrapper = createElement("div", {
+        className: "comic-helper-favorites-item"
+      }, [link, deleteBtn]);
+      grid.appendChild(wrapper);
+    });
+    return grid;
+  }
+  function createFavoritesModal({ favorites, onRemove, onClose }) {
+    const closeBtn = createElement("button", {
+      className: "comic-helper-modal-close",
+      textContent: "×",
+      title: t("ui.close"),
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onClose();
+        }
+      }
+    });
+    const titleEl = createElement("h2", {
+      className: "comic-helper-modal-title",
+      textContent: t("ui.favoritesList")
+    });
+    let grid = createGrid(favorites, onRemove);
+    const container = createElement("div", {
+      className: "comic-helper-search-container"
+    }, [grid]);
+    const content = createElement("div", {
+      className: "comic-helper-modal-content",
+      events: {
+        click: (e) => e.stopPropagation()
+      }
+    }, [closeBtn, titleEl, container]);
+    content.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+    const overlay = createElement("div", {
+      className: "comic-helper-modal-overlay",
+      events: {
+        click: onClose
+      }
+    }, [content]);
+    overlay.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+    return {
+      el: overlay,
+      updateFavorites: (newFavorites) => {
+        const newGrid = createGrid(newFavorites, onRemove);
+        container.replaceChild(newGrid, grid);
+        grid = newGrid;
+      }
+    };
+  }
   function createProgressBar() {
     const bar = createElement("div", { className: "comic-helper-progress-fill" });
     const el = createElement("div", { id: "comic-helper-progress-bar" }, [bar]);
@@ -3004,6 +3136,7 @@
     modalComp = null;
     helpModalEl = null;
     searchModalComp = null;
+    favoritesModalComp = null;
     constructor(adapter, store, navigator2, discoveryManager) {
       this.adapter = adapter;
       this.store = store;
@@ -3146,7 +3279,8 @@
         },
         onToggleFavorite: () => {
           this.toggleFavorite();
-        }
+        },
+        onFavoritesList: () => this.store.setState({ isFavoritesModalOpen: true })
       });
       this.navBtnsComp.elements.forEach((btn) => container.appendChild(btn));
     };
@@ -3155,6 +3289,7 @@
         onClose: () => this.store.setState({ isHelpModalOpen: false })
       }));
       this._updateSearchModal(state);
+      this._updateFavoritesModal(state);
       if (state.isMetadataModalOpen) {
         if (!this.modalComp) {
           const isFavorite = state.favorites.some((f) => f.href === window.location.href);
@@ -3176,6 +3311,26 @@
         this.modalComp = null;
       }
     };
+    _updateFavoritesModal = (state) => {
+      if (state.isFavoritesModalOpen) {
+        if (!this.favoritesModalComp) {
+          this.favoritesModalComp = createFavoritesModal({
+            favorites: state.favorites,
+            onRemove: (href) => {
+              const newFavorites = this.store.getState().favorites.filter((f) => f.href !== href);
+              this.store.setState({ favorites: newFavorites });
+            },
+            onClose: () => this.store.setState({ isFavoritesModalOpen: false })
+          });
+          document.body.appendChild(this.favoritesModalComp.el);
+        } else {
+          this.favoritesModalComp.updateFavorites(state.favorites);
+        }
+      } else if (this.favoritesModalComp) {
+        this.favoritesModalComp.el.remove();
+        this.favoritesModalComp = null;
+      }
+    };
     _updateSearchModal = (state) => {
       if (state.isSearchModalOpen) {
         if (!this.searchModalComp) {
@@ -3194,6 +3349,8 @@
           });
           document.body.appendChild(this.searchModalComp.el);
           this._handleSearchSWR(state);
+        } else {
+          this.searchModalComp.updateResults(state.searchResults);
         }
       } else if (this.searchModalComp) {
         this.searchModalComp.el.remove();
@@ -3354,8 +3511,8 @@
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
     };
     _isAnyModalOpen = () => {
-      const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-      return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+      const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, isFavoritesModalOpen } = this.store.getState();
+      return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || isFavoritesModalOpen;
     };
     handleWheel = (e) => {
       const state = this.store.getState();
@@ -3400,7 +3557,7 @@
     _handleModalCloseShortcuts = (e) => {
       if (e.key === "Escape" && this._isAnyModalOpen()) {
         e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, isFavoritesModalOpen: false });
         return true;
       }
       return false;
@@ -3424,9 +3581,14 @@
       if (matchesShortcut(e, "toggleFavorite")) {
         e.preventDefault();
         const state = this.store.getState();
-        if (!state.isHelpModalOpen && !state.isSearchModalOpen) {
+        if (!state.isHelpModalOpen && !state.isSearchModalOpen && !state.isFavoritesModalOpen) {
           this.uiManager.toggleFavorite();
         }
+        return true;
+      }
+      if (matchesShortcut(e, "favoritesList")) {
+        e.preventDefault();
+        this.store.setState({ isFavoritesModalOpen: !this.store.getState().isFavoritesModalOpen });
         return true;
       }
       return false;
