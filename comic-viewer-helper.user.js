@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.17ee0cb
+// @version         1.5.0-unstable.c883076
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1603,6 +1603,22 @@
     margin-top: 10px;
   }
 
+  .comic-helper-favorites-trend-section {
+    padding: 8px 0 12px;
+    border-bottom: 1px solid ${COLORS.border.light};
+    margin-bottom: 12px;
+  }
+  .comic-helper-favorites-trend-label {
+    font-size: 11px;
+    color: ${COLORS.text.muted};
+    margin-bottom: 6px;
+  }
+  .comic-helper-favorites-trend-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
   .comic-helper-favorites-item {
     position: relative;
   }
@@ -1994,6 +2010,7 @@
         showFavoritesList: "Show Favorites List",
         favoritesList: "Favorites List",
         favoritesEmpty: "No favorites yet.",
+        favoritesTrend: "Your Taste",
         search: "Search",
         searchPlaceholder: "Enter keyword...",
         searchHistory: "Recent",
@@ -2053,6 +2070,7 @@
         showFavoritesList: "お気に入り一覧を表示",
         favoritesList: "お気に入り一覧",
         favoritesEmpty: "お気に入りはまだありません。",
+        favoritesTrend: "あなたの好み",
         search: "検索",
         searchPlaceholder: "キーワードを入力...",
         searchHistory: "最近の検索",
@@ -2606,7 +2624,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.17ee0cb"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.c883076"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2865,6 +2883,20 @@
       }
     };
   }
+  function calculateTrends(favorites) {
+    const map = /* @__PURE__ */ new Map();
+    for (const fav of favorites) {
+      for (const tag of fav.tags ?? []) {
+        const entry = map.get(tag.text);
+        if (entry) {
+          entry.count++;
+        } else {
+          map.set(tag.text, { tag, count: 1 });
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count).slice(0, 10);
+  }
   function createGrid(favorites, onRemove) {
     const grid = createElement("div", {
       className: "comic-helper-search-result-grid"
@@ -2910,7 +2942,38 @@
     });
     return grid;
   }
-  function createFavoritesModal({ favorites, onRemove, onClose }) {
+  function createTrendSection(favorites, onTagClick) {
+    const section = createElement("div", {
+      className: "comic-helper-favorites-trend-section"
+    });
+    const trends = calculateTrends(favorites);
+    if (trends.length === 0 || !onTagClick) {
+      section.style.display = "none";
+      return section;
+    }
+    const label = createElement("div", {
+      className: "comic-helper-favorites-trend-label",
+      textContent: t("ui.favoritesTrend")
+    });
+    const tagsEl = createElement("div", {
+      className: "comic-helper-favorites-trend-tags"
+    });
+    trends.forEach(({ tag, count }) => {
+      const typeClass = tag.type ? `comic-helper-tag-chip--${tag.type}` : "";
+      const btn = createElement("button", {
+        className: `comic-helper-tag-chip ${typeClass}`.trim(),
+        textContent: `${tag.text} (${count})`,
+        events: {
+          click: () => onTagClick(tag)
+        }
+      });
+      tagsEl.appendChild(btn);
+    });
+    section.appendChild(label);
+    section.appendChild(tagsEl);
+    return section;
+  }
+  function createFavoritesModal({ favorites, onRemove, onClose, onTagClick }) {
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -2926,10 +2989,11 @@
       className: "comic-helper-modal-title",
       textContent: t("ui.favoritesList")
     });
+    let trendSection = createTrendSection(favorites, onTagClick);
     let grid = createGrid(favorites, onRemove);
     const container = createElement("div", {
       className: "comic-helper-search-container"
-    }, [grid]);
+    }, [trendSection, grid]);
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
@@ -2950,6 +3014,9 @@
     return {
       el: overlay,
       updateFavorites: (newFavorites) => {
+        const newTrendSection = createTrendSection(newFavorites, onTagClick);
+        container.replaceChild(newTrendSection, trendSection);
+        trendSection = newTrendSection;
         const newGrid = createGrid(newFavorites, onRemove);
         container.replaceChild(newGrid, grid);
         grid = newGrid;
@@ -3320,7 +3387,10 @@
               const newFavorites = this.store.getState().favorites.filter((f) => f.href !== href);
               this.store.setState({ favorites: newFavorites });
             },
-            onClose: () => this.store.setState({ isFavoritesModalOpen: false })
+            onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
+            onTagClick: (tag) => {
+              void this._handleFavoritesTagClick(tag);
+            }
           });
           document.body.appendChild(this.favoritesModalComp.el);
         } else {
@@ -3381,10 +3451,17 @@
         void this.discoveryManager.performSearch(searchQuery, true, searchContext);
       }
     };
-    _handleTagClick = async (tag) => {
-      this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
+    _performTagSearch = (tag) => {
       const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
       return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
+    };
+    _handleFavoritesTagClick = (tag) => {
+      this.store.setState({ isFavoritesModalOpen: false, isSearchModalOpen: true, searchResults: null });
+      return this._performTagSearch(tag);
+    };
+    _handleTagClick = (tag) => {
+      this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
+      return this._performTagSearch(tag);
     };
     toggleFavorite = () => {
       const state = this.store.getState();
@@ -3397,8 +3474,9 @@
         const currentWork = {
           title: state.metadata.title,
           href: currentUrl,
-          thumb: this.navigator.getImages()[0]?.src || ""
+          thumb: this.navigator.getImages()[0]?.src || "",
           // Use first image as thumbnail
+          tags: state.metadata.tags
         };
         this.store.setState({ favorites: [...state.favorites, currentWork] });
       }
