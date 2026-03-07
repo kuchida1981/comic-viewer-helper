@@ -510,6 +510,22 @@ export const styles = `
     margin-top: 10px;
   }
 
+  .comic-helper-favorites-trend-section {
+    padding: 8px 0 12px;
+    border-bottom: 1px solid ${COLORS.border.light};
+    margin-bottom: 12px;
+  }
+  .comic-helper-favorites-trend-label {
+    font-size: 11px;
+    color: ${COLORS.text.muted};
+    margin-bottom: 6px;
+  }
+  .comic-helper-favorites-trend-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
   .comic-helper-favorites-item {
     position: relative;
   }

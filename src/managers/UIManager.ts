@@ -231,7 +231,8 @@ export class UIManager {
             const newFavorites = this.store.getState().favorites.filter(f => f.href !== href);
             this.store.setState({ favorites: newFavorites });
           },
-          onClose: () => this.store.setState({ isFavoritesModalOpen: false })
+          onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
+          onTagClick: (tag) => { void this._handleFavoritesTagClick(tag); }
         });
         document.body.appendChild(this.favoritesModalComp.el);
       } else {
@@ -294,10 +295,19 @@ export class UIManager {
     }
   };
 
-  private _handleTagClick = async (tag: Tag): Promise<void> => {
-    this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
+  private _performTagSearch = (tag: Tag): Promise<void> => {
     const contextType = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
     return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
+  };
+
+  private _handleFavoritesTagClick = (tag: Tag): Promise<void> => {
+    this.store.setState({ isFavoritesModalOpen: false, isSearchModalOpen: true, searchResults: null });
+    return this._performTagSearch(tag);
+  };
+
+  private _handleTagClick = (tag: Tag): Promise<void> => {
+    this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
+    return this._performTagSearch(tag);
   };
 
   toggleFavorite = (): void => {
@@ -312,7 +322,8 @@ export class UIManager {
       const currentWork: RelatedWork = {
         title: state.metadata.title,
         href: currentUrl,
-        thumb: this.navigator.getImages()[0]?.src || '' // Use first image as thumbnail
+        thumb: this.navigator.getImages()[0]?.src || '', // Use first image as thumbnail
+        tags: state.metadata.tags
       };
       this.store.setState({ favorites: [...state.favorites, currentWork] });
     }
