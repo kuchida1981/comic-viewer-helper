@@ -101,10 +101,10 @@ describe('UI Components', () => {
       const mockProps = {
         onFirst: vi.fn(), onPrev: vi.fn(), onNext: vi.fn(), onLast: vi.fn(),
         onInfo: vi.fn(), onHelp: vi.fn(), onSearch: vi.fn(), onLucky: vi.fn(),
-        onToggleFavorite: vi.fn()
+        onToggleFavorite: vi.fn(), onFavoritesList: vi.fn()
       };
       const { elements } = createNavigationButtons(mockProps);
-      expect(elements.length).toBe(9);
+      expect(elements.length).toBe(10);
     });
 
     it('should handle favorite toggle', () => {
@@ -112,7 +112,7 @@ describe('UI Components', () => {
       const mockProps = {
         onFirst: vi.fn(), onPrev: vi.fn(), onNext: vi.fn(), onLast: vi.fn(),
         onInfo: vi.fn(), onHelp: vi.fn(), onSearch: vi.fn(), onLucky: vi.fn(),
-        onToggleFavorite
+        onToggleFavorite, onFavoritesList: vi.fn()
       };
       const { elements, update } = createNavigationButtons(mockProps);
       const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;

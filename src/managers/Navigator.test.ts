@@ -257,6 +257,7 @@ describe('Navigator', () => {
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
       isSearchModalOpen: false,
+      isFavoritesModalOpen: false,
       isLoading: false,
       isLuckyLoading: false,
       searchResults: null,
@@ -305,6 +306,7 @@ describe('Navigator', () => {
         isMetadataModalOpen: false,
         isHelpModalOpen: false,
         isSearchModalOpen: false,
+        isFavoritesModalOpen: false,
         isLoading: false,
         isLuckyLoading: false,
         searchResults: null,
@@ -317,7 +319,7 @@ describe('Navigator', () => {
         isAutoplayEnabled: false,
         autoplayInterval: 5
       });
-      
+
       expect(spy).toHaveBeenCalled();
     });
 

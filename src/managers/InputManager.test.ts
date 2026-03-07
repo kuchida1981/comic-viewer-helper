@@ -179,7 +179,8 @@ describe('InputManager', () => {
     expect(store.setState).toHaveBeenCalledWith({
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
-      isSearchModalOpen: false
+      isSearchModalOpen: false,
+      isFavoritesModalOpen: false
     });
   });
 

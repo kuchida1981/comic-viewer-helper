@@ -26,6 +26,7 @@ describe('UIManager Tag Search', () => {
             isMetadataModalOpen: true,
             isHelpModalOpen: false,
             isSearchModalOpen: false,
+            isFavoritesModalOpen: false,
             searchQuery: '',
             searchHistory: [],
             searchContext: undefined,

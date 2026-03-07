@@ -7,6 +7,7 @@ import { createNavigationButtons, NavigationButtonsComponent } from '../ui/compo
 import { createMetadataModal, MetadataModalComponent } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
 import { createSearchModal, SearchModalComponent } from '../ui/components/SearchModal';
+import { createFavoritesModal, FavoritesModalComponent } from '../ui/components/FavoritesModal';
 import { createProgressBar, ProgressBarComponent } from '../ui/components/ProgressBar';
 import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
@@ -37,6 +38,7 @@ export class UIManager {
   private modalComp: MetadataModalComponent | null = null;
   private helpModalEl: HTMLElement | null = null;
   private searchModalComp: SearchModalComponent | null = null;
+  private favoritesModalComp: FavoritesModalComponent | null = null;
 
   constructor(adapter: SiteAdapter, store: Store, navigator: Navigator, discoveryManager: DiscoveryManager) {
     this.adapter = adapter;
@@ -188,7 +190,8 @@ export class UIManager {
       onLucky: () => {
         void this.discoveryManager.jumpToRandomWork();
       },
-      onToggleFavorite: () => { this.toggleFavorite(); }
+      onToggleFavorite: () => { this.toggleFavorite(); },
+      onFavoritesList: () => this.store.setState({ isFavoritesModalOpen: true })
     });
     this.navBtnsComp.elements.forEach(btn => container.appendChild(btn));
   };
@@ -199,6 +202,7 @@ export class UIManager {
     }));
 
     this._updateSearchModal(state);
+    this._updateFavoritesModal(state);
 
     if (state.isMetadataModalOpen) {
       if (!this.modalComp) {
@@ -215,6 +219,27 @@ export class UIManager {
     } else if (this.modalComp) {
       this.modalComp.el.remove();
       this.modalComp = null;
+    }
+  };
+
+  private _updateFavoritesModal = (state: StoreState): void => {
+    if (state.isFavoritesModalOpen) {
+      if (!this.favoritesModalComp) {
+        this.favoritesModalComp = createFavoritesModal({
+          favorites: state.favorites,
+          onRemove: (href) => {
+            const newFavorites = this.store.getState().favorites.filter(f => f.href !== href);
+            this.store.setState({ favorites: newFavorites });
+          },
+          onClose: () => this.store.setState({ isFavoritesModalOpen: false })
+        });
+        document.body.appendChild(this.favoritesModalComp.el);
+      } else {
+        this.favoritesModalComp.updateFavorites(state.favorites);
+      }
+    } else if (this.favoritesModalComp) {
+      this.favoritesModalComp.el.remove();
+      this.favoritesModalComp = null;
     }
   };
 

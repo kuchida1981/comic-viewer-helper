@@ -11,12 +11,13 @@ describe('NavigationButtons', () => {
     onHelp: vi.fn(),
     onSearch: vi.fn(),
     onLucky: vi.fn(),
-    onToggleFavorite: vi.fn()
+    onToggleFavorite: vi.fn(),
+    onFavoritesList: vi.fn()
   };
 
   it('should render all buttons and handle clicks', () => {
     const { elements } = createNavigationButtons(mockProps);
-    expect(elements.length).toBe(9);
+    expect(elements.length).toBe(10);
 
     // Test a few buttons
     const luckyBtn = elements.find(el => el.id === 'comic-helper-nav-lucky') as HTMLElement;
