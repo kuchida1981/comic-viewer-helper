@@ -510,6 +510,30 @@ export const styles = `
     margin-top: 10px;
   }
 
+  .comic-helper-favorites-item {
+    position: relative;
+  }
+  .comic-helper-favorites-delete-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 1;
+  }
+  .comic-helper-favorites-item:hover .comic-helper-favorites-delete-btn {
+    opacity: 1;
+  }
   .comic-helper-search-result-item {
     text-decoration: none;
     color: ${COLORS.text.secondary};

@@ -83,8 +83,8 @@ export class InputManager {
   };
 
   private _isAnyModalOpen = (): boolean => {
-    const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-    return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+    const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, isFavoritesModalOpen } = this.store.getState();
+    return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || isFavoritesModalOpen;
   };
 
   handleWheel = (e: WheelEvent): void => {
@@ -146,7 +146,7 @@ export class InputManager {
   private _handleModalCloseShortcuts = (e: KeyboardEvent): boolean => {
     if (e.key === 'Escape' && this._isAnyModalOpen()) {
       e.preventDefault();
-      this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+      this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, isFavoritesModalOpen: false });
       return true;
     }
     return false;
@@ -172,9 +172,14 @@ export class InputManager {
       e.preventDefault();
       const state = this.store.getState();
       // Allow only when no modal is open (except metadata modal is effectively treated as 'no modal' for favorites)
-      if (!state.isHelpModalOpen && !state.isSearchModalOpen) {
+      if (!state.isHelpModalOpen && !state.isSearchModalOpen && !state.isFavoritesModalOpen) {
         this.uiManager.toggleFavorite();
       }
+      return true;
+    }
+    if (matchesShortcut(e, 'favoritesList')) {
+      e.preventDefault();
+      this.store.setState({ isFavoritesModalOpen: !this.store.getState().isFavoritesModalOpen });
       return true;
     }
     return false;

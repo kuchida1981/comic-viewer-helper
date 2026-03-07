@@ -30,6 +30,7 @@ describe('Store', () => {
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
       isSearchModalOpen: false,
+      isFavoritesModalOpen: false,
       isLoading: false,
       isLuckyLoading: false,
       searchResults: null,

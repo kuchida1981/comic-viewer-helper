@@ -20,6 +20,9 @@ export const MESSAGES = {
       showMetadata: 'Show Metadata',
       showHelp: 'Show Help',
       showSearch: 'Show Search',
+      showFavoritesList: 'Show Favorites List',
+      favoritesList: 'Favorites List',
+      favoritesEmpty: 'No favorites yet.',
       search: 'Search',
       searchPlaceholder: 'Enter keyword...',
       searchHistory: 'Recent',
@@ -51,7 +54,8 @@ export const MESSAGES = {
       randomJump: { label: 'Random Jump', desc: 'Jump to a random related work' },
       speedUpAutoplay: { label: 'Speed Up Autoplay', desc: 'Decrease wait time (speed up)' },
       slowDownAutoplay: { label: 'Slow Down Autoplay', desc: 'Increase wait time (slow down)' },
-      toggleFavorite: { label: 'Favorite', desc: 'Toggle favorite for this work' }
+      toggleFavorite: { label: 'Favorite', desc: 'Toggle favorite for this work' },
+      favoritesList: { label: 'Favorites List', desc: 'Show favorites list' }
     }
   },
   ja: {
@@ -75,6 +79,9 @@ export const MESSAGES = {
       showMetadata: '作品情報を表示',
       showHelp: 'ヘルプを表示',
       showSearch: 'サイト内検索を表示',
+      showFavoritesList: 'お気に入り一覧を表示',
+      favoritesList: 'お気に入り一覧',
+      favoritesEmpty: 'お気に入りはまだありません。',
       search: '検索',
       searchPlaceholder: 'キーワードを入力...',
       searchHistory: '最近の検索',
@@ -106,7 +113,8 @@ export const MESSAGES = {
       randomJump: { label: 'ランダムジャンプ', desc: 'おすすめ（ランダム）へ遷移' },
       speedUpAutoplay: { label: 'オートプレイ加速', desc: '待機時間を減らす（速くする）' },
       slowDownAutoplay: { label: 'オートプレイ減速', desc: '待機時間を増やす（遅くする）' },
-      toggleFavorite: { label: 'お気に入り', desc: 'お気に入りの追加/解除' }
+      toggleFavorite: { label: 'お気に入り', desc: 'お気に入りの追加/解除' },
+      favoritesList: { label: 'お気に入り一覧', desc: 'お気に入り一覧を表示' }
     }
   }
 } as const;

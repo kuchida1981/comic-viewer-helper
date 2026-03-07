@@ -12,6 +12,7 @@ export interface NavigationButtonsProps {
   onSearch: () => void;
   onLucky: () => void;
   onToggleFavorite: () => void;
+  onFavoritesList: () => void;
 }
 
 export interface NavigationButtonsComponent {
@@ -20,7 +21,7 @@ export interface NavigationButtonsComponent {
 }
 
 export function createNavigationButtons({
-  onFirst, onPrev, onNext, onLast, onInfo, onHelp, onSearch, onLucky, onToggleFavorite
+  onFirst, onPrev, onNext, onLast, onInfo, onHelp, onSearch, onLucky, onToggleFavorite, onFavoritesList
 }: NavigationButtonsProps): NavigationButtonsComponent {
   const heartFilledIcon = createHeartFilledIcon(18);
   const heartOutlineIcon = createHeartOutlineIcon(18);
@@ -35,7 +36,8 @@ export function createNavigationButtons({
         { text: '', title: 'Toggle Favorite', action: onToggleFavorite, id: 'fav', className: 'comic-helper-favorite-btn' },
         { text: 'Info', title: t('ui.showMetadata'), action: onInfo },
         { text: '?', title: t('ui.showHelp'), action: onHelp },
-        { text: '🔍', title: t('ui.showSearch'), action: onSearch, className: 'comic-helper-button comic-helper-icon-btn' }
+        { text: '🔍', title: t('ui.showSearch'), action: onSearch, className: 'comic-helper-button comic-helper-icon-btn' },
+        { text: '📚', title: t('ui.showFavoritesList'), action: onFavoritesList, className: 'comic-helper-button comic-helper-icon-btn' }
       ];
     
       const elements = configs

@@ -34,6 +34,7 @@ export interface StoreState {
   isMetadataModalOpen: boolean;
   isHelpModalOpen: boolean;
   isSearchModalOpen: boolean;
+  isFavoritesModalOpen: boolean;
   isLoading: boolean;
   isLuckyLoading: boolean;
   searchResults: SearchResultsState | null;
@@ -68,6 +69,7 @@ export class Store {
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
       isSearchModalOpen: false,
+      isFavoritesModalOpen: false,
       isLoading: false,
       isLuckyLoading: false,
       searchResults: null,

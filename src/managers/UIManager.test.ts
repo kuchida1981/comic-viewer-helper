@@ -10,6 +10,7 @@ import { createSearchModal } from '../ui/components/SearchModal';
 import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
 import { createResumeNotification } from '../ui/components/ResumeNotification';
+import { createFavoritesModal } from '../ui/components/FavoritesModal';
 
 vi.mock('../ui/styles', () => ({ injectStyles: vi.fn() }));
 vi.mock('../ui/components/PowerButton', () => ({ createPowerButton: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
@@ -20,6 +21,7 @@ vi.mock('../ui/components/NavigationButtons', () => ({ createNavigationButtons: 
 vi.mock('../ui/components/MetadataModal', () => ({ createMetadataModal: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/HelpModal', () => ({ createHelpModal: vi.fn().mockReturnValue({ el: document.createElement('div') }) }));
 vi.mock('../ui/components/SearchModal', () => ({ createSearchModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateResults: vi.fn(), setUpdating: vi.fn() }) }));
+vi.mock('../ui/components/FavoritesModal', () => ({ createFavoritesModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateFavorites: vi.fn() }) }));
 vi.mock('../ui/components/ProgressBar', () => ({ createProgressBar: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/ResumeNotification', () => ({ createResumeNotification: vi.fn().mockReturnValue({ el: document.createElement('div') }) }));
 vi.mock('../ui/components/LoadingIndicator', () => ({ createLoadingIndicator: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
@@ -72,6 +74,7 @@ describe('UIManager', () => {
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
       isSearchModalOpen: false,
+      isFavoritesModalOpen: false,
       isDualViewEnabled: false,
       spreadOffset: 0,
       currentVisibleIndex: 0,
@@ -211,10 +214,21 @@ describe('UIManager', () => {
     expect((uiManager as any).discoveryManager.jumpToRandomWork).toHaveBeenCalled();
     navCallbacks.onToggleFavorite();
     expect(currentState.favorites.length).toBe(1);
+    navCallbacks.onFavoritesList();
+    expect(currentState.isFavoritesModalOpen).toBe(true);
 
     // 9. Modals updates and interactions
     uiManager.updateUI(); // Create modal components
-    
+
+    // Favorites Modal Interactions
+    const favModalProps = (createFavoritesModal as Mock).mock.calls[0][0];
+    favModalProps.onClose();
+    expect(currentState.isFavoritesModalOpen).toBe(false);
+
+    // Re-open to cover updateFavorites branch
+    currentState.isFavoritesModalOpen = true;
+    uiManager.updateUI(); // favoritesModalComp already exists, calls updateFavorites
+
     // Help Modal Close
     const helpOnClose = (createHelpModal as Mock).mock.calls[0][0].onClose;
     helpOnClose();
@@ -264,5 +278,11 @@ describe('UIManager', () => {
     
     uiManager.toggleFavorite(); // Remove current work
     expect(currentState.favorites.length).toBe(initialFavCount);
+
+    // 13. FavoritesModal onRemove test
+    const addedWork = { title: 'T', href: '/extra/', thumb: '' };
+    currentState = { ...currentState, favorites: [addedWork] };
+    favModalProps.onRemove('/extra/');
+    expect(currentState.favorites.length).toBe(0);
   });
 });

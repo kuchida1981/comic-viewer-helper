@@ -35,6 +35,7 @@ describe('DiscoveryManager', () => {
       isMetadataModalOpen: false,
       isHelpModalOpen: false,
       isSearchModalOpen: false,
+      isFavoritesModalOpen: false,
       isLoading: false,
       searchResults: null,
       searchQuery: '',
