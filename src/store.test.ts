@@ -125,9 +125,29 @@ describe('Store', () => {
 
     const host = window.location.hostname;
     expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`) || '[]')).toEqual(favorites);
-    
+
     const store2 = new Store();
     expect(store2.getState().favorites).toEqual(favorites);
+  });
+
+  it('should persist favorites with tags', () => {
+    const store = new Store();
+    const favorites = [
+      {
+        title: 'Tagged Work',
+        href: 'url1',
+        thumb: 'img1',
+        tags: [{ text: 'fantasy', href: '/tags/fantasy', type: 'genre' }]
+      }
+    ];
+    store.setState({ favorites });
+
+    const host = window.location.hostname;
+    const saved = JSON.parse(localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`) || '[]');
+    expect(saved[0].tags).toEqual(favorites[0].tags);
+
+    const store2 = new Store();
+    expect(store2.getState().favorites[0].tags).toEqual(favorites[0].tags);
   });
 
   it('should notify subscribers on state change', () => {

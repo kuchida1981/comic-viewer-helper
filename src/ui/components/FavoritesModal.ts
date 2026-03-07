@@ -1,16 +1,34 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
-import { RelatedWork } from '../../types';
+import { RelatedWork, Tag } from '../../types';
 
 export interface FavoritesModalProps {
   favorites: RelatedWork[];
   onRemove: (href: string) => void;
   onClose: () => void;
+  onTagClick?: (tag: Tag) => void;
 }
 
 export interface FavoritesModalComponent {
   el: HTMLElement;
   updateFavorites: (favorites: RelatedWork[]) => void;
+}
+
+export function calculateTrends(favorites: RelatedWork[]): Array<{ tag: Tag; count: number }> {
+  const map = new Map<string, { tag: Tag; count: number }>();
+  for (const fav of favorites) {
+    for (const tag of (fav.tags ?? [])) {
+      const entry = map.get(tag.text);
+      if (entry) {
+        entry.count++;
+      } else {
+        map.set(tag.text, { tag, count: 1 });
+      }
+    }
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
 }
 
 function createGrid(favorites: RelatedWork[], onRemove: (href: string) => void): HTMLElement {
@@ -62,7 +80,44 @@ function createGrid(favorites: RelatedWork[], onRemove: (href: string) => void):
   return grid;
 }
 
-export function createFavoritesModal({ favorites, onRemove, onClose }: FavoritesModalProps): FavoritesModalComponent {
+function createTrendSection(favorites: RelatedWork[], onTagClick?: (tag: Tag) => void): HTMLElement {
+  const section = createElement('div', {
+    className: 'comic-helper-favorites-trend-section'
+  });
+
+  const trends = calculateTrends(favorites);
+  if (trends.length === 0 || !onTagClick) {
+    section.style.display = 'none';
+    return section;
+  }
+
+  const label = createElement('div', {
+    className: 'comic-helper-favorites-trend-label',
+    textContent: t('ui.favoritesTrend')
+  });
+
+  const tagsEl = createElement('div', {
+    className: 'comic-helper-favorites-trend-tags'
+  });
+
+  trends.forEach(({ tag, count }) => {
+    const typeClass = tag.type ? `comic-helper-tag-chip--${tag.type}` : '';
+    const btn = createElement('button', {
+      className: `comic-helper-tag-chip ${typeClass}`.trim(),
+      textContent: `${tag.text} (${count})`,
+      events: {
+        click: () => onTagClick(tag)
+      }
+    });
+    tagsEl.appendChild(btn);
+  });
+
+  section.appendChild(label);
+  section.appendChild(tagsEl);
+  return section;
+}
+
+export function createFavoritesModal({ favorites, onRemove, onClose, onTagClick }: FavoritesModalProps): FavoritesModalComponent {
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
     textContent: '×',
@@ -80,11 +135,12 @@ export function createFavoritesModal({ favorites, onRemove, onClose }: Favorites
     textContent: t('ui.favoritesList')
   });
 
+  let trendSection = createTrendSection(favorites, onTagClick);
   let grid = createGrid(favorites, onRemove);
 
   const container = createElement('div', {
     className: 'comic-helper-search-container'
-  }, [grid]);
+  }, [trendSection, grid]);
 
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
@@ -105,6 +161,10 @@ export function createFavoritesModal({ favorites, onRemove, onClose }: Favorites
   return {
     el: overlay,
     updateFavorites: (newFavorites: RelatedWork[]) => {
+      const newTrendSection = createTrendSection(newFavorites, onTagClick);
+      container.replaceChild(newTrendSection, trendSection);
+      trendSection = newTrendSection;
+
       const newGrid = createGrid(newFavorites, onRemove);
       container.replaceChild(newGrid, grid);
       grid = newGrid;

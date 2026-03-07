@@ -9,6 +9,7 @@ export interface RelatedWork {
   href: string;
   thumb: string;
   isPrivate?: boolean;
+  tags?: Tag[];
 }
 
 export interface Metadata {
