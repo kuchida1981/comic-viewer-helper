@@ -34,6 +34,17 @@ describe('FavoritesModal', () => {
     expect(thumbs[0].src).toContain('/thumb/1.webp');
   });
 
+  it('should not set unsafe thumb URLs as src', () => {
+    const unsafe: RelatedWork[] = [
+      { title: 'Bad', href: '/work/bad/', thumb: 'javascript:alert(1)' },
+      { title: 'Data', href: '/work/data/', thumb: 'data:text/html,<script>alert(1)</script>' }
+    ];
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: unsafe });
+    const thumbs = el.querySelectorAll('.comic-helper-search-result-thumb') as NodeListOf<HTMLImageElement>;
+    expect(thumbs[0].getAttribute('src')).toBe('');
+    expect(thumbs[1].getAttribute('src')).toBe('');
+  });
+
   it('should show empty message when no favorites', () => {
     const { el } = createFavoritesModal({ ...defaultProps, favorites: [] });
     expect(el.textContent).toContain(t('ui.favoritesEmpty'));

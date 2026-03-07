@@ -27,9 +27,10 @@ function createGrid(favorites: RelatedWork[], onRemove: (href: string) => void):
   }
 
   favorites.forEach(item => {
+    const isSafeThumb = item.thumb.startsWith('http') || item.thumb.startsWith('https') || item.thumb.startsWith('/') || item.thumb.startsWith('blob:');
     const thumb = createElement('img', {
       className: 'comic-helper-search-result-thumb',
-      attributes: { src: item.thumb, loading: 'lazy' }
+      attributes: { src: isSafeThumb ? item.thumb : '', loading: 'lazy' }
     });
     const title = createElement('div', {
       className: 'comic-helper-search-result-title',
