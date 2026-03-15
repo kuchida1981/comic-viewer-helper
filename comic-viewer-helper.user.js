@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.c883076
+// @version         1.5.0-unstable.d32779f
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -34,6 +34,14 @@
   }
   function isRelatedWorkArray(value) {
     return Array.isArray(value) && value.every(isRelatedWork);
+  }
+  function isHistoryEntry(value) {
+    if (!isRelatedWork(value)) return false;
+    const v = value;
+    return typeof v.viewCount === "number" && typeof v.lastViewedAt === "number" && typeof v.firstViewedAt === "number";
+  }
+  function isHistoryEntryArray(value) {
+    return Array.isArray(value) && value.every(isHistoryEntry);
   }
   function isGuiPos(value) {
     if (!isObject(value)) return false;
@@ -413,7 +421,6 @@
     LUCKY_HISTORY: "comic-viewer-helper-lucky-history"
   };
   const MAX_SEARCH_HISTORY = 3;
-  const MAX_LUCKY_HISTORY = 20;
   class Store {
     state;
     listeners;
@@ -517,12 +524,32 @@
     _applyPatch = (key, value) => {
       this.state[key] = value;
     };
-    addLuckyHistory = (url) => {
-      const normalizedUrl = normalizeUrl(url);
-      const newHistory = Array.from(/* @__PURE__ */ new Set([
-        normalizedUrl,
-        ...this.state.luckyHistory.map(normalizeUrl)
-      ])).slice(0, MAX_LUCKY_HISTORY);
+    addLuckyHistory = (work) => {
+      const normalizedUrl = normalizeUrl(work.href);
+      const now = Date.now();
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1e3;
+      const existing = this.state.luckyHistory.find(
+        (entry) => normalizeUrl(entry.href) === normalizedUrl
+      );
+      let newHistory;
+      if (existing) {
+        const shouldIncrement = now - existing.lastViewedAt >= TWENTY_FOUR_HOURS;
+        const updated = {
+          ...existing,
+          lastViewedAt: now,
+          viewCount: shouldIncrement ? existing.viewCount + 1 : existing.viewCount
+        };
+        newHistory = [updated, ...this.state.luckyHistory.filter((e) => normalizeUrl(e.href) !== normalizedUrl)];
+      } else {
+        const newEntry = {
+          ...work,
+          href: normalizedUrl,
+          viewCount: 1,
+          firstViewedAt: now,
+          lastViewedAt: now
+        };
+        newHistory = [newEntry, ...this.state.luckyHistory];
+      }
       this.setState({ luckyHistory: newHistory });
     };
     _loadSearchHistory = () => {
@@ -547,6 +574,9 @@
         if (saved) {
           const parsed = JSON.parse(saved);
           if (isStringArray(parsed)) {
+            return [];
+          }
+          if (isHistoryEntryArray(parsed)) {
             return parsed;
           }
         }
@@ -933,7 +963,8 @@
         const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
         if (currentIndex >= imgs.length - 1) {
           const state = this.store.getState();
-          const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
+          const historyUrls = state.luckyHistory.map((e) => e.href);
+          const nextUrl = pickRandomWork(state.metadata, historyUrls, window.location.href, state.searchCache, state.favorites);
           if (nextUrl) {
             window.location.href = nextUrl;
           } else {
@@ -1043,13 +1074,15 @@
       this.store.setState({ isLuckyLoading: true });
       try {
         const currentUrl = window.location.href;
-        if (isLuckyPoolDepleted(state.metadata, state.luckyHistory, currentUrl, state.searchCache, state.favorites)) {
+        const historyUrls = state.luckyHistory.map((e) => e.href);
+        if (isLuckyPoolDepleted(state.metadata, historyUrls, currentUrl, state.searchCache, state.favorites)) {
           await this._replenishCandidates();
         }
         const finalState = this.store.getState();
+        const finalHistoryUrls = finalState.luckyHistory.map((e) => e.href);
         const nextUrl = pickRandomWork(
           finalState.metadata,
-          finalState.luckyHistory,
+          finalHistoryUrls,
           currentUrl,
           finalState.searchCache,
           finalState.favorites
@@ -1603,6 +1636,110 @@
     margin-top: 10px;
   }
 
+  /* Library Tabs */
+  .comic-helper-library-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid ${COLORS.border.light};
+    margin-bottom: 16px;
+  }
+
+  .comic-helper-library-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: ${COLORS.text.muted};
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 8px 16px;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-bottom-color 0.2s;
+  }
+
+  .comic-helper-library-tab:hover {
+    color: ${COLORS.text.primary};
+  }
+
+  .comic-helper-library-tab.active {
+    color: ${COLORS.text.primary};
+    border-bottom-color: ${COLORS.border.accent};
+  }
+
+  /* Sort Menu */
+  .comic-helper-sort-menu {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .comic-helper-sort-label {
+    font-size: 11px;
+    color: ${COLORS.text.muted};
+  }
+
+  .comic-helper-sort-btn {
+    background: ${COLORS.background.tag};
+    border: 1px solid ${COLORS.border.light};
+    border-radius: 12px;
+    color: ${COLORS.text.secondary};
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 10px;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-sort-btn:hover {
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
+  }
+
+  .comic-helper-sort-btn.active {
+    background: ${COLORS.background.progress};
+    border-color: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+
+  /* Library Item Favorite Toggle */
+  .comic-helper-item-favorite-btn {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: ${COLORS.text.muted};
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .comic-helper-item-favorite-btn.active {
+    color: #ff4081;
+  }
+
+  .comic-helper-favorites-item:hover .comic-helper-item-favorite-btn {
+    opacity: 1;
+  }
+
+  /* View count badge */
+  .comic-helper-view-count {
+    font-size: 10px;
+    color: ${COLORS.text.muted};
+    margin-top: 2px;
+  }
+
   .comic-helper-favorites-trend-section {
     padding: 8px 0 12px;
     border-bottom: 1px solid ${COLORS.border.light};
@@ -2008,9 +2145,16 @@
         showHelp: "Show Help",
         showSearch: "Show Search",
         showFavoritesList: "Show Favorites List",
-        favoritesList: "Favorites List",
+        favoritesList: "Library",
+        favoritesTab: "Favorites",
+        historyTab: "History",
         favoritesEmpty: "No favorites yet.",
+        historyEmpty: "No history yet.",
         favoritesTrend: "Your Taste",
+        sortByLastViewed: "Recently Viewed",
+        sortByViewCount: "Most Viewed",
+        sortByFirstViewed: "Oldest First",
+        viewCount: "{count} views",
         search: "Search",
         searchPlaceholder: "Enter keyword...",
         searchHistory: "Recent",
@@ -2068,9 +2212,16 @@
         showHelp: "ヘルプを表示",
         showSearch: "サイト内検索を表示",
         showFavoritesList: "お気に入り一覧を表示",
-        favoritesList: "お気に入り一覧",
+        favoritesList: "ライブラリ",
+        favoritesTab: "お気に入り",
+        historyTab: "履歴",
         favoritesEmpty: "お気に入りはまだありません。",
+        historyEmpty: "閲覧履歴はまだありません。",
         favoritesTrend: "あなたの好み",
+        sortByLastViewed: "最近見た順",
+        sortByViewCount: "閲覧回数順",
+        sortByFirstViewed: "古い順",
+        viewCount: "{count}回",
         search: "検索",
         searchPlaceholder: "キーワードを入力...",
         searchHistory: "最近の検索",
@@ -2624,7 +2775,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.c883076"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.d32779f"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2883,6 +3034,14 @@
       }
     };
   }
+  function normalizeHref(href) {
+    try {
+      const u = new URL(href, window.location.origin || "http://localhost");
+      return u.origin + u.pathname;
+    } catch {
+      return href;
+    }
+  }
   function calculateTrends(favorites) {
     const map = /* @__PURE__ */ new Map();
     for (const fav of favorites) {
@@ -2897,7 +3056,76 @@
     }
     return Array.from(map.values()).sort((a, b) => b.count - a.count).slice(0, 10);
   }
-  function createGrid(favorites, onRemove) {
+  function formatViewCount(count) {
+    return t("ui.viewCount").replace("{count}", String(count));
+  }
+  function isSafeThumbUrl(thumb) {
+    return thumb.startsWith("http") || thumb.startsWith("https") || thumb.startsWith("/") || thumb.startsWith("blob:");
+  }
+  function createGridItem(item, options) {
+    const { isFavorite, onToggleFavorite, onRemove, viewCount } = options;
+    const thumb = createElement("img", {
+      className: "comic-helper-search-result-thumb",
+      attributes: { src: isSafeThumbUrl(item.thumb) ? item.thumb : "", loading: "lazy" }
+    });
+    const title = createElement("div", {
+      className: "comic-helper-search-result-title",
+      textContent: item.title
+    });
+    const titleWrapper = createElement("div", {}, [title]);
+    if (viewCount !== void 0) {
+      const countEl = createElement("div", {
+        className: "comic-helper-view-count",
+        textContent: formatViewCount(viewCount)
+      });
+      titleWrapper.appendChild(countEl);
+    }
+    const link = createElement("a", {
+      className: "comic-helper-search-result-item",
+      attributes: { href: item.href, target: "_blank" },
+      events: { click: (e) => e.stopPropagation() }
+    }, [thumb, titleWrapper]);
+    const favoriteBtn = createElement("button", {
+      className: `comic-helper-item-favorite-btn${isFavorite ? " active" : ""}`,
+      textContent: "♥",
+      title: t("ui.favoritesTab"),
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggleFavorite(item);
+        }
+      }
+    });
+    const deleteBtn = createElement("button", {
+      className: "comic-helper-favorites-delete-btn",
+      textContent: "×",
+      title: t("ui.close"),
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRemove(item.href);
+        }
+      }
+    });
+    const wrapper = createElement("div", {
+      className: "comic-helper-favorites-item"
+    }, [link, favoriteBtn, deleteBtn]);
+    return wrapper;
+  }
+  function sortHistory(history, sortMode) {
+    const sorted = [...history];
+    if (sortMode === "viewCount") {
+      sorted.sort((a, b) => b.viewCount - a.viewCount);
+    } else if (sortMode === "firstViewedAt") {
+      sorted.sort((a, b) => a.firstViewedAt - b.firstViewedAt);
+    } else {
+      sorted.sort((a, b) => b.lastViewedAt - a.lastViewedAt);
+    }
+    return sorted;
+  }
+  function createFavoritesGrid(favorites, onRemoveFavorite, onToggleFavorite) {
     const grid = createElement("div", {
       className: "comic-helper-search-result-grid"
     });
@@ -2909,38 +3137,56 @@
       return grid;
     }
     favorites.forEach((item) => {
-      const isSafeThumb = item.thumb.startsWith("http") || item.thumb.startsWith("https") || item.thumb.startsWith("/") || item.thumb.startsWith("blob:");
-      const thumb = createElement("img", {
-        className: "comic-helper-search-result-thumb",
-        attributes: { src: isSafeThumb ? item.thumb : "", loading: "lazy" }
+      const gridItem = createGridItem(item, {
+        isFavorite: true,
+        onToggleFavorite,
+        onRemove: onRemoveFavorite
       });
-      const title = createElement("div", {
-        className: "comic-helper-search-result-title",
-        textContent: item.title
-      });
-      const link = createElement("a", {
-        className: "comic-helper-search-result-item",
-        attributes: { href: item.href, target: "_blank" },
-        events: { click: (e) => e.stopPropagation() }
-      }, [thumb, title]);
-      const deleteBtn = createElement("button", {
-        className: "comic-helper-favorites-delete-btn",
-        textContent: "×",
-        title: t("ui.close"),
-        events: {
-          click: (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onRemove(item.href);
-          }
-        }
-      });
-      const wrapper = createElement("div", {
-        className: "comic-helper-favorites-item"
-      }, [link, deleteBtn]);
-      grid.appendChild(wrapper);
+      grid.appendChild(gridItem);
     });
     return grid;
+  }
+  function createHistoryGrid(history, favorites, sortMode, onRemoveHistory, onToggleFavorite) {
+    const grid = createElement("div", {
+      className: "comic-helper-search-result-grid"
+    });
+    if (history.length === 0) {
+      grid.appendChild(createElement("div", {
+        className: "comic-helper-search-no-results",
+        textContent: t("ui.historyEmpty")
+      }));
+      return grid;
+    }
+    const sorted = sortHistory(history, sortMode);
+    const favoriteUrls = new Set(favorites.map((f) => normalizeHref(f.href)));
+    sorted.forEach((item) => {
+      const isFav = favoriteUrls.has(normalizeHref(item.href));
+      const gridItem = createGridItem(item, {
+        isFavorite: isFav,
+        onToggleFavorite,
+        onRemove: onRemoveHistory,
+        viewCount: item.viewCount
+      });
+      grid.appendChild(gridItem);
+    });
+    return grid;
+  }
+  function createSortMenu(currentSort, onSort) {
+    const menu = createElement("div", { className: "comic-helper-sort-menu" });
+    const sorts = [
+      { mode: "lastViewedAt", label: t("ui.sortByLastViewed") },
+      { mode: "viewCount", label: t("ui.sortByViewCount") },
+      { mode: "firstViewedAt", label: t("ui.sortByFirstViewed") }
+    ];
+    sorts.forEach(({ mode, label }) => {
+      const btn = createElement("button", {
+        className: `comic-helper-sort-btn${currentSort === mode ? " active" : ""}`,
+        textContent: label,
+        events: { click: () => onSort(mode) }
+      });
+      menu.appendChild(btn);
+    });
+    return menu;
   }
   function createTrendSection(favorites, onTagClick) {
     const section = createElement("div", {
@@ -2973,7 +3219,10 @@
     section.appendChild(tagsEl);
     return section;
   }
-  function createFavoritesModal({ favorites, onRemove, onClose, onTagClick }) {
+  function createFavoritesModal({ favorites, history, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onClose, onTagClick }) {
+    let sortMode = "lastViewedAt";
+    let currentFavorites = favorites;
+    let currentHistory = history;
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -2989,17 +3238,48 @@
       className: "comic-helper-modal-title",
       textContent: t("ui.favoritesList")
     });
-    let trendSection = createTrendSection(favorites, onTagClick);
-    let grid = createGrid(favorites, onRemove);
+    const favTab = createElement("button", {
+      className: "comic-helper-library-tab active",
+      textContent: t("ui.favoritesTab"),
+      events: { click: () => switchTab("favorites") }
+    });
+    const histTab = createElement("button", {
+      className: "comic-helper-library-tab",
+      textContent: t("ui.historyTab"),
+      events: { click: () => switchTab("history") }
+    });
+    const tabs = createElement("div", { className: "comic-helper-library-tabs" }, [favTab, histTab]);
+    let trendSection = createTrendSection(currentFavorites, onTagClick);
+    let favGrid = createFavoritesGrid(currentFavorites, onRemoveFavorite, onToggleFavorite);
+    const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [trendSection, favGrid]);
+    let sortMenu = createSortMenu(sortMode, handleSort);
+    let histGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+    const histPanel = createElement("div", { className: "comic-helper-history-panel" }, [sortMenu, histGrid]);
+    histPanel.style.display = "none";
     const container = createElement("div", {
       className: "comic-helper-search-container"
-    }, [trendSection, grid]);
+    }, [favPanel, histPanel]);
+    function switchTab(tab) {
+      favTab.classList.toggle("active", tab === "favorites");
+      histTab.classList.toggle("active", tab === "history");
+      favPanel.style.display = tab === "favorites" ? "" : "none";
+      histPanel.style.display = tab === "history" ? "" : "none";
+    }
+    function handleSort(mode) {
+      sortMode = mode;
+      const newSortMenu = createSortMenu(sortMode, handleSort);
+      histPanel.replaceChild(newSortMenu, sortMenu);
+      sortMenu = newSortMenu;
+      const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+      histPanel.replaceChild(newHistGrid, histGrid);
+      histGrid = newHistGrid;
+    }
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
         click: (e) => e.stopPropagation()
       }
-    }, [closeBtn, titleEl, container]);
+    }, [closeBtn, titleEl, tabs, container]);
     content.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
     const overlay = createElement("div", {
       className: "comic-helper-modal-overlay",
@@ -3014,12 +3294,23 @@
     return {
       el: overlay,
       updateFavorites: (newFavorites) => {
-        const newTrendSection = createTrendSection(newFavorites, onTagClick);
-        container.replaceChild(newTrendSection, trendSection);
+        currentFavorites = newFavorites;
+        const newTrendSection = createTrendSection(currentFavorites, onTagClick);
+        favPanel.replaceChild(newTrendSection, trendSection);
         trendSection = newTrendSection;
-        const newGrid = createGrid(newFavorites, onRemove);
-        container.replaceChild(newGrid, grid);
-        grid = newGrid;
+        const newFavGrid = createFavoritesGrid(currentFavorites, onRemoveFavorite, onToggleFavorite);
+        favPanel.replaceChild(newFavGrid, favGrid);
+        favGrid = newFavGrid;
+        const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+        histPanel.replaceChild(newHistGrid, histGrid);
+        histGrid = newHistGrid;
+      },
+      updateHistory: (newHistory, newFavorites) => {
+        currentHistory = newHistory;
+        currentFavorites = newFavorites;
+        const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+        histPanel.replaceChild(newHistGrid, histGrid);
+        histGrid = newHistGrid;
       }
     };
   }
@@ -3383,9 +3674,18 @@
         if (!this.favoritesModalComp) {
           this.favoritesModalComp = createFavoritesModal({
             favorites: state.favorites,
-            onRemove: (href) => {
+            history: state.luckyHistory,
+            onRemoveFavorite: (href) => {
               const newFavorites = this.store.getState().favorites.filter((f) => f.href !== href);
               this.store.setState({ favorites: newFavorites });
+            },
+            onRemoveHistory: (href) => {
+              const normalizedHref = normalizeUrl(href);
+              const newHistory = this.store.getState().luckyHistory.filter((e) => normalizeUrl(e.href) !== normalizedHref);
+              this.store.setState({ luckyHistory: newHistory });
+            },
+            onToggleFavorite: (work) => {
+              this._toggleFavoriteWork(work);
             },
             onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
             onTagClick: (tag) => {
@@ -3395,6 +3695,7 @@
           document.body.appendChild(this.favoritesModalComp.el);
         } else {
           this.favoritesModalComp.updateFavorites(state.favorites);
+          this.favoritesModalComp.updateHistory(state.luckyHistory, state.favorites);
         }
       } else if (this.favoritesModalComp) {
         this.favoritesModalComp.el.remove();
@@ -3462,6 +3763,17 @@
     _handleTagClick = (tag) => {
       this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
       return this._performTagSearch(tag);
+    };
+    _toggleFavoriteWork = (work) => {
+      const state = this.store.getState();
+      const normalizedHref = normalizeUrl(work.href);
+      const isFavorite = state.favorites.some((f) => normalizeUrl(f.href) === normalizedHref);
+      if (isFavorite) {
+        const newFavorites = state.favorites.filter((f) => normalizeUrl(f.href) !== normalizedHref);
+        this.store.setState({ favorites: newFavorites });
+      } else {
+        this.store.setState({ favorites: [...state.favorites, work] });
+      }
     };
     toggleFavorite = () => {
       const state = this.store.getState();
@@ -3838,7 +4150,12 @@
       this.uiManager.init();
       this.inputManager.init();
       this.popUnderBlocker.init();
-      this.store.addLuckyHistory(window.location.href);
+      const firstImageSrc = this.navigator.getImages()[0]?.src || "";
+      this.store.addLuckyHistory({
+        title: metadata.title || document.title,
+        href: window.location.href,
+        thumb: firstImageSrc
+      });
       if (this.resumeManager.isEnabled()) {
         const workKey = window.location.origin + window.location.pathname;
         const savedIndex = this.resumeManager.loadPosition(workKey);
