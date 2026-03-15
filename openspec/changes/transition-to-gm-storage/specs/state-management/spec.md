@@ -1,0 +1,25 @@
+# state-management delta Specification
+
+## MODIFIED Requirements
+
+### Requirement: 状態の一元管理と永続化
+Store はアプリケーションのすべての重要な状態を保持し、変更が加えられた際には自動的に `GM_setValue` へ永続化し、登録されたリスナーへ通知しなければならない (MUST)。状態の定義には TypeScript のインターフェースを用い、型安全なアクセスを保証する。
+
+#### Scenario: 型安全な状態更新
+- **WHEN** `Store.setState` を呼び出すとき
+- **THEN** 渡されたオブジェクトのキーと値が `StoreState` 型と一致しているかコンパイル時に検証される
+
+#### Scenario: 検索状態の永続化
+- **WHEN** 検索キーワード、検索キャッシュ、または**検索履歴**が更新された時
+- **THEN** それらのデータが `GM_setValue` を用いて保存されること
+
+### Requirement: 初期状態のロード
+Store は初期化時に `GM_getValue` を使用して保存された状態を読み込み、存在しない場合やデータ構造が不正な場合はデフォルト値を適用しなければならない (MUST)。読み込まれたデータは必ず型ガードによって構造の妥当性が検証されなければならない (MUST)。
+
+#### Scenario: 既存設定の復元
+- **WHEN**: Store がインスタンス化された時
+- **THEN**: `GM_getValue` を介して保存されているユーザー設定（enabled, dualView, guiPos, **searchHistory** など）が初期状態として反映される
+
+#### Scenario: 不正な形式のデータ読み込み
+- **WHEN** 保存されたデータが不適切な形式である（例：`guiPos` が数値ではない等）状態で Store が初期化されたとき
+- **THEN** 型ガードによる検証が失敗し、該当する項目にはデフォルト値が適用される
