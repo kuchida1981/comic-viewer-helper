@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.d32779f
+// @version         1.5.0-unstable.c3e4996
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -12,7 +12,9 @@
 // @updateURL       https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js
 // @downloadURL     https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js
 // @run-at          document-idle
-// @grant           none
+// @grant           GM_setValue
+// @grant           GM_getValue
+// @grant           GM_deleteValue
 // ==/UserScript==
 
 /**
@@ -426,8 +428,8 @@
     listeners;
     constructor() {
       this.state = {
-        enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== "false",
-        isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === "true",
+        enabled: GM_getValue(STORAGE_KEYS.ENABLED) !== "false",
+        isDualViewEnabled: GM_getValue(STORAGE_KEYS.DUAL_VIEW) === "true",
         spreadOffset: 0,
         currentVisibleIndex: 0,
         guiPos: this._loadGuiPos(),
@@ -449,8 +451,8 @@
         searchHistory: this._loadSearchHistory(),
         luckyHistory: this._loadLuckyHistory(),
         favorites: this._loadFavorites(),
-        isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
-        autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
+        isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
+        autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
       };
       this.listeners = [];
     }
@@ -471,45 +473,45 @@
       }
     };
     _persistChanges = (patch) => {
-      if ("enabled" in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
-      if ("isDualViewEnabled" in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
-      if ("guiPos" in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
-      if ("isAutoplayEnabled" in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
-      if ("autoplayInterval" in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+      if ("enabled" in patch) GM_setValue(STORAGE_KEYS.ENABLED, String(patch.enabled));
+      if ("isDualViewEnabled" in patch) GM_setValue(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
+      if ("guiPos" in patch) GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      if ("isAutoplayEnabled" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
+      if ("autoplayInterval" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
       this._persistSearchRelatedChanges(patch);
       this._persistLuckyHistory(patch);
     };
     _persistSearchRelatedChanges = (patch) => {
       const host = window.location.hostname;
       if ("searchQuery" in patch) {
-        localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
+        GM_setValue(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
       }
       if ("searchContext" in patch) {
         const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
         if (patch.searchContext) {
-          localStorage.setItem(key, JSON.stringify(patch.searchContext));
+          GM_setValue(key, JSON.stringify(patch.searchContext));
         } else {
-          localStorage.removeItem(key);
+          GM_deleteValue(key);
         }
       }
       if ("searchCache" in patch) {
         try {
-          localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
+          GM_setValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
         } catch (e) {
-          console.warn("Failed to save search cache to localStorage:", e);
+          console.warn("Failed to save search cache to GM_storage:", e);
         }
       }
       if ("searchHistory" in patch) {
-        localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+        GM_setValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
       }
       if ("favorites" in patch) {
-        localStorage.setItem(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
+        GM_setValue(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
       }
     };
     _persistLuckyHistory = (patch) => {
       if ("luckyHistory" in patch) {
         const host = window.location.hostname;
-        localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`, JSON.stringify(patch.luckyHistory));
+        GM_setValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`, JSON.stringify(patch.luckyHistory));
       }
     };
     subscribe = (callback) => {
@@ -555,7 +557,7 @@
     _loadSearchHistory = () => {
       try {
         const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
+        const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (isStringArray(parsed)) {
@@ -570,7 +572,7 @@
     _loadLuckyHistory = () => {
       try {
         const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`);
+        const saved = GM_getValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (isStringArray(parsed)) {
@@ -588,7 +590,7 @@
     _loadSearchCache = () => {
       try {
         const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
+        const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
         if (!saved) return null;
         const parsed = JSON.parse(saved);
         return isSearchCache(parsed) ? parsed : null;
@@ -598,12 +600,12 @@
     };
     _loadSearchQuery = () => {
       const host = window.location.hostname;
-      return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
+      return GM_getValue(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
     };
     _loadSearchContext = () => {
       try {
         const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+        const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
         if (!saved) return void 0;
         const parsed = JSON.parse(saved);
         return isSearchContext(parsed) ? parsed : void 0;
@@ -614,7 +616,7 @@
     _loadFavorites = () => {
       try {
         const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`);
+        const saved = GM_getValue(`${STORAGE_KEYS.FAVORITES}-${host}`);
         if (!saved) return [];
         const parsed = JSON.parse(saved);
         return isRelatedWorkArray(parsed) ? parsed : [];
@@ -624,7 +626,7 @@
     };
     _loadGuiPos = () => {
       try {
-        const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
+        const saved = GM_getValue(STORAGE_KEYS.GUI_POS);
         if (!saved) return null;
         const pos = JSON.parse(saved);
         if (!isGuiPos(pos)) return null;
@@ -2775,7 +2777,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.d32779f"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.c3e4996"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -4066,9 +4068,12 @@
   }
   class ResumeManager {
     store;
-    storageKey = "comic-viewer-helper-resume-data";
+    storageKeyBase = "comic-viewer-helper-resume-data";
     constructor(store) {
       this.store = store;
+    }
+    get storageKey() {
+      return `${this.storageKeyBase}-${window.location.hostname}`;
     }
     isEnabled = () => {
       return true;
@@ -4076,7 +4081,7 @@
     savePosition = (url, pageIndex) => {
       const data = this._loadData();
       data[url] = { pageIndex };
-      localStorage.setItem(this.storageKey, JSON.stringify(data));
+      GM_setValue(this.storageKey, JSON.stringify(data));
     };
     loadPosition = (url) => {
       const data = this._loadData();
@@ -4085,7 +4090,7 @@
     };
     _loadData = () => {
       try {
-        const parsed = JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+        const parsed = JSON.parse(GM_getValue(this.storageKey) || "{}");
         return isResumeDataMap(parsed) ? parsed : {};
       } catch {
         return {};
@@ -4095,7 +4100,7 @@
      * Clear all saved positions
      */
     clearAll = () => {
-      localStorage.removeItem(this.storageKey);
+      GM_deleteValue(this.storageKey);
     };
   }
   class PopUnderBlocker {
