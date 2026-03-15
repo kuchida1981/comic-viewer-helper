@@ -49,8 +49,13 @@ class App {
     this.inputManager.init();
     this.popUnderBlocker.init();
 
-    // Add current URL to lucky history
-    this.store.addLuckyHistory(window.location.href);
+    // Add current work to lucky history with detailed info
+    const firstImageSrc = this.navigator.getImages()[0]?.src || '';
+    this.store.addLuckyHistory({
+      title: metadata.title || document.title,
+      href: window.location.href,
+      thumb: firstImageSrc
+    });
 
     // Resume position logic
     if (this.resumeManager.isEnabled()) {

@@ -12,6 +12,12 @@ export interface RelatedWork {
   tags?: Tag[];
 }
 
+export interface HistoryEntry extends RelatedWork {
+  viewCount: number;
+  lastViewedAt: number;
+  firstViewedAt: number;
+}
+
 export interface Metadata {
   title: string;
   tags: Tag[];

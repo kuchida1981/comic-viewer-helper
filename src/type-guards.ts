@@ -1,6 +1,6 @@
 import { GuiPos } from './store';
 import { ResumeData } from './managers/ResumeManager';
-import { SearchCache, SearchContext, RelatedWork } from './types';
+import { SearchCache, SearchContext, RelatedWork, HistoryEntry } from './types';
 
 /**
  * Checks if the value is a non-null object (and not an array)
@@ -29,6 +29,24 @@ export function isRelatedWork(value: unknown): value is RelatedWork {
  */
 export function isRelatedWorkArray(value: unknown): value is RelatedWork[] {
   return Array.isArray(value) && value.every(isRelatedWork);
+}
+
+/**
+ * Type guard for HistoryEntry
+ */
+export function isHistoryEntry(value: unknown): value is HistoryEntry {
+  if (!isRelatedWork(value)) return false;
+  const v = value as unknown as Record<string, unknown>;
+  return typeof v.viewCount === 'number' &&
+    typeof v.lastViewedAt === 'number' &&
+    typeof v.firstViewedAt === 'number';
+}
+
+/**
+ * Type guard for HistoryEntry[]
+ */
+export function isHistoryEntryArray(value: unknown): value is HistoryEntry[] {
+  return Array.isArray(value) && value.every(isHistoryEntry);
 }
 
 /**

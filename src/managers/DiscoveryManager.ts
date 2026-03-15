@@ -108,15 +108,17 @@ export class DiscoveryManager {
       const currentUrl = window.location.href;
 
       // Check if replenishment is needed
-      if (isLuckyPoolDepleted(state.metadata, state.luckyHistory, currentUrl, state.searchCache, state.favorites)) {
+      const historyUrls = state.luckyHistory.map(e => e.href);
+      if (isLuckyPoolDepleted(state.metadata, historyUrls, currentUrl, state.searchCache, state.favorites)) {
         await this._replenishCandidates();
       }
 
       // Pick and jump
       const finalState = this.store.getState();
+      const finalHistoryUrls = finalState.luckyHistory.map(e => e.href);
       const nextUrl = pickRandomWork(
         finalState.metadata,
-        finalState.luckyHistory,
+        finalHistoryUrls,
         currentUrl,
         finalState.searchCache,
         finalState.favorites

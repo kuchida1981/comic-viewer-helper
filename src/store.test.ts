@@ -49,43 +49,125 @@ describe('Store', () => {
     localStorage.setItem(STORAGE_KEYS.ENABLED, 'false');
     localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, 'true');
     localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify({ top: 100, left: 200 }));
-    localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`, JSON.stringify(['url1', 'url2']));
+    const historyEntry = { title: 'Work 1', href: 'url1', thumb: '', viewCount: 1, firstViewedAt: 1000, lastViewedAt: 1000 };
+    localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`, JSON.stringify([historyEntry]));
 
     const store = new Store();
     const state = store.getState();
     expect(state.enabled).toBe(false);
     expect(state.isDualViewEnabled).toBe(true);
     expect(state.guiPos).toEqual({ top: 100, left: 200 });
-    expect(state.luckyHistory).toEqual(['url1', 'url2']);
+    expect(state.luckyHistory).toEqual([historyEntry]);
+  });
+
+  it('should migrate old string[] luckyHistory to empty array', () => {
+    localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`, JSON.stringify(['url1', 'url2']));
+    const store = new Store();
+    expect(store.getState().luckyHistory).toEqual([]);
   });
 
   it('should update state and persist to localStorage', () => {
     const store = new Store();
-    store.setState({ enabled: false, isDualViewEnabled: true, luckyHistory: ['new-url'] });
+    const histEntry = { title: 'New Work', href: 'new-url', thumb: '', viewCount: 1, firstViewedAt: 1000, lastViewedAt: 1000 };
+    store.setState({ enabled: false, isDualViewEnabled: true, luckyHistory: [histEntry] });
 
     expect(store.getState().enabled).toBe(false);
     expect(store.getState().isDualViewEnabled).toBe(true);
     expect(localStorage.getItem(STORAGE_KEYS.ENABLED)).toBe('false');
     expect(localStorage.getItem(STORAGE_KEYS.DUAL_VIEW)).toBe('true');
-    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`) || '[]')).toEqual(['new-url']);
+    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`) || '[]')).toEqual([histEntry]);
   });
 
-  it('addLuckyHistory should normalize and deduplicate URLs', () => {
+  it('addLuckyHistory should add new work as HistoryEntry with viewCount=1', () => {
     const store = new Store();
     const host = window.location.hostname;
-    
-    // Initial state
-    store.setState({ luckyHistory: [`http://${host}/old?q=1`] });
-    
-    // Add same URL with different params
-    store.addLuckyHistory(`http://${host}/old?q=2#hash`);
-    
-    // Should result in a single normalized URL
-    expect(store.getState().luckyHistory).toEqual([`http://${host}/old`]);
-    
-    // Add another new URL
-    store.addLuckyHistory(`http://${host}/new?param=val`);
-    expect(store.getState().luckyHistory).toEqual([`http://${host}/new`, `http://${host}/old`]);
+    const work = { title: 'New Work', href: `http://${host}/new`, thumb: '/thumb.jpg' };
+
+    vi.setSystemTime(1000);
+    store.addLuckyHistory(work);
+
+    const history = store.getState().luckyHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].title).toBe('New Work');
+    expect(history[0].href).toBe(`http://${host}/new`);
+    expect(history[0].viewCount).toBe(1);
+    expect(history[0].firstViewedAt).toBe(1000);
+    expect(history[0].lastViewedAt).toBe(1000);
+  });
+
+  it('addLuckyHistory should normalize URL on entry creation', () => {
+    const store = new Store();
+    const host = window.location.hostname;
+    const work = { title: 'Work', href: `http://${host}/page?q=1#hash`, thumb: '' };
+
+    store.addLuckyHistory(work);
+    expect(store.getState().luckyHistory[0].href).toBe(`http://${host}/page`);
+  });
+
+  it('addLuckyHistory should not increment viewCount within 24 hours', () => {
+    const store = new Store();
+    const host = window.location.hostname;
+    const work = { title: 'Work', href: `http://${host}/same`, thumb: '' };
+
+    vi.setSystemTime(1000);
+    store.addLuckyHistory(work);
+
+    // Re-visit 1 hour later (within 24h)
+    vi.setSystemTime(1000 + 60 * 60 * 1000);
+    store.addLuckyHistory(work);
+
+    const history = store.getState().luckyHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].viewCount).toBe(1);
+    expect(history[0].lastViewedAt).toBe(1000 + 60 * 60 * 1000);
+  });
+
+  it('addLuckyHistory should increment viewCount after 24 hours', () => {
+    const store = new Store();
+    const host = window.location.hostname;
+    const work = { title: 'Work', href: `http://${host}/same`, thumb: '' };
+
+    vi.setSystemTime(1000);
+    store.addLuckyHistory(work);
+
+    // Re-visit 25 hours later (beyond 24h)
+    const twentyFiveHours = 25 * 60 * 60 * 1000;
+    vi.setSystemTime(1000 + twentyFiveHours);
+    store.addLuckyHistory(work);
+
+    const history = store.getState().luckyHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].viewCount).toBe(2);
+    expect(history[0].firstViewedAt).toBe(1000);
+    expect(history[0].lastViewedAt).toBe(1000 + twentyFiveHours);
+  });
+
+  it('addLuckyHistory should deduplicate by normalized URL', () => {
+    const store = new Store();
+    const host = window.location.hostname;
+
+    vi.setSystemTime(1000);
+    store.addLuckyHistory({ title: 'Work', href: `http://${host}/same?q=1`, thumb: '' });
+
+    vi.setSystemTime(1000 + 25 * 60 * 60 * 1000);
+    store.addLuckyHistory({ title: 'Work', href: `http://${host}/same?q=2#hash`, thumb: '' });
+
+    expect(store.getState().luckyHistory).toHaveLength(1);
+    expect(store.getState().luckyHistory[0].viewCount).toBe(2);
+  });
+
+  it('addLuckyHistory should keep most recent entry first', () => {
+    const store = new Store();
+    const host = window.location.hostname;
+
+    vi.setSystemTime(1000);
+    store.addLuckyHistory({ title: 'Work A', href: `http://${host}/a`, thumb: '' });
+    vi.setSystemTime(2000);
+    store.addLuckyHistory({ title: 'Work B', href: `http://${host}/b`, thumb: '' });
+
+    const history = store.getState().luckyHistory;
+    expect(history[0].href).toBe(`http://${host}/b`);
+    expect(history[1].href).toBe(`http://${host}/a`);
   });
 
   it('should persist search query and cache', () => {

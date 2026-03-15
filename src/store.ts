@@ -1,5 +1,5 @@
-import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork } from './types';
-import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray } from './type-guards';
+import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork, HistoryEntry } from './types';
+import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray, isHistoryEntryArray } from './type-guards';
 import { normalizeUrl } from './logic';
 
 export const STORAGE_KEYS = {
@@ -42,7 +42,7 @@ export interface StoreState {
   searchContext?: SearchContext;
   searchCache: SearchCache | null;
   searchHistory: string[];
-  luckyHistory: string[];
+  luckyHistory: HistoryEntry[];
   favorites: RelatedWork[];
   isAutoplayEnabled: boolean;
   autoplayInterval: number;
@@ -165,12 +165,35 @@ export class Store {
     this.state[key] = value;
   };
 
-  addLuckyHistory = (url: string): void => {
-    const normalizedUrl = normalizeUrl(url);
-    const newHistory = Array.from(new Set([
-      normalizedUrl,
-      ...this.state.luckyHistory.map(normalizeUrl)
-    ])).slice(0, MAX_LUCKY_HISTORY);
+  addLuckyHistory = (work: RelatedWork): void => {
+    const normalizedUrl = normalizeUrl(work.href);
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+    const existing = this.state.luckyHistory.find(
+      entry => normalizeUrl(entry.href) === normalizedUrl
+    );
+
+    let newHistory: HistoryEntry[];
+    if (existing) {
+      const shouldIncrement = (now - existing.lastViewedAt) >= TWENTY_FOUR_HOURS;
+      const updated: HistoryEntry = {
+        ...existing,
+        lastViewedAt: now,
+        viewCount: shouldIncrement ? existing.viewCount + 1 : existing.viewCount
+      };
+      newHistory = [updated, ...this.state.luckyHistory.filter(e => normalizeUrl(e.href) !== normalizedUrl)];
+    } else {
+      const newEntry: HistoryEntry = {
+        ...work,
+        href: normalizedUrl,
+        viewCount: 1,
+        firstViewedAt: now,
+        lastViewedAt: now
+      };
+      newHistory = [newEntry, ...this.state.luckyHistory];
+    }
+
     this.setState({ luckyHistory: newHistory });
   };
 
@@ -190,13 +213,17 @@ export class Store {
     }
   };
 
-  private _loadLuckyHistory = (): string[] => {
+  private _loadLuckyHistory = (): HistoryEntry[] => {
     try {
       const host = window.location.hostname;
       const saved = localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`);
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
+        // Migration: old string[] format is discarded
         if (isStringArray(parsed)) {
+          return [];
+        }
+        if (isHistoryEntryArray(parsed)) {
           return parsed;
         }
       }
