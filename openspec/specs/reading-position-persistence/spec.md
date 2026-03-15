@@ -19,41 +19,41 @@
 - **THEN** システムは2つの異なるキーを生成する
 
 ### Requirement: 現在の読書位置を保存できる
-システムは、ユーザーがページから離脱する際に、現在閲覧中のページインデックスをlocalStorageに保存しなければならない（SHALL）。
+システムは、ユーザーがページから離脱する際に、現在閲覧中のページインデックスを UserScript 専用ストレージに保存しなければならない（SHALL）。
 
 #### Scenario: ページ離脱時に位置を保存
 - **WHEN** ユーザーが47ページ目を閲覧中にページから離脱した
-- **THEN** システムは localStorage に { "url": { pageIndex: 46 } } を保存する（0-based index）
+- **THEN** システムは `GM_setValue` を用いて { "url": { pageIndex: 46 } } を保存する（0-based index）
 
 #### Scenario: 既存の保存データに追加する
-- **WHEN** localStorage に既に他の作品データが存在し、ユーザーが新しい作品から離脱した
+- **WHEN** ストレージに既に他の作品データが存在し、ユーザーが新しい作品から離脱した
 - **THEN** システムは既存データを保持したまま新しいエントリを追加する
 
 #### Scenario: 同じ作品の位置を上書き更新する
-- **WHEN** localStorage に既にその作品のデータが存在し、ユーザーが再度その作品から離脱した
+- **WHEN** ストレージに既にその作品のデータが存在し、ユーザーが再度その作品から離脱した
 - **THEN** システムは古い位置を新しい位置で上書きする
 
 ### Requirement: 保存された読書位置を読み込める
-システムは、作品URLをキーとして、保存された読書位置を localStorage から読み込めなければならない（SHALL）。読み込まれたデータは型ガードによって構造が検証され、期待される形式（`ResumeData`）でない場合は安全に破棄されなければならない（SHALL）。
+システムは、作品URLをキーとして、保存された読書位置を UserScript 専用ストレージから読み込めなければならない（SHALL）。読み込まれたデータは型ガードによって構造が検証され、期待される形式（`ResumeData`）でない場合は安全に破棄されなければならない（SHALL）。
 
 #### Scenario: 保存データが存在する場合の読み込み
-- **WHEN** localStorage に { "https://example.com/post/123456": { pageIndex: 46 } } が保存されている
+- **WHEN** ストレージに { "https://example.com/post/123456": { pageIndex: 46 } } が保存されている
 - **THEN** システムはそのURLに対して pageIndex 46 を返す
 
 #### Scenario: 保存データが存在しない場合
-- **WHEN** localStorage にそのURLのデータが存在しない
+- **WHEN** ストレージにそのURLのデータが存在しない
 - **THEN** システムは null を返す
 
-#### Scenario: localStorage が破損している場合
-- **WHEN** localStorage のデータが不正なJSON形式である、またはデータ構造が `ResumeData` の要件を満たさない
+#### Scenario: ストレージが破損している場合
+- **WHEN** ストレージのデータが不正なJSON形式である、またはデータ構造が `ResumeData` の要件を満たさない
 - **THEN** システムはエラーを catch または型ガードで検出し、空のオブジェクトとして扱う
 
-### Requirement: localStorageへの保存形式を定義する
+### Requirement: ストレージへの保存形式を定義する
 システムは、複数の作品の読書位置を単一のキーで管理しなければならない（SHALL）。
 
 #### Scenario: データ構造の検証
-- **WHEN** システムが localStorage にデータを保存する
-- **THEN** キー 'comic-viewer-helper-resume-data' にJSON文字列として保存される
+- **WHEN** システムがデータを保存する
+- **THEN** キー 'comic-viewer-helper-resume-data' にシリアライズされたデータとして保存される
 
 #### Scenario: 複数作品のデータ構造
 - **WHEN** 複数の作品の位置が保存されている
@@ -64,7 +64,7 @@
 
 #### Scenario: すべてのデータを削除
 - **WHEN** clearAll() が呼ばれた
-- **THEN** localStorage から 'comic-viewer-helper-resume-data' が削除される
+- **THEN** ストレージから 'comic-viewer-helper-resume-data' が削除される
 
 #### Scenario: 削除後の読み込み
 - **WHEN** clearAll() 実行後に読み込みを試行した
