@@ -17,6 +17,7 @@ import { Store, StoreState } from '../store';
 import { Navigator } from './Navigator';
 import { DiscoveryManager } from './DiscoveryManager';
 import { SiteAdapter, SearchContext, SearchCache, Tag, RelatedWork } from '../types';
+import { normalizeUrl } from '../logic';
 
 const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
 
@@ -227,16 +228,24 @@ export class UIManager {
       if (!this.favoritesModalComp) {
         this.favoritesModalComp = createFavoritesModal({
           favorites: state.favorites,
-          onRemove: (href) => {
+          history: state.luckyHistory,
+          onRemoveFavorite: (href) => {
             const newFavorites = this.store.getState().favorites.filter(f => f.href !== href);
             this.store.setState({ favorites: newFavorites });
           },
+          onRemoveHistory: (href) => {
+            const normalizedHref = normalizeUrl(href);
+            const newHistory = this.store.getState().luckyHistory.filter(e => normalizeUrl(e.href) !== normalizedHref);
+            this.store.setState({ luckyHistory: newHistory });
+          },
+          onToggleFavorite: (work) => { this._toggleFavoriteWork(work); },
           onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
           onTagClick: (tag) => { void this._handleFavoritesTagClick(tag); }
         });
         document.body.appendChild(this.favoritesModalComp.el);
       } else {
         this.favoritesModalComp.updateFavorites(state.favorites);
+        this.favoritesModalComp.updateHistory(state.luckyHistory, state.favorites);
       }
     } else if (this.favoritesModalComp) {
       this.favoritesModalComp.el.remove();
@@ -308,6 +317,18 @@ export class UIManager {
   private _handleTagClick = (tag: Tag): Promise<void> => {
     this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
     return this._performTagSearch(tag);
+  };
+
+  private _toggleFavoriteWork = (work: RelatedWork): void => {
+    const state = this.store.getState();
+    const normalizedHref = normalizeUrl(work.href);
+    const isFavorite = state.favorites.some(f => normalizeUrl(f.href) === normalizedHref);
+    if (isFavorite) {
+      const newFavorites = state.favorites.filter(f => normalizeUrl(f.href) !== normalizedHref);
+      this.store.setState({ favorites: newFavorites });
+    } else {
+      this.store.setState({ favorites: [...state.favorites, work] });
+    }
   };
 
   toggleFavorite = (): void => {

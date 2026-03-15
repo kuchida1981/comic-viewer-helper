@@ -21,7 +21,7 @@ vi.mock('../ui/components/NavigationButtons', () => ({ createNavigationButtons: 
 vi.mock('../ui/components/MetadataModal', () => ({ createMetadataModal: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/HelpModal', () => ({ createHelpModal: vi.fn().mockReturnValue({ el: document.createElement('div') }) }));
 vi.mock('../ui/components/SearchModal', () => ({ createSearchModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateResults: vi.fn(), setUpdating: vi.fn() }) }));
-vi.mock('../ui/components/FavoritesModal', () => ({ createFavoritesModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateFavorites: vi.fn() }) }));
+vi.mock('../ui/components/FavoritesModal', () => ({ createFavoritesModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateFavorites: vi.fn(), updateHistory: vi.fn() }) }));
 vi.mock('../ui/components/ProgressBar', () => ({ createProgressBar: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/ResumeNotification', () => ({ createResumeNotification: vi.fn().mockReturnValue({ el: document.createElement('div') }) }));
 vi.mock('../ui/components/LoadingIndicator', () => ({ createLoadingIndicator: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
@@ -279,10 +279,31 @@ describe('UIManager', () => {
     uiManager.toggleFavorite(); // Remove current work
     expect(currentState.favorites.length).toBe(initialFavCount);
 
-    // 13. FavoritesModal onRemove test
+    // 13. FavoritesModal onRemoveFavorite test
     const addedWork = { title: 'T', href: '/extra/', thumb: '' };
     currentState = { ...currentState, favorites: [addedWork] };
-    favModalProps.onRemove('/extra/');
+    favModalProps.onRemoveFavorite('/extra/');
     expect(currentState.favorites.length).toBe(0);
+
+    // 14. FavoritesModal onRemoveHistory test
+    const histEntry = { title: 'H', href: '/hist/', thumb: '', viewCount: 1, firstViewedAt: 1, lastViewedAt: 1 };
+    currentState = { ...currentState, luckyHistory: [histEntry] };
+    favModalProps.onRemoveHistory('/hist/');
+    expect(currentState.luckyHistory.length).toBe(0);
+
+    // 15. FavoritesModal onToggleFavorite test (add)
+    currentState = { ...currentState, favorites: [] };
+    const workToToggle = { title: 'Toggle', href: '/toggle/', thumb: '' };
+    favModalProps.onToggleFavorite(workToToggle);
+    expect(currentState.favorites.length).toBe(1);
+
+    // 16. FavoritesModal onToggleFavorite test (remove)
+    favModalProps.onToggleFavorite(workToToggle);
+    expect(currentState.favorites.length).toBe(0);
+
+    // 17. FavoritesModal onTagClick test
+    await favModalProps.onTagClick({ text: 'Tag', href: '/tags/tag', type: 'genre' });
+    expect(currentState.isFavoritesModalOpen).toBe(false);
+    expect(currentState.isSearchModalOpen).toBe(true);
   });
 });

@@ -510,6 +510,110 @@ export const styles = `
     margin-top: 10px;
   }
 
+  /* Library Tabs */
+  .comic-helper-library-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid ${COLORS.border.light};
+    margin-bottom: 16px;
+  }
+
+  .comic-helper-library-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: ${COLORS.text.muted};
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 8px 16px;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-bottom-color 0.2s;
+  }
+
+  .comic-helper-library-tab:hover {
+    color: ${COLORS.text.primary};
+  }
+
+  .comic-helper-library-tab.active {
+    color: ${COLORS.text.primary};
+    border-bottom-color: ${COLORS.border.accent};
+  }
+
+  /* Sort Menu */
+  .comic-helper-sort-menu {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .comic-helper-sort-label {
+    font-size: 11px;
+    color: ${COLORS.text.muted};
+  }
+
+  .comic-helper-sort-btn {
+    background: ${COLORS.background.tag};
+    border: 1px solid ${COLORS.border.light};
+    border-radius: 12px;
+    color: ${COLORS.text.secondary};
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 10px;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-sort-btn:hover {
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
+  }
+
+  .comic-helper-sort-btn.active {
+    background: ${COLORS.background.progress};
+    border-color: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+
+  /* Library Item Favorite Toggle */
+  .comic-helper-item-favorite-btn {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: ${COLORS.text.muted};
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .comic-helper-item-favorite-btn.active {
+    color: #ff4081;
+  }
+
+  .comic-helper-favorites-item:hover .comic-helper-item-favorite-btn {
+    opacity: 1;
+  }
+
+  /* View count badge */
+  .comic-helper-view-count {
+    font-size: 10px;
+    color: ${COLORS.text.muted};
+    margin-top: 2px;
+  }
+
   .comic-helper-favorites-trend-section {
     padding: 8px 0 12px;
     border-bottom: 1px solid ${COLORS.border.light};

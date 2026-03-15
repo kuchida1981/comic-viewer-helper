@@ -283,7 +283,8 @@ export class Navigator {
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       if (currentIndex >= imgs.length - 1) {
         const state = this.store.getState();
-        const nextUrl = pickRandomWork(state.metadata, state.luckyHistory, window.location.href, state.searchCache, state.favorites);
+        const historyUrls = state.luckyHistory.map(e => e.href);
+        const nextUrl = pickRandomWork(state.metadata, historyUrls, window.location.href, state.searchCache, state.favorites);
         if (nextUrl) {
           window.location.href = nextUrl;
         } else {
