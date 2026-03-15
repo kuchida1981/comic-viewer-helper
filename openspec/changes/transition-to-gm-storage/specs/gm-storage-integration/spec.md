@@ -10,11 +10,13 @@ UserScript 専用の隔離された永続ストレージ（`GM_setValue` / `GM_g
 
 #### Scenario: 型安全な値の保存
 - **WHEN** `GM_setValue(key, value)` を呼び出すとき
-- **THEN** 引数が正しい型（string, number, boolean, またはシリアライズ可能なオブジェクト）であることをコンパイラがチェックできる
+- **THEN** `value` が `string` 型であることをコンパイラがチェックできる
+- **NOTE** 複合型（オブジェクト・配列）は呼び出し側で `JSON.stringify` によって文字列化してから渡す
 
 #### Scenario: 型安全な値の取得
 - **WHEN** `GM_getValue(key, defaultValue)` を呼び出すとき
-- **THEN** 戻り値の型が `defaultValue` の型と一致することをコンパイラが保証できる
+- **THEN** 戻り値の型が `string | undefined` であることをコンパイラが保証できる
+- **NOTE** 複合型を復元する場合は呼び出し側で `JSON.parse` を使用し、型ガードで検証する
 
 ### Requirement: テスト環境での GM_storage モック提供
 システムは、ブラウザ（UserScript マネージャ）が存在しないユニットテスト環境において、`GM_` 関数の挙動をシミュレートするモックを提供しなければならない (MUST)。
