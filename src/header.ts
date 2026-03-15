@@ -12,5 +12,7 @@
 // @updateURL       https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
 // @downloadURL     https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
 // @run-at          document-idle
-// @grant           none
+// @grant           GM_setValue
+// @grant           GM_getValue
+// @grant           GM_deleteValue
 // ==/UserScript==

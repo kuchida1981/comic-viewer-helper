@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ResumeManager, ResumeData } from './ResumeManager.js';
 import { Store } from '../store.js';
-import { setupLocalStorageMock } from '../test/mocks/storage.js';
+import { setupGMStorageMock } from '../test/mocks/gm_storage.js';
 
 describe('ResumeManager', () => {
   let store: Store;
   let resumeManager: ResumeManager;
 
   beforeEach(() => {
-    setupLocalStorageMock();
+    setupGMStorageMock();
     vi.stubGlobal('innerWidth', 1024);
     vi.stubGlobal('innerHeight', 768);
 
@@ -27,13 +27,14 @@ describe('ResumeManager', () => {
   });
 
   describe('savePosition', () => {
-    it('should save position to localStorage when enabled', () => {
+    it('should save position to GM_storage when enabled', () => {
       const url = 'https://example.com/page';
       const pageIndex = 42;
 
       resumeManager.savePosition(url, pageIndex);
 
-      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}') as Record<string, ResumeData>;
+      const key = `comic-viewer-helper-resume-data-${window.location.hostname}`;
+      const saved = JSON.parse(GM_getValue(key) || '{}') as Record<string, ResumeData>;
       expect(saved[url]).toEqual({ pageIndex: 42 });
     });
 
@@ -43,7 +44,8 @@ describe('ResumeManager', () => {
       resumeManager.savePosition(url, 10);
       resumeManager.savePosition(url, 20);
 
-      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}') as Record<string, ResumeData>;
+      const key = `comic-viewer-helper-resume-data-${window.location.hostname}`;
+      const saved = JSON.parse(GM_getValue(key) || '{}') as Record<string, ResumeData>;
       expect(saved[url]).toEqual({ pageIndex: 20 });
     });
 
@@ -51,7 +53,8 @@ describe('ResumeManager', () => {
       resumeManager.savePosition('https://example.com/page1', 10);
       resumeManager.savePosition('https://example.com/page2', 20);
 
-      const saved = JSON.parse(localStorage.getItem('comic-viewer-helper-resume-data') || '{}') as Record<string, ResumeData>;
+      const key = `comic-viewer-helper-resume-data-${window.location.hostname}`;
+      const saved = JSON.parse(GM_getValue(key) || '{}') as Record<string, ResumeData>;
       expect(saved['https://example.com/page1']).toEqual({ pageIndex: 10 });
       expect(saved['https://example.com/page2']).toEqual({ pageIndex: 20 });
     });
@@ -71,13 +74,14 @@ describe('ResumeManager', () => {
       expect(loaded).toBeNull();
     });
 
-    it('should handle corrupted localStorage data', () => {
-      localStorage.setItem('comic-viewer-helper-resume-data', 'invalid-json');
+    it('should handle corrupted GM_storage data', () => {
+      const key = `comic-viewer-helper-resume-data-${window.location.hostname}`;
+      GM_setValue(key, 'invalid-json');
       const loaded = resumeManager.loadPosition('https://example.com/page');
       expect(loaded).toBeNull();
     });
 
-    it('should return null when localStorage is empty', () => {
+    it('should return null when GM_storage is empty', () => {
       const loaded = resumeManager.loadPosition('https://example.com/page');
       expect(loaded).toBeNull();
     });
@@ -90,8 +94,9 @@ describe('ResumeManager', () => {
 
       resumeManager.clearAll();
 
-      const saved = localStorage.getItem('comic-viewer-helper-resume-data');
-      expect(saved).toBeNull();
+      const key = `comic-viewer-helper-resume-data-${window.location.hostname}`;
+      const saved = GM_getValue(key);
+      expect(saved).toBeUndefined();
     });
 
     it('should return null when loading after clearAll', () => {
@@ -105,14 +110,15 @@ describe('ResumeManager', () => {
   });
 
   describe('_loadData', () => {
-    it('should return empty object when localStorage is empty', () => {
+    it('should return empty object when GM_storage is empty', () => {
       // @ts-expect-error - testing private method
       const data = resumeManager._loadData();
       expect(data).toEqual({});
     });
 
     it('should return empty object when JSON is invalid', () => {
-      localStorage.setItem('comic-viewer-helper-resume-data', 'invalid-json');
+      const key = `comic-viewer-helper-resume-data-${window.location.hostname}`;
+      GM_setValue(key, 'invalid-json');
       // @ts-expect-error - testing private method
       const data = resumeManager._loadData();
       expect(data).toEqual({});
@@ -120,7 +126,8 @@ describe('ResumeManager', () => {
 
     it('should return parsed data when valid', () => {
       const testData = { 'https://example.com/page': { pageIndex: 42 } };
-      localStorage.setItem('comic-viewer-helper-resume-data', JSON.stringify(testData));
+      const key = `comic-viewer-helper-resume-data-${window.location.hostname}`;
+      GM_setValue(key, JSON.stringify(testData));
       // @ts-expect-error - testing private method
       const data = resumeManager._loadData();
       expect(data).toEqual(testData);

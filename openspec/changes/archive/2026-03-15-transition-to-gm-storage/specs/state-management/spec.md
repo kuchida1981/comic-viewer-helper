@@ -1,9 +1,7 @@
-# state-management Specification
+# state-management delta Specification
 
-## Purpose
-アプリケーション全体の状態を一元管理し、永続化が必要な設定を同期・復元することで、一貫したユーザー体験を提供します。
+## MODIFIED Requirements
 
-## Requirements
 ### Requirement: 状態の一元管理と永続化
 Store はアプリケーションのすべての重要な状態を保持し、変更が加えられた際には自動的に `GM_setValue` へ永続化し、登録されたリスナーへ通知しなければならない (MUST)。状態の定義には TypeScript のインターフェースを用い、型安全なアクセスを保証する。
 
@@ -25,12 +23,3 @@ Store は初期化時に `GM_getValue` を使用して保存された状態を�
 #### Scenario: 不正な形式のデータ読み込み
 - **WHEN** 保存されたデータが不適切な形式である（例：`guiPos` が数値ではない等）状態で Store が初期化されたとき
 - **THEN** 型ガードによる検証が失敗し、該当する項目にはデフォルト値が適用される
-
-### Requirement: 一時的なUI状態の管理
-Store は永続化の必要がない一時的なUI状態（ローディング中など）も管理できるものとし、これらは `localStorage` への保存対象から除外されなければならない（SHALL）。
-
-#### Scenario: ローディング状態の更新
-- **WHEN** 画像読み込み待ちが発生し、`Store.setState({ isLoading: true })` が呼び出されたとき
-- **THEN** 購読しているコンポーネントには通知されるが、`localStorage` には保存されない
-- **AND** ページリロード後、この状態は初期値（false）に戻る
-

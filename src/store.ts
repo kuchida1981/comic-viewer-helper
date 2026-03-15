@@ -56,8 +56,8 @@ export class Store {
 
   constructor() {
     this.state = {
-      enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== 'false',
-      isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === 'true',
+      enabled: GM_getValue(STORAGE_KEYS.ENABLED) !== 'false',
+      isDualViewEnabled: GM_getValue(STORAGE_KEYS.DUAL_VIEW) === 'true',
       spreadOffset: 0,
       currentVisibleIndex: 0,
       guiPos: this._loadGuiPos(),
@@ -79,8 +79,8 @@ export class Store {
       searchHistory: this._loadSearchHistory(),
       luckyHistory: this._loadLuckyHistory(),
       favorites: this._loadFavorites(),
-      isAutoplayEnabled: localStorage.getItem(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
-      autoplayInterval: parseInt(localStorage.getItem(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10)
+      isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
+      autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10)
     };
     this.listeners = [];
   }
@@ -105,11 +105,11 @@ export class Store {
   };
 
   private _persistChanges = (patch: Partial<StoreState>): void => {
-    if ('enabled' in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
-    if ('isDualViewEnabled' in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
-    if ('guiPos' in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
-    if ('isAutoplayEnabled' in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
-    if ('autoplayInterval' in patch) localStorage.setItem(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+    if ('enabled' in patch) GM_setValue(STORAGE_KEYS.ENABLED, String(patch.enabled));
+    if ('isDualViewEnabled' in patch) GM_setValue(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
+    if ('guiPos' in patch) GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+    if ('isAutoplayEnabled' in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
+    if ('autoplayInterval' in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
 
     this._persistSearchRelatedChanges(patch);
     this._persistLuckyHistory(patch);
@@ -118,35 +118,35 @@ export class Store {
   private _persistSearchRelatedChanges = (patch: Partial<StoreState>): void => {
     const host = window.location.hostname;
     if ('searchQuery' in patch) {
-      localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery!);
+      GM_setValue(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery!);
     }
     if ('searchContext' in patch) {
       const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
       if (patch.searchContext) {
-        localStorage.setItem(key, JSON.stringify(patch.searchContext));
+        GM_setValue(key, JSON.stringify(patch.searchContext));
       } else {
-        localStorage.removeItem(key);
+        GM_deleteValue(key);
       }
     }
     if ('searchCache' in patch) {
       try {
-        localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
+        GM_setValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
       } catch (e) {
-        console.warn('Failed to save search cache to localStorage:', e);
+        console.warn('Failed to save search cache to GM_storage:', e);
       }
     }
     if ('searchHistory' in patch) {
-      localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+      GM_setValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
     }
     if ('favorites' in patch) {
-      localStorage.setItem(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
+      GM_setValue(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
     }
   };
 
   private _persistLuckyHistory = (patch: Partial<StoreState>): void => {
     if ('luckyHistory' in patch) {
       const host = window.location.hostname;
-      localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`, JSON.stringify(patch.luckyHistory));
+      GM_setValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`, JSON.stringify(patch.luckyHistory));
     }
   };
 
@@ -200,7 +200,7 @@ export class Store {
   private _loadSearchHistory = (): string[] => {
     try {
       const host = window.location.hostname;
-      const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
+      const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
         if (isStringArray(parsed)) {
@@ -216,7 +216,7 @@ export class Store {
   private _loadLuckyHistory = (): HistoryEntry[] => {
     try {
       const host = window.location.hostname;
-      const saved = localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`);
+      const saved = GM_getValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`);
       if (saved) {
         const parsed: unknown = JSON.parse(saved);
         // Migration: old string[] format is discarded
@@ -236,7 +236,7 @@ export class Store {
   private _loadSearchCache = (): SearchCache | null => {
     try {
       const host = window.location.hostname;
-      const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
+      const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
       if (!saved) return null;
       const parsed: unknown = JSON.parse(saved);
       return isSearchCache(parsed) ? parsed : null;
@@ -247,13 +247,13 @@ export class Store {
 
   private _loadSearchQuery = (): string => {
     const host = window.location.hostname;
-    return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || '';
+    return GM_getValue(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || '';
   };
 
   private _loadSearchContext = (): SearchContext | undefined => {
     try {
       const host = window.location.hostname;
-      const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+      const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
       if (!saved) return undefined;
       const parsed: unknown = JSON.parse(saved);
       return isSearchContext(parsed) ? parsed : undefined;
@@ -265,7 +265,7 @@ export class Store {
   private _loadFavorites = (): RelatedWork[] => {
     try {
       const host = window.location.hostname;
-      const saved = localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`);
+      const saved = GM_getValue(`${STORAGE_KEYS.FAVORITES}-${host}`);
       if (!saved) return [];
       const parsed: unknown = JSON.parse(saved);
       return isRelatedWorkArray(parsed) ? parsed : [];
@@ -276,7 +276,7 @@ export class Store {
 
   private _loadGuiPos = (): GuiPos | null => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
+      const saved = GM_getValue(STORAGE_KEYS.GUI_POS);
       if (!saved) return null;
       const pos: unknown = JSON.parse(saved);
       // Basic validation
