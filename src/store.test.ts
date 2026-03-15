@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Store, STORAGE_KEYS } from './store.js';
-import { setupLocalStorageMock } from './test/mocks/storage.js';
+import { setupGMStorageMock } from './test/mocks/gm_storage.js';
 
 describe('Store', () => {
   beforeEach(() => {
-    setupLocalStorageMock();
-    
+    setupGMStorageMock();
+
     vi.stubGlobal('innerWidth', 1024);
     vi.stubGlobal('innerHeight', 768);
   });
@@ -14,7 +14,7 @@ describe('Store', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should initialize with default values if localStorage is empty', () => {
+  it('should initialize with default values if GM_storage is empty', () => {
     const store = new Store();
     expect(store.getState()).toEqual({
       enabled: true,
@@ -45,12 +45,12 @@ describe('Store', () => {
     });
   });
 
-  it('should load initial state from localStorage', () => {
-    localStorage.setItem(STORAGE_KEYS.ENABLED, 'false');
-    localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, 'true');
-    localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify({ top: 100, left: 200 }));
+  it('should load initial state from GM_storage', () => {
+    GM_setValue(STORAGE_KEYS.ENABLED, 'false');
+    GM_setValue(STORAGE_KEYS.DUAL_VIEW, 'true');
+    GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify({ top: 100, left: 200 }));
     const historyEntry = { title: 'Work 1', href: 'url1', thumb: '', viewCount: 1, firstViewedAt: 1000, lastViewedAt: 1000 };
-    localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`, JSON.stringify([historyEntry]));
+    GM_setValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`, JSON.stringify([historyEntry]));
 
     const store = new Store();
     const state = store.getState();
@@ -61,21 +61,21 @@ describe('Store', () => {
   });
 
   it('should migrate old string[] luckyHistory to empty array', () => {
-    localStorage.setItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`, JSON.stringify(['url1', 'url2']));
+    GM_setValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`, JSON.stringify(['url1', 'url2']));
     const store = new Store();
     expect(store.getState().luckyHistory).toEqual([]);
   });
 
-  it('should update state and persist to localStorage', () => {
+  it('should update state and persist to GM_storage', () => {
     const store = new Store();
     const histEntry = { title: 'New Work', href: 'new-url', thumb: '', viewCount: 1, firstViewedAt: 1000, lastViewedAt: 1000 };
     store.setState({ enabled: false, isDualViewEnabled: true, luckyHistory: [histEntry] });
 
     expect(store.getState().enabled).toBe(false);
     expect(store.getState().isDualViewEnabled).toBe(true);
-    expect(localStorage.getItem(STORAGE_KEYS.ENABLED)).toBe('false');
-    expect(localStorage.getItem(STORAGE_KEYS.DUAL_VIEW)).toBe('true');
-    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`) || '[]')).toEqual([histEntry]);
+    expect(GM_getValue(STORAGE_KEYS.ENABLED)).toBe('false');
+    expect(GM_getValue(STORAGE_KEYS.DUAL_VIEW)).toBe('true');
+    expect(JSON.parse(GM_getValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${window.location.hostname}`) || '[]')).toEqual([histEntry]);
   });
 
   it('addLuckyHistory should add new work as HistoryEntry with viewCount=1', () => {
@@ -180,9 +180,9 @@ describe('Store', () => {
     store.setState({ searchQuery: 'test', searchCache: cache });
 
     const host = window.location.hostname;
-    expect(localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`)).toBe('test');
-    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`) || '{}')).toEqual(cache);
-    
+    expect(GM_getValue(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`)).toBe('test');
+    expect(JSON.parse(GM_getValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`) || '{}')).toEqual(cache);
+
     const store2 = new Store();
     expect(store2.getState().searchQuery).toBe('test');
     expect(store2.getState().searchCache).toEqual(cache);
@@ -194,8 +194,8 @@ describe('Store', () => {
     store.setState({ searchHistory: history });
 
     const host = window.location.hostname;
-    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`) || '[]')).toEqual(history);
-    
+    expect(JSON.parse(GM_getValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`) || '[]')).toEqual(history);
+
     const store2 = new Store();
     expect(store2.getState().searchHistory).toEqual(history);
   });
@@ -206,7 +206,7 @@ describe('Store', () => {
     store.setState({ favorites });
 
     const host = window.location.hostname;
-    expect(JSON.parse(localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`) || '[]')).toEqual(favorites);
+    expect(JSON.parse(GM_getValue(`${STORAGE_KEYS.FAVORITES}-${host}`) || '[]')).toEqual(favorites);
 
     const store2 = new Store();
     expect(store2.getState().favorites).toEqual(favorites);
@@ -225,7 +225,7 @@ describe('Store', () => {
     store.setState({ favorites });
 
     const host = window.location.hostname;
-    const saved = JSON.parse(localStorage.getItem(`${STORAGE_KEYS.FAVORITES}-${host}`) || '[]');
+    const saved = JSON.parse(GM_getValue(`${STORAGE_KEYS.FAVORITES}-${host}`) || '[]');
     expect(saved[0].tags).toEqual(favorites[0].tags);
 
     const store2 = new Store();
@@ -253,7 +253,7 @@ describe('Store', () => {
   });
 
   it('should validate guiPos on load', () => {
-    localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify({ top: -1000, left: 200 }));
+    GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify({ top: -1000, left: 200 }));
     const store = new Store();
     expect(store.getState().guiPos).toBeNull();
   });
@@ -270,7 +270,7 @@ describe('Store', () => {
   });
 
   it('should return null if guiPos JSON is invalid', () => {
-    localStorage.setItem(STORAGE_KEYS.GUI_POS, 'invalid-json');
+    GM_setValue(STORAGE_KEYS.GUI_POS, 'invalid-json');
     const store = new Store();
     expect(store.getState().guiPos).toBeNull();
   });
@@ -286,36 +286,36 @@ describe('Store', () => {
     const store = new Store();
     const pos = { top: 50, left: 50 };
     store.setState({ guiPos: pos });
-    const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
+    const saved = GM_getValue(STORAGE_KEYS.GUI_POS);
     expect(JSON.parse(saved || '{}')).toEqual(pos);
   });
 
-  it('should handle invalid search history in localStorage', () => {
+  it('should handle invalid search history in GM_storage', () => {
     const host = window.location.hostname;
-    localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(['a', 1, 'b']));
+    GM_setValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(['a', 1, 'b']));
     const store = new Store();
     expect(store.getState().searchHistory).toEqual([]);
   });
 
-  it('should handle invalid search cache in localStorage', () => {
+  it('should handle invalid search cache in GM_storage', () => {
     const host = window.location.hostname;
-    localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify({ invalid: 'cache' }));
+    GM_setValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify({ invalid: 'cache' }));
     const store = new Store();
     expect(store.getState().searchCache).toBeNull();
   });
 
-  it('should handle invalid search context in localStorage', () => {
+  it('should handle invalid search context in GM_storage', () => {
     const host = window.location.hostname;
-    localStorage.setItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, JSON.stringify({ type: 'invalid' }));
+    GM_setValue(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, JSON.stringify({ type: 'invalid' }));
     const store = new Store();
     expect(store.getState().searchContext).toBeUndefined();
   });
 
   it('should handle JSON parse errors during search related loads', () => {
     const host = window.location.hostname;
-    localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, 'invalid-json');
-    localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, 'invalid-json');
-    localStorage.setItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, 'invalid-json');
+    GM_setValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, 'invalid-json');
+    GM_setValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, 'invalid-json');
+    GM_setValue(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`, 'invalid-json');
     const store = new Store();
     expect(store.getState().searchHistory).toEqual([]);
     expect(store.getState().searchCache).toBeNull();

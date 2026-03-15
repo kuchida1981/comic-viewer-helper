@@ -7,10 +7,14 @@ export interface ResumeData {
 
 export class ResumeManager {
   private store: Store;
-  private readonly storageKey = 'comic-viewer-helper-resume-data';
+  private readonly storageKeyBase = 'comic-viewer-helper-resume-data';
 
   constructor(store: Store) {
     this.store = store;
+  }
+
+  private get storageKey(): string {
+    return `${this.storageKeyBase}-${window.location.hostname}`;
   }
 
   isEnabled = (): boolean => {
@@ -20,7 +24,7 @@ export class ResumeManager {
   savePosition = (url: string, pageIndex: number): void => {
     const data = this._loadData();
     data[url] = { pageIndex };
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
+    GM_setValue(this.storageKey, JSON.stringify(data));
   };
 
   loadPosition = (url: string): number | null => {
@@ -31,7 +35,7 @@ export class ResumeManager {
 
   private _loadData = (): Record<string, ResumeData> => {
     try {
-      const parsed: unknown = JSON.parse(localStorage.getItem(this.storageKey) || '{}');
+      const parsed: unknown = JSON.parse(GM_getValue(this.storageKey) || '{}');
       return isResumeDataMap(parsed) ? parsed : {};
     } catch {
       return {};
@@ -42,6 +46,6 @@ export class ResumeManager {
    * Clear all saved positions
    */
   clearAll = (): void => {
-    localStorage.removeItem(this.storageKey);
+    GM_deleteValue(this.storageKey);
   };
 }
