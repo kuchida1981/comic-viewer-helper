@@ -65,20 +65,8 @@ describe('PopUnderBlocker', () => {
       link.remove();
     });
 
-    it('サイト側の target="_blank" リンクはインターセプトしない', () => {
+    it('サイト側の target="_blank" リンクもインターセプトして現在のタブで遷移する', () => {
       link.target = '_blank';
-      const { event, stopImmediatePropagation, preventDefault } = createMockMouseEvent({ target: link });
-
-      blocker.handleClick(event);
-
-      expect(stopImmediatePropagation).not.toHaveBeenCalled();
-      expect(preventDefault).not.toHaveBeenCalled();
-      expect(window.location.href).toBe('http://localhost/');
-    });
-
-    it('ビューア自身の target="_blank" リンクはインターセプトする', () => {
-      link.target = '_blank';
-      link.className = 'comic-helper-tag-chip';
       const { event, stopImmediatePropagation, preventDefault } = createMockMouseEvent({ target: link });
 
       blocker.handleClick(event);

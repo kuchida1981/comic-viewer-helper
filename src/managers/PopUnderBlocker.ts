@@ -23,9 +23,6 @@ export class PopUnderBlocker {
     if (e.ctrlKey || e.metaKey) return;
     if (link.href.startsWith('javascript:')) return;
 
-    const isOwnLink = link.className.includes('comic-helper-');
-    if (link.target === '_blank' && !isOwnLink) return;
-
     e.stopImmediatePropagation();
     e.preventDefault();
     window.location.href = link.href;
