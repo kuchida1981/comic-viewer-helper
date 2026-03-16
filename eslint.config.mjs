@@ -117,11 +117,11 @@ export default [
             "except": ["./logic.ts", "./store.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./adapters/**/*"],
             "message": "Adapters can only depend on Logic, Store, and Shared layers."
           },
-          // UI components can only depend on shared (should be autonomous)
+          // UI components can only depend on shared and logic (should be autonomous)
           {
             "target": "./src/ui",
             "from": "./src",
-            "except": ["./types.ts", "./type-guards.ts", "./ui/utils.ts", "./ui/styles.ts", "./ui/icons.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./ui/**/*"],
+            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./ui/utils.ts", "./ui/styles.ts", "./ui/icons.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./ui/**/*"],
             "message": "UI components should only depend on Shared/UI Utilities (autonomous components)."
           }
         ]

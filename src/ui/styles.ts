@@ -302,6 +302,14 @@ export const styles = `
     background: ${COLORS.background.tagHover};
     color: ${COLORS.text.primary};
   }
+  .comic-helper-tag-chip.active {
+    background: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+  .comic-helper-tag-chip.active:hover {
+    background: ${COLORS.background.successHover};
+    color: ${COLORS.text.white};
+  }
 
   /* Tag type color variants */
   .comic-helper-tag-chip--artist {

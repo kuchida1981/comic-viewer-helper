@@ -13,7 +13,9 @@ import {
   normalizeUrl,
   pickRandomWork,
   getLuckyCandidatesCount,
-  isLuckyPoolDepleted
+  isLuckyPoolDepleted,
+  calculateTrends,
+  filterWorksByTags
   } from './logic';
 
 import { Metadata } from './types.js';
@@ -653,5 +655,110 @@ describe('logic.js', () => {
       wrapInRow([imgA, imgB]);
       expect(getClickNavigationDirection(imgB)).toBe('next');
     });
+  });
+});
+
+describe('calculateTrends', () => {
+  const taggedFavorites = [
+    {
+      title: 'Work A', href: '/work/1/', thumb: '',
+      tags: [
+        { text: 'fantasy', href: '/tags/fantasy', type: 'genre' as const },
+        { text: 'alice', href: '/artists/alice', type: 'artist' as const }
+      ]
+    },
+    {
+      title: 'Work B', href: '/work/2/', thumb: '',
+      tags: [
+        { text: 'fantasy', href: '/tags/fantasy', type: 'genre' as const },
+        { text: 'bob', href: '/artists/bob', type: 'artist' as const }
+      ]
+    },
+    {
+      title: 'Work C', href: '/work/3/', thumb: ''
+    }
+  ];
+
+  it('should count tag occurrences across favorites', () => {
+    const trends = calculateTrends(taggedFavorites);
+    const fantasy = trends.find(t => t.tag.text === 'fantasy');
+    expect(fantasy?.count).toBe(2);
+  });
+
+  it('should sort by count descending', () => {
+    const trends = calculateTrends(taggedFavorites);
+    expect(trends[0].tag.text).toBe('fantasy');
+  });
+
+  it('should return at most 10 items', () => {
+    const manyTagFavorite = {
+      title: 'Work', href: '/work/1/', thumb: '',
+      tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+    };
+    const trends = calculateTrends([manyTagFavorite]);
+    expect(trends.length).toBeLessThanOrEqual(10);
+  });
+
+  it('should return empty array when favorites have no tags', () => {
+    const trends = calculateTrends([{ title: 'Work', href: '/work/1/', thumb: '' }]);
+    expect(trends).toHaveLength(0);
+  });
+
+  it('should handle empty favorites array', () => {
+    expect(calculateTrends([])).toHaveLength(0);
+  });
+});
+
+describe('filterWorksByTags', () => {
+  const works = [
+    {
+      title: 'Work A', href: '/work/1/', thumb: '',
+      tags: [
+        { text: 'fantasy', href: '/tags/fantasy', type: 'genre' as const },
+        { text: 'alice', href: '/artists/alice', type: 'artist' as const }
+      ]
+    },
+    {
+      title: 'Work B', href: '/work/2/', thumb: '',
+      tags: [
+        { text: 'fantasy', href: '/tags/fantasy', type: 'genre' as const },
+        { text: 'bob', href: '/artists/bob', type: 'artist' as const }
+      ]
+    },
+    {
+      title: 'Work C', href: '/work/3/', thumb: ''
+    }
+  ];
+
+  it('should return all works when selectedTagTexts is empty', () => {
+    const result = filterWorksByTags(works, new Set());
+    expect(result).toHaveLength(3);
+  });
+
+  it('should filter by a single tag', () => {
+    const result = filterWorksByTags(works, new Set(['fantasy']));
+    expect(result).toHaveLength(2);
+    expect(result.every(w => w.tags?.some(t => t.text === 'fantasy'))).toBe(true);
+  });
+
+  it('should apply AND logic for multiple tags', () => {
+    const result = filterWorksByTags(works, new Set(['fantasy', 'alice']));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe('Work A');
+  });
+
+  it('should return empty array when no works match all selected tags', () => {
+    const result = filterWorksByTags(works, new Set(['alice', 'bob']));
+    expect(result).toHaveLength(0);
+  });
+
+  it('should handle works with no tags gracefully', () => {
+    const result = filterWorksByTags(works, new Set(['fantasy']));
+    expect(result.map(w => w.title)).not.toContain('Work C');
+  });
+
+  it('should return empty array for empty works list', () => {
+    const result = filterWorksByTags([], new Set(['fantasy']));
+    expect(result).toHaveLength(0);
   });
 });

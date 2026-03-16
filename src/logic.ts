@@ -1,4 +1,4 @@
-import { Metadata, SearchCache, RelatedWork } from './types';
+import { Metadata, SearchCache, RelatedWork, Tag } from './types';
 
 export interface ImageInfo {
   isLandscape: boolean;
@@ -10,6 +10,38 @@ export interface Rect {
 }
 
 const FAVORITE_PICK_CHANCE = 0.25;
+
+/**
+ * Calculate tag trends from favorites (sorted by occurrence count, top 10)
+ */
+export function calculateTrends(favorites: RelatedWork[]): Array<{ tag: Tag; count: number }> {
+  const map = new Map<string, { tag: Tag; count: number }>();
+  for (const fav of favorites) {
+    for (const tag of (fav.tags ?? [])) {
+      const entry = map.get(tag.text);
+      if (entry) {
+        entry.count++;
+      } else {
+        map.set(tag.text, { tag, count: 1 });
+      }
+    }
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+}
+
+/**
+ * Filter works by selected tag texts (AND logic: all selected tags must be present)
+ */
+export function filterWorksByTags(favorites: RelatedWork[], selectedTagTexts: Set<string>): RelatedWork[] {
+  if (selectedTagTexts.size === 0) return favorites;
+  return favorites.filter(work =>
+    Array.from(selectedTagTexts).every(text =>
+      (work.tags ?? []).some(tag => tag.text === text)
+    )
+  );
+}
 
 /**
  * Calculate visible height of an image in the viewport
