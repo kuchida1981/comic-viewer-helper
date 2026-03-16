@@ -13,14 +13,16 @@ const FAVORITE_PICK_CHANCE = 0.25;
 
 /**
  * Calculate tag trends from favorites (sorted by occurrence count).
- * Pinned tags are always sorted first.
+ * Selected tags are always sorted first, then pinned tags, then by count.
  * @param limit Max number of tags to return. 0 means no limit (return all).
  * @param pinnedTags List of tag texts that are pinned (shown first).
+ * @param selectedTags List of tag texts that are currently selected (shown before pinned).
  */
 export function calculateTrends(
   favorites: RelatedWork[],
   limit: number = 10,
-  pinnedTags: string[] = []
+  pinnedTags: string[] = [],
+  selectedTags: string[] = []
 ): Array<{ tag: Tag; count: number; isPinned: boolean }> {
   const map = new Map<string, { tag: Tag; count: number }>();
   for (const fav of favorites) {
@@ -34,16 +36,21 @@ export function calculateTrends(
     }
   }
   const pinnedSet = new Set(pinnedTags);
-  const withPinned = Array.from(map.values()).map(({ tag, count }) => ({
+  const selectedSet = new Set(selectedTags);
+  const withMeta = Array.from(map.values()).map(({ tag, count }) => ({
     tag,
     count,
-    isPinned: pinnedSet.has(tag.text)
+    isPinned: pinnedSet.has(tag.text),
+    isSelected: selectedSet.has(tag.text)
   }));
-  const sorted = withPinned.sort((a, b) => {
+  const sorted = withMeta.sort((a, b) => {
+    if (a.isSelected !== b.isSelected) return a.isSelected ? -1 : 1;
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
     return b.count - a.count;
   });
-  return limit > 0 ? sorted.slice(0, limit) : sorted;
+  if (limit <= 0) return sorted.map(({ tag, count, isPinned }) => ({ tag, count, isPinned }));
+  const effectiveLimit = Math.max(limit, selectedSet.size);
+  return sorted.slice(0, effectiveLimit).map(({ tag, count, isPinned }) => ({ tag, count, isPinned }));
 }
 
 /**
