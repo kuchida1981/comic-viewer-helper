@@ -516,4 +516,51 @@ describe('FavoritesModal', () => {
       expect(el.querySelector('.comic-helper-tag-pin.active')).not.toBeNull();
     });
   });
+
+  describe('selected tags sorting', () => {
+    it('should move clicked tag to the front of the trend list', () => {
+      // taggedFavorites: fantasy(count=2), alice(count=1), bob(count=1)
+      // Initially, fantasy is first (highest count)
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+      const initialChips = el.querySelectorAll<HTMLElement>('.comic-helper-favorites-trend-tags .comic-helper-tag-chip');
+      expect(initialChips[0].textContent).toContain('fantasy');
+
+      // Click alice (not at the front) — DOM gets re-rendered after click
+      const aliceChip = Array.from(initialChips).find(c => c.textContent.includes('alice')) as HTMLElement;
+      aliceChip.click();
+
+      // Query from el again after re-render
+      const updatedChips = el.querySelectorAll<HTMLElement>('.comic-helper-favorites-trend-tags .comic-helper-tag-chip');
+      expect(updatedChips[0].textContent).toContain('alice');
+    });
+
+    it('should show selected tag as active when it moves to front', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+      const initialChips = el.querySelectorAll<HTMLElement>('.comic-helper-favorites-trend-tags .comic-helper-tag-chip');
+      const aliceChip = Array.from(initialChips).find(c => c.textContent.includes('alice')) as HTMLElement;
+      aliceChip.click();
+
+      // Query from el again after re-render
+      const updatedChips = el.querySelectorAll<HTMLElement>('.comic-helper-favorites-trend-tags .comic-helper-tag-chip');
+      expect(updatedChips[0].classList.contains('active')).toBe(true);
+    });
+
+    it('should restore original order when selected tag is deselected', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+
+      // Click alice to select it (moves to front)
+      const initialChips = el.querySelectorAll<HTMLElement>('.comic-helper-favorites-trend-tags .comic-helper-tag-chip');
+      const aliceChip = Array.from(initialChips).find(c => c.textContent.includes('alice')) as HTMLElement;
+      aliceChip.click();
+
+      // Now deselect alice — query from el again after first re-render
+      const afterSelectChips = el.querySelectorAll<HTMLElement>('.comic-helper-favorites-trend-tags .comic-helper-tag-chip');
+      const aliceChipActive = Array.from(afterSelectChips).find(c => c.textContent.includes('alice')) as HTMLElement;
+      aliceChipActive.click();
+
+      // fantasy should be back at the front — query from el again after second re-render
+      const updatedChips = el.querySelectorAll<HTMLElement>('.comic-helper-favorites-trend-tags .comic-helper-tag-chip');
+      expect(updatedChips[0].textContent).toContain('fantasy');
+    });
+  });
 });

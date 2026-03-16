@@ -783,6 +783,56 @@ describe('calculateTrends', () => {
     const trends = calculateTrends(taggedFavorites, 10, ['nonexistent']);
     expect(trends.find(t => t.tag.text === 'nonexistent')).toBeUndefined();
   });
+
+  it('should sort selected tags before pinned tags and count', () => {
+    // taggedFavorites: fantasy(count=2), alice(count=1), bob(count=1)
+    // alice is pinned, bob is selected
+    const trends = calculateTrends(taggedFavorites, 10, ['alice'], ['bob']);
+    expect(trends[0].tag.text).toBe('bob');
+    expect(trends[1].tag.text).toBe('alice');
+    expect(trends[2].tag.text).toBe('fantasy');
+  });
+
+  it('should sort multiple selected tags before pinned tags', () => {
+    const trends = calculateTrends(taggedFavorites, 10, [], ['alice', 'bob']);
+    const selectedTexts = trends.slice(0, 2).map(t => t.tag.text);
+    expect(selectedTexts).toContain('alice');
+    expect(selectedTexts).toContain('bob');
+    expect(trends[2].tag.text).toBe('fantasy');
+  });
+
+  it('should expand limit to show all selected tags beyond normal limit', () => {
+    const manyTagFavorite = {
+      title: 'Work', href: '/work/1/', thumb: '',
+      tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+    };
+    // Select 12 tags but limit is 10
+    const selectedTags = Array.from({ length: 12 }, (_, i) => `tag${i}`);
+    const trends = calculateTrends([manyTagFavorite], 10, [], selectedTags);
+    expect(trends.length).toBe(12);
+    // All selected tags should be at the front
+    for (let i = 0; i < 12; i++) {
+      expect(selectedTags).toContain(trends[i].tag.text);
+    }
+  });
+
+  it('should not expand limit when selected count is less than limit', () => {
+    const manyTagFavorite = {
+      title: 'Work', href: '/work/1/', thumb: '',
+      tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+    };
+    const trends = calculateTrends([manyTagFavorite], 10, [], ['tag0', 'tag1']);
+    expect(trends.length).toBe(10);
+  });
+
+  it('should return all tags when limit is 0 regardless of selectedTags', () => {
+    const manyTagFavorite = {
+      title: 'Work', href: '/work/1/', thumb: '',
+      tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+    };
+    const trends = calculateTrends([manyTagFavorite], 0, [], ['tag0']);
+    expect(trends.length).toBe(15);
+  });
 });
 
 describe('filterWorksByTags', () => {

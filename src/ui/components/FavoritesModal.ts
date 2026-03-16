@@ -218,7 +218,7 @@ function createTrendSection(
     className: 'comic-helper-favorites-trend-section'
   });
 
-  const trends = calculateTrends(favorites, showAllTags ? 0 : 10, pinnedTags);
+  const trends = calculateTrends(favorites, showAllTags ? 0 : 10, pinnedTags, Array.from(selectedTagTexts));
   if (trends.length === 0) {
     section.style.display = 'none';
     return section;
