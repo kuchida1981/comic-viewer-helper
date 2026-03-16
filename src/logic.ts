@@ -12,9 +12,10 @@ export interface Rect {
 const FAVORITE_PICK_CHANCE = 0.25;
 
 /**
- * Calculate tag trends from favorites (sorted by occurrence count, top 10)
+ * Calculate tag trends from favorites (sorted by occurrence count).
+ * @param limit Max number of tags to return. 0 means no limit (return all).
  */
-export function calculateTrends(favorites: RelatedWork[]): Array<{ tag: Tag; count: number }> {
+export function calculateTrends(favorites: RelatedWork[], limit: number = 10): Array<{ tag: Tag; count: number }> {
   const map = new Map<string, { tag: Tag; count: number }>();
   for (const fav of favorites) {
     for (const tag of (fav.tags ?? [])) {
@@ -26,9 +27,8 @@ export function calculateTrends(favorites: RelatedWork[]): Array<{ tag: Tag; cou
       }
     }
   }
-  return Array.from(map.values())
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+  const sorted = Array.from(map.values()).sort((a, b) => b.count - a.count);
+  return limit > 0 ? sorted.slice(0, limit) : sorted;
 }
 
 /**

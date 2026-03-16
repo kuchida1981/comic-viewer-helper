@@ -627,15 +627,35 @@ export const styles = `
     border-bottom: 1px solid ${COLORS.border.light};
     margin-bottom: 12px;
   }
+  .comic-helper-favorites-trend-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
   .comic-helper-favorites-trend-label {
     font-size: 11px;
     color: ${COLORS.text.muted};
-    margin-bottom: 6px;
+  }
+  .comic-helper-trend-toggle-btn {
+    background: transparent;
+    border: none;
+    color: ${COLORS.border.accent};
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    transition: opacity 0.2s;
+  }
+  .comic-helper-trend-toggle-btn:hover {
+    opacity: 0.7;
   }
   .comic-helper-favorites-trend-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    max-height: 120px;
+    overflow-y: auto;
   }
 
   .comic-helper-favorites-item {

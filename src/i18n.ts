@@ -46,7 +46,9 @@ export const MESSAGES = {
       continueReading: 'Continue',
       startFromBeginning: 'Start Over',
       autoplay: 'Autoplay',
-      seconds: 'sec'
+      seconds: 'sec',
+      showAllTags: 'Show All',
+      showTopTags: 'Top Only'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
@@ -113,7 +115,9 @@ export const MESSAGES = {
       continueReading: '続きから',
       startFromBeginning: '最初から',
       autoplay: 'オートプレイ',
-      seconds: '秒'
+      seconds: '秒',
+      showAllTags: 'すべて表示',
+      showTopTags: '上位のみ'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },

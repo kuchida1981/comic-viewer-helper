@@ -426,4 +426,62 @@ describe('FavoritesModal', () => {
     expect(onClose).not.toHaveBeenCalled();
     expect(stopSpy).toHaveBeenCalled();
   });
+
+  describe('show all tags toggle', () => {
+    const manyTagFavorites: RelatedWork[] = [
+      {
+        title: 'Work A', href: '/work/1/', thumb: '',
+        tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+      }
+    ];
+
+    it('should show toggle button in trend section', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTagFavorites });
+      const toggleBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
+      expect(toggleBtn).not.toBeNull();
+      expect(toggleBtn.textContent).toContain(t('ui.showAllTags'));
+    });
+
+    it('should show all tags when toggle button is clicked', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTagFavorites });
+      const tagsContainer = el.querySelector('.comic-helper-favorites-trend-tags') as HTMLElement;
+      expect(tagsContainer.querySelectorAll('button').length).toBe(10);
+
+      const toggleBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
+      toggleBtn.click();
+
+      const updatedTags = el.querySelector('.comic-helper-favorites-trend-tags') as HTMLElement;
+      expect(updatedTags.querySelectorAll('button').length).toBe(15);
+    });
+
+    it('should change toggle button text to showTopTags after expanding', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTagFavorites });
+      const toggleBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
+      toggleBtn.click();
+
+      const updatedBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
+      expect(updatedBtn.textContent).toContain(t('ui.showTopTags'));
+    });
+
+    it('should collapse back to top 10 when toggle button is clicked again', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTagFavorites });
+      const toggleBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
+      toggleBtn.click();
+      const collapseBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
+      collapseBtn.click();
+
+      const updatedTags = el.querySelector('.comic-helper-favorites-trend-tags') as HTMLElement;
+      expect(updatedTags.querySelectorAll('button').length).toBe(10);
+    });
+
+    it('should reset showAllTags to false when updateFavorites is called', () => {
+      const { el, updateFavorites } = createFavoritesModal({ ...defaultProps, favorites: manyTagFavorites });
+      const toggleBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
+      toggleBtn.click();
+      expect(el.querySelector('.comic-helper-favorites-trend-tags')!.querySelectorAll('button').length).toBe(15);
+
+      updateFavorites(manyTagFavorites);
+      expect(el.querySelector('.comic-helper-favorites-trend-tags')!.querySelectorAll('button').length).toBe(10);
+    });
+  });
 });
