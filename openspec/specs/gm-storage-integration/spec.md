@@ -6,7 +6,7 @@ UserScript 専用の隔離された永続ストレージ（`GM_setValue` / `GM_g
 ## Requirements
 
 ### Requirement: GM_storage API の抽象化と型定義
-システムは、`GM_setValue`, `GM_getValue`, `GM_deleteValue` を TypeScript から型安全に利用できるように定義しなければならない (MUST)。
+システムは、`GM_setValue`, `GM_getValue`, `GM_deleteValue` を TypeScript から型安全に利用できるように定義しなければならない (MUST)。新しく追加される `pinnedTags` も、既存の永続化の仕組み（`GM_storage`）を利用して保存されなければならない（SHALL）。
 
 #### Scenario: 型安全な値の保存
 - **WHEN** `GM_setValue(key, value)` を呼び出すとき
@@ -17,6 +17,10 @@ UserScript 専用の隔離された永続ストレージ（`GM_setValue` / `GM_g
 - **WHEN** `GM_getValue(key, defaultValue)` を呼び出すとき
 - **THEN** 戻り値の型が `string | undefined` であることをコンパイラが保証できる
 - **NOTE** 複合型を復元する場合は呼び出し側で `JSON.parse` を使用し、型ガードで検証する
+
+#### Scenario: ピン留めされたタグの状態を永続化する
+- **WHEN** ユーザーがタグをピン留めまたは解除し、`Store` が更新されるとき
+- **THEN** `GM_setValue` が呼び出され、`pinnedTags` のリストが `GM_storage` に保存される
 
 ### Requirement: テスト環境での GM_storage モック提供
 システムは、ブラウザ（UserScript マネージャ）が存在しないユニットテスト環境において、`GM_` 関数の挙動をシミュレートするモックを提供しなければならない (MUST)。
