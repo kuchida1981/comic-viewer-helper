@@ -2,7 +2,7 @@ import { createElement } from '../utils';
 import { t } from '../../i18n';
 import { RelatedWork, HistoryEntry } from '../../types';
 import { calculateTrends, filterWorksByTags } from '../../logic';
-import { createPinFilledIcon, createPinOutlineIcon } from '../icons';
+import { createPinFilledIcon } from '../icons';
 
 function normalizeHref(href: string): string {
   try {
@@ -249,7 +249,7 @@ function createTrendSection(
     const typeClass = tag.type ? `comic-helper-tag-chip--${tag.type}` : '';
     const activeClass = selectedTagTexts.has(tag.text) ? ' active' : '';
     const chip = createElement('button', {
-      className: `comic-helper-tag-chip ${typeClass}${activeClass}`.trim(),
+      className: `comic-helper-tag-chip${activeClass}`,
       textContent: `${tag.text} (${count})`,
       events: {
         click: () => onInternalTagClick(tag.text)
@@ -266,10 +266,10 @@ function createTrendSection(
         }
       }
     });
-    pinBtn.appendChild(isPinned ? createPinFilledIcon() : createPinOutlineIcon());
+    pinBtn.appendChild(createPinFilledIcon());
 
     const container = createElement('div', {
-      className: 'comic-helper-tag-chip-container'
+      className: `comic-helper-tag-chip-container${typeClass ? ` ${typeClass}` : ''}`
     }, [chip, pinBtn]);
     tagsEl.appendChild(container);
   });
