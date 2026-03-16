@@ -34,6 +34,8 @@ class App {
   }
 
   init = (): void => {
+    this.popUnderBlocker.init();
+
     const container = this.adapter.getContainer();
     if (!container) return;
 
@@ -47,7 +49,6 @@ class App {
     this.navigator.init();
     this.uiManager.init();
     this.inputManager.init();
-    this.popUnderBlocker.init();
 
     // Add current work to lucky history with detailed info
     const firstImageSrc = this.navigator.getImages()[0]?.src || '';

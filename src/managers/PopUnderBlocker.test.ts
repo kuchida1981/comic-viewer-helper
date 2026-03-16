@@ -162,6 +162,37 @@ describe('PopUnderBlocker', () => {
     });
   });
 
+  describe('ビューアー未起動ページでの動作', () => {
+    let link: HTMLAnchorElement;
+
+    beforeEach(() => {
+      link = document.createElement('a');
+      link.href = 'http://example.com/next';
+      document.body.appendChild(link);
+      setupLocationMock();
+    });
+
+    afterEach(() => {
+      link.remove();
+    });
+
+    it('ビューアーコンテナがないページでも init() が呼べる', () => {
+      expect(() => blocker.init()).not.toThrow();
+      expect(document.addEventListener).toHaveBeenCalledWith('click', expect.any(Function), true);
+    });
+
+    it('ビューアー未起動の状態でもリンクのクリックをインターセプトする', () => {
+      blocker.init();
+      const { event, stopImmediatePropagation, preventDefault } = createMockMouseEvent({ target: link });
+
+      blocker.handleClick(event);
+
+      expect(stopImmediatePropagation).toHaveBeenCalled();
+      expect(preventDefault).toHaveBeenCalled();
+      expect(window.location.href).toBe('http://example.com/next');
+    });
+  });
+
   describe('非リンク要素', () => {
     it('<a> 以外の要素クリックは無視する', () => {
       const div = document.createElement('div');
