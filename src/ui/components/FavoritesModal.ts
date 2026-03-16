@@ -218,7 +218,6 @@ function createTrendSection(
     className: 'comic-helper-favorites-trend-section'
   });
 
-  const pinnedSet = new Set(pinnedTags);
   const trends = calculateTrends(favorites, showAllTags ? 0 : 10, pinnedTags);
   if (trends.length === 0) {
     section.style.display = 'none';
@@ -258,7 +257,7 @@ function createTrendSection(
 
     const pinBtn = createElement('button', {
       className: `comic-helper-tag-pin${isPinned ? ' active' : ''}`,
-      title: pinnedSet.has(tag.text) ? t('ui.unpinTag') : t('ui.pinTag'),
+      title: isPinned ? t('ui.unpinTag') : t('ui.pinTag'),
       events: {
         click: (e) => {
           e.stopPropagation();
