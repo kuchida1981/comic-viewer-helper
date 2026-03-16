@@ -239,8 +239,7 @@ export class UIManager {
             this.store.setState({ luckyHistory: newHistory });
           },
           onToggleFavorite: (work) => { this._toggleFavoriteWork(work); },
-          onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
-          onTagClick: (tag) => { void this._handleFavoritesTagClick(tag); }
+          onClose: () => this.store.setState({ isFavoritesModalOpen: false })
         });
         document.body.appendChild(this.favoritesModalComp.el);
       } else {
@@ -307,11 +306,6 @@ export class UIManager {
   private _performTagSearch = (tag: Tag): Promise<void> => {
     const contextType = (tag.type === 'artist' || tag.type === 'genre') ? tag.type : 'tag';
     return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
-  };
-
-  private _handleFavoritesTagClick = (tag: Tag): Promise<void> => {
-    this.store.setState({ isFavoritesModalOpen: false, isSearchModalOpen: true, searchResults: null });
-    return this._performTagSearch(tag);
   };
 
   private _handleTagClick = (tag: Tag): Promise<void> => {

@@ -301,9 +301,5 @@ describe('UIManager', () => {
     favModalProps.onToggleFavorite(workToToggle);
     expect(currentState.favorites.length).toBe(0);
 
-    // 17. FavoritesModal onTagClick test
-    await favModalProps.onTagClick({ text: 'Tag', href: '/tags/tag', type: 'genre' });
-    expect(currentState.isFavoritesModalOpen).toBe(false);
-    expect(currentState.isSearchModalOpen).toBe(true);
   });
 });

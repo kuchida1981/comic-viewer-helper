@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createFavoritesModal, calculateTrends } from './FavoritesModal';
+import { createFavoritesModal } from './FavoritesModal';
+import { calculateTrends } from '../../logic';
 import { t } from '../../i18n';
 import { RelatedWork, HistoryEntry } from '../../types';
 
@@ -345,9 +346,8 @@ describe('FavoritesModal', () => {
     expect(wheelEvent.defaultPrevented).toBe(false);
   });
 
-  it('should render trend section when favorites have tags and onTagClick is provided', () => {
-    const onTagClick = vi.fn();
-    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites, onTagClick });
+  it('should render trend section when favorites have tags', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
     const trendSection = el.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
     expect(trendSection).not.toBeNull();
     expect(trendSection.style.display).not.toBe('none');
@@ -355,29 +355,59 @@ describe('FavoritesModal', () => {
   });
 
   it('should hide trend section when no tags in favorites', () => {
-    const onTagClick = vi.fn();
-    const { el } = createFavoritesModal({ ...defaultProps, onTagClick });
+    const { el } = createFavoritesModal(defaultProps);
     const trendSection = el.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
     expect(trendSection.style.display).toBe('none');
   });
 
-  it('should hide trend section when onTagClick is not provided', () => {
+  it('should filter favorites grid when trend tag is clicked', () => {
     const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
-    const trendSection = el.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
-    expect(trendSection.style.display).toBe('none');
-  });
+    const favPanel = el.querySelector('.comic-helper-favorites-panel') as HTMLElement;
+    expect(favPanel.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(3);
 
-  it('should call onTagClick with the correct tag when trend tag button is clicked', () => {
-    const onTagClick = vi.fn();
-    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites, onTagClick });
     const tagBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
     tagBtn.click();
-    expect(onTagClick).toHaveBeenCalledWith(expect.objectContaining({ text: 'fantasy' }));
+
+    // After clicking 'fantasy', only works with that tag should show
+    const items = favPanel.querySelectorAll('.comic-helper-search-result-item');
+    expect(items).toHaveLength(2);
+  });
+
+  it('should toggle active class on trend tag when clicked', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    const tagBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+    expect(tagBtn.classList.contains('active')).toBe(false);
+
+    tagBtn.click();
+    const activeBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+    expect(activeBtn.classList.contains('active')).toBe(true);
+  });
+
+  it('should deselect tag and restore all favorites when active tag is clicked again', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    const favPanel = el.querySelector('.comic-helper-favorites-panel') as HTMLElement;
+    const tagBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+    tagBtn.click();
+    expect(favPanel.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(2);
+
+    // Click again to deselect
+    const activeTagBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+    activeTagBtn.click();
+    expect(favPanel.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(3);
+  });
+
+  it('should reset tag selection when updateFavorites is called', () => {
+    const { el, updateFavorites } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    const tagBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+    tagBtn.click();
+
+    updateFavorites(taggedFavorites);
+    const favPanel = el.querySelector('.comic-helper-favorites-panel') as HTMLElement;
+    expect(favPanel.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(3);
   });
 
   it('should update trend section when updateFavorites is called', () => {
-    const onTagClick = vi.fn();
-    const { el, updateFavorites } = createFavoritesModal({ ...defaultProps, onTagClick });
+    const { el, updateFavorites } = createFavoritesModal(defaultProps);
     let trendSection = el.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
     expect(trendSection.style.display).toBe('none');
 
