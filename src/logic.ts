@@ -48,9 +48,8 @@ export function calculateTrends(
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
     return b.count - a.count;
   });
-  if (limit <= 0) return sorted.map(({ tag, count, isPinned }) => ({ tag, count, isPinned }));
-  const effectiveLimit = Math.max(limit, selectedSet.size);
-  return sorted.slice(0, effectiveLimit).map(({ tag, count, isPinned }) => ({ tag, count, isPinned }));
+  const results = limit > 0 ? sorted.slice(0, Math.max(limit, selectedSet.size)) : sorted;
+  return results.map(({ tag, count, isPinned }) => ({ tag, count, isPinned }));
 }
 
 /**
