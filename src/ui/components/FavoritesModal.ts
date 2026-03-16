@@ -304,7 +304,9 @@ export function createFavoritesModal({ favorites, history, onRemoveFavorite, onR
 
   function handleToggleShowAll(): void {
     showAllTags = !showAllTags;
-    rerenderFavoritesPanel();
+    const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
+    favPanel.replaceChild(newTrendSection, trendSection);
+    trendSection = newTrendSection;
   }
 
   function rerenderFavoritesPanel(): void {
