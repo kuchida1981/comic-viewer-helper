@@ -204,22 +204,35 @@ function createSortMenu(
 function createTrendSection(
   favorites: RelatedWork[],
   selectedTagTexts: Set<string>,
-  onInternalTagClick: (tagText: string) => void
+  onInternalTagClick: (tagText: string) => void,
+  showAllTags: boolean,
+  onToggleShowAll: () => void
 ): HTMLElement {
   const section = createElement('div', {
     className: 'comic-helper-favorites-trend-section'
   });
 
-  const trends = calculateTrends(favorites);
+  const trends = calculateTrends(favorites, showAllTags ? 0 : 10);
   if (trends.length === 0) {
     section.style.display = 'none';
     return section;
   }
 
-  const label = createElement('div', {
-    className: 'comic-helper-favorites-trend-label',
-    textContent: t('ui.favoritesTrend')
+  const toggleBtn = createElement('button', {
+    className: 'comic-helper-trend-toggle-btn',
+    textContent: showAllTags ? t('ui.showTopTags') : t('ui.showAllTags'),
+    events: { click: onToggleShowAll }
   });
+
+  const labelRow = createElement('div', {
+    className: 'comic-helper-favorites-trend-label-row'
+  }, [
+    createElement('div', {
+      className: 'comic-helper-favorites-trend-label',
+      textContent: t('ui.favoritesTrend')
+    }),
+    toggleBtn
+  ]);
 
   const tagsEl = createElement('div', {
     className: 'comic-helper-favorites-trend-tags'
@@ -238,7 +251,7 @@ function createTrendSection(
     tagsEl.appendChild(btn);
   });
 
-  section.appendChild(label);
+  section.appendChild(labelRow);
   section.appendChild(tagsEl);
   return section;
 }
@@ -248,6 +261,7 @@ export function createFavoritesModal({ favorites, history, onRemoveFavorite, onR
   let currentFavorites = favorites;
   let currentHistory = history;
   let selectedTagTexts: Set<string> = new Set();
+  let showAllTags: boolean = false;
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -288,8 +302,13 @@ export function createFavoritesModal({ favorites, history, onRemoveFavorite, onR
     rerenderFavoritesPanel();
   }
 
+  function handleToggleShowAll(): void {
+    showAllTags = !showAllTags;
+    rerenderFavoritesPanel();
+  }
+
   function rerenderFavoritesPanel(): void {
-    const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick);
+    const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
     favPanel.replaceChild(newTrendSection, trendSection);
     trendSection = newTrendSection;
 
@@ -300,7 +319,7 @@ export function createFavoritesModal({ favorites, history, onRemoveFavorite, onR
   }
 
   // Content area
-  let trendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick);
+  let trendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
   let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
   const favPanel = createElement('div', { className: 'comic-helper-favorites-panel' }, [trendSection, favGrid]);
 
@@ -352,6 +371,7 @@ export function createFavoritesModal({ favorites, history, onRemoveFavorite, onR
     updateFavorites: (newFavorites: RelatedWork[]) => {
       currentFavorites = newFavorites;
       selectedTagTexts = new Set();
+      showAllTags = false;
       rerenderFavoritesPanel();
 
       // Also refresh history grid to update favorite icons

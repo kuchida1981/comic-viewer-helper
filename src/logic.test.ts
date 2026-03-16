@@ -707,6 +707,33 @@ describe('calculateTrends', () => {
   it('should handle empty favorites array', () => {
     expect(calculateTrends([])).toHaveLength(0);
   });
+
+  it('should return all tags when limit is 0', () => {
+    const manyTagFavorite = {
+      title: 'Work', href: '/work/1/', thumb: '',
+      tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+    };
+    const trends = calculateTrends([manyTagFavorite], 0);
+    expect(trends.length).toBe(15);
+  });
+
+  it('should return at most N tags when custom limit is specified', () => {
+    const manyTagFavorite = {
+      title: 'Work', href: '/work/1/', thumb: '',
+      tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+    };
+    const trends = calculateTrends([manyTagFavorite], 5);
+    expect(trends.length).toBe(5);
+  });
+
+  it('should default to top 10 when no limit specified', () => {
+    const manyTagFavorite = {
+      title: 'Work', href: '/work/1/', thumb: '',
+      tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+    };
+    const trends = calculateTrends([manyTagFavorite]);
+    expect(trends.length).toBe(10);
+  });
 });
 
 describe('filterWorksByTags', () => {
