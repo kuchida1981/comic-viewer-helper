@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.d6d0b9b
+// @version         1.5.0-unstable.28354e6
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -70,7 +70,7 @@
     return Array.isArray(value.results["results"]);
   }
   const FAVORITE_PICK_CHANCE = 0.25;
-  function calculateTrends(favorites, limit = 10, pinnedTags = []) {
+  function calculateTrends(favorites, limit = 10, pinnedTags = [], selectedTags = []) {
     const map = /* @__PURE__ */ new Map();
     for (const fav of favorites) {
       for (const tag of fav.tags ?? []) {
@@ -83,16 +83,20 @@
       }
     }
     const pinnedSet = new Set(pinnedTags);
-    const withPinned = Array.from(map.values()).map(({ tag, count }) => ({
+    const selectedSet = new Set(selectedTags);
+    const withMeta = Array.from(map.values()).map(({ tag, count }) => ({
       tag,
       count,
-      isPinned: pinnedSet.has(tag.text)
+      isPinned: pinnedSet.has(tag.text),
+      isSelected: selectedSet.has(tag.text)
     }));
-    const sorted = withPinned.sort((a, b) => {
+    const sorted = withMeta.sort((a, b) => {
+      if (a.isSelected !== b.isSelected) return a.isSelected ? -1 : 1;
       if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
       return b.count - a.count;
     });
-    return limit > 0 ? sorted.slice(0, limit) : sorted;
+    const results = limit > 0 ? sorted.slice(0, Math.max(limit, selectedSet.size)) : sorted;
+    return results.map(({ tag, count, isPinned }) => ({ tag, count, isPinned }));
   }
   function filterWorksByTags(favorites, selectedTagTexts) {
     if (selectedTagTexts.size === 0) return favorites;
@@ -2953,7 +2957,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.d6d0b9b"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.28354e6"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -3356,7 +3360,7 @@
     const section = createElement("div", {
       className: "comic-helper-favorites-trend-section"
     });
-    const trends = calculateTrends(favorites, showAllTags ? 0 : 10, pinnedTags);
+    const trends = calculateTrends(favorites, showAllTags ? 0 : 10, pinnedTags, Array.from(selectedTagTexts));
     if (trends.length === 0) {
       section.style.display = "none";
       return section;
