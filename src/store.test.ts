@@ -40,6 +40,7 @@ describe('Store', () => {
       searchHistory: [],
       luckyHistory: [],
       favorites: [],
+      pinnedTags: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5
     });
@@ -320,5 +321,41 @@ describe('Store', () => {
     expect(store.getState().searchHistory).toEqual([]);
     expect(store.getState().searchCache).toBeNull();
     expect(store.getState().searchContext).toBeUndefined();
+  });
+
+  it('should initialize with empty pinnedTags', () => {
+    const store = new Store();
+    expect(store.getState().pinnedTags).toEqual([]);
+  });
+
+  it('should persist pinnedTags to GM_storage', () => {
+    const store = new Store();
+    store.setState({ pinnedTags: ['alice', 'fantasy'] });
+
+    const host = window.location.hostname;
+    expect(JSON.parse(GM_getValue(`${STORAGE_KEYS.PINNED_TAGS}-${host}`) || '[]')).toEqual(['alice', 'fantasy']);
+
+    const store2 = new Store();
+    expect(store2.getState().pinnedTags).toEqual(['alice', 'fantasy']);
+  });
+
+  it('togglePinnedTag should add a tag when not pinned', () => {
+    const store = new Store();
+    store.togglePinnedTag('alice');
+    expect(store.getState().pinnedTags).toEqual(['alice']);
+  });
+
+  it('togglePinnedTag should remove a tag when already pinned', () => {
+    const store = new Store();
+    store.setState({ pinnedTags: ['alice', 'fantasy'] });
+    store.togglePinnedTag('alice');
+    expect(store.getState().pinnedTags).toEqual(['fantasy']);
+  });
+
+  it('should handle invalid JSON for pinnedTags', () => {
+    const host = window.location.hostname;
+    GM_setValue(`${STORAGE_KEYS.PINNED_TAGS}-${host}`, 'invalid-json');
+    const store = new Store();
+    expect(store.getState().pinnedTags).toEqual([]);
   });
 });

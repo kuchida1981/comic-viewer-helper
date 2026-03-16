@@ -658,6 +658,90 @@ export const styles = `
     overflow-y: auto;
   }
 
+  .comic-helper-tag-chip-container {
+    display: inline-flex;
+    align-items: stretch;
+    border-radius: 16px;
+    overflow: hidden;
+    background: ${COLORS.background.tag};
+    transition: background 0.15s;
+  }
+  .comic-helper-tag-chip-container:hover {
+    background: ${COLORS.background.tagHover};
+  }
+
+  /* タイプカラー: コンテナレベルで背景色を制御 */
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--artist { background: #5c3d4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--artist:hover { background: #7a5060; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--character { background: #3d5c4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--character:hover { background: #507a60; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--circle { background: #3d4a5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--circle:hover { background: #50607a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--fanzine { background: #5c4a3d; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--fanzine:hover { background: #7a6050; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--genre { background: #4a4a4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--genre:hover { background: #606060; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--magazine { background: #4a3d5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--magazine:hover { background: #60507a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--parody { background: #3d5c5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--parody:hover { background: #507a7a; }
+
+  /* コンテナ内チップ: 背景と枠線はコンテナに委譲 */
+  .comic-helper-tag-chip-container .comic-helper-tag-chip {
+    background: transparent;
+    border-radius: 0;
+    color: ${COLORS.text.secondary};
+    transition: color 0.15s;
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-chip {
+    color: ${COLORS.text.primary};
+  }
+  .comic-helper-tag-chip-container .comic-helper-tag-chip.active {
+    background: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-chip.active {
+    background: ${COLORS.background.successHover};
+    color: ${COLORS.text.white};
+  }
+
+  /* ピンボタン: デフォルト非表示、ホバー時にスライドイン */
+  .comic-helper-tag-pin {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    max-width: 0;
+    overflow: hidden;
+    color: ${COLORS.text.muted};
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: max-width 0.15s ease, padding 0.15s ease, opacity 0.15s ease, color 0.15s;
+    opacity: 0;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-pin {
+    max-width: 28px;
+    padding: 0 8px 0 0;
+    opacity: 1;
+  }
+  .comic-helper-tag-pin:hover {
+    color: ${COLORS.text.primary};
+  }
+
+  /* ピン済み: 常に表示、ゴールドカラー */
+  .comic-helper-tag-pin.active {
+    max-width: 28px;
+    padding: 0 8px 0 0;
+    opacity: 1;
+    color: #f59e0b;
+  }
+  .comic-helper-tag-pin.active:hover {
+    color: #d97706;
+  }
+
   .comic-helper-favorites-item {
     position: relative;
   }

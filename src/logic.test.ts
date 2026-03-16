@@ -734,6 +734,55 @@ describe('calculateTrends', () => {
     const trends = calculateTrends([manyTagFavorite]);
     expect(trends.length).toBe(10);
   });
+
+  it('should include isPinned=false for all items when no pinnedTags', () => {
+    const trends = calculateTrends(taggedFavorites);
+    expect(trends.every(t => !t.isPinned)).toBe(true);
+  });
+
+  it('should mark pinned tags with isPinned=true', () => {
+    const trends = calculateTrends(taggedFavorites, 10, ['alice']);
+    const alice = trends.find(t => t.tag.text === 'alice');
+    expect(alice?.isPinned).toBe(true);
+    const fantasy = trends.find(t => t.tag.text === 'fantasy');
+    expect(fantasy?.isPinned).toBeFalsy();
+  });
+
+  it('should sort pinned tags before unpinned tags regardless of count', () => {
+    const trends = calculateTrends(taggedFavorites, 10, ['alice']);
+    expect(trends[0].tag.text).toBe('alice');
+    expect(trends[0].isPinned).toBe(true);
+  });
+
+  it('should sort multiple pinned tags by count within the pinned group', () => {
+    const favorites = [
+      {
+        title: 'Work A', href: '/work/1/', thumb: '',
+        tags: [
+          { text: 'alice', href: '/artists/alice', type: 'artist' as const },
+          { text: 'bob', href: '/artists/bob', type: 'artist' as const }
+        ]
+      },
+      {
+        title: 'Work B', href: '/work/2/', thumb: '',
+        tags: [
+          { text: 'alice', href: '/artists/alice', type: 'artist' as const }
+        ]
+      }
+    ];
+    const trends = calculateTrends(favorites, 10, ['alice', 'bob']);
+    expect(trends[0].tag.text).toBe('alice');
+    expect(trends[0].count).toBe(2);
+    expect(trends[1].tag.text).toBe('bob');
+    expect(trends[1].count).toBe(1);
+    expect(trends[0].isPinned).toBe(true);
+    expect(trends[1].isPinned).toBe(true);
+  });
+
+  it('should not add pinned tags that do not appear in favorites', () => {
+    const trends = calculateTrends(taggedFavorites, 10, ['nonexistent']);
+    expect(trends.find(t => t.tag.text === 'nonexistent')).toBeUndefined();
+  });
 });
 
 describe('filterWorksByTags', () => {

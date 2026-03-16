@@ -48,7 +48,9 @@ export const MESSAGES = {
       autoplay: 'Autoplay',
       seconds: 'sec',
       showAllTags: 'Show All',
-      showTopTags: 'Top Only'
+      showTopTags: 'Top Only',
+      pinTag: 'Pin tag',
+      unpinTag: 'Unpin tag'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
@@ -117,7 +119,9 @@ export const MESSAGES = {
       autoplay: 'オートプレイ',
       seconds: '秒',
       showAllTags: 'すべて表示',
-      showTopTags: '上位のみ'
+      showTopTags: '上位のみ',
+      pinTag: 'タグをピン留め',
+      unpinTag: 'ピン留めを解除'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },

@@ -38,9 +38,11 @@ const sampleHistory: HistoryEntry[] = [
 const defaultProps = {
   favorites: sampleFavorites,
   history: sampleHistory,
+  pinnedTags: [],
   onRemoveFavorite: () => {},
   onRemoveHistory: () => {},
   onToggleFavorite: () => {},
+  onTogglePinTag: () => {},
   onClose: () => {}
 };
 
@@ -445,13 +447,13 @@ describe('FavoritesModal', () => {
     it('should show all tags when toggle button is clicked', () => {
       const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTagFavorites });
       const tagsContainer = el.querySelector('.comic-helper-favorites-trend-tags') as HTMLElement;
-      expect(tagsContainer.querySelectorAll('button').length).toBe(10);
+      expect(tagsContainer.querySelectorAll('.comic-helper-tag-chip-container').length).toBe(10);
 
       const toggleBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
       toggleBtn.click();
 
       const updatedTags = el.querySelector('.comic-helper-favorites-trend-tags') as HTMLElement;
-      expect(updatedTags.querySelectorAll('button').length).toBe(15);
+      expect(updatedTags.querySelectorAll('.comic-helper-tag-chip-container').length).toBe(15);
     });
 
     it('should change toggle button text to showTopTags after expanding', () => {
@@ -471,17 +473,47 @@ describe('FavoritesModal', () => {
       collapseBtn.click();
 
       const updatedTags = el.querySelector('.comic-helper-favorites-trend-tags') as HTMLElement;
-      expect(updatedTags.querySelectorAll('button').length).toBe(10);
+      expect(updatedTags.querySelectorAll('.comic-helper-tag-chip-container').length).toBe(10);
     });
 
     it('should reset showAllTags to false when updateFavorites is called', () => {
       const { el, updateFavorites } = createFavoritesModal({ ...defaultProps, favorites: manyTagFavorites });
       const toggleBtn = el.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
       toggleBtn.click();
-      expect(el.querySelector('.comic-helper-favorites-trend-tags')!.querySelectorAll('button').length).toBe(15);
+      expect(el.querySelector('.comic-helper-favorites-trend-tags')!.querySelectorAll('.comic-helper-tag-chip-container').length).toBe(15);
 
       updateFavorites(manyTagFavorites);
-      expect(el.querySelector('.comic-helper-favorites-trend-tags')!.querySelectorAll('button').length).toBe(10);
+      expect(el.querySelector('.comic-helper-favorites-trend-tags')!.querySelectorAll('.comic-helper-tag-chip-container').length).toBe(10);
+    });
+  });
+
+  describe('pinned tags', () => {
+    it('should render pin buttons for each tag chip', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+      const pinBtns = el.querySelectorAll('.comic-helper-tag-pin');
+      expect(pinBtns.length).toBeGreaterThan(0);
+    });
+
+    it('should render pin button as active when tag is pinned', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites, pinnedTags: ['alice'] });
+      const activePin = el.querySelector('.comic-helper-tag-pin.active');
+      expect(activePin).not.toBeNull();
+    });
+
+    it('should call onTogglePinTag when pin button is clicked', () => {
+      const onTogglePinTag = vi.fn();
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites, onTogglePinTag });
+      const pinBtn = el.querySelector('.comic-helper-tag-pin') as HTMLElement;
+      pinBtn.click();
+      expect(onTogglePinTag).toHaveBeenCalledWith(expect.any(String));
+    });
+
+    it('should update pin state via updatePinnedTags', () => {
+      const { el, updatePinnedTags } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+      expect(el.querySelector('.comic-helper-tag-pin.active')).toBeNull();
+
+      updatePinnedTags(['fantasy']);
+      expect(el.querySelector('.comic-helper-tag-pin.active')).not.toBeNull();
     });
   });
 });

@@ -21,7 +21,7 @@ vi.mock('../ui/components/NavigationButtons', () => ({ createNavigationButtons: 
 vi.mock('../ui/components/MetadataModal', () => ({ createMetadataModal: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/HelpModal', () => ({ createHelpModal: vi.fn().mockReturnValue({ el: document.createElement('div') }) }));
 vi.mock('../ui/components/SearchModal', () => ({ createSearchModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateResults: vi.fn(), setUpdating: vi.fn() }) }));
-vi.mock('../ui/components/FavoritesModal', () => ({ createFavoritesModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateFavorites: vi.fn(), updateHistory: vi.fn() }) }));
+vi.mock('../ui/components/FavoritesModal', () => ({ createFavoritesModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateFavorites: vi.fn(), updateHistory: vi.fn(), updatePinnedTags: vi.fn() }) }));
 vi.mock('../ui/components/ProgressBar', () => ({ createProgressBar: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/ResumeNotification', () => ({ createResumeNotification: vi.fn().mockReturnValue({ el: document.createElement('div') }) }));
 vi.mock('../ui/components/LoadingIndicator', () => ({ createLoadingIndicator: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
@@ -88,16 +88,18 @@ describe('UIManager', () => {
       searchHistory: [],
       luckyHistory: [],
       favorites: [],
+      pinnedTags: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5
     };
 
     store = {
       getState: vi.fn().mockImplementation(() => currentState),
-      setState: vi.fn().mockImplementation((patch) => { 
-        currentState = { ...currentState, ...patch }; 
+      setState: vi.fn().mockImplementation((patch) => {
+        currentState = { ...currentState, ...patch };
       }),
-      subscribe: vi.fn()
+      subscribe: vi.fn(),
+      togglePinnedTag: vi.fn()
     } as unknown as Store;
     
     const adapter = {

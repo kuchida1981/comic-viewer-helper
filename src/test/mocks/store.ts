@@ -20,6 +20,7 @@ const DEFAULT_STATE: StoreState = {
   searchHistory: [],
   luckyHistory: [],
   favorites: [],
+  pinnedTags: [],
   isAutoplayEnabled: false,
   autoplayInterval: 5
 };

@@ -266,6 +266,7 @@ describe('Navigator', () => {
       searchHistory: [],
       luckyHistory: [],
       favorites: [],
+      pinnedTags: [],
       guiPos: null,
       isAutoplayEnabled: false,
       autoplayInterval: 5
@@ -315,6 +316,7 @@ describe('Navigator', () => {
         searchHistory: [],
         luckyHistory: [],
         favorites: [],
+        pinnedTags: [],
         guiPos: null,
         isAutoplayEnabled: false,
         autoplayInterval: 5
