@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.c3e4996
+// @version         1.5.0-unstable.67cb010
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -70,6 +70,28 @@
     return Array.isArray(value.results["results"]);
   }
   const FAVORITE_PICK_CHANCE = 0.25;
+  function calculateTrends(favorites) {
+    const map = /* @__PURE__ */ new Map();
+    for (const fav of favorites) {
+      for (const tag of fav.tags ?? []) {
+        const entry = map.get(tag.text);
+        if (entry) {
+          entry.count++;
+        } else {
+          map.set(tag.text, { tag, count: 1 });
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.count - a.count).slice(0, 10);
+  }
+  function filterWorksByTags(favorites, selectedTagTexts) {
+    if (selectedTagTexts.size === 0) return favorites;
+    return favorites.filter(
+      (work) => Array.from(selectedTagTexts).every(
+        (text) => (work.tags ?? []).some((tag) => tag.text === text)
+      )
+    );
+  }
   function calculateVisibleHeight(rect, windowHeight) {
     const visibleTop = Math.max(0, rect.top);
     const visibleBottom = Math.min(windowHeight, rect.bottom);
@@ -1430,6 +1452,14 @@
     background: ${COLORS.background.tagHover};
     color: ${COLORS.text.primary};
   }
+  .comic-helper-tag-chip.active {
+    background: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+  .comic-helper-tag-chip.active:hover {
+    background: ${COLORS.background.successHover};
+    color: ${COLORS.text.white};
+  }
 
   /* Tag type color variants */
   .comic-helper-tag-chip--artist {
@@ -2777,7 +2807,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.c3e4996"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.67cb010"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -3044,20 +3074,6 @@
       return href;
     }
   }
-  function calculateTrends(favorites) {
-    const map = /* @__PURE__ */ new Map();
-    for (const fav of favorites) {
-      for (const tag of fav.tags ?? []) {
-        const entry = map.get(tag.text);
-        if (entry) {
-          entry.count++;
-        } else {
-          map.set(tag.text, { tag, count: 1 });
-        }
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => b.count - a.count).slice(0, 10);
-  }
   function formatViewCount(count) {
     return t("ui.viewCount").replace("{count}", String(count));
   }
@@ -3190,12 +3206,12 @@
     });
     return menu;
   }
-  function createTrendSection(favorites, onTagClick) {
+  function createTrendSection(favorites, selectedTagTexts, onInternalTagClick) {
     const section = createElement("div", {
       className: "comic-helper-favorites-trend-section"
     });
     const trends = calculateTrends(favorites);
-    if (trends.length === 0 || !onTagClick) {
+    if (trends.length === 0) {
       section.style.display = "none";
       return section;
     }
@@ -3208,11 +3224,12 @@
     });
     trends.forEach(({ tag, count }) => {
       const typeClass = tag.type ? `comic-helper-tag-chip--${tag.type}` : "";
+      const activeClass = selectedTagTexts.has(tag.text) ? " active" : "";
       const btn = createElement("button", {
-        className: `comic-helper-tag-chip ${typeClass}`.trim(),
+        className: `comic-helper-tag-chip ${typeClass}${activeClass}`.trim(),
         textContent: `${tag.text} (${count})`,
         events: {
-          click: () => onTagClick(tag)
+          click: () => onInternalTagClick(tag.text)
         }
       });
       tagsEl.appendChild(btn);
@@ -3221,10 +3238,11 @@
     section.appendChild(tagsEl);
     return section;
   }
-  function createFavoritesModal({ favorites, history, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onClose, onTagClick }) {
+  function createFavoritesModal({ favorites, history, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onClose }) {
     let sortMode = "lastViewedAt";
     let currentFavorites = favorites;
     let currentHistory = history;
+    let selectedTagTexts = /* @__PURE__ */ new Set();
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -3251,8 +3269,25 @@
       events: { click: () => switchTab("history") }
     });
     const tabs = createElement("div", { className: "comic-helper-library-tabs" }, [favTab, histTab]);
-    let trendSection = createTrendSection(currentFavorites, onTagClick);
-    let favGrid = createFavoritesGrid(currentFavorites, onRemoveFavorite, onToggleFavorite);
+    function handleTrendTagClick(tagText) {
+      if (selectedTagTexts.has(tagText)) {
+        selectedTagTexts.delete(tagText);
+      } else {
+        selectedTagTexts.add(tagText);
+      }
+      rerenderFavoritesPanel();
+    }
+    function rerenderFavoritesPanel() {
+      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick);
+      favPanel.replaceChild(newTrendSection, trendSection);
+      trendSection = newTrendSection;
+      const filtered = filterWorksByTags(currentFavorites, selectedTagTexts);
+      const newFavGrid = createFavoritesGrid(filtered, onRemoveFavorite, onToggleFavorite);
+      favPanel.replaceChild(newFavGrid, favGrid);
+      favGrid = newFavGrid;
+    }
+    let trendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick);
+    let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
     const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [trendSection, favGrid]);
     let sortMenu = createSortMenu(sortMode, handleSort);
     let histGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
@@ -3297,12 +3332,8 @@
       el: overlay,
       updateFavorites: (newFavorites) => {
         currentFavorites = newFavorites;
-        const newTrendSection = createTrendSection(currentFavorites, onTagClick);
-        favPanel.replaceChild(newTrendSection, trendSection);
-        trendSection = newTrendSection;
-        const newFavGrid = createFavoritesGrid(currentFavorites, onRemoveFavorite, onToggleFavorite);
-        favPanel.replaceChild(newFavGrid, favGrid);
-        favGrid = newFavGrid;
+        selectedTagTexts = /* @__PURE__ */ new Set();
+        rerenderFavoritesPanel();
         const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
         histPanel.replaceChild(newHistGrid, histGrid);
         histGrid = newHistGrid;
@@ -3689,10 +3720,7 @@
             onToggleFavorite: (work) => {
               this._toggleFavoriteWork(work);
             },
-            onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
-            onTagClick: (tag) => {
-              void this._handleFavoritesTagClick(tag);
-            }
+            onClose: () => this.store.setState({ isFavoritesModalOpen: false })
           });
           document.body.appendChild(this.favoritesModalComp.el);
         } else {
@@ -3757,10 +3785,6 @@
     _performTagSearch = (tag) => {
       const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
       return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
-    };
-    _handleFavoritesTagClick = (tag) => {
-      this.store.setState({ isFavoritesModalOpen: false, isSearchModalOpen: true, searchResults: null });
-      return this._performTagSearch(tag);
     };
     _handleTagClick = (tag) => {
       this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
