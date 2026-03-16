@@ -229,6 +229,7 @@ export class UIManager {
         this.favoritesModalComp = createFavoritesModal({
           favorites: state.favorites,
           history: state.luckyHistory,
+          pinnedTags: state.pinnedTags,
           onRemoveFavorite: (href) => {
             const newFavorites = this.store.getState().favorites.filter(f => f.href !== href);
             this.store.setState({ favorites: newFavorites });
@@ -239,12 +240,14 @@ export class UIManager {
             this.store.setState({ luckyHistory: newHistory });
           },
           onToggleFavorite: (work) => { this._toggleFavoriteWork(work); },
+          onTogglePinTag: (tagText) => { this.store.togglePinnedTag(tagText); },
           onClose: () => this.store.setState({ isFavoritesModalOpen: false })
         });
         document.body.appendChild(this.favoritesModalComp.el);
       } else {
         this.favoritesModalComp.updateFavorites(state.favorites);
         this.favoritesModalComp.updateHistory(state.luckyHistory, state.favorites);
+        this.favoritesModalComp.updatePinnedTags(state.pinnedTags);
       }
     } else if (this.favoritesModalComp) {
       this.favoritesModalComp.el.remove();

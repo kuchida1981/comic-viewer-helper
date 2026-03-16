@@ -658,6 +658,36 @@ export const styles = `
     overflow-y: auto;
   }
 
+  .comic-helper-tag-chip-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .comic-helper-tag-pin {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    color: ${COLORS.text.muted};
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: color 0.2s, background 0.2s;
+    line-height: 1;
+  }
+  .comic-helper-tag-pin:hover {
+    color: ${COLORS.text.primary};
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .comic-helper-tag-pin.active {
+    color: #f59e0b;
+  }
+  .comic-helper-tag-pin.active:hover {
+    color: #d97706;
+  }
+
   .comic-helper-favorites-item {
     position: relative;
   }

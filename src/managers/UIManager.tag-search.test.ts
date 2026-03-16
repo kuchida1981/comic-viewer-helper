@@ -40,6 +40,7 @@ describe('UIManager Tag Search', () => {
             searchCache: null,
             luckyHistory: [],
             favorites: [],
+            pinnedTags: [],
             isAutoplayEnabled: false,
             autoplayInterval: 5
         };

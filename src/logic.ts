@@ -13,9 +13,15 @@ const FAVORITE_PICK_CHANCE = 0.25;
 
 /**
  * Calculate tag trends from favorites (sorted by occurrence count).
+ * Pinned tags are always sorted first.
  * @param limit Max number of tags to return. 0 means no limit (return all).
+ * @param pinnedTags List of tag texts that are pinned (shown first).
  */
-export function calculateTrends(favorites: RelatedWork[], limit: number = 10): Array<{ tag: Tag; count: number }> {
+export function calculateTrends(
+  favorites: RelatedWork[],
+  limit: number = 10,
+  pinnedTags: string[] = []
+): Array<{ tag: Tag; count: number; isPinned: boolean }> {
   const map = new Map<string, { tag: Tag; count: number }>();
   for (const fav of favorites) {
     for (const tag of (fav.tags ?? [])) {
@@ -27,7 +33,16 @@ export function calculateTrends(favorites: RelatedWork[], limit: number = 10): A
       }
     }
   }
-  const sorted = Array.from(map.values()).sort((a, b) => b.count - a.count);
+  const pinnedSet = new Set(pinnedTags);
+  const withPinned = Array.from(map.values()).map(({ tag, count }) => ({
+    tag,
+    count,
+    isPinned: pinnedSet.has(tag.text)
+  }));
+  const sorted = withPinned.sort((a, b) => {
+    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+    return b.count - a.count;
+  });
   return limit > 0 ? sorted.slice(0, limit) : sorted;
 }
 

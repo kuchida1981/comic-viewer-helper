@@ -13,7 +13,8 @@ export const STORAGE_KEYS = {
   FAVORITES: 'comic-viewer-helper-favorites',
   AUTOPLAY_ENABLED: 'comic-viewer-helper-autoplay-enabled',
   AUTOPLAY_INTERVAL: 'comic-viewer-helper-autoplay-interval',
-  LUCKY_HISTORY: 'comic-viewer-helper-lucky-history'
+  LUCKY_HISTORY: 'comic-viewer-helper-lucky-history',
+  PINNED_TAGS: 'comic-viewer-helper-pinned-tags'
 } as const;
 
 export const MAX_SEARCH_HISTORY = 3;
@@ -44,6 +45,7 @@ export interface StoreState {
   searchHistory: string[];
   luckyHistory: HistoryEntry[];
   favorites: RelatedWork[];
+  pinnedTags: string[];
   isAutoplayEnabled: boolean;
   autoplayInterval: number;
 }
@@ -79,6 +81,7 @@ export class Store {
       searchHistory: this._loadSearchHistory(),
       luckyHistory: this._loadLuckyHistory(),
       favorites: this._loadFavorites(),
+      pinnedTags: this._loadPinnedTags(),
       isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
       autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10)
     };
@@ -141,6 +144,9 @@ export class Store {
     if ('favorites' in patch) {
       GM_setValue(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
     }
+    if ('pinnedTags' in patch) {
+      GM_setValue(`${STORAGE_KEYS.PINNED_TAGS}-${host}`, JSON.stringify(patch.pinnedTags));
+    }
   };
 
   private _persistLuckyHistory = (patch: Partial<StoreState>): void => {
@@ -195,6 +201,14 @@ export class Store {
     }
 
     this.setState({ luckyHistory: newHistory });
+  };
+
+  togglePinnedTag = (tagText: string): void => {
+    const { pinnedTags } = this.state;
+    const newPinnedTags = pinnedTags.includes(tagText)
+      ? pinnedTags.filter(t => t !== tagText)
+      : [...pinnedTags, tagText];
+    this.setState({ pinnedTags: newPinnedTags });
   };
 
   private _loadSearchHistory = (): string[] => {
@@ -269,6 +283,18 @@ export class Store {
       if (!saved) return [];
       const parsed: unknown = JSON.parse(saved);
       return isRelatedWorkArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  private _loadPinnedTags = (): string[] => {
+    try {
+      const host = window.location.hostname;
+      const saved = GM_getValue(`${STORAGE_KEYS.PINNED_TAGS}-${host}`);
+      if (!saved) return [];
+      const parsed: unknown = JSON.parse(saved);
+      return isStringArray(parsed) ? parsed : [];
     } catch {
       return [];
     }

@@ -26,6 +26,7 @@ describe('DiscoveryManager', () => {
       luckyHistory: [],
       searchCache: null,
       favorites: [],
+      pinnedTags: [],
       isLuckyLoading: false,
       enabled: true,
       isDualViewEnabled: false,
