@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.67cb010
+// @version         1.5.0-unstable.a29fcc3
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -70,7 +70,7 @@
     return Array.isArray(value.results["results"]);
   }
   const FAVORITE_PICK_CHANCE = 0.25;
-  function calculateTrends(favorites) {
+  function calculateTrends(favorites, limit = 10) {
     const map = /* @__PURE__ */ new Map();
     for (const fav of favorites) {
       for (const tag of fav.tags ?? []) {
@@ -82,7 +82,8 @@
         }
       }
     }
-    return Array.from(map.values()).sort((a, b) => b.count - a.count).slice(0, 10);
+    const sorted = Array.from(map.values()).sort((a, b) => b.count - a.count);
+    return limit > 0 ? sorted.slice(0, limit) : sorted;
   }
   function filterWorksByTags(favorites, selectedTagTexts) {
     if (selectedTagTexts.size === 0) return favorites;
@@ -1777,15 +1778,35 @@
     border-bottom: 1px solid ${COLORS.border.light};
     margin-bottom: 12px;
   }
+  .comic-helper-favorites-trend-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
   .comic-helper-favorites-trend-label {
     font-size: 11px;
     color: ${COLORS.text.muted};
-    margin-bottom: 6px;
+  }
+  .comic-helper-trend-toggle-btn {
+    background: transparent;
+    border: none;
+    color: ${COLORS.border.accent};
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    transition: opacity 0.2s;
+  }
+  .comic-helper-trend-toggle-btn:hover {
+    opacity: 0.7;
   }
   .comic-helper-favorites-trend-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    max-height: 120px;
+    overflow-y: auto;
   }
 
   .comic-helper-favorites-item {
@@ -2202,7 +2223,9 @@
         continueReading: "Continue",
         startFromBeginning: "Start Over",
         autoplay: "Autoplay",
-        seconds: "sec"
+        seconds: "sec",
+        showAllTags: "Show All",
+        showTopTags: "Top Only"
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
@@ -2269,7 +2292,9 @@
         continueReading: "続きから",
         startFromBeginning: "最初から",
         autoplay: "オートプレイ",
-        seconds: "秒"
+        seconds: "秒",
+        showAllTags: "すべて表示",
+        showTopTags: "上位のみ"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
@@ -2807,7 +2832,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.67cb010"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.a29fcc3"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -3206,19 +3231,29 @@
     });
     return menu;
   }
-  function createTrendSection(favorites, selectedTagTexts, onInternalTagClick) {
+  function createTrendSection(favorites, selectedTagTexts, onInternalTagClick, showAllTags, onToggleShowAll) {
     const section = createElement("div", {
       className: "comic-helper-favorites-trend-section"
     });
-    const trends = calculateTrends(favorites);
+    const trends = calculateTrends(favorites, showAllTags ? 0 : 10);
     if (trends.length === 0) {
       section.style.display = "none";
       return section;
     }
-    const label = createElement("div", {
-      className: "comic-helper-favorites-trend-label",
-      textContent: t("ui.favoritesTrend")
+    const toggleBtn = createElement("button", {
+      className: "comic-helper-trend-toggle-btn",
+      textContent: showAllTags ? t("ui.showTopTags") : t("ui.showAllTags"),
+      events: { click: onToggleShowAll }
     });
+    const labelRow = createElement("div", {
+      className: "comic-helper-favorites-trend-label-row"
+    }, [
+      createElement("div", {
+        className: "comic-helper-favorites-trend-label",
+        textContent: t("ui.favoritesTrend")
+      }),
+      toggleBtn
+    ]);
     const tagsEl = createElement("div", {
       className: "comic-helper-favorites-trend-tags"
     });
@@ -3234,7 +3269,7 @@
       });
       tagsEl.appendChild(btn);
     });
-    section.appendChild(label);
+    section.appendChild(labelRow);
     section.appendChild(tagsEl);
     return section;
   }
@@ -3243,6 +3278,7 @@
     let currentFavorites = favorites;
     let currentHistory = history;
     let selectedTagTexts = /* @__PURE__ */ new Set();
+    let showAllTags = false;
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -3277,8 +3313,14 @@
       }
       rerenderFavoritesPanel();
     }
+    function handleToggleShowAll() {
+      showAllTags = !showAllTags;
+      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
+      favPanel.replaceChild(newTrendSection, trendSection);
+      trendSection = newTrendSection;
+    }
     function rerenderFavoritesPanel() {
-      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick);
+      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
       favPanel.replaceChild(newTrendSection, trendSection);
       trendSection = newTrendSection;
       const filtered = filterWorksByTags(currentFavorites, selectedTagTexts);
@@ -3286,7 +3328,7 @@
       favPanel.replaceChild(newFavGrid, favGrid);
       favGrid = newFavGrid;
     }
-    let trendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick);
+    let trendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
     let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
     const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [trendSection, favGrid]);
     let sortMenu = createSortMenu(sortMode, handleSort);
@@ -3333,6 +3375,7 @@
       updateFavorites: (newFavorites) => {
         currentFavorites = newFavorites;
         selectedTagTexts = /* @__PURE__ */ new Set();
+        showAllTags = false;
         rerenderFavoritesPanel();
         const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
         histPanel.replaceChild(newHistGrid, histGrid);
