@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.a29fcc3
+// @version         1.5.0-unstable.d6d0b9b
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -70,7 +70,7 @@
     return Array.isArray(value.results["results"]);
   }
   const FAVORITE_PICK_CHANCE = 0.25;
-  function calculateTrends(favorites, limit = 10) {
+  function calculateTrends(favorites, limit = 10, pinnedTags = []) {
     const map = /* @__PURE__ */ new Map();
     for (const fav of favorites) {
       for (const tag of fav.tags ?? []) {
@@ -82,7 +82,16 @@
         }
       }
     }
-    const sorted = Array.from(map.values()).sort((a, b) => b.count - a.count);
+    const pinnedSet = new Set(pinnedTags);
+    const withPinned = Array.from(map.values()).map(({ tag, count }) => ({
+      tag,
+      count,
+      isPinned: pinnedSet.has(tag.text)
+    }));
+    const sorted = withPinned.sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      return b.count - a.count;
+    });
     return limit > 0 ? sorted.slice(0, limit) : sorted;
   }
   function filterWorksByTags(favorites, selectedTagTexts) {
@@ -443,7 +452,8 @@
     FAVORITES: "comic-viewer-helper-favorites",
     AUTOPLAY_ENABLED: "comic-viewer-helper-autoplay-enabled",
     AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval",
-    LUCKY_HISTORY: "comic-viewer-helper-lucky-history"
+    LUCKY_HISTORY: "comic-viewer-helper-lucky-history",
+    PINNED_TAGS: "comic-viewer-helper-pinned-tags"
   };
   const MAX_SEARCH_HISTORY = 3;
   class Store {
@@ -474,6 +484,7 @@
         searchHistory: this._loadSearchHistory(),
         luckyHistory: this._loadLuckyHistory(),
         favorites: this._loadFavorites(),
+        pinnedTags: this._loadPinnedTags(),
         isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
         autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
       };
@@ -530,6 +541,9 @@
       if ("favorites" in patch) {
         GM_setValue(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
       }
+      if ("pinnedTags" in patch) {
+        GM_setValue(`${STORAGE_KEYS.PINNED_TAGS}-${host}`, JSON.stringify(patch.pinnedTags));
+      }
     };
     _persistLuckyHistory = (patch) => {
       if ("luckyHistory" in patch) {
@@ -576,6 +590,11 @@
         newHistory = [newEntry, ...this.state.luckyHistory];
       }
       this.setState({ luckyHistory: newHistory });
+    };
+    togglePinnedTag = (tagText) => {
+      const { pinnedTags } = this.state;
+      const newPinnedTags = pinnedTags.includes(tagText) ? pinnedTags.filter((t2) => t2 !== tagText) : [...pinnedTags, tagText];
+      this.setState({ pinnedTags: newPinnedTags });
     };
     _loadSearchHistory = () => {
       try {
@@ -643,6 +662,17 @@
         if (!saved) return [];
         const parsed = JSON.parse(saved);
         return isRelatedWorkArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+    _loadPinnedTags = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = GM_getValue(`${STORAGE_KEYS.PINNED_TAGS}-${host}`);
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        return isStringArray(parsed) ? parsed : [];
       } catch {
         return [];
       }
@@ -1809,6 +1839,90 @@
     overflow-y: auto;
   }
 
+  .comic-helper-tag-chip-container {
+    display: inline-flex;
+    align-items: stretch;
+    border-radius: 16px;
+    overflow: hidden;
+    background: ${COLORS.background.tag};
+    transition: background 0.15s;
+  }
+  .comic-helper-tag-chip-container:hover {
+    background: ${COLORS.background.tagHover};
+  }
+
+  /* タイプカラー: コンテナレベルで背景色を制御 */
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--artist { background: #5c3d4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--artist:hover { background: #7a5060; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--character { background: #3d5c4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--character:hover { background: #507a60; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--circle { background: #3d4a5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--circle:hover { background: #50607a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--fanzine { background: #5c4a3d; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--fanzine:hover { background: #7a6050; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--genre { background: #4a4a4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--genre:hover { background: #606060; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--magazine { background: #4a3d5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--magazine:hover { background: #60507a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--parody { background: #3d5c5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--parody:hover { background: #507a7a; }
+
+  /* コンテナ内チップ: 背景と枠線はコンテナに委譲 */
+  .comic-helper-tag-chip-container .comic-helper-tag-chip {
+    background: transparent;
+    border-radius: 0;
+    color: ${COLORS.text.secondary};
+    transition: color 0.15s;
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-chip {
+    color: ${COLORS.text.primary};
+  }
+  .comic-helper-tag-chip-container .comic-helper-tag-chip.active {
+    background: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-chip.active {
+    background: ${COLORS.background.successHover};
+    color: ${COLORS.text.white};
+  }
+
+  /* ピンボタン: デフォルト非表示、ホバー時にスライドイン */
+  .comic-helper-tag-pin {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    max-width: 0;
+    overflow: hidden;
+    color: ${COLORS.text.muted};
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: max-width 0.15s ease, padding 0.15s ease, opacity 0.15s ease, color 0.15s;
+    opacity: 0;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-pin {
+    max-width: 28px;
+    padding: 0 8px 0 0;
+    opacity: 1;
+  }
+  .comic-helper-tag-pin:hover {
+    color: ${COLORS.text.primary};
+  }
+
+  /* ピン済み: 常に表示、ゴールドカラー */
+  .comic-helper-tag-pin.active {
+    max-width: 28px;
+    padding: 0 8px 0 0;
+    opacity: 1;
+    color: #f59e0b;
+  }
+  .comic-helper-tag-pin.active:hover {
+    color: #d97706;
+  }
+
   .comic-helper-favorites-item {
     position: relative;
   }
@@ -2225,7 +2339,9 @@
         autoplay: "Autoplay",
         seconds: "sec",
         showAllTags: "Show All",
-        showTopTags: "Top Only"
+        showTopTags: "Top Only",
+        pinTag: "Pin tag",
+        unpinTag: "Unpin tag"
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
@@ -2294,7 +2410,9 @@
         autoplay: "オートプレイ",
         seconds: "秒",
         showAllTags: "すべて表示",
-        showTopTags: "上位のみ"
+        showTopTags: "上位のみ",
+        pinTag: "タグをピン留め",
+        unpinTag: "ピン留めを解除"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
@@ -2528,6 +2646,9 @@
   }
   function createHeartFilledIcon(size = 18) {
     return createSvg("M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z", size);
+  }
+  function createPinFilledIcon(size = 14) {
+    return createSvg("M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z", size);
   }
   function createHeartOutlineIcon(size = 18) {
     return createSvg("M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z", size);
@@ -2832,7 +2953,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.a29fcc3"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.d6d0b9b"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -3231,11 +3352,11 @@
     });
     return menu;
   }
-  function createTrendSection(favorites, selectedTagTexts, onInternalTagClick, showAllTags, onToggleShowAll) {
+  function createTrendSection(favorites, selectedTagTexts, pinnedTags, onInternalTagClick, onTogglePinTag, showAllTags, onToggleShowAll) {
     const section = createElement("div", {
       className: "comic-helper-favorites-trend-section"
     });
-    const trends = calculateTrends(favorites, showAllTags ? 0 : 10);
+    const trends = calculateTrends(favorites, showAllTags ? 0 : 10, pinnedTags);
     if (trends.length === 0) {
       section.style.display = "none";
       return section;
@@ -3257,26 +3378,41 @@
     const tagsEl = createElement("div", {
       className: "comic-helper-favorites-trend-tags"
     });
-    trends.forEach(({ tag, count }) => {
+    trends.forEach(({ tag, count, isPinned }) => {
       const typeClass = tag.type ? `comic-helper-tag-chip--${tag.type}` : "";
       const activeClass = selectedTagTexts.has(tag.text) ? " active" : "";
-      const btn = createElement("button", {
-        className: `comic-helper-tag-chip ${typeClass}${activeClass}`.trim(),
+      const chip = createElement("button", {
+        className: `comic-helper-tag-chip${activeClass}`,
         textContent: `${tag.text} (${count})`,
         events: {
           click: () => onInternalTagClick(tag.text)
         }
       });
-      tagsEl.appendChild(btn);
+      const pinBtn = createElement("button", {
+        className: `comic-helper-tag-pin${isPinned ? " active" : ""}`,
+        title: isPinned ? t("ui.unpinTag") : t("ui.pinTag"),
+        events: {
+          click: (e) => {
+            e.stopPropagation();
+            onTogglePinTag(tag.text);
+          }
+        }
+      });
+      pinBtn.appendChild(createPinFilledIcon());
+      const container = createElement("div", {
+        className: `comic-helper-tag-chip-container${typeClass ? ` ${typeClass}` : ""}`
+      }, [chip, pinBtn]);
+      tagsEl.appendChild(container);
     });
     section.appendChild(labelRow);
     section.appendChild(tagsEl);
     return section;
   }
-  function createFavoritesModal({ favorites, history, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onClose }) {
+  function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose }) {
     let sortMode = "lastViewedAt";
     let currentFavorites = favorites;
     let currentHistory = history;
+    let currentPinnedTags = pinnedTags;
     let selectedTagTexts = /* @__PURE__ */ new Set();
     let showAllTags = false;
     const closeBtn = createElement("button", {
@@ -3315,12 +3451,12 @@
     }
     function handleToggleShowAll() {
       showAllTags = !showAllTags;
-      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
+      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
       favPanel.replaceChild(newTrendSection, trendSection);
       trendSection = newTrendSection;
     }
     function rerenderFavoritesPanel() {
-      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
+      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
       favPanel.replaceChild(newTrendSection, trendSection);
       trendSection = newTrendSection;
       const filtered = filterWorksByTags(currentFavorites, selectedTagTexts);
@@ -3328,7 +3464,7 @@
       favPanel.replaceChild(newFavGrid, favGrid);
       favGrid = newFavGrid;
     }
-    let trendSection = createTrendSection(currentFavorites, selectedTagTexts, handleTrendTagClick, showAllTags, handleToggleShowAll);
+    let trendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
     let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
     const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [trendSection, favGrid]);
     let sortMenu = createSortMenu(sortMode, handleSort);
@@ -3387,6 +3523,12 @@
         const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
         histPanel.replaceChild(newHistGrid, histGrid);
         histGrid = newHistGrid;
+      },
+      updatePinnedTags: (newPinnedTags) => {
+        currentPinnedTags = newPinnedTags;
+        const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+        favPanel.replaceChild(newTrendSection, trendSection);
+        trendSection = newTrendSection;
       }
     };
   }
@@ -3751,6 +3893,7 @@
           this.favoritesModalComp = createFavoritesModal({
             favorites: state.favorites,
             history: state.luckyHistory,
+            pinnedTags: state.pinnedTags,
             onRemoveFavorite: (href) => {
               const newFavorites = this.store.getState().favorites.filter((f) => f.href !== href);
               this.store.setState({ favorites: newFavorites });
@@ -3763,12 +3906,16 @@
             onToggleFavorite: (work) => {
               this._toggleFavoriteWork(work);
             },
+            onTogglePinTag: (tagText) => {
+              this.store.togglePinnedTag(tagText);
+            },
             onClose: () => this.store.setState({ isFavoritesModalOpen: false })
           });
           document.body.appendChild(this.favoritesModalComp.el);
         } else {
           this.favoritesModalComp.updateFavorites(state.favorites);
           this.favoritesModalComp.updateHistory(state.luckyHistory, state.favorites);
+          this.favoritesModalComp.updatePinnedTags(state.pinnedTags);
         }
       } else if (this.favoritesModalComp) {
         this.favoritesModalComp.el.remove();
