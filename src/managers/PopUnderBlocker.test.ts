@@ -26,6 +26,34 @@ describe('PopUnderBlocker', () => {
     expect(document.addEventListener).toHaveBeenCalledWith('click', expect.any(Function), true);
   });
 
+  describe('window.open のオーバーライド', () => {
+    beforeEach(() => {
+      setupLocationMock();
+    });
+
+    it('init 後に window.open を呼ぶと現在のタブで遷移する', () => {
+      blocker.init();
+      window.open('http://example.com/ad');
+      expect(window.location.href).toBe('http://example.com/ad');
+    });
+
+    it('enabled が false の場合は window.open を通過させる', () => {
+      const originalOpen = vi.fn().mockReturnValue(null);
+      vi.spyOn(window, 'open').mockImplementation(originalOpen);
+      blocker.init();
+      getState.mockReturnValue({ enabled: false } as unknown as StoreState);
+      window.open('http://example.com/ad');
+      expect(originalOpen).toHaveBeenCalled();
+      expect(window.location.href).toBe('http://localhost/');
+    });
+
+    it('javascript: スキームは無視する', () => {
+      blocker.init();
+      window.open('javascript:void(0)');
+      expect(window.location.href).toBe('http://localhost/');
+    });
+  });
+
   describe('通常リンクへのクリック', () => {
     let link: HTMLAnchorElement;
 

@@ -9,6 +9,20 @@ export class PopUnderBlocker {
 
   init = (): void => {
     document.addEventListener('click', this.handleClick, true);
+    this.overrideWindowOpen();
+  };
+
+  private overrideWindowOpen = (): void => {
+    const originalOpen = window.open.bind(window);
+    window.open = (url?: string | URL, _target?: string, _features?: string): WindowProxy | null => {
+      if (!this.store.getState().enabled) {
+        return originalOpen(url, _target, _features);
+      }
+      if (url && !String(url).startsWith('javascript:')) {
+        window.location.href = String(url);
+      }
+      return null;
+    };
   };
 
   handleClick = (e: MouseEvent): void => {
