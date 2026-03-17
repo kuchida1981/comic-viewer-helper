@@ -33,6 +33,10 @@ class App {
     this.popUnderBlocker = new PopUnderBlocker(this.store);
   }
 
+  initEarly = (): void => {
+    this.popUnderBlocker.init();
+  };
+
   init = (): void => {
     const container = this.adapter.getContainer();
     if (!container) return;
@@ -47,7 +51,6 @@ class App {
     this.navigator.init();
     this.uiManager.init();
     this.inputManager.init();
-    this.popUnderBlocker.init();
 
     // Add current work to lucky history with detailed info
     const firstImageSrc = this.navigator.getImages()[0]?.src || '';
@@ -79,6 +82,8 @@ class App {
 }
 
 const app = new App();
+app.initEarly();
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', app.init);
 } else {

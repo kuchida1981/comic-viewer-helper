@@ -26,6 +26,34 @@ describe('PopUnderBlocker', () => {
     expect(document.addEventListener).toHaveBeenCalledWith('click', expect.any(Function), true);
   });
 
+  describe('window.open のオーバーライド', () => {
+    beforeEach(() => {
+      setupLocationMock();
+    });
+
+    it('init 後に window.open を呼ぶと現在のタブで遷移する', () => {
+      blocker.init();
+      window.open('http://example.com/ad');
+      expect(window.location.href).toBe('http://example.com/ad');
+    });
+
+    it('enabled が false の場合は window.open を通過させる', () => {
+      const originalOpen = vi.fn().mockReturnValue(null);
+      vi.spyOn(window, 'open').mockImplementation(originalOpen);
+      blocker.init();
+      getState.mockReturnValue({ enabled: false } as unknown as StoreState);
+      window.open('http://example.com/ad');
+      expect(originalOpen).toHaveBeenCalled();
+      expect(window.location.href).toBe('http://localhost/');
+    });
+
+    it('javascript: スキームは無視する', () => {
+      blocker.init();
+      window.open('javascript:void(0)');
+      expect(window.location.href).toBe('http://localhost/');
+    });
+  });
+
   describe('通常リンクへのクリック', () => {
     let link: HTMLAnchorElement;
 
@@ -65,20 +93,8 @@ describe('PopUnderBlocker', () => {
       link.remove();
     });
 
-    it('サイト側の target="_blank" リンクはインターセプトしない', () => {
+    it('サイト側の target="_blank" リンクもインターセプトして現在のタブで遷移する', () => {
       link.target = '_blank';
-      const { event, stopImmediatePropagation, preventDefault } = createMockMouseEvent({ target: link });
-
-      blocker.handleClick(event);
-
-      expect(stopImmediatePropagation).not.toHaveBeenCalled();
-      expect(preventDefault).not.toHaveBeenCalled();
-      expect(window.location.href).toBe('http://localhost/');
-    });
-
-    it('ビューア自身の target="_blank" リンクはインターセプトする', () => {
-      link.target = '_blank';
-      link.className = 'comic-helper-tag-chip';
       const { event, stopImmediatePropagation, preventDefault } = createMockMouseEvent({ target: link });
 
       blocker.handleClick(event);
@@ -159,6 +175,37 @@ describe('PopUnderBlocker', () => {
       expect(stopImmediatePropagation).not.toHaveBeenCalled();
       expect(preventDefault).not.toHaveBeenCalled();
       expect(window.location.href).toBe('http://localhost/');
+    });
+  });
+
+  describe('ビューアー未起動ページでの動作', () => {
+    let link: HTMLAnchorElement;
+
+    beforeEach(() => {
+      link = document.createElement('a');
+      link.href = 'http://example.com/next';
+      document.body.appendChild(link);
+      setupLocationMock();
+    });
+
+    afterEach(() => {
+      link.remove();
+    });
+
+    it('ビューアーコンテナがないページでも init() が呼べる', () => {
+      expect(() => blocker.init()).not.toThrow();
+      expect(document.addEventListener).toHaveBeenCalledWith('click', expect.any(Function), true);
+    });
+
+    it('ビューアー未起動の状態でもリンクのクリックをインターセプトする', () => {
+      blocker.init();
+      const { event, stopImmediatePropagation, preventDefault } = createMockMouseEvent({ target: link });
+
+      blocker.handleClick(event);
+
+      expect(stopImmediatePropagation).toHaveBeenCalled();
+      expect(preventDefault).toHaveBeenCalled();
+      expect(window.location.href).toBe('http://example.com/next');
     });
   });
 
