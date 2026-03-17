@@ -33,9 +33,11 @@ class App {
     this.popUnderBlocker = new PopUnderBlocker(this.store);
   }
 
-  init = (): void => {
+  initEarly = (): void => {
     this.popUnderBlocker.init();
+  };
 
+  init = (): void => {
     const container = this.adapter.getContainer();
     if (!container) return;
 
@@ -80,6 +82,8 @@ class App {
 }
 
 const app = new App();
+app.initEarly();
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', app.init);
 } else {
