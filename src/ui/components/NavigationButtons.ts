@@ -62,20 +62,19 @@ export function createNavigationButtons({
 
   const navElements = navConfigs.map(makeBtn);
   const utilElements = utilConfigs.map(makeBtn);
-  const allElements = [...navElements, ...utilElements];
+  const favBtn = utilElements.find(el => el.id === 'comic-helper-nav-fav');
+  const luckyBtn = navElements.find(el => el.id === 'comic-helper-nav-lucky');
 
   return {
     navElements,
     utilElements,
     update: (isFavorite: boolean, isLuckyLoading: boolean) => {
-      const favBtn = allElements.find(el => el.id === 'comic-helper-nav-fav');
       if (favBtn) {
         favBtn.replaceChildren(isFavorite ? heartFilledIcon : heartOutlineIcon);
         favBtn.classList.toggle('active', isFavorite);
         favBtn.classList.toggle('inactive', !isFavorite);
       }
 
-      const luckyBtn = allElements.find(el => el.id === 'comic-helper-nav-lucky');
       if (luckyBtn instanceof HTMLButtonElement) {
         luckyBtn.disabled = isLuckyLoading;
         luckyBtn.classList.toggle('loading', isLuckyLoading);
