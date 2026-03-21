@@ -5,6 +5,7 @@ import { COLORS } from '../styles';
 
 export interface HelpModalProps {
   onClose: () => void;
+  extraContent?: HTMLElement;
 }
 
 export interface HelpModalComponent {
@@ -12,7 +13,7 @@ export interface HelpModalComponent {
   update: () => void;
 }
 
-export function createHelpModal({ onClose }: HelpModalProps): HelpModalComponent {
+export function createHelpModal({ onClose, extraContent }: HelpModalProps): HelpModalComponent {
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
     textContent: '×',
@@ -67,12 +68,17 @@ export function createHelpModal({ onClose }: HelpModalProps): HelpModalComponent
     textContent: `${t('ui.version')}: v${__APP_VERSION__} (${__IS_UNSTABLE__ ? t('ui.unstable') : t('ui.stable')})`
   });
 
+  const contentChildren: HTMLElement[] = [closeBtn, titleEl, shortcutList, versionTag];
+  if (extraContent) {
+    contentChildren.push(extraContent);
+  }
+
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
     events: {
       click: (e) => e.stopPropagation()
     }
-  }, [closeBtn, titleEl, shortcutList, versionTag]);
+  }, contentChildren);
 
   const overlay = createElement('div', {
     className: 'comic-helper-modal-overlay',

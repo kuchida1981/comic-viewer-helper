@@ -19,6 +19,8 @@ export default defineConfig({
         'src/main.ts',
         'src/ui/styles.js',
         'src/ui/styles.ts',
+        'src/ui/Draggable.js',
+        'src/ui/Draggable.ts',
         'src/test/mocks/**'
       ],
       thresholds: {

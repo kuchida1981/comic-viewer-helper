@@ -50,7 +50,15 @@ export const MESSAGES = {
       showAllTags: 'Show All',
       showTopTags: 'Top Only',
       pinTag: 'Pin tag',
-      unpinTag: 'Unpin tag'
+      unpinTag: 'Unpin tag',
+      syncSettings: 'Sync Settings',
+      syncEnabled: 'Enable Sync',
+      syncPat: 'GitHub Personal Access Token',
+      syncGistId: 'Gist ID (leave blank to create new)',
+      syncSave: 'Save',
+      syncStatus: 'Last synced: {time}',
+      syncNeverSynced: 'Never synced',
+      syncError: 'Sync error: {error}'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
@@ -121,7 +129,15 @@ export const MESSAGES = {
       showAllTags: 'すべて表示',
       showTopTags: '上位のみ',
       pinTag: 'タグをピン留め',
-      unpinTag: 'ピン留めを解除'
+      unpinTag: 'ピン留めを解除',
+      syncSettings: '同期設定',
+      syncEnabled: '同期を有効にする',
+      syncPat: 'GitHub Personal Access Token',
+      syncGistId: 'Gist ID（空白の場合は新規作成）',
+      syncSave: '保存',
+      syncStatus: '最終同期: {time}',
+      syncNeverSynced: '未同期',
+      syncError: '同期エラー: {error}'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },

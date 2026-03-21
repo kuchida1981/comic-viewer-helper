@@ -1,12 +1,23 @@
 import { GuiPos } from './store';
 import { ResumeData } from './managers/ResumeManager';
-import { SearchCache, SearchContext, RelatedWork, HistoryEntry } from './types';
+import { SearchCache, SearchContext, RelatedWork, HistoryEntry, SyncConfig } from './types';
 
 /**
  * Checks if the value is a non-null object (and not an array)
  */
 export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Type guard for SyncConfig
+ */
+export function isSyncConfig(value: unknown): value is SyncConfig {
+  if (!isObject(value)) return false;
+  return typeof value.enabled === 'boolean' &&
+    typeof value.pat === 'string' &&
+    typeof value.gistId === 'string' &&
+    (value.lastSyncedAt === null || typeof value.lastSyncedAt === 'number');
 }
 
 /**

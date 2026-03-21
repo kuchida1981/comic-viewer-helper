@@ -269,7 +269,8 @@ describe('Navigator', () => {
       pinnedTags: [],
       guiPos: null,
       isAutoplayEnabled: false,
-      autoplayInterval: 5
+      autoplayInterval: 5,
+      syncConfig: null
     });
     navigator.applyLayout();
     expect(logic.revertToOriginal).toHaveBeenCalled();
@@ -319,7 +320,8 @@ describe('Navigator', () => {
         pinnedTags: [],
         guiPos: null,
         isAutoplayEnabled: false,
-        autoplayInterval: 5
+        autoplayInterval: 5,
+        syncConfig: null
       });
 
       expect(spy).toHaveBeenCalled();

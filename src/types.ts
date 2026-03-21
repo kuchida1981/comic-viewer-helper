@@ -100,3 +100,10 @@ export function isSearchableAdapter(adapter: SiteAdapter): adapter is Searchable
 export function isMetadataAdapter(adapter: SiteAdapter): adapter is MetadataAdapter {
   return typeof adapter.getMetadata === 'function';
 }
+
+export interface SyncConfig {
+  enabled: boolean;
+  pat: string;
+  gistId: string;
+  lastSyncedAt: number | null;
+}
