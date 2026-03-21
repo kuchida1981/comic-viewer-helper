@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.3f8ce7f
+// @version         1.6.0-unstable.bb72219
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -74,6 +74,73 @@
     if (typeof value.fetchedAt !== "number") return false;
     if (!isObject(value.results)) return false;
     return Array.isArray(value.results["results"]);
+  }
+  const AES_GCM_PREFIX = "AES-GCM:v1:";
+  async function deriveKey(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      enc.encode(password),
+      "PBKDF2",
+      false,
+      ["deriveKey"]
+    );
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt, iterations: 1e5, hash: "SHA-256" },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+  function toBase64(buf) {
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    return btoa(bytes.reduce((data, byte) => data + String.fromCharCode(byte), ""));
+  }
+  function fromBase64(b64) {
+    const str = atob(b64);
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      bytes[i] = str.charCodeAt(i);
+    }
+    return bytes;
+  }
+  async function encrypt(plaintext, password) {
+    const enc = new TextEncoder();
+    const salt = new Uint8Array(16);
+    crypto.getRandomValues(salt);
+    const iv = new Uint8Array(12);
+    crypto.getRandomValues(iv);
+    const key = await deriveKey(password, salt);
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      enc.encode(plaintext)
+    );
+    return `${AES_GCM_PREFIX}${toBase64(salt)}:${toBase64(iv)}:${toBase64(ciphertext)}`;
+  }
+  async function decrypt(encrypted, password) {
+    if (!encrypted.startsWith(AES_GCM_PREFIX)) {
+      throw new Error("Invalid encrypted data format");
+    }
+    const parts = encrypted.slice(AES_GCM_PREFIX.length).split(":");
+    if (parts.length !== 3) {
+      throw new Error("Invalid encrypted data format");
+    }
+    const [saltB64, ivB64, ciphertextB64] = parts;
+    const salt = fromBase64(saltB64);
+    const iv = fromBase64(ivB64);
+    const ciphertext = fromBase64(ciphertextB64);
+    const key = await deriveKey(password, salt);
+    const plaintext = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      ciphertext
+    );
+    return new TextDecoder().decode(plaintext);
+  }
+  function isEncrypted(data) {
+    return data.startsWith(AES_GCM_PREFIX);
   }
   const FAVORITE_PICK_CHANCE = 0.25;
   function calculateTrends(favorites, limit = 10, pinnedTags = [], selectedTags = []) {
@@ -2404,7 +2471,14 @@
         syncSaveError: "Save failed: {error}",
         syncStatus: "Last synced: {time}",
         syncNeverSynced: "Never synced",
-        syncError: "Sync error: {error}"
+        syncError: "Sync error: {error}",
+        syncEncryptionMode: "Encryption",
+        syncEncryptionNone: "None (plaintext)",
+        syncEncryptionAes: "AES Encryption",
+        syncEncryptionPassword: "Encryption Password",
+        syncEncryptionPasswordPlaceholder: "Enter password...",
+        syncEncryptionPasswordRequired: "Password is required when AES encryption is selected.",
+        syncDecryptionFailed: "Decryption failed. Please check your password."
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
@@ -2486,7 +2560,14 @@
         syncSaveError: "保存に失敗しました: {error}",
         syncStatus: "最終同期: {time}",
         syncNeverSynced: "未同期",
-        syncError: "同期エラー: {error}"
+        syncError: "同期エラー: {error}",
+        syncEncryptionMode: "暗号化",
+        syncEncryptionNone: "なし（平文）",
+        syncEncryptionAes: "AES暗号化",
+        syncEncryptionPassword: "暗号化パスワード",
+        syncEncryptionPasswordPlaceholder: "パスワードを入力...",
+        syncEncryptionPasswordRequired: "AES暗号化を選択した場合、パスワードは必須です。",
+        syncDecryptionFailed: "復号に失敗しました。パスワードを確認してください。"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
@@ -3032,7 +3113,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.3f8ce7f"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.bb72219"} (${t("ui.unstable")})`
     });
     const contentChildren = [closeBtn, titleEl, shortcutList, versionTag];
     if (extraContent) {
@@ -3087,6 +3168,45 @@
       }
     });
   }
+  function createEncryptionRow(syncConfig) {
+    const encryptionModeSelect = createElement("select", {
+      style: {
+        width: "100%",
+        boxSizing: "border-box",
+        background: COLORS.background.input,
+        border: `1px solid ${COLORS.border.default}`,
+        borderRadius: "3px",
+        color: COLORS.text.primary,
+        padding: "4px 6px",
+        fontSize: "12px",
+        marginBottom: "8px"
+      }
+    });
+    const optionNone = document.createElement("option");
+    optionNone.value = "none";
+    optionNone.textContent = t("ui.syncEncryptionNone");
+    const optionAes = document.createElement("option");
+    optionAes.value = "aes";
+    optionAes.textContent = t("ui.syncEncryptionAes");
+    encryptionModeSelect.appendChild(optionNone);
+    encryptionModeSelect.appendChild(optionAes);
+    encryptionModeSelect.value = syncConfig ? syncConfig.encryptionMode : "none";
+    const encryptionPasswordInput = createTextInput(
+      "password",
+      t("ui.syncEncryptionPasswordPlaceholder"),
+      syncConfig ? syncConfig.encryptionPassword ?? "" : ""
+    );
+    const encryptionPasswordLabel = createElement("label", {
+      textContent: t("ui.syncEncryptionPassword"),
+      style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
+    });
+    const encryptionPasswordRow = createElement("div", {}, [encryptionPasswordLabel, encryptionPasswordInput]);
+    encryptionPasswordRow.style.display = encryptionModeSelect.value === "aes" ? "block" : "none";
+    encryptionModeSelect.addEventListener("change", () => {
+      encryptionPasswordRow.style.display = encryptionModeSelect.value === "aes" ? "block" : "none";
+    });
+    return { encryptionModeSelect, encryptionPasswordRow, encryptionPasswordInput };
+  }
   function createSyncSettings({ syncConfig, onSave, lastError }) {
     let currentConfig = syncConfig;
     let latestSyncConfig = syncConfig;
@@ -3114,6 +3234,11 @@
       style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
     });
     const gistIdInput = createTextInput("text", "abc123...", syncConfig ? syncConfig.gistId : "");
+    const encryptionModeLabel = createElement("label", {
+      textContent: t("ui.syncEncryptionMode"),
+      style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
+    });
+    const { encryptionModeSelect, encryptionPasswordRow, encryptionPasswordInput } = createEncryptionRow(syncConfig);
     const lastSyncedAt = syncConfig ? syncConfig.lastSyncedAt : null;
     const statusEl = createElement("div", {
       textContent: getStatusText(lastError, lastSyncedAt),
@@ -3128,11 +3253,19 @@
       textContent: t("ui.syncSave"),
       events: {
         click: () => {
+          const mode = encryptionModeSelect.value;
+          if (mode === "aes" && !encryptionPasswordInput.value.trim()) {
+            statusEl.textContent = t("ui.syncEncryptionPasswordRequired");
+            statusEl.style.color = "#ff6b6b";
+            return;
+          }
           const newConfig = {
             enabled: enabledCheckbox.checked,
             pat: patInput.value.trim(),
             gistId: gistIdInput.value.trim(),
-            lastSyncedAt: currentConfig ? currentConfig.lastSyncedAt : null
+            lastSyncedAt: currentConfig ? currentConfig.lastSyncedAt : null,
+            encryptionMode: mode,
+            ...mode === "aes" ? { encryptionPassword: encryptionPasswordInput.value.trim() } : {}
           };
           currentConfig = newConfig;
           isFeedbackShown = true;
@@ -3169,7 +3302,25 @@
     });
     const container = createElement("div", {
       style: { padding: "0 2px" }
-    }, [titleEl, enabledRow, patLabel, patInput, gistIdLabel, gistIdInput, statusEl, saveBtn]);
+    }, [
+      titleEl,
+      enabledRow,
+      patLabel,
+      patInput,
+      gistIdLabel,
+      gistIdInput,
+      encryptionModeLabel,
+      encryptionModeSelect,
+      encryptionPasswordRow,
+      statusEl,
+      saveBtn
+    ]);
+    const updateEncryptionFields = (newSyncConfig) => {
+      const mode = newSyncConfig ? newSyncConfig.encryptionMode : "none";
+      encryptionModeSelect.value = mode;
+      encryptionPasswordInput.value = newSyncConfig ? newSyncConfig.encryptionPassword ?? "" : "";
+      encryptionPasswordRow.style.display = mode === "aes" ? "block" : "none";
+    };
     return {
       el: container,
       update: (newSyncConfig, newLastError) => {
@@ -3179,6 +3330,7 @@
         enabledCheckbox.checked = newSyncConfig ? newSyncConfig.enabled : false;
         patInput.value = newSyncConfig ? newSyncConfig.pat : "";
         gistIdInput.value = newSyncConfig ? newSyncConfig.gistId : "";
+        updateEncryptionFields(newSyncConfig);
         if (!isFeedbackShown) {
           const newLastSyncedAt = newSyncConfig ? newSyncConfig.lastSyncedAt : null;
           statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);
@@ -4091,8 +4243,9 @@
           this.syncSettingsComp = createSyncSettings({
             syncConfig: state.syncConfig,
             onSave: async (config) => {
+              const prevConfig = this.store.getState().syncConfig;
               this.store.setState({ syncConfig: config });
-              await this.syncManager.push();
+              await this.syncManager.push(prevConfig);
             },
             lastError: state.syncLastError
           });
@@ -4685,7 +4838,7 @@
         void this._upload();
       }, this.DEBOUNCE_DELAY);
     }
-    push() {
+    push(prevConfig) {
       if (!this.provider) return Promise.resolve();
       const config = this.store.getState().syncConfig;
       if (!config?.enabled) return Promise.resolve();
@@ -4693,15 +4846,15 @@
         clearTimeout(this.debounceTimer);
         this.debounceTimer = null;
       }
-      return this._doUpload();
+      return this._doUpload(prevConfig ?? null);
     }
     pull() {
       if (!this.provider) return Promise.resolve();
       const config = this.store.getState().syncConfig;
       if (!config?.enabled || !config.gistId) return Promise.resolve();
-      return this.provider.download(config.gistId).then((data) => {
+      return this.provider.download(config.gistId).then(async (data) => {
         if (data) {
-          this._applyRemoteData(data, config);
+          await this._applyRemoteData(data, config);
         } else {
           this.lastError = null;
           this.store.setState({ syncLastError: null });
@@ -4725,7 +4878,7 @@
         this.store.setState({ syncLastError: this.lastError });
       });
     }
-    _doUpload() {
+    _doUpload(prevConfig = null) {
       const config = this.store.getState().syncConfig;
       if (!config) return Promise.resolve();
       const state = this.store.getState();
@@ -4737,12 +4890,14 @@
         searchHistory: state.searchHistory,
         pinnedTags: state.pinnedTags
       };
+      const downloadConfig = prevConfig ?? config;
       const mergeAndUpload = async () => {
         let existingHosts = {};
         if (config.gistId) {
           const existing = await this.provider.download(config.gistId);
           if (existing) {
-            const existingPayload = JSON.parse(existing);
+            const jsonStr = await this._decryptIfNeeded(existing, downloadConfig);
+            const existingPayload = JSON.parse(jsonStr);
             existingHosts = existingPayload.hosts ?? {};
           }
         }
@@ -4757,7 +4912,8 @@
           },
           hosts: { ...existingHosts, [host]: hostData }
         };
-        const result = await this.provider.upload(JSON.stringify(payload), config.gistId);
+        const dataToUpload = await this._encryptIfNeeded(JSON.stringify(payload), config);
+        const result = await this.provider.upload(dataToUpload, config.gistId);
         const latestConfig = this.store.getState().syncConfig;
         if (!latestConfig) return;
         const updatedConfig = {
@@ -4770,9 +4926,25 @@
       };
       return mergeAndUpload();
     }
-    _applyRemoteData(data, config) {
+    _encryptIfNeeded(data, config) {
+      if (config.encryptionMode === "aes" && config.encryptionPassword) {
+        return encrypt(data, config.encryptionPassword);
+      }
+      return Promise.resolve(data);
+    }
+    async _decryptIfNeeded(data, config) {
+      if (isEncrypted(data)) {
+        if (config.encryptionMode !== "aes" || !config.encryptionPassword) {
+          throw new Error(t("ui.syncDecryptionFailed"));
+        }
+        return decrypt(data, config.encryptionPassword);
+      }
+      return data;
+    }
+    async _applyRemoteData(data, config) {
       try {
-        const payload = JSON.parse(data);
+        const jsonStr = await this._decryptIfNeeded(data, config);
+        const payload = JSON.parse(jsonStr);
         const localLastSynced = config.lastSyncedAt ?? 0;
         if (payload.lastSyncedAt <= localLastSynced) return;
         const host = window.location.hostname;
