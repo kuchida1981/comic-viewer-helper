@@ -61,7 +61,14 @@ export const MESSAGES = {
       syncSaveError: 'Save failed: {error}',
       syncStatus: 'Last synced: {time}',
       syncNeverSynced: 'Never synced',
-      syncError: 'Sync error: {error}'
+      syncError: 'Sync error: {error}',
+      syncEncryptionMode: 'Encryption',
+      syncEncryptionNone: 'None (plaintext)',
+      syncEncryptionAes: 'AES Encryption',
+      syncEncryptionPassword: 'Encryption Password',
+      syncEncryptionPasswordPlaceholder: 'Enter password...',
+      syncEncryptionPasswordRequired: 'Password is required when AES encryption is selected.',
+      syncDecryptionFailed: 'Decryption failed. Please check your password.'
     },
     shortcuts: {
       nextPage: { label: 'Next Page', desc: 'Move to next page' },
@@ -143,7 +150,14 @@ export const MESSAGES = {
       syncSaveError: '保存に失敗しました: {error}',
       syncStatus: '最終同期: {time}',
       syncNeverSynced: '未同期',
-      syncError: '同期エラー: {error}'
+      syncError: '同期エラー: {error}',
+      syncEncryptionMode: '暗号化',
+      syncEncryptionNone: 'なし（平文）',
+      syncEncryptionAes: 'AES暗号化',
+      syncEncryptionPassword: '暗号化パスワード',
+      syncEncryptionPasswordPlaceholder: 'パスワードを入力...',
+      syncEncryptionPasswordRequired: 'AES暗号化を選択した場合、パスワードは必須です。',
+      syncDecryptionFailed: '復号に失敗しました。パスワードを確認してください。'
     },
     shortcuts: {
       nextPage: { label: '次ページ', desc: '次のページへ移動' },

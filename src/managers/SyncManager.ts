@@ -1,5 +1,6 @@
 import { Store, StoreState } from '../store';
 import { SyncConfig, RelatedWork, HistoryEntry } from '../types';
+import { encrypt, decrypt, isEncrypted } from '../logic';
 
 export interface SyncProvider {
   upload(data: string, gistId: string): Promise<{ gistId: string }>;
@@ -147,9 +148,9 @@ export class SyncManager {
     if (!config?.enabled || !config.gistId) return Promise.resolve();
 
     return this.provider.download(config.gistId)
-      .then(data => {
+      .then(async data => {
         if (data) {
-          this._applyRemoteData(data, config);
+          await this._applyRemoteData(data, config);
         } else {
           this.lastError = null;
           this.store.setState({ syncLastError: null });
@@ -199,7 +200,8 @@ export class SyncManager {
       if (config.gistId) {
         const existing = await this.provider!.download(config.gistId);
         if (existing) {
-          const existingPayload = JSON.parse(existing) as SyncPayload;
+          const jsonStr = await this._decryptIfNeeded(existing, config);
+          const existingPayload = JSON.parse(jsonStr) as SyncPayload;
           existingHosts = existingPayload.hosts ?? {};
         }
       }
@@ -216,7 +218,8 @@ export class SyncManager {
         hosts: { ...existingHosts, [host]: hostData },
       };
 
-      const result = await this.provider!.upload(JSON.stringify(payload), config.gistId);
+      const dataToUpload = await this._encryptIfNeeded(JSON.stringify(payload), config);
+      const result = await this.provider!.upload(dataToUpload, config.gistId);
 
       const latestConfig = this.store.getState().syncConfig;
       if (!latestConfig) return;
@@ -233,9 +236,27 @@ export class SyncManager {
     return mergeAndUpload();
   }
 
-  private _applyRemoteData(data: string, config: SyncConfig): void {
+  private _encryptIfNeeded(data: string, config: SyncConfig): Promise<string> {
+    if (config.encryptionMode === 'aes' && config.encryptionPassword) {
+      return encrypt(data, config.encryptionPassword);
+    }
+    return Promise.resolve(data);
+  }
+
+  private async _decryptIfNeeded(data: string, config: SyncConfig): Promise<string> {
+    if (isEncrypted(data)) {
+      if (config.encryptionMode !== 'aes' || !config.encryptionPassword) {
+        throw new Error('復号に失敗しました。パスワードを確認してください。');
+      }
+      return decrypt(data, config.encryptionPassword);
+    }
+    return data;
+  }
+
+  private async _applyRemoteData(data: string, config: SyncConfig): Promise<void> {
     try {
-      const payload = JSON.parse(data) as SyncPayload;
+      const jsonStr = await this._decryptIfNeeded(data, config);
+      const payload = JSON.parse(jsonStr) as SyncPayload;
       const localLastSynced = config.lastSyncedAt ?? 0;
 
       if (payload.lastSyncedAt <= localLastSynced) return;

@@ -46,6 +46,56 @@ function createTextInput(type: 'password' | 'text', placeholder: string, value: 
   }) as HTMLInputElement;
 }
 
+function createEncryptionRow(syncConfig: SyncConfig | null): {
+  encryptionModeSelect: HTMLSelectElement;
+  encryptionPasswordRow: HTMLElement;
+  encryptionPasswordInput: HTMLInputElement;
+} {
+  const encryptionModeSelect = createElement('select', {
+    style: {
+      width: '100%',
+      boxSizing: 'border-box',
+      background: COLORS.background.input,
+      border: `1px solid ${COLORS.border.default}`,
+      borderRadius: '3px',
+      color: COLORS.text.primary,
+      padding: '4px 6px',
+      fontSize: '12px',
+      marginBottom: '8px'
+    }
+  }) as HTMLSelectElement;
+
+  const optionNone = document.createElement('option');
+  optionNone.value = 'none';
+  optionNone.textContent = t('ui.syncEncryptionNone');
+  const optionAes = document.createElement('option');
+  optionAes.value = 'aes';
+  optionAes.textContent = t('ui.syncEncryptionAes');
+  encryptionModeSelect.appendChild(optionNone);
+  encryptionModeSelect.appendChild(optionAes);
+  encryptionModeSelect.value = syncConfig ? syncConfig.encryptionMode : 'none';
+
+  const encryptionPasswordInput = createTextInput(
+    'password',
+    t('ui.syncEncryptionPasswordPlaceholder'),
+    syncConfig ? (syncConfig.encryptionPassword ?? '') : ''
+  );
+
+  const encryptionPasswordLabel = createElement('label', {
+    textContent: t('ui.syncEncryptionPassword'),
+    style: { display: 'block', fontSize: '11px', color: COLORS.text.muted, marginBottom: '3px' }
+  });
+
+  const encryptionPasswordRow = createElement('div', {}, [encryptionPasswordLabel, encryptionPasswordInput]);
+  encryptionPasswordRow.style.display = encryptionModeSelect.value === 'aes' ? 'block' : 'none';
+
+  encryptionModeSelect.addEventListener('change', () => {
+    encryptionPasswordRow.style.display = encryptionModeSelect.value === 'aes' ? 'block' : 'none';
+  });
+
+  return { encryptionModeSelect, encryptionPasswordRow, encryptionPasswordInput };
+}
+
 export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettingsProps): SyncSettingsComponent {
   let currentConfig = syncConfig;
   let latestSyncConfig = syncConfig;
@@ -79,6 +129,13 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
   });
   const gistIdInput = createTextInput('text', 'abc123...', syncConfig ? syncConfig.gistId : '');
 
+  const encryptionModeLabel = createElement('label', {
+    textContent: t('ui.syncEncryptionMode'),
+    style: { display: 'block', fontSize: '11px', color: COLORS.text.muted, marginBottom: '3px' }
+  });
+
+  const { encryptionModeSelect, encryptionPasswordRow, encryptionPasswordInput } = createEncryptionRow(syncConfig);
+
   const lastSyncedAt = syncConfig ? syncConfig.lastSyncedAt : null;
   const statusEl = createElement('div', {
     textContent: getStatusText(lastError, lastSyncedAt),
@@ -94,11 +151,19 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
     textContent: t('ui.syncSave'),
     events: {
       click: () => {
+        const mode = encryptionModeSelect.value as 'none' | 'aes';
+        if (mode === 'aes' && !encryptionPasswordInput.value.trim()) {
+          statusEl.textContent = t('ui.syncEncryptionPasswordRequired');
+          statusEl.style.color = '#ff6b6b';
+          return;
+        }
         const newConfig: SyncConfig = {
           enabled: enabledCheckbox.checked,
           pat: patInput.value.trim(),
           gistId: gistIdInput.value.trim(),
-          lastSyncedAt: currentConfig ? currentConfig.lastSyncedAt : null
+          lastSyncedAt: currentConfig ? currentConfig.lastSyncedAt : null,
+          encryptionMode: mode,
+          ...(mode === 'aes' ? { encryptionPassword: encryptionPasswordInput.value.trim() } : {})
         };
         currentConfig = newConfig;
         isFeedbackShown = true;
@@ -138,7 +203,16 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
 
   const container = createElement('div', {
     style: { padding: '0 2px' }
-  }, [titleEl, enabledRow, patLabel, patInput, gistIdLabel, gistIdInput, statusEl, saveBtn]);
+  }, [titleEl, enabledRow, patLabel, patInput, gistIdLabel, gistIdInput,
+    encryptionModeLabel, encryptionModeSelect, encryptionPasswordRow,
+    statusEl, saveBtn]);
+
+  const updateEncryptionFields = (newSyncConfig: SyncConfig | null): void => {
+    const mode = newSyncConfig ? newSyncConfig.encryptionMode : 'none';
+    encryptionModeSelect.value = mode;
+    encryptionPasswordInput.value = newSyncConfig ? (newSyncConfig.encryptionPassword ?? '') : '';
+    encryptionPasswordRow.style.display = mode === 'aes' ? 'block' : 'none';
+  };
 
   return {
     el: container,
@@ -149,6 +223,7 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
       enabledCheckbox.checked = newSyncConfig ? newSyncConfig.enabled : false;
       patInput.value = newSyncConfig ? newSyncConfig.pat : '';
       gistIdInput.value = newSyncConfig ? newSyncConfig.gistId : '';
+      updateEncryptionFields(newSyncConfig);
       if (!isFeedbackShown) {
         const newLastSyncedAt = newSyncConfig ? newSyncConfig.lastSyncedAt : null;
         statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);

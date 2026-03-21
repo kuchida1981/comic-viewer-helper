@@ -34,7 +34,7 @@ describe('SyncManager <-> Store integration', () => {
       store.setSyncTrigger(() => syncManager.scheduleUpload());
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       store.setState({ favorites: [{ title: 'T', href: '/t', thumb: '/i' }] });
@@ -49,14 +49,14 @@ describe('SyncManager <-> Store integration', () => {
 
       // Changing syncConfig should NOT trigger sync
       store.setState({
-        syncConfig: { enabled: true, pat: 'new-pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'new-pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       expect(scheduleSpy).not.toHaveBeenCalled();
     });
 
     it('should persist syncConfig to GM storage when setState is called', () => {
-      const testConfig = { enabled: true, pat: 'secret', gistId: 'abc123', lastSyncedAt: null };
+      const testConfig = { enabled: true, pat: 'secret', gistId: 'abc123', lastSyncedAt: null, encryptionMode: 'none' as const };
       store.setState({ syncConfig: testConfig });
 
       const newStore = new Store();
@@ -65,7 +65,7 @@ describe('SyncManager <-> Store integration', () => {
     });
 
     it('should load syncConfig from GM storage on Store initialization', () => {
-      const testConfig = { enabled: true, pat: 'loaded-pat', gistId: 'loaded-gist', lastSyncedAt: 1234567890 };
+      const testConfig = { enabled: true, pat: 'loaded-pat', gistId: 'loaded-gist', lastSyncedAt: 1234567890, encryptionMode: 'none' as const };
       store.setState({ syncConfig: testConfig });
 
       const newStore = new Store();
@@ -78,7 +78,7 @@ describe('SyncManager <-> Store integration', () => {
       syncManager.setProvider(mockProvider);
       const now = Date.now();
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       const remotePayload = JSON.stringify({
@@ -114,7 +114,7 @@ describe('SyncManager <-> Store integration', () => {
     it('should clear lastError after successful pull', () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       // First cause an error

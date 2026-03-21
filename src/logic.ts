@@ -1,5 +1,93 @@
 import { Metadata, SearchCache, RelatedWork, Tag } from './types';
 
+const AES_GCM_PREFIX = 'AES-GCM:v1:';
+
+/**
+ * Derive a CryptoKey from a password and salt using PBKDF2
+ */
+async function deriveKey(password: string, salt: ArrayBuffer): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+function toBase64(buf: ArrayBuffer): string {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+
+function fromBase64(b64: string): ArrayBuffer {
+  const str = atob(b64);
+  const buf = new ArrayBuffer(str.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < str.length; i++) {
+    view[i] = str.charCodeAt(i);
+  }
+  return buf;
+}
+
+/**
+ * Encrypt plaintext with AES-GCM using the given password.
+ * Returns a string in the format: AES-GCM:v1:<salt_b64>:<iv_b64>:<ciphertext_b64>
+ */
+export async function encrypt(plaintext: string, password: string): Promise<string> {
+  const enc = new TextEncoder();
+  const saltBuf = new ArrayBuffer(16);
+  crypto.getRandomValues(new Uint8Array(saltBuf));
+  const ivBuf = new ArrayBuffer(12);
+  crypto.getRandomValues(new Uint8Array(ivBuf));
+  const key = await deriveKey(password, saltBuf);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: ivBuf },
+    key,
+    enc.encode(plaintext)
+  );
+  return `${AES_GCM_PREFIX}${toBase64(saltBuf)}:${toBase64(ivBuf)}:${toBase64(ciphertext)}`;
+}
+
+/**
+ * Decrypt a string previously encrypted by `encrypt`.
+ * Throws if the data format is invalid or decryption fails (wrong password).
+ */
+export async function decrypt(encrypted: string, password: string): Promise<string> {
+  if (!encrypted.startsWith(AES_GCM_PREFIX)) {
+    throw new Error('Invalid encrypted data format');
+  }
+  const parts = encrypted.slice(AES_GCM_PREFIX.length).split(':');
+  if (parts.length !== 3) {
+    throw new Error('Invalid encrypted data format');
+  }
+  const [saltB64, ivB64, ciphertextB64] = parts;
+  const salt = fromBase64(saltB64);
+  const iv = fromBase64(ivB64);
+  const ciphertext = fromBase64(ciphertextB64);
+  const key = await deriveKey(password, salt);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    ciphertext
+  );
+  return new TextDecoder().decode(plaintext);
+}
+
+/**
+ * Check if a string is an AES-GCM encrypted blob produced by `encrypt`.
+ */
+export function isEncrypted(data: string): boolean {
+  return data.startsWith(AES_GCM_PREFIX);
+}
+
 export interface ImageInfo {
   isLandscape: boolean;
 }
