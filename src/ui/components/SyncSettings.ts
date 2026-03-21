@@ -228,10 +228,7 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
     textContent: t('ui.syncEncryptionPasswordDesc')
   });
 
-  const encryptionPasswordLabelWithDesc = encryptionPasswordRow.querySelector('label');
-  if (encryptionPasswordLabelWithDesc) {
-    encryptionPasswordLabelWithDesc.after(encryptionPasswordDesc);
-  }
+  encryptionPasswordRow.insertBefore(encryptionPasswordDesc, encryptionPasswordInput);
 
   const container = createElement('div', {
     style: { padding: '0 2px' }
