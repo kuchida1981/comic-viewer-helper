@@ -39,14 +39,14 @@ class App {
 
   private _initSync = (): void => {
     const config = this.store.getState().syncConfig;
-    if (config?.enabled && config.pat && config.gistId) {
+    if (config?.enabled && config.pat) {
       this.syncManager.setProvider(new GistSyncProvider(config.pat));
     }
     this.store.setSyncTrigger(() => this.syncManager.scheduleUpload());
 
     this.store.subscribe((state) => {
       const cfg = state.syncConfig;
-      if (cfg?.enabled && cfg.pat && cfg.gistId) {
+      if (cfg?.enabled && cfg.pat) {
         this.syncManager.setProvider(new GistSyncProvider(cfg.pat));
       } else {
         this.syncManager.setProvider(null);
