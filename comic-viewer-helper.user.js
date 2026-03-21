@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.d16e025
+// @version         1.6.0-unstable.6c1049d
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -2234,6 +2234,13 @@
     font-size: 13px;
   }
 
+  .comic-helper-sync-description {
+    font-size: 10px;
+    color: ${COLORS.text.muted};
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
   /* Progress Bar Styles */
   #comic-helper-progress-bar {
     position: fixed;
@@ -2482,7 +2489,12 @@
         syncEncryptionPassword: "Encryption Password",
         syncEncryptionPasswordPlaceholder: "Enter password...",
         syncEncryptionPasswordRequired: "Password is required when AES encryption is selected.",
-        syncDecryptionFailed: "Decryption failed. Please check your password."
+        syncDecryptionFailed: "Decryption failed. Please check your password.",
+        syncSettingsDesc: "Sync your reading history and settings across devices using GitHub Gist.",
+        syncPatDesc: 'A GitHub Personal Access Token with "gist" scope. Generate one from GitHub Settings > Developer settings > Personal access tokens.',
+        syncGistIdDesc: "The ID of the Gist used for syncing. Leave blank to create a new Gist automatically on first save.",
+        syncEncryptionModeDesc: "Choose whether to encrypt your data before storing it in the Gist. AES encryption requires a password.",
+        syncEncryptionPasswordDesc: "Password used to encrypt/decrypt your data. If you forget it, your synced data cannot be recovered. To change the password or disable encryption, update the setting here and save; existing data will be re-encrypted (or decrypted) with the next sync."
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
@@ -2571,7 +2583,12 @@
         syncEncryptionPassword: "暗号化パスワード",
         syncEncryptionPasswordPlaceholder: "パスワードを入力...",
         syncEncryptionPasswordRequired: "AES暗号化を選択した場合、パスワードは必須です。",
-        syncDecryptionFailed: "復号に失敗しました。パスワードを確認してください。"
+        syncDecryptionFailed: "復号に失敗しました。パスワードを確認してください。",
+        syncSettingsDesc: "GitHub Gist を使って、閲覧履歴や設定を複数の端末で同期します。",
+        syncPatDesc: '"gist" スコープを持つ GitHub Personal Access Token です。GitHub の Settings > Developer settings > Personal access tokens から生成してください。',
+        syncGistIdDesc: "同期に使用する Gist の ID です。空欄にすると、初回保存時に自動で新規 Gist が作成されます。",
+        syncEncryptionModeDesc: "Gist に保存するデータを暗号化するかどうかを選択します。AES 暗号化を選択した場合、パスワードが必要です。",
+        syncEncryptionPasswordDesc: "データの暗号化・復号に使用するパスワードです。忘れると同期データを復元できなくなります。パスワードの変更や暗号化の解除は、設定を変更して保存することで行えます（次回同期時にデータが再暗号化または復号されます）。"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
@@ -3117,7 +3134,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.d16e025"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.6c1049d"} (${t("ui.unstable")})`
     });
     const contentChildren = [
       closeBtn,
@@ -3308,16 +3325,42 @@
         borderTop: `1px solid ${COLORS.border.default}`
       }
     });
+    const introDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncSettingsDesc"),
+      style: { marginBottom: "10px" }
+    });
+    const patDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncPatDesc")
+    });
+    const gistIdDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncGistIdDesc")
+    });
+    const encryptionModeDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncEncryptionModeDesc")
+    });
+    const encryptionPasswordDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncEncryptionPasswordDesc")
+    });
+    encryptionPasswordRow.insertBefore(encryptionPasswordDesc, encryptionPasswordInput);
     const container = createElement("div", {
       style: { padding: "0 2px" }
     }, [
       titleEl,
+      introDesc,
       enabledRow,
       patLabel,
+      patDesc,
       patInput,
       gistIdLabel,
+      gistIdDesc,
       gistIdInput,
       encryptionModeLabel,
+      encryptionModeDesc,
       encryptionModeSelect,
       encryptionPasswordRow,
       statusEl,
