@@ -5,7 +5,7 @@ const AES_GCM_PREFIX = 'AES-GCM:v1:';
 /**
  * Derive a CryptoKey from a password and salt using PBKDF2
  */
-async function deriveKey(password: string, salt: ArrayBuffer): Promise<CryptoKey> {
+async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -23,18 +23,18 @@ async function deriveKey(password: string, salt: ArrayBuffer): Promise<CryptoKey
   );
 }
 
-function toBase64(buf: ArrayBuffer): string {
-  return btoa(new Uint8Array(buf).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+function toBase64(buf: Uint8Array<ArrayBuffer> | ArrayBuffer): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  return btoa(bytes.reduce((data, byte) => data + String.fromCharCode(byte), ''));
 }
 
-function fromBase64(b64: string): ArrayBuffer {
+function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
   const str = atob(b64);
-  const buf = new ArrayBuffer(str.length);
-  const view = new Uint8Array(buf);
+  const bytes = new Uint8Array(str.length);
   for (let i = 0; i < str.length; i++) {
-    view[i] = str.charCodeAt(i);
+    bytes[i] = str.charCodeAt(i);
   }
-  return buf;
+  return bytes;
 }
 
 /**
@@ -43,17 +43,17 @@ function fromBase64(b64: string): ArrayBuffer {
  */
 export async function encrypt(plaintext: string, password: string): Promise<string> {
   const enc = new TextEncoder();
-  const saltBuf = new ArrayBuffer(16);
-  crypto.getRandomValues(new Uint8Array(saltBuf));
-  const ivBuf = new ArrayBuffer(12);
-  crypto.getRandomValues(new Uint8Array(ivBuf));
-  const key = await deriveKey(password, saltBuf);
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  const key = await deriveKey(password, salt);
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: ivBuf },
+    { name: 'AES-GCM', iv },
     key,
     enc.encode(plaintext)
   );
-  return `${AES_GCM_PREFIX}${toBase64(saltBuf)}:${toBase64(ivBuf)}:${toBase64(ciphertext)}`;
+  return `${AES_GCM_PREFIX}${toBase64(salt)}:${toBase64(iv)}:${toBase64(ciphertext)}`;
 }
 
 /**
