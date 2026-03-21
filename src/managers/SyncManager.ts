@@ -173,14 +173,10 @@ export class SyncManager {
       let existingHosts: Record<string, SyncPayloadHostData> = {};
 
       if (config.gistId) {
-        try {
-          const existing = await this.provider!.download(config.gistId);
-          if (existing) {
-            const existingPayload = JSON.parse(existing) as SyncPayload;
-            existingHosts = existingPayload.hosts ?? {};
-          }
-        } catch {
-          // Continue with upload even if merge fails
+        const existing = await this.provider!.download(config.gistId);
+        if (existing) {
+          const existingPayload = JSON.parse(existing) as SyncPayload;
+          existingHosts = existingPayload.hosts ?? {};
         }
       }
 

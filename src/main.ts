@@ -39,17 +39,18 @@ class App {
 
   private _initSync = (): void => {
     const config = this.store.getState().syncConfig;
-    if (config?.enabled && config.pat) {
-      this.syncManager.setProvider(new GistSyncProvider(config.pat));
+    let activePat: string | null = config?.enabled && config.pat ? config.pat : null;
+    if (activePat) {
+      this.syncManager.setProvider(new GistSyncProvider(activePat));
     }
     this.store.setSyncTrigger(() => this.syncManager.scheduleUpload());
 
     this.store.subscribe((state) => {
       const cfg = state.syncConfig;
-      if (cfg?.enabled && cfg.pat) {
-        this.syncManager.setProvider(new GistSyncProvider(cfg.pat));
-      } else {
-        this.syncManager.setProvider(null);
+      const newPat = cfg?.enabled && cfg.pat ? cfg.pat : null;
+      if (newPat !== activePat) {
+        activePat = newPat;
+        this.syncManager.setProvider(newPat ? new GistSyncProvider(newPat) : null);
       }
     });
   };

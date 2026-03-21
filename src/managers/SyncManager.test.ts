@@ -306,7 +306,7 @@ describe('SyncManager', () => {
       expect(store.getState().syncConfig).toBeNull();
     });
 
-    it('should handle download failure during merge gracefully', async () => {
+    it('should abort upload when download fails during merge to prevent data loss', async () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
@@ -317,8 +317,9 @@ describe('SyncManager', () => {
       syncManager.scheduleUpload();
       await vi.runAllTimersAsync();
 
-      // Should still attempt upload despite download failure
-      expect(mockProvider.upload).toHaveBeenCalled();
+      // Upload must NOT proceed to avoid overwriting other devices' data
+      expect(mockProvider.upload).not.toHaveBeenCalled();
+      expect(syncManager.getLastError()).toBe('Download failed');
     });
   });
 
