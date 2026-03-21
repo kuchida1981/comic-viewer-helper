@@ -130,7 +130,7 @@ export class SyncManager {
     }, this.DEBOUNCE_DELAY);
   }
 
-  push(): Promise<void> {
+  push(prevConfig?: SyncConfig | null): Promise<void> {
     if (!this.provider) return Promise.resolve();
     const config = this.store.getState().syncConfig;
     if (!config?.enabled) return Promise.resolve();
@@ -140,7 +140,7 @@ export class SyncManager {
       this.debounceTimer = null;
     }
 
-    return this._doUpload();
+    return this._doUpload(prevConfig ?? null);
   }
 
   pull(): Promise<void> {
@@ -180,7 +180,7 @@ export class SyncManager {
     });
   }
 
-  private _doUpload(): Promise<void> {
+  private _doUpload(prevConfig: SyncConfig | null = null): Promise<void> {
     const config = this.store.getState().syncConfig;
     if (!config) return Promise.resolve();
 
@@ -195,13 +195,16 @@ export class SyncManager {
       pinnedTags: state.pinnedTags,
     };
 
+    // 既存データの復号には変更前の設定を使う（暗号解除・パスワード変更に対応）
+    const downloadConfig = prevConfig ?? config;
+
     const mergeAndUpload = async (): Promise<void> => {
       let existingHosts: Record<string, SyncPayloadHostData> = {};
 
       if (config.gistId) {
         const existing = await this.provider!.download(config.gistId);
         if (existing) {
-          const jsonStr = await this._decryptIfNeeded(existing, config);
+          const jsonStr = await this._decryptIfNeeded(existing, downloadConfig);
           const existingPayload = JSON.parse(jsonStr) as SyncPayload;
           existingHosts = existingPayload.hosts ?? {};
         }

@@ -569,6 +569,63 @@ describe('SyncManager', () => {
       await expect(syncManager.push()).rejects.toThrow('Push error');
       expect(store.getState().syncLastError).toBeNull();
     });
+
+    describe('encryption migration via prevConfig', () => {
+      it('should use prevConfig to decrypt existing data when changing from AES to none', async () => {
+        syncManager.setProvider(mockProvider);
+
+        // 新しい設定: 暗号化なし
+        store.setState({
+          syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
+        });
+
+        // Gistには旧パスワード "old-pass" で暗号化されたデータが存在する
+        const { encrypt } = await import('../logic.js');
+        const existingEncrypted = await encrypt(
+          JSON.stringify({ version: 1, lastSyncedAt: 0, hosts: {} }),
+          'old-pass'
+        );
+        (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(existingEncrypted);
+        (mockProvider.upload as ReturnType<typeof vi.fn>).mockResolvedValue({ gistId: 'gid' });
+
+        // 旧configをprevConfigとして渡す
+        const prevConfig = { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'aes' as const, encryptionPassword: 'old-pass' };
+        await syncManager.push(prevConfig);
+
+        // アップロードが呼ばれ、平文JSONが渡されていること
+        const uploadedData = (mockProvider.upload as Mock).mock.calls[0][0] as string;
+        expect(uploadedData.startsWith('{')).toBe(true);
+      });
+
+      it('should use prevConfig to decrypt existing data when changing password', async () => {
+        syncManager.setProvider(mockProvider);
+
+        // 新しい設定: 新パスワード "new-pass"
+        store.setState({
+          syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'aes', encryptionPassword: 'new-pass' }
+        });
+
+        // Gistには旧パスワード "old-pass" で暗号化されたデータが存在する
+        const { encrypt, isEncrypted } = await import('../logic.js');
+        const existingEncrypted = await encrypt(
+          JSON.stringify({ version: 1, lastSyncedAt: 0, hosts: {} }),
+          'old-pass'
+        );
+        (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(existingEncrypted);
+        (mockProvider.upload as ReturnType<typeof vi.fn>).mockResolvedValue({ gistId: 'gid' });
+
+        const prevConfig = { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'aes' as const, encryptionPassword: 'old-pass' };
+        await syncManager.push(prevConfig);
+
+        // アップロードが新パスワードで暗号化されていること
+        const uploadedData = (mockProvider.upload as Mock).mock.calls[0][0] as string;
+        expect(isEncrypted(uploadedData)).toBe(true);
+
+        // 新パスワードで復号できること
+        const { decrypt } = await import('../logic.js');
+        await expect(decrypt(uploadedData, 'new-pass')).resolves.toMatch(/"version":1/);
+      });
+    });
   });
 
   describe('setProvider', () => {

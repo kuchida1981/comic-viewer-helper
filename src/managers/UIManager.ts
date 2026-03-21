@@ -222,8 +222,9 @@ export class UIManager {
         this.syncSettingsComp = createSyncSettings({
           syncConfig: state.syncConfig,
           onSave: async (config) => {
+            const prevConfig = this.store.getState().syncConfig;
             this.store.setState({ syncConfig: config });
-            await this.syncManager.push();
+            await this.syncManager.push(prevConfig);
           },
           lastError: state.syncLastError
         });
