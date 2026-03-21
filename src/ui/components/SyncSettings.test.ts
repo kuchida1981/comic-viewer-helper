@@ -184,6 +184,25 @@ describe('SyncSettings', () => {
         expect(saveBtn.disabled).toBe(false);
       });
 
+      it('should not allow update() to overwrite error message after onSave rejects', async () => {
+        const onSave = vi.fn().mockRejectedValue(new Error('Auth failed'));
+        const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
+        document.body.appendChild(comp.el);
+
+        const saveBtn = comp.el.querySelector('button') as HTMLButtonElement;
+        saveBtn.click();
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        // Background sync error should not overwrite the save error
+        const config = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null };
+        comp.update(config, 'background sync error');
+
+        const allText = comp.el.textContent || '';
+        expect(allText).toContain('Auth failed');
+        expect(allText).not.toContain('background sync error');
+      });
+
       it('should not update status text from update() while feedback is shown', async () => {
         let resolveSave!: () => void;
         const onSave = vi.fn().mockReturnValue(new Promise<void>(resolve => { resolveSave = resolve; }));

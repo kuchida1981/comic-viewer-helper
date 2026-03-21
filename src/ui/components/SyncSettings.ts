@@ -114,7 +114,6 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
             statusEl.style.color = getStatusColor(latestLastError);
           }, 3000);
         }).catch((err: unknown) => {
-          isFeedbackShown = false;
           const errMsg = err instanceof Error ? err.message : String(err);
           statusEl.textContent = t('ui.syncSaveError').replace('{error}', errMsg);
           statusEl.style.color = getStatusColor('error');
