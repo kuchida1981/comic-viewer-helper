@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.28354e6
+// @version         1.5.0-unstable.bcadaa4
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -1245,7 +1245,8 @@
     right: 20px;
     z-index: 10000;
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
     background-color: ${COLORS.background.panel};
     padding: 8px;
     border-radius: 8px;
@@ -1253,11 +1254,17 @@
     cursor: move;
     user-select: none;
     touch-action: none;
-    align-items: center;
-    white-space: nowrap;
     width: max-content;
     opacity: 0.3;
     transition: opacity 0.3s;
+  }
+
+  .comic-helper-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;
   }
 
   #comic-helper-ui:hover {
@@ -2671,19 +2678,21 @@
   }) {
     const heartFilledIcon = createHeartFilledIcon(18);
     const heartOutlineIcon = createHeartOutlineIcon(18);
-    const configs = [
+    const navConfigs = [
       { text: "<<", title: t("ui.goLast"), action: onLast },
       { text: "<", title: t("ui.goNext"), action: onNext },
       { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn", id: "lucky" },
       { text: ">", title: t("ui.goPrev"), action: onPrev },
-      { text: ">>", title: t("ui.goFirst"), action: onFirst },
+      { text: ">>", title: t("ui.goFirst"), action: onFirst }
+    ];
+    const utilConfigs = [
       { text: "", title: "Toggle Favorite", action: onToggleFavorite, id: "fav", className: "comic-helper-favorite-btn" },
-      { text: "Info", title: t("ui.showMetadata"), action: onInfo },
-      { text: "?", title: t("ui.showHelp"), action: onHelp },
+      { text: "ℹ️", title: t("ui.showMetadata"), action: onInfo, className: "comic-helper-button comic-helper-icon-btn" },
+      { text: "❓", title: t("ui.showHelp"), action: onHelp, className: "comic-helper-button comic-helper-icon-btn" },
       { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" },
       { text: "📚", title: t("ui.showFavoritesList"), action: onFavoritesList, className: "comic-helper-button comic-helper-icon-btn" }
     ];
-    const elements = configs.map((cfg) => createElement("button", {
+    const makeBtn = (cfg) => createElement("button", {
       id: cfg.id ? `comic-helper-nav-${cfg.id}` : void 0,
       className: cfg.className || "comic-helper-button",
       textContent: cfg.text,
@@ -2696,17 +2705,20 @@
           e.currentTarget.blur();
         }
       }
-    }));
+    });
+    const navElements = navConfigs.map(makeBtn);
+    const utilElements = utilConfigs.map(makeBtn);
+    const favBtn = utilElements.find((el) => el.id === "comic-helper-nav-fav");
+    const luckyBtn = navElements.find((el) => el.id === "comic-helper-nav-lucky");
     return {
-      elements,
+      navElements,
+      utilElements,
       update: (isFavorite, isLuckyLoading) => {
-        const favBtn = elements.find((el) => el.id === "comic-helper-nav-fav");
         if (favBtn) {
           favBtn.replaceChildren(isFavorite ? heartFilledIcon : heartOutlineIcon);
           favBtn.classList.toggle("active", isFavorite);
           favBtn.classList.toggle("inactive", !isFavorite);
         }
-        const luckyBtn = elements.find((el) => el.id === "comic-helper-nav-lucky");
         if (luckyBtn instanceof HTMLButtonElement) {
           luckyBtn.disabled = isLuckyLoading;
           luckyBtn.classList.toggle("loading", isLuckyLoading);
@@ -2957,7 +2969,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.28354e6"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0-unstable.bcadaa4"} (${t("ui.unstable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -3713,6 +3725,8 @@
     progressComp = null;
     loadingComp = null;
     draggable = null;
+    topRow = null;
+    bottomRow = null;
     modalComp = null;
     helpModalEl = null;
     searchModalComp = null;
@@ -3751,6 +3765,10 @@
         if (guiPos) {
           Object.assign(container.style, { top: `${guiPos.top}px`, left: `${guiPos.left}px`, bottom: "auto", right: "auto" });
         }
+        this.topRow = createElement("div", { className: "comic-helper-row" });
+        this.bottomRow = createElement("div", { className: "comic-helper-row" });
+        container.appendChild(this.topRow);
+        container.appendChild(this.bottomRow);
         this.draggable = new Draggable(container, {
           onDragEnd: (top, left) => this.store.setState({ guiPos: { top, left } })
         });
@@ -3767,7 +3785,7 @@
       this._updateComponentStates(state);
     };
     _ensureNavigationButtons = (container) => {
-      if (container.querySelectorAll(".comic-helper-button").length === 0) {
+      if (!this.navBtnsComp) {
         this._addNavigationButtons(container);
       }
     };
@@ -3780,12 +3798,14 @@
       }
     };
     _ensureMainControls = (container, state, totalImgs) => {
+      const topRow = this.topRow || container;
+      const bottomRow = this.bottomRow || container;
       if (!this.powerComp) {
         this.powerComp = createPowerButton({
           isEnabled: state.enabled,
           onClick: () => this.store.setState({ enabled: !this.store.getState().enabled })
         });
-        container.appendChild(this.powerComp.el);
+        topRow.appendChild(this.powerComp.el);
       }
       if (!this.counterComp) {
         this.counterComp = createPageCounter({
@@ -3795,7 +3815,7 @@
             void this._handleJump(val);
           }
         });
-        container.appendChild(this.counterComp.el);
+        topRow.appendChild(this.counterComp.el);
       }
       if (!this.spreadComp) {
         this.spreadComp = createSpreadControls({
@@ -3803,7 +3823,7 @@
           onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
           onAdjust: () => this.store.setState({ spreadOffset: this.store.getState().spreadOffset === 0 ? 1 : 0 })
         });
-        container.appendChild(this.spreadComp.el);
+        bottomRow.appendChild(this.spreadComp.el);
       }
       if (!this.autoplayComp) {
         this.autoplayComp = createAutoplayControls({
@@ -3812,7 +3832,7 @@
           onToggle: (val) => this.store.setState({ isAutoplayEnabled: val }),
           onChangeInterval: (val) => this.store.setState({ autoplayInterval: val })
         });
-        container.appendChild(this.autoplayComp.el);
+        bottomRow.appendChild(this.autoplayComp.el);
       }
     };
     _ensureOverlayComponents = (state) => {
@@ -3838,6 +3858,8 @@
       }
     };
     _addNavigationButtons = (container) => {
+      const topRow = this.topRow || container;
+      const bottomRow = this.bottomRow || container;
       this.navBtnsComp = createNavigationButtons({
         onFirst: () => {
           void this.navigator.scrollToEdge("start");
@@ -3862,7 +3884,8 @@
         },
         onFavoritesList: () => this.store.setState({ isFavoritesModalOpen: true })
       });
-      this.navBtnsComp.elements.forEach((btn) => container.appendChild(btn));
+      this.navBtnsComp.navElements.forEach((btn) => topRow.appendChild(btn));
+      this.navBtnsComp.utilElements.forEach((btn) => bottomRow.appendChild(btn));
     };
     _updateModals = (state) => {
       this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
@@ -4018,7 +4041,8 @@
       const { enabled, currentVisibleIndex, isDualViewEnabled } = state;
       if (!enabled) {
         container.style.padding = "4px 8px";
-        [this.counterComp, this.spreadComp, this.autoplayComp, this.progressComp].forEach((c) => {
+        if (this.bottomRow) this.bottomRow.style.display = "none";
+        [this.counterComp, this.progressComp].forEach((c) => {
           if (c) c.el.style.display = "none";
         });
         container.querySelectorAll(".comic-helper-button").forEach((btn) => {
@@ -4027,9 +4051,19 @@
         return;
       }
       container.style.padding = "8px";
-      if (this.counterComp) this.counterComp.el.style.display = "flex";
-      if (this.spreadComp) this.spreadComp.el.style.display = "flex";
-      if (this.autoplayComp) this.autoplayComp.el.style.display = "flex";
+      if (this.bottomRow) this.bottomRow.style.display = "flex";
+      if (this.counterComp) {
+        this.counterComp.el.style.display = "flex";
+        this.counterComp.update(currentVisibleIndex + 1, imgs.length);
+      }
+      if (this.spreadComp) {
+        this.spreadComp.el.style.display = "flex";
+        this.spreadComp.update(isDualViewEnabled);
+      }
+      if (this.autoplayComp) {
+        this.autoplayComp.el.style.display = "flex";
+        this.autoplayComp.update(state.isAutoplayEnabled, state.autoplayInterval);
+      }
       if (this.progressComp) {
         this.progressComp.el.style.display = "block";
         this.progressComp.update(currentVisibleIndex, imgs.length);
@@ -4037,9 +4071,6 @@
       container.querySelectorAll(".comic-helper-button").forEach((btn) => {
         btn.style.display = "inline-block";
       });
-      this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
-      this.spreadComp?.update(isDualViewEnabled);
-      this.autoplayComp?.update(state.isAutoplayEnabled, state.autoplayInterval);
     };
     showResumeNotification = (savedIndex) => {
       const notification = createResumeNotification({
