@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0-unstable.bcadaa4
+// @version         1.6.0-unstable.ec2201b
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -15,6 +15,8 @@
 // @grant           GM_setValue
 // @grant           GM_getValue
 // @grant           GM_deleteValue
+// @grant           GM_xmlhttpRequest
+// @connect         api.github.com
 // ==/UserScript==
 
 /**
@@ -26,6 +28,10 @@
   "use strict";
   function isObject(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+  function isSyncConfig(value) {
+    if (!isObject(value)) return false;
+    return typeof value.enabled === "boolean" && typeof value.pat === "string" && typeof value.gistId === "string" && (value.lastSyncedAt === null || typeof value.lastSyncedAt === "number");
   }
   function isStringArray(value) {
     return Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -457,7 +463,8 @@
     AUTOPLAY_ENABLED: "comic-viewer-helper-autoplay-enabled",
     AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval",
     LUCKY_HISTORY: "comic-viewer-helper-lucky-history",
-    PINNED_TAGS: "comic-viewer-helper-pinned-tags"
+    PINNED_TAGS: "comic-viewer-helper-pinned-tags",
+    SYNC_CONFIG: "comic-viewer-helper-sync-config"
   };
   const MAX_SEARCH_HISTORY = 3;
   class Store {
@@ -490,7 +497,9 @@
         favorites: this._loadFavorites(),
         pinnedTags: this._loadPinnedTags(),
         isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
-        autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
+        autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10),
+        syncConfig: this._loadSyncConfig(),
+        syncLastError: null
       };
       this.listeners = [];
     }
@@ -510,14 +519,36 @@
         this._notify();
       }
     };
+    _syncTrigger = null;
+    setSyncTrigger(cb) {
+      this._syncTrigger = cb;
+    }
     _persistChanges = (patch) => {
       if ("enabled" in patch) GM_setValue(STORAGE_KEYS.ENABLED, String(patch.enabled));
       if ("isDualViewEnabled" in patch) GM_setValue(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
       if ("guiPos" in patch) GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
       if ("isAutoplayEnabled" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
       if ("autoplayInterval" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+      if ("syncConfig" in patch) GM_setValue(STORAGE_KEYS.SYNC_CONFIG, JSON.stringify(patch.syncConfig));
       this._persistSearchRelatedChanges(patch);
       this._persistLuckyHistory(patch);
+      this._triggerSyncIfNeeded(patch);
+    };
+    _triggerSyncIfNeeded = (patch) => {
+      if (!this._syncTrigger) return;
+      const syncableKeys = [
+        "favorites",
+        "luckyHistory",
+        "searchHistory",
+        "pinnedTags",
+        "enabled",
+        "isDualViewEnabled",
+        "isAutoplayEnabled",
+        "autoplayInterval"
+      ];
+      if (syncableKeys.some((k) => k in patch)) {
+        this._syncTrigger();
+      }
     };
     _persistSearchRelatedChanges = (patch) => {
       const host = window.location.hostname;
@@ -679,6 +710,16 @@
         return isStringArray(parsed) ? parsed : [];
       } catch {
         return [];
+      }
+    };
+    _loadSyncConfig = () => {
+      try {
+        const saved = GM_getValue(STORAGE_KEYS.SYNC_CONFIG);
+        if (!saved) return null;
+        const parsed = JSON.parse(saved);
+        return isSyncConfig(parsed) ? parsed : null;
+      } catch {
+        return null;
       }
     };
     _loadGuiPos = () => {
@@ -2352,7 +2393,15 @@
         showAllTags: "Show All",
         showTopTags: "Top Only",
         pinTag: "Pin tag",
-        unpinTag: "Unpin tag"
+        unpinTag: "Unpin tag",
+        syncSettings: "Sync Settings",
+        syncEnabled: "Enable Sync",
+        syncPat: "GitHub Personal Access Token",
+        syncGistId: "Gist ID (leave blank to create new)",
+        syncSave: "Save",
+        syncStatus: "Last synced: {time}",
+        syncNeverSynced: "Never synced",
+        syncError: "Sync error: {error}"
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
@@ -2423,7 +2472,15 @@
         showAllTags: "すべて表示",
         showTopTags: "上位のみ",
         pinTag: "タグをピン留め",
-        unpinTag: "ピン留めを解除"
+        unpinTag: "ピン留めを解除",
+        syncSettings: "同期設定",
+        syncEnabled: "同期を有効にする",
+        syncPat: "GitHub Personal Access Token",
+        syncGistId: "Gist ID（空白の場合は新規作成）",
+        syncSave: "保存",
+        syncStatus: "最終同期: {time}",
+        syncNeverSynced: "未同期",
+        syncError: "同期エラー: {error}"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
@@ -2924,7 +2981,7 @@
       description: t("shortcuts.closeModal.desc")
     }
   ];
-  function createHelpModal({ onClose }) {
+  function createHelpModal({ onClose, extraContent }) {
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -2969,14 +3026,18 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0-unstable.bcadaa4"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.ec2201b"} (${t("ui.unstable")})`
     });
+    const contentChildren = [closeBtn, titleEl, shortcutList, versionTag];
+    if (extraContent) {
+      contentChildren.push(extraContent);
+    }
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
         click: (e) => e.stopPropagation()
       }
-    }, [closeBtn, titleEl, shortcutList, versionTag]);
+    }, contentChildren);
     const overlay = createElement("div", {
       className: "comic-helper-modal-overlay",
       events: {
@@ -2989,6 +3050,109 @@
     return {
       el: overlay,
       update: () => {
+      }
+    };
+  }
+  function formatSyncTime(lastSyncedAt) {
+    if (!lastSyncedAt) return t("ui.syncNeverSynced");
+    const date = new Date(lastSyncedAt);
+    return t("ui.syncStatus").replace("{time}", date.toLocaleString());
+  }
+  function getStatusText(lastError, lastSyncedAt) {
+    if (lastError) return t("ui.syncError").replace("{error}", lastError);
+    return formatSyncTime(lastSyncedAt);
+  }
+  function getStatusColor(lastError) {
+    return lastError ? "#ff6b6b" : COLORS.text.muted;
+  }
+  function createTextInput(type, placeholder, value) {
+    return createElement("input", {
+      attributes: { type, placeholder, value },
+      style: {
+        width: "100%",
+        boxSizing: "border-box",
+        background: COLORS.background.input,
+        border: `1px solid ${COLORS.border.default}`,
+        borderRadius: "3px",
+        color: COLORS.text.primary,
+        padding: "4px 6px",
+        fontSize: "12px",
+        marginBottom: "8px"
+      }
+    });
+  }
+  function createSyncSettings({ syncConfig, onSave, lastError }) {
+    let currentConfig = syncConfig;
+    const enabledCheckbox = createElement("input", {
+      attributes: { type: "checkbox", id: "comic-helper-sync-enabled" }
+    });
+    enabledCheckbox.checked = syncConfig ? syncConfig.enabled : false;
+    const enabledLabel = createElement("label", {
+      attributes: { for: "comic-helper-sync-enabled" },
+      textContent: t("ui.syncEnabled"),
+      style: { marginLeft: "6px", cursor: "pointer" }
+    });
+    const enabledRow = createElement("div", {
+      style: { display: "flex", alignItems: "center", marginBottom: "8px" }
+    }, [enabledCheckbox, enabledLabel]);
+    const patLabel = createElement("label", {
+      textContent: t("ui.syncPat"),
+      style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
+    });
+    const patInput = createTextInput("password", "ghp_...", syncConfig ? syncConfig.pat : "");
+    const gistIdLabel = createElement("label", {
+      textContent: t("ui.syncGistId"),
+      style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
+    });
+    const gistIdInput = createTextInput("text", "abc123...", syncConfig ? syncConfig.gistId : "");
+    const lastSyncedAt = syncConfig ? syncConfig.lastSyncedAt : null;
+    const statusEl = createElement("div", {
+      textContent: getStatusText(lastError, lastSyncedAt),
+      style: {
+        fontSize: "11px",
+        color: getStatusColor(lastError),
+        marginBottom: "8px"
+      }
+    });
+    const saveBtn = createElement("button", {
+      className: "comic-helper-button",
+      textContent: t("ui.syncSave"),
+      events: {
+        click: () => {
+          const newConfig = {
+            enabled: enabledCheckbox.checked,
+            pat: patInput.value.trim(),
+            gistId: gistIdInput.value.trim(),
+            lastSyncedAt: currentConfig ? currentConfig.lastSyncedAt : null
+          };
+          onSave(newConfig);
+          currentConfig = newConfig;
+        }
+      }
+    });
+    const titleEl = createElement("div", {
+      textContent: t("ui.syncSettings"),
+      style: {
+        fontWeight: "bold",
+        fontSize: "13px",
+        marginBottom: "10px",
+        paddingTop: "10px",
+        borderTop: `1px solid ${COLORS.border.default}`
+      }
+    });
+    const container = createElement("div", {
+      style: { padding: "0 2px" }
+    }, [titleEl, enabledRow, patLabel, patInput, gistIdLabel, gistIdInput, statusEl, saveBtn]);
+    return {
+      el: container,
+      update: (newSyncConfig, newLastError) => {
+        currentConfig = newSyncConfig;
+        enabledCheckbox.checked = newSyncConfig ? newSyncConfig.enabled : false;
+        patInput.value = newSyncConfig ? newSyncConfig.pat : "";
+        gistIdInput.value = newSyncConfig ? newSyncConfig.gistId : "";
+        const newLastSyncedAt = newSyncConfig ? newSyncConfig.lastSyncedAt : null;
+        statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);
+        statusEl.style.color = getStatusColor(newLastError);
       }
     };
   }
@@ -3728,7 +3892,8 @@
     topRow = null;
     bottomRow = null;
     modalComp = null;
-    helpModalEl = null;
+    helpModalComp = null;
+    syncSettingsComp = null;
     searchModalComp = null;
     favoritesModalComp = null;
     constructor(adapter, store, navigator2, discoveryManager) {
@@ -3888,9 +4053,26 @@
       this.navBtnsComp.utilElements.forEach((btn) => bottomRow.appendChild(btn));
     };
     _updateModals = (state) => {
-      this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
-        onClose: () => this.store.setState({ isHelpModalOpen: false })
-      }));
+      if (state.isHelpModalOpen) {
+        if (!this.helpModalComp) {
+          this.syncSettingsComp = createSyncSettings({
+            syncConfig: state.syncConfig,
+            onSave: (config) => this.store.setState({ syncConfig: config }),
+            lastError: state.syncLastError
+          });
+          this.helpModalComp = createHelpModal({
+            onClose: () => this.store.setState({ isHelpModalOpen: false }),
+            extraContent: this.syncSettingsComp.el
+          });
+          document.body.appendChild(this.helpModalComp.el);
+        } else {
+          this.syncSettingsComp?.update(state.syncConfig, state.syncLastError);
+        }
+      } else if (this.helpModalComp) {
+        this.helpModalComp.el.remove();
+        this.helpModalComp = null;
+        this.syncSettingsComp = null;
+      }
       this._updateSearchModal(state);
       this._updateFavoritesModal(state);
       if (state.isMetadataModalOpen) {
@@ -4375,6 +4557,200 @@
       window.location.href = link.href;
     };
   }
+  const GIST_FILENAME = "comic-viewer-helper-sync.json";
+  class GistSyncProvider {
+    constructor(pat) {
+      this.pat = pat;
+    }
+    upload(data, gistId) {
+      return new Promise((resolve, reject) => {
+        const method = gistId ? "PATCH" : "POST";
+        const url = gistId ? `https://api.github.com/gists/${gistId}` : "https://api.github.com/gists";
+        GM_xmlhttpRequest({
+          method,
+          url,
+          headers: {
+            "Authorization": `token ${this.pat}`,
+            "Content-Type": "application/json"
+          },
+          data: JSON.stringify({
+            description: "comic-viewer-helper sync data",
+            public: false,
+            files: {
+              [GIST_FILENAME]: { content: data }
+            }
+          }),
+          onload: (response) => {
+            if (response.status >= 200 && response.status < 300) {
+              try {
+                const body = JSON.parse(response.responseText);
+                resolve({ gistId: body.id });
+              } catch {
+                reject(new Error("Failed to parse upload response"));
+              }
+            } else {
+              reject(new Error(`Upload failed with status ${response.status}`));
+            }
+          },
+          onerror: () => reject(new Error("Network error during upload"))
+        });
+      });
+    }
+    download(gistId) {
+      return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: `https://api.github.com/gists/${gistId}`,
+          headers: {
+            "Authorization": `token ${this.pat}`
+          },
+          onload: (response) => {
+            if (response.status === 404) {
+              resolve(null);
+              return;
+            }
+            if (response.status >= 200 && response.status < 300) {
+              try {
+                const body = JSON.parse(response.responseText);
+                const file = body.files[GIST_FILENAME];
+                resolve(file ? file.content : null);
+              } catch {
+                reject(new Error("Failed to parse download response"));
+              }
+            } else {
+              reject(new Error(`Download failed with status ${response.status}`));
+            }
+          },
+          onerror: () => reject(new Error("Network error during download"))
+        });
+      });
+    }
+  }
+  class SyncManager {
+    constructor(store) {
+      this.store = store;
+    }
+    provider = null;
+    debounceTimer = null;
+    DEBOUNCE_DELAY = 3e4;
+    // 30 seconds
+    lastError = null;
+    setProvider(provider) {
+      this.provider = provider;
+    }
+    scheduleUpload() {
+      if (!this.provider) return;
+      const config = this.store.getState().syncConfig;
+      if (!config?.enabled) return;
+      if (this.debounceTimer !== null) {
+        clearTimeout(this.debounceTimer);
+      }
+      this.debounceTimer = setTimeout(() => {
+        void this._upload();
+      }, this.DEBOUNCE_DELAY);
+    }
+    pull() {
+      if (!this.provider) return Promise.resolve();
+      const config = this.store.getState().syncConfig;
+      if (!config?.enabled || !config.gistId) return Promise.resolve();
+      return this.provider.download(config.gistId).then((data) => {
+        if (data) {
+          this._applyRemoteData(data, config);
+        } else {
+          this.lastError = null;
+          this.store.setState({ syncLastError: null });
+        }
+      }).catch((err) => {
+        console.warn("[SyncManager] pull failed:", err);
+        this.lastError = err instanceof Error ? err.message : String(err);
+        this.store.setState({ syncLastError: this.lastError });
+      });
+    }
+    getLastError() {
+      return this.lastError;
+    }
+    _upload() {
+      if (!this.provider) return Promise.resolve();
+      const config = this.store.getState().syncConfig;
+      if (!config?.enabled) return Promise.resolve();
+      const state = this.store.getState();
+      const host = window.location.hostname;
+      const now = Date.now();
+      const hostData = {
+        favorites: state.favorites,
+        luckyHistory: state.luckyHistory,
+        searchHistory: state.searchHistory,
+        pinnedTags: state.pinnedTags
+      };
+      const mergeAndUpload = async () => {
+        let existingHosts = {};
+        if (config.gistId) {
+          const existing = await this.provider.download(config.gistId);
+          if (existing) {
+            const existingPayload = JSON.parse(existing);
+            existingHosts = existingPayload.hosts ?? {};
+          }
+        }
+        const payload = {
+          version: 1,
+          lastSyncedAt: now,
+          settings: {
+            enabled: state.enabled,
+            isDualViewEnabled: state.isDualViewEnabled,
+            isAutoplayEnabled: state.isAutoplayEnabled,
+            autoplayInterval: state.autoplayInterval
+          },
+          hosts: { ...existingHosts, [host]: hostData }
+        };
+        const result = await this.provider.upload(JSON.stringify(payload), config.gistId);
+        const latestConfig = this.store.getState().syncConfig;
+        if (!latestConfig) return;
+        const updatedConfig = {
+          ...latestConfig,
+          gistId: result.gistId,
+          lastSyncedAt: now
+        };
+        this.store.setState({ syncConfig: updatedConfig, syncLastError: null });
+        this.lastError = null;
+      };
+      return mergeAndUpload().catch((err) => {
+        console.warn("[SyncManager] upload failed:", err);
+        this.lastError = err instanceof Error ? err.message : String(err);
+        this.store.setState({ syncLastError: this.lastError });
+      });
+    }
+    _applyRemoteData(data, config) {
+      try {
+        const payload = JSON.parse(data);
+        const localLastSynced = config.lastSyncedAt ?? 0;
+        if (payload.lastSyncedAt <= localLastSynced) return;
+        const host = window.location.hostname;
+        const hostData = payload.hosts?.[host];
+        const patch = {};
+        if (payload.settings) {
+          patch.enabled = payload.settings.enabled;
+          patch.isDualViewEnabled = payload.settings.isDualViewEnabled;
+          patch.isAutoplayEnabled = payload.settings.isAutoplayEnabled;
+          patch.autoplayInterval = payload.settings.autoplayInterval;
+        }
+        if (hostData) {
+          patch.favorites = hostData.favorites;
+          patch.luckyHistory = hostData.luckyHistory;
+          patch.searchHistory = hostData.searchHistory;
+          patch.pinnedTags = hostData.pinnedTags;
+        }
+        const updatedConfig = { ...config, lastSyncedAt: payload.lastSyncedAt };
+        patch.syncConfig = updatedConfig;
+        patch.syncLastError = null;
+        this.store.setState(patch);
+        this.lastError = null;
+      } catch (err) {
+        console.warn("[SyncManager] failed to apply remote data:", err);
+        this.lastError = err instanceof Error ? err.message : String(err);
+        this.store.setState({ syncLastError: this.lastError });
+      }
+    }
+  }
   class App {
     store;
     adapter;
@@ -4384,8 +4760,11 @@
     inputManager;
     resumeManager;
     popUnderBlocker;
+    syncManager;
     constructor() {
       this.store = new Store();
+      this.syncManager = new SyncManager(this.store);
+      this._initSync();
       const adapters = [DefaultAdapter];
       this.adapter = adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
       this.navigator = new Navigator(this.adapter, this.store);
@@ -4395,6 +4774,22 @@
       this.resumeManager = new ResumeManager(this.store);
       this.popUnderBlocker = new PopUnderBlocker(this.store);
     }
+    _initSync = () => {
+      const config = this.store.getState().syncConfig;
+      let activePat = config?.enabled && config.pat ? config.pat : null;
+      if (activePat) {
+        this.syncManager.setProvider(new GistSyncProvider(activePat));
+      }
+      this.store.setSyncTrigger(() => this.syncManager.scheduleUpload());
+      this.store.subscribe((state) => {
+        const cfg = state.syncConfig;
+        const newPat = cfg?.enabled && cfg.pat ? cfg.pat : null;
+        if (newPat !== activePat) {
+          activePat = newPat;
+          this.syncManager.setProvider(newPat ? new GistSyncProvider(newPat) : null);
+        }
+      });
+    };
     init = () => {
       const container = this.adapter.getContainer();
       if (!container) return;
@@ -4404,6 +4799,7 @@
       this.uiManager.init();
       this.inputManager.init();
       this.popUnderBlocker.init();
+      void this.syncManager.pull();
       const firstImageSrc = this.navigator.getImages()[0]?.src || "";
       this.store.addLuckyHistory({
         title: metadata.title || document.title,
