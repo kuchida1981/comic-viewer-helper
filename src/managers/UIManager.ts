@@ -5,7 +5,8 @@ import { createSpreadControls, SpreadControlsComponent } from '../ui/components/
 import { createAutoplayControls, AutoplayControlsComponent } from '../ui/components/AutoplayControls';
 import { createNavigationButtons, NavigationButtonsComponent } from '../ui/components/NavigationButtons';
 import { createMetadataModal, MetadataModalComponent } from '../ui/components/MetadataModal';
-import { createHelpModal } from '../ui/components/HelpModal';
+import { createHelpModal, HelpModalComponent } from '../ui/components/HelpModal';
+import { createSyncSettings, SyncSettingsComponent } from '../ui/components/SyncSettings';
 import { createSearchModal, SearchModalComponent } from '../ui/components/SearchModal';
 import { createFavoritesModal, FavoritesModalComponent } from '../ui/components/FavoritesModal';
 import { createProgressBar, ProgressBarComponent } from '../ui/components/ProgressBar';
@@ -39,7 +40,8 @@ export class UIManager {
   private topRow: HTMLElement | null = null;
   private bottomRow: HTMLElement | null = null;
   private modalComp: MetadataModalComponent | null = null;
-  private helpModalEl: HTMLElement | null = null;
+  private helpModalComp: HelpModalComponent | null = null;
+  private syncSettingsComp: SyncSettingsComponent | null = null;
   private searchModalComp: SearchModalComponent | null = null;
   private favoritesModalComp: FavoritesModalComponent | null = null;
 
@@ -211,9 +213,26 @@ export class UIManager {
   };
 
   private _updateModals = (state: StoreState): void => {
-    this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
-      onClose: () => this.store.setState({ isHelpModalOpen: false })
-    }));
+    if (state.isHelpModalOpen) {
+      if (!this.helpModalComp) {
+        this.syncSettingsComp = createSyncSettings({
+          syncConfig: state.syncConfig,
+          onSave: (config) => this.store.setState({ syncConfig: config }),
+          lastError: state.syncLastError
+        });
+        this.helpModalComp = createHelpModal({
+          onClose: () => this.store.setState({ isHelpModalOpen: false }),
+          extraContent: this.syncSettingsComp.el
+        });
+        document.body.appendChild(this.helpModalComp.el);
+      } else {
+        this.syncSettingsComp?.update(state.syncConfig, state.syncLastError);
+      }
+    } else if (this.helpModalComp) {
+      this.helpModalComp.el.remove();
+      this.helpModalComp = null;
+      this.syncSettingsComp = null;
+    }
 
     this._updateSearchModal(state);
     this._updateFavoritesModal(state);

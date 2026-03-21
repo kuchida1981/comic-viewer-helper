@@ -22,7 +22,9 @@ const DEFAULT_STATE: StoreState = {
   favorites: [],
   pinnedTags: [],
   isAutoplayEnabled: false,
-  autoplayInterval: 5
+  autoplayInterval: 5,
+  syncConfig: null,
+      syncLastError: null
 };
 
 /**

@@ -6,6 +6,7 @@ import { UIManager } from './managers/UIManager';
 import { InputManager } from './managers/InputManager';
 import { ResumeManager } from './managers/ResumeManager';
 import { PopUnderBlocker } from './managers/PopUnderBlocker';
+import { SyncManager, GistSyncProvider } from './managers/SyncManager';
 import { SiteAdapter, isMetadataAdapter } from './types';
 
 class App {
@@ -17,9 +18,12 @@ class App {
   private inputManager: InputManager;
   private resumeManager: ResumeManager;
   private popUnderBlocker: PopUnderBlocker;
+  private syncManager: SyncManager;
 
   constructor() {
     this.store = new Store();
+    this.syncManager = new SyncManager(this.store);
+    this._initSync();
 
     // Select adapter (currently only DefaultAdapter)
     const adapters: SiteAdapter[] = [DefaultAdapter];
@@ -32,6 +36,24 @@ class App {
     this.resumeManager = new ResumeManager(this.store);
     this.popUnderBlocker = new PopUnderBlocker(this.store);
   }
+
+  private _initSync = (): void => {
+    const config = this.store.getState().syncConfig;
+    let activePat: string | null = config?.enabled && config.pat ? config.pat : null;
+    if (activePat) {
+      this.syncManager.setProvider(new GistSyncProvider(activePat));
+    }
+    this.store.setSyncTrigger(() => this.syncManager.scheduleUpload());
+
+    this.store.subscribe((state) => {
+      const cfg = state.syncConfig;
+      const newPat = cfg?.enabled && cfg.pat ? cfg.pat : null;
+      if (newPat !== activePat) {
+        activePat = newPat;
+        this.syncManager.setProvider(newPat ? new GistSyncProvider(newPat) : null);
+      }
+    });
+  };
 
   init = (): void => {
     const container = this.adapter.getContainer();
@@ -48,6 +70,9 @@ class App {
     this.uiManager.init();
     this.inputManager.init();
     this.popUnderBlocker.init();
+
+    // Pull remote sync data on startup
+    void this.syncManager.pull();
 
     // Add current work to lucky history with detailed info
     const firstImageSrc = this.navigator.getImages()[0]?.src || '';

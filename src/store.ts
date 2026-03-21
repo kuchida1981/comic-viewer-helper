@@ -1,5 +1,5 @@
-import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork, HistoryEntry } from './types';
-import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray, isHistoryEntryArray } from './type-guards';
+import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork, HistoryEntry, SyncConfig } from './types';
+import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray, isHistoryEntryArray, isSyncConfig } from './type-guards';
 import { normalizeUrl } from './logic';
 
 export const STORAGE_KEYS = {
@@ -14,7 +14,8 @@ export const STORAGE_KEYS = {
   AUTOPLAY_ENABLED: 'comic-viewer-helper-autoplay-enabled',
   AUTOPLAY_INTERVAL: 'comic-viewer-helper-autoplay-interval',
   LUCKY_HISTORY: 'comic-viewer-helper-lucky-history',
-  PINNED_TAGS: 'comic-viewer-helper-pinned-tags'
+  PINNED_TAGS: 'comic-viewer-helper-pinned-tags',
+  SYNC_CONFIG: 'comic-viewer-helper-sync-config'
 } as const;
 
 export const MAX_SEARCH_HISTORY = 3;
@@ -48,6 +49,8 @@ export interface StoreState {
   pinnedTags: string[];
   isAutoplayEnabled: boolean;
   autoplayInterval: number;
+  syncConfig: SyncConfig | null;
+  syncLastError: string | null;
 }
 
 export type StoreListener = (state: StoreState) => void;
@@ -83,7 +86,9 @@ export class Store {
       favorites: this._loadFavorites(),
       pinnedTags: this._loadPinnedTags(),
       isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
-      autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10)
+      autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10),
+      syncConfig: this._loadSyncConfig(),
+      syncLastError: null
     };
     this.listeners = [];
   }
@@ -107,15 +112,34 @@ export class Store {
     }
   };
 
+  private _syncTrigger: (() => void) | null = null;
+
+  setSyncTrigger(cb: () => void): void {
+    this._syncTrigger = cb;
+  }
+
   private _persistChanges = (patch: Partial<StoreState>): void => {
     if ('enabled' in patch) GM_setValue(STORAGE_KEYS.ENABLED, String(patch.enabled));
     if ('isDualViewEnabled' in patch) GM_setValue(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
     if ('guiPos' in patch) GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
     if ('isAutoplayEnabled' in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
     if ('autoplayInterval' in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+    if ('syncConfig' in patch) GM_setValue(STORAGE_KEYS.SYNC_CONFIG, JSON.stringify(patch.syncConfig));
 
     this._persistSearchRelatedChanges(patch);
     this._persistLuckyHistory(patch);
+    this._triggerSyncIfNeeded(patch);
+  };
+
+  private _triggerSyncIfNeeded = (patch: Partial<StoreState>): void => {
+    if (!this._syncTrigger) return;
+    const syncableKeys: (keyof StoreState)[] = [
+      'favorites', 'luckyHistory', 'searchHistory', 'pinnedTags',
+      'enabled', 'isDualViewEnabled', 'isAutoplayEnabled', 'autoplayInterval'
+    ];
+    if (syncableKeys.some(k => k in patch)) {
+      this._syncTrigger();
+    }
   };
 
   private _persistSearchRelatedChanges = (patch: Partial<StoreState>): void => {
@@ -297,6 +321,17 @@ export class Store {
       return isStringArray(parsed) ? parsed : [];
     } catch {
       return [];
+    }
+  };
+
+  private _loadSyncConfig = (): SyncConfig | null => {
+    try {
+      const saved = GM_getValue(STORAGE_KEYS.SYNC_CONFIG);
+      if (!saved) return null;
+      const parsed: unknown = JSON.parse(saved);
+      return isSyncConfig(parsed) ? parsed : null;
+    } catch {
+      return null;
     }
   };
 
