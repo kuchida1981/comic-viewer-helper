@@ -895,6 +895,10 @@ export const styles = `
     border-bottom: 1px solid ${COLORS.border.dark};
   }
 
+  .comic-helper-shortcut-row:last-child {
+    border-bottom: none;
+  }
+
   @media (max-width: 600px) {
     .comic-helper-shortcut-row {
       display: flex;

@@ -195,6 +195,7 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
     style: {
       fontWeight: 'bold',
       fontSize: '13px',
+      marginTop: '15px',
       marginBottom: '10px',
       paddingTop: '10px',
       borderTop: `1px solid ${COLORS.border.default}`
