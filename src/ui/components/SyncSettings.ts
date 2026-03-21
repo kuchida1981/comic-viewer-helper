@@ -5,7 +5,7 @@ import { COLORS } from '../styles';
 
 export interface SyncSettingsProps {
   syncConfig: SyncConfig | null;
-  onSave: (config: SyncConfig) => void;
+  onSave: (config: SyncConfig) => Promise<void>;
   lastError: string | null;
 }
 
@@ -48,6 +48,9 @@ function createTextInput(type: 'password' | 'text', placeholder: string, value: 
 
 export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettingsProps): SyncSettingsComponent {
   let currentConfig = syncConfig;
+  let latestSyncConfig = syncConfig;
+  let latestLastError = lastError;
+  let isFeedbackShown = false;
 
   const enabledCheckbox = createElement('input', {
     attributes: { type: 'checkbox', id: 'comic-helper-sync-enabled' }
@@ -97,8 +100,27 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
           gistId: gistIdInput.value.trim(),
           lastSyncedAt: currentConfig ? currentConfig.lastSyncedAt : null
         };
-        onSave(newConfig);
         currentConfig = newConfig;
+        isFeedbackShown = true;
+        (saveBtn as HTMLButtonElement).disabled = true;
+        saveBtn.textContent = t('ui.syncSaving');
+
+        onSave(newConfig).then(() => {
+          statusEl.textContent = t('ui.syncSaveSuccess');
+          statusEl.style.color = COLORS.text.success;
+          setTimeout(() => {
+            isFeedbackShown = false;
+            statusEl.textContent = getStatusText(latestLastError, latestSyncConfig?.lastSyncedAt ?? null);
+            statusEl.style.color = getStatusColor(latestLastError);
+          }, 3000);
+        }).catch((err: unknown) => {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          statusEl.textContent = t('ui.syncSaveError').replace('{error}', errMsg);
+          statusEl.style.color = getStatusColor('error');
+        }).finally(() => {
+          (saveBtn as HTMLButtonElement).disabled = false;
+          saveBtn.textContent = t('ui.syncSave');
+        });
       }
     }
   });
@@ -121,13 +143,17 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
   return {
     el: container,
     update: (newSyncConfig: SyncConfig | null, newLastError: string | null) => {
+      latestSyncConfig = newSyncConfig;
+      latestLastError = newLastError;
       currentConfig = newSyncConfig;
       enabledCheckbox.checked = newSyncConfig ? newSyncConfig.enabled : false;
       patInput.value = newSyncConfig ? newSyncConfig.pat : '';
       gistIdInput.value = newSyncConfig ? newSyncConfig.gistId : '';
-      const newLastSyncedAt = newSyncConfig ? newSyncConfig.lastSyncedAt : null;
-      statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);
-      statusEl.style.color = getStatusColor(newLastError);
+      if (!isFeedbackShown) {
+        const newLastSyncedAt = newSyncConfig ? newSyncConfig.lastSyncedAt : null;
+        statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);
+        statusEl.style.color = getStatusColor(newLastError);
+      }
     }
   };
 }

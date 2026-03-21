@@ -31,7 +31,7 @@ class App {
 
     this.navigator = new Navigator(this.adapter, this.store);
     this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
-    this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager);
+    this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager, this.syncManager);
     this.inputManager = new InputManager(this.store, this.navigator, this.discoveryManager, this.uiManager);
     this.resumeManager = new ResumeManager(this.store);
     this.popUnderBlocker = new PopUnderBlocker(this.store);

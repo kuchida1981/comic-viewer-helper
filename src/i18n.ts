@@ -56,6 +56,9 @@ export const MESSAGES = {
       syncPat: 'GitHub Personal Access Token',
       syncGistId: 'Gist ID (leave blank to create new)',
       syncSave: 'Save',
+      syncSaving: 'Saving...',
+      syncSaveSuccess: 'Saved',
+      syncSaveError: 'Save failed: {error}',
       syncStatus: 'Last synced: {time}',
       syncNeverSynced: 'Never synced',
       syncError: 'Sync error: {error}'
@@ -135,6 +138,9 @@ export const MESSAGES = {
       syncPat: 'GitHub Personal Access Token',
       syncGistId: 'Gist ID（空白の場合は新規作成）',
       syncSave: '保存',
+      syncSaving: '保存中...',
+      syncSaveSuccess: '保存しました',
+      syncSaveError: '保存に失敗しました: {error}',
       syncStatus: '最終同期: {time}',
       syncNeverSynced: '未同期',
       syncError: '同期エラー: {error}'

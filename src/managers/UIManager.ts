@@ -17,6 +17,7 @@ import { createElement } from '../ui/utils';
 import { Store, StoreState } from '../store';
 import { Navigator } from './Navigator';
 import { DiscoveryManager } from './DiscoveryManager';
+import { SyncManager } from './SyncManager';
 import { SiteAdapter, SearchContext, SearchCache, Tag, RelatedWork } from '../types';
 import { normalizeUrl } from '../logic';
 
@@ -45,11 +46,14 @@ export class UIManager {
   private searchModalComp: SearchModalComponent | null = null;
   private favoritesModalComp: FavoritesModalComponent | null = null;
 
-  constructor(adapter: SiteAdapter, store: Store, navigator: Navigator, discoveryManager: DiscoveryManager) {
+  private syncManager: SyncManager;
+
+  constructor(adapter: SiteAdapter, store: Store, navigator: Navigator, discoveryManager: DiscoveryManager, syncManager: SyncManager) {
     this.adapter = adapter;
     this.store = store;
     this.navigator = navigator;
     this.discoveryManager = discoveryManager;
+    this.syncManager = syncManager;
   }
 
   init = (): void => {
@@ -217,7 +221,10 @@ export class UIManager {
       if (!this.helpModalComp) {
         this.syncSettingsComp = createSyncSettings({
           syncConfig: state.syncConfig,
-          onSave: (config) => this.store.setState({ syncConfig: config }),
+          onSave: async (config) => {
+            this.store.setState({ syncConfig: config });
+            await this.syncManager.push();
+          },
           lastError: state.syncLastError
         });
         this.helpModalComp = createHelpModal({
