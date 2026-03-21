@@ -280,6 +280,37 @@ describe('SyncSettings', () => {
       });
     });
 
+    describe('description texts', () => {
+      it('should render intro description text', () => {
+        const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
+        document.body.appendChild(comp.el);
+
+        const descEls = comp.el.querySelectorAll('.comic-helper-sync-description');
+        expect(descEls.length).toBeGreaterThan(0);
+      });
+
+      it('should render PAT description text', () => {
+        const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
+        document.body.appendChild(comp.el);
+
+        const allText = comp.el.textContent || '';
+        expect(allText).toMatch(/gist|Gist/);
+      });
+
+      it('should render encryption password description inside password row', () => {
+        const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'aes', encryptionPassword: 'pass' };
+        const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
+        document.body.appendChild(comp.el);
+
+        const encryptionSelect = comp.el.querySelector('select') as HTMLSelectElement;
+        encryptionSelect.value = 'aes';
+        encryptionSelect.dispatchEvent(new Event('change'));
+
+        const allText = comp.el.textContent || '';
+        expect(allText).toMatch(/password|パスワード/i);
+      });
+    });
+
     describe('update', () => {
       it('should update displayed values with new syncConfig', () => {
         const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
