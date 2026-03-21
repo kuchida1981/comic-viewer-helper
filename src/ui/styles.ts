@@ -941,6 +941,13 @@ export const styles = `
     font-size: 13px;
   }
 
+  .comic-helper-sync-description {
+    font-size: 10px;
+    color: ${COLORS.text.muted};
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+
   /* Progress Bar Styles */
   #comic-helper-progress-bar {
     position: fixed;

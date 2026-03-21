@@ -202,10 +202,41 @@ export function createSyncSettings({ syncConfig, onSave, lastError }: SyncSettin
     }
   });
 
+  const introDesc = createElement('div', {
+    className: 'comic-helper-sync-description',
+    textContent: t('ui.syncSettingsDesc'),
+    style: { marginBottom: '10px' }
+  });
+
+  const patDesc = createElement('div', {
+    className: 'comic-helper-sync-description',
+    textContent: t('ui.syncPatDesc')
+  });
+
+  const gistIdDesc = createElement('div', {
+    className: 'comic-helper-sync-description',
+    textContent: t('ui.syncGistIdDesc')
+  });
+
+  const encryptionModeDesc = createElement('div', {
+    className: 'comic-helper-sync-description',
+    textContent: t('ui.syncEncryptionModeDesc')
+  });
+
+  const encryptionPasswordDesc = createElement('div', {
+    className: 'comic-helper-sync-description',
+    textContent: t('ui.syncEncryptionPasswordDesc')
+  });
+
+  encryptionPasswordRow.insertBefore(encryptionPasswordDesc, encryptionPasswordInput);
+
   const container = createElement('div', {
     style: { padding: '0 2px' }
-  }, [titleEl, enabledRow, patLabel, patInput, gistIdLabel, gistIdInput,
-    encryptionModeLabel, encryptionModeSelect, encryptionPasswordRow,
+  }, [titleEl, introDesc, enabledRow,
+    patLabel, patDesc, patInput,
+    gistIdLabel, gistIdDesc, gistIdInput,
+    encryptionModeLabel, encryptionModeDesc, encryptionModeSelect,
+    encryptionPasswordRow,
     statusEl, saveBtn]);
 
   const updateEncryptionFields = (newSyncConfig: SyncConfig | null): void => {
