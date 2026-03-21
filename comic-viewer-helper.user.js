@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.ec2201b
+// @version         1.6.0-unstable.3f8ce7f
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -2399,6 +2399,9 @@
         syncPat: "GitHub Personal Access Token",
         syncGistId: "Gist ID (leave blank to create new)",
         syncSave: "Save",
+        syncSaving: "Saving...",
+        syncSaveSuccess: "Saved",
+        syncSaveError: "Save failed: {error}",
         syncStatus: "Last synced: {time}",
         syncNeverSynced: "Never synced",
         syncError: "Sync error: {error}"
@@ -2478,6 +2481,9 @@
         syncPat: "GitHub Personal Access Token",
         syncGistId: "Gist ID（空白の場合は新規作成）",
         syncSave: "保存",
+        syncSaving: "保存中...",
+        syncSaveSuccess: "保存しました",
+        syncSaveError: "保存に失敗しました: {error}",
         syncStatus: "最終同期: {time}",
         syncNeverSynced: "未同期",
         syncError: "同期エラー: {error}"
@@ -3026,7 +3032,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.ec2201b"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.3f8ce7f"} (${t("ui.unstable")})`
     });
     const contentChildren = [closeBtn, titleEl, shortcutList, versionTag];
     if (extraContent) {
@@ -3083,6 +3089,9 @@
   }
   function createSyncSettings({ syncConfig, onSave, lastError }) {
     let currentConfig = syncConfig;
+    let latestSyncConfig = syncConfig;
+    let latestLastError = lastError;
+    let isFeedbackShown = false;
     const enabledCheckbox = createElement("input", {
       attributes: { type: "checkbox", id: "comic-helper-sync-enabled" }
     });
@@ -3125,8 +3134,26 @@
             gistId: gistIdInput.value.trim(),
             lastSyncedAt: currentConfig ? currentConfig.lastSyncedAt : null
           };
-          onSave(newConfig);
           currentConfig = newConfig;
+          isFeedbackShown = true;
+          saveBtn.disabled = true;
+          saveBtn.textContent = t("ui.syncSaving");
+          onSave(newConfig).then(() => {
+            statusEl.textContent = t("ui.syncSaveSuccess");
+            statusEl.style.color = COLORS.text.success;
+            setTimeout(() => {
+              isFeedbackShown = false;
+              statusEl.textContent = getStatusText(latestLastError, latestSyncConfig?.lastSyncedAt ?? null);
+              statusEl.style.color = getStatusColor(latestLastError);
+            }, 3e3);
+          }).catch((err) => {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            statusEl.textContent = t("ui.syncSaveError").replace("{error}", errMsg);
+            statusEl.style.color = getStatusColor("error");
+          }).finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.textContent = t("ui.syncSave");
+          });
         }
       }
     });
@@ -3146,13 +3173,17 @@
     return {
       el: container,
       update: (newSyncConfig, newLastError) => {
+        latestSyncConfig = newSyncConfig;
+        latestLastError = newLastError;
         currentConfig = newSyncConfig;
         enabledCheckbox.checked = newSyncConfig ? newSyncConfig.enabled : false;
         patInput.value = newSyncConfig ? newSyncConfig.pat : "";
         gistIdInput.value = newSyncConfig ? newSyncConfig.gistId : "";
-        const newLastSyncedAt = newSyncConfig ? newSyncConfig.lastSyncedAt : null;
-        statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);
-        statusEl.style.color = getStatusColor(newLastError);
+        if (!isFeedbackShown) {
+          const newLastSyncedAt = newSyncConfig ? newSyncConfig.lastSyncedAt : null;
+          statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);
+          statusEl.style.color = getStatusColor(newLastError);
+        }
       }
     };
   }
@@ -3896,11 +3927,13 @@
     syncSettingsComp = null;
     searchModalComp = null;
     favoritesModalComp = null;
-    constructor(adapter, store, navigator2, discoveryManager) {
+    syncManager;
+    constructor(adapter, store, navigator2, discoveryManager, syncManager) {
       this.adapter = adapter;
       this.store = store;
       this.navigator = navigator2;
       this.discoveryManager = discoveryManager;
+      this.syncManager = syncManager;
     }
     init = () => {
       injectStyles();
@@ -4057,7 +4090,10 @@
         if (!this.helpModalComp) {
           this.syncSettingsComp = createSyncSettings({
             syncConfig: state.syncConfig,
-            onSave: (config) => this.store.setState({ syncConfig: config }),
+            onSave: async (config) => {
+              this.store.setState({ syncConfig: config });
+              await this.syncManager.push();
+            },
             lastError: state.syncLastError
           });
           this.helpModalComp = createHelpModal({
@@ -4649,6 +4685,16 @@
         void this._upload();
       }, this.DEBOUNCE_DELAY);
     }
+    push() {
+      if (!this.provider) return Promise.resolve();
+      const config = this.store.getState().syncConfig;
+      if (!config?.enabled) return Promise.resolve();
+      if (this.debounceTimer !== null) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null;
+      }
+      return this._doUpload();
+    }
     pull() {
       if (!this.provider) return Promise.resolve();
       const config = this.store.getState().syncConfig;
@@ -4673,6 +4719,15 @@
       if (!this.provider) return Promise.resolve();
       const config = this.store.getState().syncConfig;
       if (!config?.enabled) return Promise.resolve();
+      return this._doUpload().catch((err) => {
+        console.warn("[SyncManager] upload failed:", err);
+        this.lastError = err instanceof Error ? err.message : String(err);
+        this.store.setState({ syncLastError: this.lastError });
+      });
+    }
+    _doUpload() {
+      const config = this.store.getState().syncConfig;
+      if (!config) return Promise.resolve();
       const state = this.store.getState();
       const host = window.location.hostname;
       const now = Date.now();
@@ -4713,11 +4768,7 @@
         this.store.setState({ syncConfig: updatedConfig, syncLastError: null });
         this.lastError = null;
       };
-      return mergeAndUpload().catch((err) => {
-        console.warn("[SyncManager] upload failed:", err);
-        this.lastError = err instanceof Error ? err.message : String(err);
-        this.store.setState({ syncLastError: this.lastError });
-      });
+      return mergeAndUpload();
     }
     _applyRemoteData(data, config) {
       try {
@@ -4769,7 +4820,7 @@
       this.adapter = adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
       this.navigator = new Navigator(this.adapter, this.store);
       this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
-      this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager);
+      this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager, this.syncManager);
       this.inputManager = new InputManager(this.store, this.navigator, this.discoveryManager, this.uiManager);
       this.resumeManager = new ResumeManager(this.store);
       this.popUnderBlocker = new PopUnderBlocker(this.store);
