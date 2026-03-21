@@ -176,7 +176,7 @@ describe('SyncManager', () => {
     it('should not schedule upload if provider is not set', () => {
       vi.useFakeTimers();
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       syncManager.scheduleUpload();
@@ -189,7 +189,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: false, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: false, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       syncManager.scheduleUpload();
@@ -202,7 +202,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
@@ -216,7 +216,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
@@ -234,7 +234,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'existing-gist', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'existing-gist', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       const existingPayload = JSON.stringify({
@@ -260,7 +260,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: '', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: '', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
       (mockProvider.upload as ReturnType<typeof vi.fn>).mockResolvedValue({ gistId: 'brand-new-gist' });
@@ -276,7 +276,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
       (mockProvider.upload as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Upload failed'));
@@ -291,7 +291,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
       (mockProvider.upload as Mock).mockImplementation((): Promise<{ gistId: string }> => {
@@ -310,7 +310,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Download failed'));
 
@@ -326,7 +326,7 @@ describe('SyncManager', () => {
   describe('pull', () => {
     it('should return early if provider is not set', () => {
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       return syncManager.pull().then(() => {
@@ -337,7 +337,7 @@ describe('SyncManager', () => {
     it('should return early if sync is disabled', () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: false, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: false, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       return syncManager.pull().then(() => {
@@ -348,7 +348,7 @@ describe('SyncManager', () => {
     it('should return early if gistId is empty', () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: '', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: '', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       return syncManager.pull().then(() => {
@@ -360,7 +360,7 @@ describe('SyncManager', () => {
       syncManager.setProvider(mockProvider);
       const now = Date.now();
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: 0 }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: 0, encryptionMode: 'none' }
       });
 
       const remoteData = JSON.stringify({
@@ -399,7 +399,7 @@ describe('SyncManager', () => {
       syncManager.setProvider(mockProvider);
       const recentTime = Date.now();
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: recentTime }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: recentTime, encryptionMode: 'none' }
       });
 
       const remoteData = JSON.stringify({
@@ -421,7 +421,7 @@ describe('SyncManager', () => {
     it('should store error message on failure', () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       (mockProvider.download as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
@@ -434,7 +434,7 @@ describe('SyncManager', () => {
     it('should handle invalid JSON from download gracefully', () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue('not-valid-json');
@@ -447,7 +447,7 @@ describe('SyncManager', () => {
     it('should handle non-Error thrown from download', () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       (mockProvider.download as ReturnType<typeof vi.fn>).mockRejectedValue('string error');
@@ -460,7 +460,7 @@ describe('SyncManager', () => {
     it('should apply settings even when no host-specific data exists', () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       const remoteData = JSON.stringify({
@@ -488,7 +488,7 @@ describe('SyncManager', () => {
   describe('push', () => {
     it('should return early if provider is not set', async () => {
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       await syncManager.push();
@@ -498,7 +498,7 @@ describe('SyncManager', () => {
     it('should return early if sync is disabled', async () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: false, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: false, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       await syncManager.push();
@@ -508,7 +508,7 @@ describe('SyncManager', () => {
     it('should upload immediately without debounce', async () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
@@ -521,7 +521,7 @@ describe('SyncManager', () => {
       vi.useFakeTimers();
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
@@ -535,7 +535,7 @@ describe('SyncManager', () => {
     it('should resolve and update syncConfig on success', async () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: '', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: '', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
       (mockProvider.upload as ReturnType<typeof vi.fn>).mockResolvedValue({ gistId: 'new-gist-id' });
@@ -549,7 +549,7 @@ describe('SyncManager', () => {
     it('should reject and propagate error on failure', async () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
       (mockProvider.upload as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Auth failed'));
@@ -560,7 +560,7 @@ describe('SyncManager', () => {
     it('should not update syncLastError in store on failure', async () => {
       syncManager.setProvider(mockProvider);
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null },
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' },
         syncLastError: null
       });
       (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
@@ -568,6 +568,63 @@ describe('SyncManager', () => {
 
       await expect(syncManager.push()).rejects.toThrow('Push error');
       expect(store.getState().syncLastError).toBeNull();
+    });
+
+    describe('encryption migration via prevConfig', () => {
+      it('should use prevConfig to decrypt existing data when changing from AES to none', async () => {
+        syncManager.setProvider(mockProvider);
+
+        // 新しい設定: 暗号化なし
+        store.setState({
+          syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
+        });
+
+        // Gistには旧パスワード "old-pass" で暗号化されたデータが存在する
+        const { encrypt } = await import('../logic.js');
+        const existingEncrypted = await encrypt(
+          JSON.stringify({ version: 1, lastSyncedAt: 0, hosts: {} }),
+          'old-pass'
+        );
+        (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(existingEncrypted);
+        (mockProvider.upload as ReturnType<typeof vi.fn>).mockResolvedValue({ gistId: 'gid' });
+
+        // 旧configをprevConfigとして渡す
+        const prevConfig = { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'aes' as const, encryptionPassword: 'old-pass' };
+        await syncManager.push(prevConfig);
+
+        // アップロードが呼ばれ、平文JSONが渡されていること
+        const uploadedData = (mockProvider.upload as Mock).mock.calls[0][0] as string;
+        expect(uploadedData.startsWith('{')).toBe(true);
+      });
+
+      it('should use prevConfig to decrypt existing data when changing password', async () => {
+        syncManager.setProvider(mockProvider);
+
+        // 新しい設定: 新パスワード "new-pass"
+        store.setState({
+          syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'aes', encryptionPassword: 'new-pass' }
+        });
+
+        // Gistには旧パスワード "old-pass" で暗号化されたデータが存在する
+        const { encrypt, isEncrypted } = await import('../logic.js');
+        const existingEncrypted = await encrypt(
+          JSON.stringify({ version: 1, lastSyncedAt: 0, hosts: {} }),
+          'old-pass'
+        );
+        (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(existingEncrypted);
+        (mockProvider.upload as ReturnType<typeof vi.fn>).mockResolvedValue({ gistId: 'gid' });
+
+        const prevConfig = { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'aes' as const, encryptionPassword: 'old-pass' };
+        await syncManager.push(prevConfig);
+
+        // アップロードが新パスワードで暗号化されていること
+        const uploadedData = (mockProvider.upload as Mock).mock.calls[0][0] as string;
+        expect(isEncrypted(uploadedData)).toBe(true);
+
+        // 新パスワードで復号できること
+        const { decrypt } = await import('../logic.js');
+        await expect(decrypt(uploadedData, 'new-pass')).resolves.toMatch(/"version":1/);
+      });
     });
   });
 
@@ -577,7 +634,7 @@ describe('SyncManager', () => {
       syncManager.setProvider(null);
 
       store.setState({
-        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' }
       });
 
       return syncManager.pull().then(() => {

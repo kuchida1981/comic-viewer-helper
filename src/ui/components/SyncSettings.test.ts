@@ -17,7 +17,8 @@ describe('SyncSettings', () => {
       expect(checkbox.checked).toBe(false);
 
       const inputs = comp.el.querySelectorAll('input[type="password"], input[type="text"]');
-      expect(inputs).toHaveLength(2);
+      // PAT (password) + GistId (text) + EncryptionPassword (password, hidden)
+      expect(inputs).toHaveLength(3);
     });
 
     it('should render with existing syncConfig', () => {
@@ -25,7 +26,8 @@ describe('SyncSettings', () => {
         enabled: true,
         pat: 'my-token',
         gistId: 'abc123',
-        lastSyncedAt: null
+        lastSyncedAt: null,
+        encryptionMode: 'none'
       };
       const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
 
@@ -44,7 +46,8 @@ describe('SyncSettings', () => {
         enabled: true,
         pat: 'token',
         gistId: 'gid',
-        lastSyncedAt: new Date('2024-01-01').getTime()
+        lastSyncedAt: new Date('2024-01-01').getTime(),
+        encryptionMode: 'none'
       };
       const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
       document.body.appendChild(comp.el);
@@ -58,7 +61,7 @@ describe('SyncSettings', () => {
     });
 
     it('should show "never synced" when lastSyncedAt is null', () => {
-      const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: null };
+      const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' };
       const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
       document.body.appendChild(comp.el);
 
@@ -99,12 +102,13 @@ describe('SyncSettings', () => {
         enabled: true,
         pat: 'new-token',
         gistId: 'new-gist-id',
-        lastSyncedAt: null
+        lastSyncedAt: null,
+        encryptionMode: 'none'
       });
     });
 
     it('should preserve lastSyncedAt from existing config when saving', () => {
-      const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: 12345 };
+      const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: 12345, encryptionMode: 'none' };
       const onSave = vi.fn().mockResolvedValue(undefined);
       const comp = createSyncSettings({ syncConfig: config, onSave, lastError: null });
       document.body.appendChild(comp.el);
@@ -195,7 +199,7 @@ describe('SyncSettings', () => {
         await new Promise(resolve => setTimeout(resolve, 0));
 
         // Background sync error should not overwrite the save error
-        const config = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null };
+        const config = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null, encryptionMode: 'none' as const };
         comp.update(config, 'background sync error');
 
         const allText = comp.el.textContent || '';
@@ -213,13 +217,66 @@ describe('SyncSettings', () => {
         saveBtn.click();
 
         // While saving, calling update() should not override the "Saving..." state
-        const config = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null };
+        const config = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null, encryptionMode: 'none' as const };
         comp.update(config, null);
 
         expect(saveBtn.textContent).toMatch(/Saving|保存中/);
 
         resolveSave();
         await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+      it('should restore status text after 3 seconds following save success', async () => {
+        vi.useFakeTimers();
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
+        document.body.appendChild(comp.el);
+
+        const saveBtn = comp.el.querySelector('button') as HTMLButtonElement;
+        saveBtn.click();
+        await vi.runAllTimersAsync();
+
+        const allText = comp.el.textContent || '';
+        expect(allText).toMatch(/Never synced|未同期/);
+        vi.useRealTimers();
+      });
+
+      it('should show password required error when AES mode is selected but password is empty', () => {
+        const onSave = vi.fn();
+        const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
+        document.body.appendChild(comp.el);
+
+        const encryptionSelect = comp.el.querySelector('select') as HTMLSelectElement;
+        encryptionSelect.value = 'aes';
+        encryptionSelect.dispatchEvent(new Event('change'));
+
+        const saveBtn = comp.el.querySelector('button') as HTMLButtonElement;
+        saveBtn.click();
+
+        expect(onSave).not.toHaveBeenCalled();
+        const allText = comp.el.textContent || '';
+        expect(allText).toMatch(/password|パスワード/i);
+      });
+
+      it('should call onSave with encryptionPassword when AES mode is selected', () => {
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
+        document.body.appendChild(comp.el);
+
+        const encryptionSelect = comp.el.querySelector('select') as HTMLSelectElement;
+        encryptionSelect.value = 'aes';
+        encryptionSelect.dispatchEvent(new Event('change'));
+
+        const passwordInputs = comp.el.querySelectorAll('input[type="password"]') as NodeListOf<HTMLInputElement>;
+        // Second password input is the encryption password
+        passwordInputs[1].value = 'my-secret';
+
+        const saveBtn = comp.el.querySelector('button') as HTMLButtonElement;
+        saveBtn.click();
+
+        expect(onSave).toHaveBeenCalledWith(
+          expect.objectContaining({ encryptionMode: 'aes', encryptionPassword: 'my-secret' })
+        );
       });
     });
 
@@ -232,7 +289,8 @@ describe('SyncSettings', () => {
           enabled: true,
           pat: 'updated-token',
           gistId: 'updated-gist',
-          lastSyncedAt: null
+          lastSyncedAt: null,
+          encryptionMode: 'none'
         };
         comp.update(newConfig, null);
 
@@ -260,7 +318,7 @@ describe('SyncSettings', () => {
         const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn().mockResolvedValue(undefined), lastError: 'old error' });
         document.body.appendChild(comp.el);
 
-        const config: SyncConfig = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null };
+        const config: SyncConfig = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null, encryptionMode: 'none' };
         comp.update(config, null);
 
         const allText = comp.el.textContent || '';
@@ -269,7 +327,7 @@ describe('SyncSettings', () => {
       });
 
       it('should handle null syncConfig on update', () => {
-        const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: null };
+        const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: null, encryptionMode: 'none' };
         const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
         document.body.appendChild(comp.el);
 

@@ -1,5 +1,93 @@
 import { Metadata, SearchCache, RelatedWork, Tag } from './types';
 
+const AES_GCM_PREFIX = 'AES-GCM:v1:';
+
+/**
+ * Derive a CryptoKey from a password and salt using PBKDF2
+ */
+async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100_000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+function toBase64(buf: Uint8Array<ArrayBuffer> | ArrayBuffer): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  return btoa(bytes.reduce((data, byte) => data + String.fromCharCode(byte), ''));
+}
+
+function fromBase64(b64: string): Uint8Array<ArrayBuffer> {
+  const str = atob(b64);
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    bytes[i] = str.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Encrypt plaintext with AES-GCM using the given password.
+ * Returns a string in the format: AES-GCM:v1:<salt_b64>:<iv_b64>:<ciphertext_b64>
+ */
+export async function encrypt(plaintext: string, password: string): Promise<string> {
+  const enc = new TextEncoder();
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  const key = await deriveKey(password, salt);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    enc.encode(plaintext)
+  );
+  return `${AES_GCM_PREFIX}${toBase64(salt)}:${toBase64(iv)}:${toBase64(ciphertext)}`;
+}
+
+/**
+ * Decrypt a string previously encrypted by `encrypt`.
+ * Throws if the data format is invalid or decryption fails (wrong password).
+ */
+export async function decrypt(encrypted: string, password: string): Promise<string> {
+  if (!encrypted.startsWith(AES_GCM_PREFIX)) {
+    throw new Error('Invalid encrypted data format');
+  }
+  const parts = encrypted.slice(AES_GCM_PREFIX.length).split(':');
+  if (parts.length !== 3) {
+    throw new Error('Invalid encrypted data format');
+  }
+  const [saltB64, ivB64, ciphertextB64] = parts;
+  const salt = fromBase64(saltB64);
+  const iv = fromBase64(ivB64);
+  const ciphertext = fromBase64(ciphertextB64);
+  const key = await deriveKey(password, salt);
+  const plaintext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    ciphertext
+  );
+  return new TextDecoder().decode(plaintext);
+}
+
+/**
+ * Check if a string is an AES-GCM encrypted blob produced by `encrypt`.
+ */
+export function isEncrypted(data: string): boolean {
+  return data.startsWith(AES_GCM_PREFIX);
+}
+
 export interface ImageInfo {
   isLandscape: boolean;
 }

@@ -1,5 +1,7 @@
 import { Store, StoreState } from '../store';
 import { SyncConfig, RelatedWork, HistoryEntry } from '../types';
+import { encrypt, decrypt, isEncrypted } from '../logic';
+import { t } from '../i18n';
 
 export interface SyncProvider {
   upload(data: string, gistId: string): Promise<{ gistId: string }>;
@@ -128,7 +130,7 @@ export class SyncManager {
     }, this.DEBOUNCE_DELAY);
   }
 
-  push(): Promise<void> {
+  push(prevConfig?: SyncConfig | null): Promise<void> {
     if (!this.provider) return Promise.resolve();
     const config = this.store.getState().syncConfig;
     if (!config?.enabled) return Promise.resolve();
@@ -138,7 +140,7 @@ export class SyncManager {
       this.debounceTimer = null;
     }
 
-    return this._doUpload();
+    return this._doUpload(prevConfig ?? null);
   }
 
   pull(): Promise<void> {
@@ -147,9 +149,9 @@ export class SyncManager {
     if (!config?.enabled || !config.gistId) return Promise.resolve();
 
     return this.provider.download(config.gistId)
-      .then(data => {
+      .then(async data => {
         if (data) {
-          this._applyRemoteData(data, config);
+          await this._applyRemoteData(data, config);
         } else {
           this.lastError = null;
           this.store.setState({ syncLastError: null });
@@ -178,7 +180,7 @@ export class SyncManager {
     });
   }
 
-  private _doUpload(): Promise<void> {
+  private _doUpload(prevConfig: SyncConfig | null = null): Promise<void> {
     const config = this.store.getState().syncConfig;
     if (!config) return Promise.resolve();
 
@@ -193,13 +195,17 @@ export class SyncManager {
       pinnedTags: state.pinnedTags,
     };
 
+    // 既存データの復号には変更前の設定を使う（暗号解除・パスワード変更に対応）
+    const downloadConfig = prevConfig ?? config;
+
     const mergeAndUpload = async (): Promise<void> => {
       let existingHosts: Record<string, SyncPayloadHostData> = {};
 
       if (config.gistId) {
         const existing = await this.provider!.download(config.gistId);
         if (existing) {
-          const existingPayload = JSON.parse(existing) as SyncPayload;
+          const jsonStr = await this._decryptIfNeeded(existing, downloadConfig);
+          const existingPayload = JSON.parse(jsonStr) as SyncPayload;
           existingHosts = existingPayload.hosts ?? {};
         }
       }
@@ -216,7 +222,8 @@ export class SyncManager {
         hosts: { ...existingHosts, [host]: hostData },
       };
 
-      const result = await this.provider!.upload(JSON.stringify(payload), config.gistId);
+      const dataToUpload = await this._encryptIfNeeded(JSON.stringify(payload), config);
+      const result = await this.provider!.upload(dataToUpload, config.gistId);
 
       const latestConfig = this.store.getState().syncConfig;
       if (!latestConfig) return;
@@ -233,9 +240,27 @@ export class SyncManager {
     return mergeAndUpload();
   }
 
-  private _applyRemoteData(data: string, config: SyncConfig): void {
+  private _encryptIfNeeded(data: string, config: SyncConfig): Promise<string> {
+    if (config.encryptionMode === 'aes' && config.encryptionPassword) {
+      return encrypt(data, config.encryptionPassword);
+    }
+    return Promise.resolve(data);
+  }
+
+  private async _decryptIfNeeded(data: string, config: SyncConfig): Promise<string> {
+    if (isEncrypted(data)) {
+      if (config.encryptionMode !== 'aes' || !config.encryptionPassword) {
+        throw new Error(t('ui.syncDecryptionFailed'));
+      }
+      return decrypt(data, config.encryptionPassword);
+    }
+    return data;
+  }
+
+  private async _applyRemoteData(data: string, config: SyncConfig): Promise<void> {
     try {
-      const payload = JSON.parse(data) as SyncPayload;
+      const jsonStr = await this._decryptIfNeeded(data, config);
+      const payload = JSON.parse(jsonStr) as SyncPayload;
       const localLastSynced = config.lastSyncedAt ?? 0;
 
       if (payload.lastSyncedAt <= localLastSynced) return;

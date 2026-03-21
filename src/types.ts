@@ -106,4 +106,6 @@ export interface SyncConfig {
   pat: string;
   gistId: string;
   lastSyncedAt: number | null;
+  encryptionMode: 'none' | 'aes';
+  encryptionPassword?: string;
 }

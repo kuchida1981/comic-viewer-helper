@@ -15,7 +15,10 @@ import {
   getLuckyCandidatesCount,
   isLuckyPoolDepleted,
   calculateTrends,
-  filterWorksByTags
+  filterWorksByTags,
+  encrypt,
+  decrypt,
+  isEncrypted
   } from './logic';
 
 import { Metadata } from './types.js';
@@ -886,5 +889,52 @@ describe('filterWorksByTags', () => {
   it('should return empty array for empty works list', () => {
     const result = filterWorksByTags([], new Set(['fantasy']));
     expect(result).toHaveLength(0);
+  });
+});
+
+describe('encrypt / decrypt / isEncrypted', () => {
+  it('isEncrypted returns false for plain JSON', () => {
+    expect(isEncrypted('{"version":1}')).toBe(false);
+  });
+
+  it('isEncrypted returns true for AES-GCM encrypted blob', async () => {
+    const blob = await encrypt('hello', 'password');
+    expect(isEncrypted(blob)).toBe(true);
+  });
+
+  it('encrypt produces AES-GCM:v1: prefixed string', async () => {
+    const result = await encrypt('test data', 'mypassword');
+    expect(result.startsWith('AES-GCM:v1:')).toBe(true);
+    const parts = result.slice('AES-GCM:v1:'.length).split(':');
+    expect(parts).toHaveLength(3);
+  });
+
+  it('decrypt correctly decrypts what encrypt produced', async () => {
+    const plaintext = 'Hello, World!';
+    const password = 'secret123';
+    const encrypted = await encrypt(plaintext, password);
+    const decrypted = await decrypt(encrypted, password);
+    expect(decrypted).toBe(plaintext);
+  });
+
+  it('decrypt throws on wrong password', async () => {
+    const encrypted = await encrypt('sensitive data', 'correctPassword');
+    await expect(decrypt(encrypted, 'wrongPassword')).rejects.toThrow();
+  });
+
+  it('decrypt throws on invalid format (no prefix)', async () => {
+    await expect(decrypt('{"version":1}', 'password')).rejects.toThrow('Invalid encrypted data format');
+  });
+
+  it('decrypt throws on invalid format (bad structure)', async () => {
+    await expect(decrypt('AES-GCM:v1:only-two-parts', 'password')).rejects.toThrow('Invalid encrypted data format');
+  });
+
+  it('each encrypt call produces a different ciphertext (random IV/salt)', async () => {
+    const plaintext = 'same message';
+    const password = 'same password';
+    const enc1 = await encrypt(plaintext, password);
+    const enc2 = await encrypt(plaintext, password);
+    expect(enc1).not.toBe(enc2);
   });
 });
