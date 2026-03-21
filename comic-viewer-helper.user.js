@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.4.1
+// @version         1.5.0
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -12,7 +12,9 @@
 // @updateURL       https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
 // @downloadURL     https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
 // @run-at          document-idle
-// @grant           none
+// @grant           GM_setValue
+// @grant           GM_getValue
+// @grant           GM_deleteValue
 // ==/UserScript==
 
 /**
@@ -27,6 +29,21 @@
   }
   function isStringArray(value) {
     return Array.isArray(value) && value.every((item) => typeof item === "string");
+  }
+  function isRelatedWork(value) {
+    if (!isObject(value)) return false;
+    return typeof value.title === "string" && typeof value.href === "string" && typeof value.thumb === "string";
+  }
+  function isRelatedWorkArray(value) {
+    return Array.isArray(value) && value.every(isRelatedWork);
+  }
+  function isHistoryEntry(value) {
+    if (!isRelatedWork(value)) return false;
+    const v = value;
+    return typeof v.viewCount === "number" && typeof v.lastViewedAt === "number" && typeof v.firstViewedAt === "number";
+  }
+  function isHistoryEntryArray(value) {
+    return Array.isArray(value) && value.every(isHistoryEntry);
   }
   function isGuiPos(value) {
     if (!isObject(value)) return false;
@@ -52,255 +69,43 @@
     if (!isObject(value.results)) return false;
     return Array.isArray(value.results["results"]);
   }
-  const STORAGE_KEYS = {
-    DUAL_VIEW: "comic-viewer-helper-dual-view",
-    GUI_POS: "comic-viewer-helper-gui-pos",
-    ENABLED: "comic-viewer-helper-enabled",
-    SEARCH_QUERY: "comic-viewer-helper-search-query",
-    SEARCH_CONTEXT: "comic-viewer-helper-search-context",
-    SEARCH_CACHE: "comic-viewer-helper-search-cache",
-    SEARCH_HISTORY: "comic-viewer-helper-search-history"
-  };
-  const MAX_SEARCH_HISTORY = 3;
-  class Store {
-    state;
-    listeners;
-    constructor() {
-      this.state = {
-        enabled: localStorage.getItem(STORAGE_KEYS.ENABLED) !== "false",
-        isDualViewEnabled: localStorage.getItem(STORAGE_KEYS.DUAL_VIEW) === "true",
-        spreadOffset: 0,
-        currentVisibleIndex: 0,
-        guiPos: this._loadGuiPos(),
-        metadata: {
-          title: "",
-          tags: [],
-          relatedWorks: []
-        },
-        isMetadataModalOpen: false,
-        isHelpModalOpen: false,
-        isSearchModalOpen: false,
-        isLoading: false,
-        searchResults: null,
-        searchQuery: this._loadSearchQuery(),
-        searchContext: this._loadSearchContext(),
-        searchCache: this._loadSearchCache(),
-        searchHistory: this._loadSearchHistory()
-      };
-      this.listeners = [];
-    }
-    getState = () => {
-      return { ...this.state };
-    };
-    setState = (patch) => {
-      let changed = false;
-      for (const key of Object.keys(patch)) {
-        if (this.state[key] !== patch[key]) {
-          this._applyPatch(key, patch[key]);
-          changed = true;
-        }
-      }
-      if (changed) {
-        this._persistChanges(patch);
-        this._notify();
-      }
-    };
-    _persistChanges = (patch) => {
-      if ("enabled" in patch) localStorage.setItem(STORAGE_KEYS.ENABLED, String(patch.enabled));
-      if ("isDualViewEnabled" in patch) localStorage.setItem(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
-      if ("guiPos" in patch) localStorage.setItem(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
-      this._persistSearchRelatedChanges(patch);
-    };
-    _persistSearchRelatedChanges = (patch) => {
-      const host = window.location.hostname;
-      if ("searchQuery" in patch) {
-        localStorage.setItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
-      }
-      if ("searchContext" in patch) {
-        const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
-        if (patch.searchContext) {
-          localStorage.setItem(key, JSON.stringify(patch.searchContext));
+  const FAVORITE_PICK_CHANCE = 0.25;
+  function calculateTrends(favorites, limit = 10, pinnedTags = [], selectedTags = []) {
+    const map = /* @__PURE__ */ new Map();
+    for (const fav of favorites) {
+      for (const tag of fav.tags ?? []) {
+        const entry = map.get(tag.text);
+        if (entry) {
+          entry.count++;
         } else {
-          localStorage.removeItem(key);
+          map.set(tag.text, { tag, count: 1 });
         }
       }
-      if ("searchCache" in patch) {
-        try {
-          localStorage.setItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
-        } catch (e) {
-          console.warn("Failed to save search cache to localStorage:", e);
-        }
-      }
-      if ("searchHistory" in patch) {
-        localStorage.setItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
-      }
-    };
-    subscribe = (callback) => {
-      this.listeners.push(callback);
-      return () => {
-        this.listeners = this.listeners.filter((l) => l !== callback);
-      };
-    };
-    _notify = () => {
-      this.listeners.forEach((callback) => callback(this.getState()));
-    };
-    _applyPatch = (key, value) => {
-      this.state[key] = value;
-    };
-    _loadSearchHistory = () => {
-      try {
-        const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (isStringArray(parsed)) {
-            return parsed;
-          }
-        }
-        return [];
-      } catch {
-        return [];
-      }
-    };
-    _loadSearchCache = () => {
-      try {
-        const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
-        if (!saved) return null;
-        const parsed = JSON.parse(saved);
-        return isSearchCache(parsed) ? parsed : null;
-      } catch {
-        return null;
-      }
-    };
-    _loadSearchQuery = () => {
-      const host = window.location.hostname;
-      return localStorage.getItem(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
-    };
-    _loadSearchContext = () => {
-      try {
-        const host = window.location.hostname;
-        const saved = localStorage.getItem(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
-        if (!saved) return void 0;
-        const parsed = JSON.parse(saved);
-        return isSearchContext(parsed) ? parsed : void 0;
-      } catch {
-        return void 0;
-      }
-    };
-    _loadGuiPos = () => {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEYS.GUI_POS);
-        if (!saved) return null;
-        const pos = JSON.parse(saved);
-        if (!isGuiPos(pos)) return null;
-        const buffer = 50;
-        if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
-          return null;
-        }
-        return pos;
-      } catch {
-        return null;
-      }
-    };
-  }
-  const CONTAINER_SELECTOR = "#post-comic";
-  const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
-  function getTagType(href) {
-    try {
-      const url = new URL(href);
-      const pathname = url.pathname;
-      for (const type of TAG_TYPES) {
-        if (pathname.startsWith(`/${type}/`)) {
-          return type;
-        }
-      }
-      return null;
-    } catch {
-      return null;
     }
+    const pinnedSet = new Set(pinnedTags);
+    const selectedSet = new Set(selectedTags);
+    const withMeta = Array.from(map.values()).map(({ tag, count }) => ({
+      tag,
+      count,
+      isPinned: pinnedSet.has(tag.text),
+      isSelected: selectedSet.has(tag.text)
+    }));
+    const sorted = withMeta.sort((a, b) => {
+      if (a.isSelected !== b.isSelected) return a.isSelected ? -1 : 1;
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      return b.count - a.count;
+    });
+    const results = limit > 0 ? sorted.slice(0, Math.max(limit, selectedSet.size)) : sorted;
+    return results.map(({ tag, count, isPinned }) => ({ tag, count, isPinned }));
   }
-  const DefaultAdapter = {
-    // Always match as a fallback (should be checked last)
-    match: () => true,
-    getContainer: () => document.querySelector(CONTAINER_SELECTOR),
-    getImages: () => Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`)),
-    searchConfig: {
-      baseUrl: "/",
-      queryParam: "s"
-    },
-    getSearchUrl: function(query) {
-      const config = this.searchConfig;
-      if (!config) return "";
-      const url = new URL(config.baseUrl, window.location.origin);
-      url.searchParams.set(config.queryParam, query);
-      return url.toString();
-    },
-    getMetadata: () => {
-      const titleEl = document.querySelector("h1");
-      const title = titleEl?.textContent?.trim() || "Unknown Title";
-      const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
-        const href = a.href;
-        return {
-          text: a.textContent?.trim() || "",
-          href,
-          type: getTagType(href)
-        };
-      });
-      const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
-        const anchor = el.closest("a");
-        const img = el.querySelector("img");
-        const titleEl2 = el.querySelector("span") || anchor?.querySelector("span");
-        const title2 = titleEl2?.textContent?.trim() || "Untitled";
-        return {
-          title: title2,
-          href: anchor?.href || "",
-          thumb: img?.src || "",
-          isPrivate: title2.startsWith("非公開")
-        };
-      });
-      return { title, tags, relatedWorks };
-    },
-    parseSearchResults: (doc) => {
-      const results = Array.from(doc.querySelectorAll("div.post-list > a")).map((a) => {
-        const img = a.querySelector(".post-list-image img");
-        const titleEl = a.querySelector(":scope > span");
-        return {
-          title: titleEl?.textContent?.trim() || "",
-          href: a.getAttribute("href") || "",
-          thumb: img?.getAttribute("src") || ""
-        };
-      });
-      const totalCountEl = doc.querySelector("div.page-h > span");
-      const totalCount = totalCountEl?.textContent?.trim() || null;
-      const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
-      const pagination = [];
-      const pagenavi = doc.querySelector(".wp-pagenavi");
-      if (pagenavi) {
-        pagenavi.childNodes.forEach((node) => {
-          if (node.nodeType === 1) {
-            const el = node;
-            if (el.classList.contains("pages")) return;
-            const isCurrent = el.classList.contains("current");
-            const isNext = el.classList.contains("nextpostslink");
-            const isPrev = el.classList.contains("previouspostslink");
-            const isExtend = el.classList.contains("extend");
-            let type = "page";
-            if (isNext) type = "next";
-            else if (isPrev) type = "prev";
-            else if (isExtend) type = "extend";
-            pagination.push({
-              label: el.textContent?.trim() || "",
-              url: el.getAttribute("href"),
-              isCurrent,
-              type
-            });
-          }
-        });
-      }
-      return { results, totalCount, nextPageUrl, pagination };
-    }
-  };
+  function filterWorksByTags(favorites, selectedTagTexts) {
+    if (selectedTagTexts.size === 0) return favorites;
+    return favorites.filter(
+      (work) => Array.from(selectedTagTexts).every(
+        (text) => (work.tags ?? []).some((tag) => tag.text === text)
+      )
+    );
+  }
   function calculateVisibleHeight(rect, windowHeight) {
     const visibleTop = Math.max(0, rect.top);
     const visibleBottom = Math.min(windowHeight, rect.bottom);
@@ -548,23 +353,447 @@
       }
     }
   }
-  function jumpToRandomWork(metadata, searchCache) {
-    const sources = [];
-    if (metadata.relatedWorks) {
-      sources.push(...metadata.relatedWorks.filter((w) => !w.isPrivate));
+  function toCandidates(works) {
+    if (!Array.isArray(works)) return [];
+    const res = [];
+    for (const w of works) {
+      if (typeof w === "object" && w !== null && "href" in w && typeof w.href === "string") {
+        res.push({ href: w.href });
+      }
     }
-    if (searchCache && searchCache.results) {
-      sources.push(...searchCache.results.results);
-    }
-    if (sources.length === 0) return;
-    const uniqueWorks = Array.from(
-      new Map(sources.map((w) => [w.href, w])).values()
-    );
-    const randomWork = uniqueWorks[Math.floor(Math.random() * uniqueWorks.length)];
-    if (randomWork?.href) {
-      window.location.href = randomWork.href;
+    return res;
+  }
+  function normalizeUrl(url) {
+    try {
+      let base;
+      if (typeof window !== "undefined" && window.location) {
+        base = window.location.origin;
+      }
+      if (!base || base === "null" || base === "undefined") {
+        base = "http://localhost";
+      }
+      const u = new URL(url, base);
+      return u.origin + u.pathname;
+    } catch {
+      return url;
     }
   }
+  function getLuckyCandidatesCount(metadata, luckyHistory, currentUrl, searchCache, favorites = []) {
+    const normalizedCurrent = normalizeUrl(currentUrl);
+    const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h));
+    const pool = getDiscoveryPool(metadata, searchCache, favorites);
+    const excludeSet = /* @__PURE__ */ new Set();
+    excludeSet.add(normalizedCurrent);
+    normalizedHistory.forEach((h) => excludeSet.add(h));
+    return pool.filter((w) => !excludeSet.has(normalizeUrl(w.href))).length;
+  }
+  function isLuckyPoolDepleted(metadata, luckyHistory, currentUrl, searchCache, favorites = [], threshold = 5) {
+    return getLuckyCandidatesCount(metadata, luckyHistory, currentUrl, searchCache, favorites) < threshold;
+  }
+  function pickRandomWork(metadata, luckyHistory, currentUrl, searchCache, favorites = []) {
+    const normalizedCurrent = normalizeUrl(currentUrl);
+    const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h));
+    const getFilteredPool = (excludeHistoryCount) => {
+      const pool = getDiscoveryPool(metadata, searchCache, favorites);
+      const excludeSet = /* @__PURE__ */ new Set();
+      excludeSet.add(normalizedCurrent);
+      if (excludeHistoryCount === "all") {
+        normalizedHistory.forEach((h) => excludeSet.add(h));
+      } else if (typeof excludeHistoryCount === "number" && excludeHistoryCount > 0) {
+        normalizedHistory.slice(0, excludeHistoryCount).forEach((h) => excludeSet.add(h));
+      }
+      return pool.filter((w) => !excludeSet.has(normalizeUrl(w.href)));
+    };
+    let candidates = getFilteredPool("all");
+    if (candidates.length === 0) {
+      candidates = getFilteredPool(3);
+    }
+    if (candidates.length === 0) {
+      candidates = getFilteredPool(0);
+    }
+    if (candidates.length === 0) return null;
+    const favoritePool = toCandidates(favorites).filter(
+      (f) => candidates.some((c) => normalizeUrl(c.href) === normalizeUrl(f.href))
+    );
+    if (favoritePool.length > 0 && Math.random() < FAVORITE_PICK_CHANCE) {
+      const target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
+      return target.href;
+    } else {
+      const target = candidates[Math.floor(Math.random() * candidates.length)];
+      return target.href;
+    }
+  }
+  function getDiscoveryPool(metadata, searchCache, favorites = []) {
+    const sources = [];
+    if (metadata.relatedWorks) {
+      for (const w of metadata.relatedWorks) {
+        if (!w.isPrivate && w.href) sources.push({ href: w.href });
+      }
+    }
+    if (searchCache && searchCache.results) {
+      sources.push(...toCandidates(searchCache.results.results));
+    }
+    sources.push(...toCandidates(favorites));
+    const uniquePool = [];
+    const seenHrefs = /* @__PURE__ */ new Set();
+    for (const work of sources) {
+      const href = work.href;
+      if (!seenHrefs.has(href)) {
+        seenHrefs.add(href);
+        uniquePool.push({ href });
+      }
+    }
+    return uniquePool;
+  }
+  const STORAGE_KEYS = {
+    DUAL_VIEW: "comic-viewer-helper-dual-view",
+    GUI_POS: "comic-viewer-helper-gui-pos",
+    ENABLED: "comic-viewer-helper-enabled",
+    SEARCH_QUERY: "comic-viewer-helper-search-query",
+    SEARCH_CONTEXT: "comic-viewer-helper-search-context",
+    SEARCH_CACHE: "comic-viewer-helper-search-cache",
+    SEARCH_HISTORY: "comic-viewer-helper-search-history",
+    FAVORITES: "comic-viewer-helper-favorites",
+    AUTOPLAY_ENABLED: "comic-viewer-helper-autoplay-enabled",
+    AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval",
+    LUCKY_HISTORY: "comic-viewer-helper-lucky-history",
+    PINNED_TAGS: "comic-viewer-helper-pinned-tags"
+  };
+  const MAX_SEARCH_HISTORY = 3;
+  class Store {
+    state;
+    listeners;
+    constructor() {
+      this.state = {
+        enabled: GM_getValue(STORAGE_KEYS.ENABLED) !== "false",
+        isDualViewEnabled: GM_getValue(STORAGE_KEYS.DUAL_VIEW) === "true",
+        spreadOffset: 0,
+        currentVisibleIndex: 0,
+        guiPos: this._loadGuiPos(),
+        metadata: {
+          title: "",
+          tags: [],
+          relatedWorks: []
+        },
+        isMetadataModalOpen: false,
+        isHelpModalOpen: false,
+        isSearchModalOpen: false,
+        isFavoritesModalOpen: false,
+        isLoading: false,
+        isLuckyLoading: false,
+        searchResults: null,
+        searchQuery: this._loadSearchQuery(),
+        searchContext: this._loadSearchContext(),
+        searchCache: this._loadSearchCache(),
+        searchHistory: this._loadSearchHistory(),
+        luckyHistory: this._loadLuckyHistory(),
+        favorites: this._loadFavorites(),
+        pinnedTags: this._loadPinnedTags(),
+        isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
+        autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
+      };
+      this.listeners = [];
+    }
+    getState = () => {
+      return { ...this.state };
+    };
+    setState = (patch) => {
+      let changed = false;
+      for (const key of Object.keys(patch)) {
+        if (this.state[key] !== patch[key]) {
+          this._applyPatch(key, patch[key]);
+          changed = true;
+        }
+      }
+      if (changed) {
+        this._persistChanges(patch);
+        this._notify();
+      }
+    };
+    _persistChanges = (patch) => {
+      if ("enabled" in patch) GM_setValue(STORAGE_KEYS.ENABLED, String(patch.enabled));
+      if ("isDualViewEnabled" in patch) GM_setValue(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
+      if ("guiPos" in patch) GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
+      if ("isAutoplayEnabled" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
+      if ("autoplayInterval" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+      this._persistSearchRelatedChanges(patch);
+      this._persistLuckyHistory(patch);
+    };
+    _persistSearchRelatedChanges = (patch) => {
+      const host = window.location.hostname;
+      if ("searchQuery" in patch) {
+        GM_setValue(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`, patch.searchQuery);
+      }
+      if ("searchContext" in patch) {
+        const key = `${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`;
+        if (patch.searchContext) {
+          GM_setValue(key, JSON.stringify(patch.searchContext));
+        } else {
+          GM_deleteValue(key);
+        }
+      }
+      if ("searchCache" in patch) {
+        try {
+          GM_setValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`, JSON.stringify(patch.searchCache));
+        } catch (e) {
+          console.warn("Failed to save search cache to GM_storage:", e);
+        }
+      }
+      if ("searchHistory" in patch) {
+        GM_setValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`, JSON.stringify(patch.searchHistory));
+      }
+      if ("favorites" in patch) {
+        GM_setValue(`${STORAGE_KEYS.FAVORITES}-${host}`, JSON.stringify(patch.favorites));
+      }
+      if ("pinnedTags" in patch) {
+        GM_setValue(`${STORAGE_KEYS.PINNED_TAGS}-${host}`, JSON.stringify(patch.pinnedTags));
+      }
+    };
+    _persistLuckyHistory = (patch) => {
+      if ("luckyHistory" in patch) {
+        const host = window.location.hostname;
+        GM_setValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`, JSON.stringify(patch.luckyHistory));
+      }
+    };
+    subscribe = (callback) => {
+      this.listeners.push(callback);
+      return () => {
+        this.listeners = this.listeners.filter((l) => l !== callback);
+      };
+    };
+    _notify = () => {
+      this.listeners.forEach((callback) => callback(this.getState()));
+    };
+    _applyPatch = (key, value) => {
+      this.state[key] = value;
+    };
+    addLuckyHistory = (work) => {
+      const normalizedUrl = normalizeUrl(work.href);
+      const now = Date.now();
+      const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1e3;
+      const existing = this.state.luckyHistory.find(
+        (entry) => normalizeUrl(entry.href) === normalizedUrl
+      );
+      let newHistory;
+      if (existing) {
+        const shouldIncrement = now - existing.lastViewedAt >= TWENTY_FOUR_HOURS;
+        const updated = {
+          ...existing,
+          lastViewedAt: now,
+          viewCount: shouldIncrement ? existing.viewCount + 1 : existing.viewCount
+        };
+        newHistory = [updated, ...this.state.luckyHistory.filter((e) => normalizeUrl(e.href) !== normalizedUrl)];
+      } else {
+        const newEntry = {
+          ...work,
+          href: normalizedUrl,
+          viewCount: 1,
+          firstViewedAt: now,
+          lastViewedAt: now
+        };
+        newHistory = [newEntry, ...this.state.luckyHistory];
+      }
+      this.setState({ luckyHistory: newHistory });
+    };
+    togglePinnedTag = (tagText) => {
+      const { pinnedTags } = this.state;
+      const newPinnedTags = pinnedTags.includes(tagText) ? pinnedTags.filter((t2) => t2 !== tagText) : [...pinnedTags, tagText];
+      this.setState({ pinnedTags: newPinnedTags });
+    };
+    _loadSearchHistory = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_HISTORY}-${host}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (isStringArray(parsed)) {
+            return parsed;
+          }
+        }
+        return [];
+      } catch {
+        return [];
+      }
+    };
+    _loadLuckyHistory = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = GM_getValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (isStringArray(parsed)) {
+            return [];
+          }
+          if (isHistoryEntryArray(parsed)) {
+            return parsed;
+          }
+        }
+        return [];
+      } catch {
+        return [];
+      }
+    };
+    _loadSearchCache = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_CACHE}-${host}`);
+        if (!saved) return null;
+        const parsed = JSON.parse(saved);
+        return isSearchCache(parsed) ? parsed : null;
+      } catch {
+        return null;
+      }
+    };
+    _loadSearchQuery = () => {
+      const host = window.location.hostname;
+      return GM_getValue(`${STORAGE_KEYS.SEARCH_QUERY}-${host}`) || "";
+    };
+    _loadSearchContext = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = GM_getValue(`${STORAGE_KEYS.SEARCH_CONTEXT}-${host}`);
+        if (!saved) return void 0;
+        const parsed = JSON.parse(saved);
+        return isSearchContext(parsed) ? parsed : void 0;
+      } catch {
+        return void 0;
+      }
+    };
+    _loadFavorites = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = GM_getValue(`${STORAGE_KEYS.FAVORITES}-${host}`);
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        return isRelatedWorkArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+    _loadPinnedTags = () => {
+      try {
+        const host = window.location.hostname;
+        const saved = GM_getValue(`${STORAGE_KEYS.PINNED_TAGS}-${host}`);
+        if (!saved) return [];
+        const parsed = JSON.parse(saved);
+        return isStringArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+    _loadGuiPos = () => {
+      try {
+        const saved = GM_getValue(STORAGE_KEYS.GUI_POS);
+        if (!saved) return null;
+        const pos = JSON.parse(saved);
+        if (!isGuiPos(pos)) return null;
+        const buffer = 50;
+        if (pos.left < -buffer || pos.left > window.innerWidth + buffer || pos.top < -buffer || pos.top > window.innerHeight + buffer) {
+          return null;
+        }
+        return pos;
+      } catch {
+        return null;
+      }
+    };
+  }
+  const CONTAINER_SELECTOR = "#post-comic";
+  const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
+  function getTagType(href) {
+    try {
+      const url = new URL(href);
+      const pathname = url.pathname;
+      for (const type of TAG_TYPES) {
+        if (pathname.startsWith(`/${type}/`)) {
+          return type;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  const DefaultAdapter = {
+    // Always match as a fallback (should be checked last)
+    match: () => true,
+    getContainer: () => document.querySelector(CONTAINER_SELECTOR),
+    getImages: () => Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`)),
+    searchConfig: {
+      baseUrl: "/",
+      queryParam: "s"
+    },
+    getSearchUrl: function(query) {
+      const config = this.searchConfig;
+      if (!config) return "";
+      const url = new URL(config.baseUrl, window.location.origin);
+      url.searchParams.set(config.queryParam, query);
+      return url.toString();
+    },
+    getMetadata: () => {
+      const titleEl = document.querySelector("h1");
+      const title = titleEl?.textContent?.trim() || "Unknown Title";
+      const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
+        const href = a.href;
+        return {
+          text: a.textContent?.trim() || "",
+          href,
+          type: getTagType(href)
+        };
+      });
+      const relatedWorks = Array.from(document.querySelectorAll(".post-list-image")).map((el) => {
+        const anchor = el.closest("a");
+        const img = el.querySelector("img");
+        const titleEl2 = el.querySelector("span") || anchor?.querySelector("span");
+        const title2 = titleEl2?.textContent?.trim() || "Untitled";
+        return {
+          title: title2,
+          href: anchor?.href || "",
+          thumb: img?.src || "",
+          isPrivate: title2.startsWith("非公開")
+        };
+      });
+      return { title, tags, relatedWorks };
+    },
+    parseSearchResults: (doc) => {
+      const results = Array.from(doc.querySelectorAll("div.post-list > a")).map((a) => {
+        const img = a.querySelector(".post-list-image img");
+        const titleEl = a.querySelector(":scope > span");
+        return {
+          title: titleEl?.textContent?.trim() || "",
+          href: a.getAttribute("href") || "",
+          thumb: img?.getAttribute("src") || ""
+        };
+      });
+      const totalCountEl = doc.querySelector("div.page-h > span");
+      const totalCount = totalCountEl?.textContent?.trim() || null;
+      const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
+      const pagination = [];
+      const pagenavi = doc.querySelector(".wp-pagenavi");
+      if (pagenavi) {
+        pagenavi.childNodes.forEach((node) => {
+          if (node.nodeType === 1) {
+            const el = node;
+            if (el.classList.contains("pages")) return;
+            const isCurrent = el.classList.contains("current");
+            const isNext = el.classList.contains("nextpostslink");
+            const isPrev = el.classList.contains("previouspostslink");
+            const isExtend = el.classList.contains("extend");
+            let type = "page";
+            if (isNext) type = "next";
+            else if (isPrev) type = "prev";
+            else if (isExtend) type = "extend";
+            pagination.push({
+              label: el.textContent?.trim() || "",
+              url: el.getAttribute("href"),
+              isCurrent,
+              type
+            });
+          }
+        });
+      }
+      return { results, totalCount, nextPageUrl, pagination };
+    }
+  };
   class Navigator {
     adapter;
     store;
@@ -572,7 +801,13 @@
     _lastEnabled;
     _lastDualView;
     _lastSpreadOffset;
+    _lastAutoplayEnabled;
+    _lastAutoplayInterval;
+    _lastIsMetadataModalOpen;
+    _lastIsHelpModalOpen;
+    _lastIsSearchModalOpen;
     pendingTargetIndex;
+    autoplayTimer;
     constructor(adapter, store) {
       this.adapter = adapter;
       this.store = store;
@@ -580,22 +815,25 @@
       this._lastEnabled = void 0;
       this._lastDualView = void 0;
       this._lastSpreadOffset = void 0;
+      this._lastAutoplayEnabled = void 0;
+      this._lastAutoplayInterval = void 0;
       this.pendingTargetIndex = null;
+      this.autoplayTimer = null;
     }
     init = () => {
-      this.store.subscribe((state) => {
-        const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
-        if (layoutChanged) {
-          this.applyLayout();
-          this._lastEnabled = state.enabled;
-          this._lastDualView = state.isDualViewEnabled;
-          this._lastSpreadOffset = state.spreadOffset;
-        }
-      });
       const initialState = this.store.getState();
       this._lastEnabled = initialState.enabled;
       this._lastDualView = initialState.isDualViewEnabled;
       this._lastSpreadOffset = initialState.spreadOffset;
+      this._lastAutoplayEnabled = initialState.isAutoplayEnabled;
+      this._lastAutoplayInterval = initialState.autoplayInterval;
+      this._lastIsMetadataModalOpen = initialState.isMetadataModalOpen;
+      this._lastIsHelpModalOpen = initialState.isHelpModalOpen;
+      this._lastIsSearchModalOpen = initialState.isSearchModalOpen;
+      this.store.subscribe((state) => {
+        this._handleLayoutStateChange(state);
+        this._handleAutoplayStateChange(state);
+      });
       const imgs = this.getImages();
       imgs.forEach((img) => {
         if (!img.complete) {
@@ -607,6 +845,9 @@
       });
       if (initialState.enabled) {
         this.applyLayout();
+      }
+      if (initialState.enabled && initialState.isAutoplayEnabled) {
+        this._startAutoplay();
       }
     };
     getImages = () => {
@@ -621,7 +862,7 @@
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
       if (currentIndex !== -1) {
         this.store.setState({ currentVisibleIndex: currentIndex });
-        preloadImages(imgs, currentIndex);
+        this._triggerPreload(imgs, currentIndex);
       }
     };
     async jumpToPage(pageNumber) {
@@ -642,11 +883,52 @@
         requestAnimationFrame(() => {
           this.pendingTargetIndex = null;
         });
+        this._resetAutoplayTimer();
         return true;
       }
       this.updatePageCounter();
       return false;
     }
+    _handleLayoutStateChange = (state) => {
+      const layoutChanged = state.enabled !== this._lastEnabled || state.isDualViewEnabled !== this._lastDualView || state.spreadOffset !== this._lastSpreadOffset;
+      if (layoutChanged) {
+        this.applyLayout();
+        this._lastEnabled = state.enabled;
+        this._lastDualView = state.isDualViewEnabled;
+        this._lastSpreadOffset = state.spreadOffset;
+      }
+    };
+    _handleAutoplayStateChange = (state) => {
+      const modalChanged = state.isMetadataModalOpen !== this._lastIsMetadataModalOpen || state.isHelpModalOpen !== this._lastIsHelpModalOpen || state.isSearchModalOpen !== this._lastIsSearchModalOpen;
+      if (state.isAutoplayEnabled !== this._lastAutoplayEnabled || state.autoplayInterval !== this._lastAutoplayInterval || modalChanged) {
+        const isAnyModalOpen = state.isMetadataModalOpen || state.isHelpModalOpen || state.isSearchModalOpen;
+        if (state.isAutoplayEnabled && !isAnyModalOpen) {
+          this._startAutoplay();
+        } else {
+          this._stopAutoplay();
+        }
+        this._lastAutoplayEnabled = state.isAutoplayEnabled;
+        this._lastAutoplayInterval = state.autoplayInterval;
+        this._lastIsMetadataModalOpen = state.isMetadataModalOpen;
+        this._lastIsHelpModalOpen = state.isHelpModalOpen;
+        this._lastIsSearchModalOpen = state.isSearchModalOpen;
+      }
+    };
+    _getPreloadCount = () => {
+      const { isDualViewEnabled, isAutoplayEnabled, autoplayInterval } = this.store.getState();
+      let count = 5;
+      if (isDualViewEnabled) {
+        count *= 2;
+      }
+      if (isAutoplayEnabled && autoplayInterval < 3) {
+        count *= 2;
+      }
+      return Math.min(count, 20);
+    };
+    _triggerPreload = (imgs, currentIndex) => {
+      const count = this._getPreloadCount();
+      preloadImages(imgs, currentIndex, count);
+    };
     _calculateTargetIndex = (imgs, direction) => {
       const { isDualViewEnabled } = this.store.getState();
       const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
@@ -673,6 +955,7 @@
       }
       const finalIndex = Math.max(0, Math.min(targetIndex, imgs.length - 1));
       await this._performScrollToImage(imgs[finalIndex], finalIndex);
+      this._resetAutoplayTimer();
     }
     async _performScrollToImage(target, index) {
       this.pendingTargetIndex = index;
@@ -705,6 +988,7 @@
       requestAnimationFrame(() => {
         this.pendingTargetIndex = null;
       });
+      this._resetAutoplayTimer();
     }
     applyLayout = (forcedIndex) => {
       const { enabled, isDualViewEnabled, spreadOffset } = this.store.getState();
@@ -725,8 +1009,180 @@
             targetImg.scrollIntoView({ block: "center" });
           });
         });
-        preloadImages(imgs, currentIndex);
+        this._triggerPreload(imgs, currentIndex);
       }
+    };
+    _startAutoplay = () => {
+      this._stopAutoplay();
+      const { isAutoplayEnabled, autoplayInterval, isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
+      const isAnyModalOpen = isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+      if (!isAutoplayEnabled || isAnyModalOpen) return;
+      this.autoplayTimer = setTimeout(async () => {
+        const imgs = this.getImages();
+        const currentIndex = getPrimaryVisibleImageIndex(imgs, window.innerHeight);
+        if (currentIndex >= imgs.length - 1) {
+          const state = this.store.getState();
+          const historyUrls = state.luckyHistory.map((e) => e.href);
+          const nextUrl = pickRandomWork(state.metadata, historyUrls, window.location.href, state.searchCache, state.favorites);
+          if (nextUrl) {
+            window.location.href = nextUrl;
+          } else {
+            this._stopAutoplay();
+          }
+          return;
+        }
+        await this.scrollToImage(1);
+        this._startAutoplay();
+      }, autoplayInterval * 1e3);
+    };
+    _stopAutoplay = () => {
+      if (this.autoplayTimer) {
+        clearTimeout(this.autoplayTimer);
+        this.autoplayTimer = null;
+      }
+    };
+    _resetAutoplayTimer = () => {
+      const { isAutoplayEnabled } = this.store.getState();
+      if (isAutoplayEnabled) {
+        this._startAutoplay();
+      }
+    };
+  }
+  function isSearchableAdapter(adapter) {
+    return typeof adapter.getSearchUrl === "function" && typeof adapter.parseSearchResults === "function";
+  }
+  function isMetadataAdapter(adapter) {
+    return typeof adapter.getMetadata === "function";
+  }
+  function normalizeQuery(query) {
+    return query.trim().toLowerCase().split(/\s+/).sort().join(" ");
+  }
+  function contextsMatch(c1, c2) {
+    if (!c1 && !c2) return true;
+    if (!c1 || !c2) return false;
+    return c1.type === c2.type && c1.label === c2.label;
+  }
+  class DiscoveryManager {
+    adapter;
+    store;
+    constructor(adapter, store) {
+      this.adapter = adapter;
+      this.store = store;
+    }
+    performSearch = async (queryOrUrl, silent = false, context) => {
+      if (!isSearchableAdapter(this.adapter)) return;
+      if (!silent) this.store.setState({ searchResults: null });
+      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
+      const { url, query, searchContext } = this._getSearchParameters(queryOrUrl, context);
+      this._updateStoreBeforeSearch(query, searchContext, silent, isUrl);
+      try {
+        const results = await this.fetchSearchResults(url);
+        results.searchContext = searchContext;
+        this.store.setState({
+          searchResults: results,
+          searchCache: { query, results, fetchedAt: Date.now(), context: searchContext }
+        });
+      } catch (error) {
+        console.error("Failed to fetch search results:", error);
+      }
+    };
+    fetchSearchResults = async (url) => {
+      const searchableAdapter = this.adapter;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return searchableAdapter.parseSearchResults(doc);
+    };
+    _updateStoreBeforeSearch = (query, context, silent, isUrl) => {
+      this.store.setState({ searchContext: context });
+      if (!silent && !isUrl && context.type === "keyword") {
+        this.store.setState({ searchQuery: query });
+        this._updateSearchHistory(query);
+      }
+    };
+    _getSearchParameters = (queryOrUrl, context) => {
+      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
+      if (isUrl) {
+        const query2 = context ? context.label || "" : this.store.getState().searchQuery;
+        const searchContext2 = context || this.store.getState().searchContext || { type: "keyword", label: query2 };
+        return { url: queryOrUrl, query: query2, searchContext: searchContext2 };
+      }
+      const query = queryOrUrl;
+      const searchableAdapter = this.adapter;
+      const url = searchableAdapter.getSearchUrl(query);
+      const searchContext = context || { type: "keyword", label: query };
+      return { url, query, searchContext };
+    };
+    _updateSearchHistory = (query) => {
+      const { searchHistory } = this.store.getState();
+      const normalizedNew = normalizeQuery(query);
+      const filtered = searchHistory.filter((h) => normalizeQuery(h) !== normalizedNew);
+      const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
+      this.store.setState({ searchHistory: newHistory });
+    };
+    /**
+     * Helper for UIManager to check context match
+     */
+    contextsMatch = (c1, c2) => {
+      return contextsMatch(c1, c2);
+    };
+    jumpToRandomWork = async () => {
+      const state = this.store.getState();
+      if (state.isLuckyLoading) return;
+      this.store.setState({ isLuckyLoading: true });
+      try {
+        const currentUrl = window.location.href;
+        const historyUrls = state.luckyHistory.map((e) => e.href);
+        if (isLuckyPoolDepleted(state.metadata, historyUrls, currentUrl, state.searchCache, state.favorites)) {
+          await this._replenishCandidates();
+        }
+        const finalState = this.store.getState();
+        const finalHistoryUrls = finalState.luckyHistory.map((e) => e.href);
+        const nextUrl = pickRandomWork(
+          finalState.metadata,
+          finalHistoryUrls,
+          currentUrl,
+          finalState.searchCache,
+          finalState.favorites
+        );
+        if (nextUrl) {
+          window.location.href = nextUrl;
+        }
+      } catch (error) {
+        console.error("Jump to random work failed:", error);
+      } finally {
+        this.store.setState({ isLuckyLoading: false });
+      }
+    };
+    _replenishCandidates = async () => {
+      if (await this._tryDeepFetch()) return;
+      await this._tryTagFetch();
+    };
+    _tryDeepFetch = async () => {
+      const { searchCache } = this.store.getState();
+      if (searchCache?.results.nextPageUrl) {
+        const results = await this.fetchSearchResults(searchCache.results.nextPageUrl);
+        const existingHrefs = new Set(searchCache.results.results.map((r) => r.href));
+        const newUniqueResults = results.results.filter((r) => !existingHrefs.has(r.href));
+        const mergedResults = {
+          ...results,
+          results: [...searchCache.results.results, ...newUniqueResults]
+        };
+        this.store.setState({
+          searchCache: { ...searchCache, results: mergedResults, fetchedAt: Date.now() }
+        });
+        return true;
+      }
+      return false;
+    };
+    _tryTagFetch = async () => {
+      const { metadata } = this.store.getState();
+      if (metadata.tags.length === 0) return;
+      const tag = metadata.tags[Math.floor(Math.random() * metadata.tags.length)];
+      const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
+      const context = { type: contextType, label: tag.text };
+      await this.performSearch(tag.href, true, context);
     };
   }
   const PALETTE = {
@@ -789,7 +1245,8 @@
     right: 20px;
     z-index: 10000;
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
     background-color: ${COLORS.background.panel};
     padding: 8px;
     border-radius: 8px;
@@ -797,11 +1254,17 @@
     cursor: move;
     user-select: none;
     touch-action: none;
-    align-items: center;
-    white-space: nowrap;
     width: max-content;
     opacity: 0.3;
     transition: opacity 0.3s;
+  }
+
+  .comic-helper-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;
   }
 
   #comic-helper-ui:hover {
@@ -838,6 +1301,29 @@
   }
   .comic-helper-power-btn.enabled { color: ${COLORS.text.success}; }
   .comic-helper-power-btn.disabled { color: ${COLORS.text.muted}; }
+
+  .comic-helper-favorite-btn {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    padding: 0 4px;
+    transition: color 0.2s, transform 0.2s;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+  }
+  .comic-helper-favorite-btn:hover {
+    transform: scale(1.2);
+  }
+  .comic-helper-favorite-btn.active {
+    color: #ff4081; /* Pinkish heart */
+  }
+  .comic-helper-favorite-btn.inactive {
+    color: ${COLORS.text.muted};
+  }
 
   .comic-helper-counter-wrapper {
     color: ${COLORS.text.primary};
@@ -903,6 +1389,30 @@
   }
   .comic-helper-adjust-btn:hover {
     background: rgba(255, 255, 255, 0.2);
+  }
+
+  .comic-helper-autoplay-wrapper {
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid ${COLORS.border.light};
+  }
+
+  .comic-helper-autoplay-input {
+    width: 35px;
+    background: transparent;
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.primary};
+    font-size: 12px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    outline: none;
+    text-align: center;
+    margin-right: 4px;
+  }
+
+  .comic-helper-sec-label {
+    color: ${COLORS.text.muted};
+    font-size: 10px;
   }
 
   /* Metadata Modal Styles */
@@ -983,6 +1493,14 @@
   .comic-helper-tag-chip:hover {
     background: ${COLORS.background.tagHover};
     color: ${COLORS.text.primary};
+  }
+  .comic-helper-tag-chip.active {
+    background: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+  .comic-helper-tag-chip.active:hover {
+    background: ${COLORS.background.successHover};
+    color: ${COLORS.text.white};
   }
 
   /* Tag type color variants */
@@ -1161,6 +1679,19 @@
     border-color: #666;
   }
 
+  .comic-helper-search-header-tag {
+    cursor: pointer;
+    color: ${COLORS.text.primary};
+    border-bottom: 1px dotted ${COLORS.text.muted};
+    transition: color 0.2s, border-bottom-color 0.2s;
+    margin: 0 4px;
+    display: inline-block;
+  }
+  .comic-helper-search-header-tag:hover {
+    color: ${COLORS.border.accent};
+    border-bottom-color: ${COLORS.border.accent};
+  }
+
   /* Search Results Styles */
   .comic-helper-search-results-section {
     margin-top: 4px;
@@ -1179,6 +1710,254 @@
     margin-top: 10px;
   }
 
+  /* Library Tabs */
+  .comic-helper-library-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid ${COLORS.border.light};
+    margin-bottom: 16px;
+  }
+
+  .comic-helper-library-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: ${COLORS.text.muted};
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 8px 16px;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-bottom-color 0.2s;
+  }
+
+  .comic-helper-library-tab:hover {
+    color: ${COLORS.text.primary};
+  }
+
+  .comic-helper-library-tab.active {
+    color: ${COLORS.text.primary};
+    border-bottom-color: ${COLORS.border.accent};
+  }
+
+  /* Sort Menu */
+  .comic-helper-sort-menu {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .comic-helper-sort-label {
+    font-size: 11px;
+    color: ${COLORS.text.muted};
+  }
+
+  .comic-helper-sort-btn {
+    background: ${COLORS.background.tag};
+    border: 1px solid ${COLORS.border.light};
+    border-radius: 12px;
+    color: ${COLORS.text.secondary};
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 10px;
+    transition: all 0.2s;
+  }
+
+  .comic-helper-sort-btn:hover {
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
+  }
+
+  .comic-helper-sort-btn.active {
+    background: ${COLORS.background.progress};
+    border-color: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+
+  /* Library Item Favorite Toggle */
+  .comic-helper-item-favorite-btn {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: ${COLORS.text.muted};
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .comic-helper-item-favorite-btn.active {
+    color: #ff4081;
+  }
+
+  .comic-helper-favorites-item:hover .comic-helper-item-favorite-btn {
+    opacity: 1;
+  }
+
+  /* View count badge */
+  .comic-helper-view-count {
+    font-size: 10px;
+    color: ${COLORS.text.muted};
+    margin-top: 2px;
+  }
+
+  .comic-helper-favorites-trend-section {
+    padding: 8px 0 12px;
+    border-bottom: 1px solid ${COLORS.border.light};
+    margin-bottom: 12px;
+  }
+  .comic-helper-favorites-trend-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .comic-helper-favorites-trend-label {
+    font-size: 11px;
+    color: ${COLORS.text.muted};
+  }
+  .comic-helper-trend-toggle-btn {
+    background: transparent;
+    border: none;
+    color: ${COLORS.border.accent};
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    transition: opacity 0.2s;
+  }
+  .comic-helper-trend-toggle-btn:hover {
+    opacity: 0.7;
+  }
+  .comic-helper-favorites-trend-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .comic-helper-tag-chip-container {
+    display: inline-flex;
+    align-items: stretch;
+    border-radius: 16px;
+    overflow: hidden;
+    background: ${COLORS.background.tag};
+    transition: background 0.15s;
+  }
+  .comic-helper-tag-chip-container:hover {
+    background: ${COLORS.background.tagHover};
+  }
+
+  /* タイプカラー: コンテナレベルで背景色を制御 */
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--artist { background: #5c3d4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--artist:hover { background: #7a5060; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--character { background: #3d5c4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--character:hover { background: #507a60; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--circle { background: #3d4a5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--circle:hover { background: #50607a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--fanzine { background: #5c4a3d; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--fanzine:hover { background: #7a6050; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--genre { background: #4a4a4a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--genre:hover { background: #606060; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--magazine { background: #4a3d5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--magazine:hover { background: #60507a; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--parody { background: #3d5c5c; }
+  .comic-helper-tag-chip-container.comic-helper-tag-chip--parody:hover { background: #507a7a; }
+
+  /* コンテナ内チップ: 背景と枠線はコンテナに委譲 */
+  .comic-helper-tag-chip-container .comic-helper-tag-chip {
+    background: transparent;
+    border-radius: 0;
+    color: ${COLORS.text.secondary};
+    transition: color 0.15s;
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-chip {
+    color: ${COLORS.text.primary};
+  }
+  .comic-helper-tag-chip-container .comic-helper-tag-chip.active {
+    background: ${COLORS.border.accent};
+    color: ${COLORS.text.white};
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-chip.active {
+    background: ${COLORS.background.successHover};
+    color: ${COLORS.text.white};
+  }
+
+  /* ピンボタン: デフォルト非表示、ホバー時にスライドイン */
+  .comic-helper-tag-pin {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    max-width: 0;
+    overflow: hidden;
+    color: ${COLORS.text.muted};
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: max-width 0.15s ease, padding 0.15s ease, opacity 0.15s ease, color 0.15s;
+    opacity: 0;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .comic-helper-tag-chip-container:hover .comic-helper-tag-pin {
+    max-width: 28px;
+    padding: 0 8px 0 0;
+    opacity: 1;
+  }
+  .comic-helper-tag-pin:hover {
+    color: ${COLORS.text.primary};
+  }
+
+  /* ピン済み: 常に表示、ゴールドカラー */
+  .comic-helper-tag-pin.active {
+    max-width: 28px;
+    padding: 0 8px 0 0;
+    opacity: 1;
+    color: #f59e0b;
+  }
+  .comic-helper-tag-pin.active:hover {
+    color: #d97706;
+  }
+
+  .comic-helper-favorites-item {
+    position: relative;
+  }
+  .comic-helper-favorites-delete-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 1;
+  }
+  .comic-helper-favorites-item:hover .comic-helper-favorites-delete-btn {
+    opacity: 1;
+  }
   .comic-helper-search-result-item {
     text-decoration: none;
     color: ${COLORS.text.secondary};
@@ -1503,7 +2282,7 @@
     children.forEach((child) => {
       if (typeof child === "string") {
         el.appendChild(document.createTextNode(child));
-      } else if (child instanceof HTMLElement) {
+      } else if (child instanceof Element) {
         el.appendChild(child);
       }
     });
@@ -1543,6 +2322,17 @@
         showMetadata: "Show Metadata",
         showHelp: "Show Help",
         showSearch: "Show Search",
+        showFavoritesList: "Show Favorites List",
+        favoritesList: "Library",
+        favoritesTab: "Favorites",
+        historyTab: "History",
+        favoritesEmpty: "No favorites yet.",
+        historyEmpty: "No history yet.",
+        favoritesTrend: "Your Taste",
+        sortByLastViewed: "Recently Viewed",
+        sortByViewCount: "Most Viewed",
+        sortByFirstViewed: "Oldest First",
+        viewCount: "{count} views",
         search: "Search",
         searchPlaceholder: "Enter keyword...",
         searchHistory: "Recent",
@@ -1556,11 +2346,18 @@
         resume: "Resume",
         resumeNotification: "Resume from page {page}?",
         continueReading: "Continue",
-        startFromBeginning: "Start Over"
+        startFromBeginning: "Start Over",
+        autoplay: "Autoplay",
+        seconds: "sec",
+        showAllTags: "Show All",
+        showTopTags: "Top Only",
+        pinTag: "Pin tag",
+        unpinTag: "Unpin tag"
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
         prevPage: { label: "Prev Page", desc: "Move to previous page" },
+        autoplay: { label: "Autoplay", desc: "Toggle Autoplay" },
         dualView: { label: "Dual View", desc: "Toggle Dual View" },
         spreadOffset: { label: "Spread Offset", desc: "Toggle Offset (0 ↔ 1)", cond: "Dual View only" },
         metadata: { label: "Metadata", desc: "Show metadata" },
@@ -1568,7 +2365,11 @@
         help: { label: "Help", desc: "Show this help" },
         search: { label: "Search", desc: "Start search" },
         closeModal: { label: "Close Modal", desc: "Close modal" },
-        randomJump: { label: "Random Jump", desc: "Jump to a random related work" }
+        randomJump: { label: "Random Jump", desc: "Jump to a random related work" },
+        speedUpAutoplay: { label: "Speed Up Autoplay", desc: "Decrease wait time (speed up)" },
+        slowDownAutoplay: { label: "Slow Down Autoplay", desc: "Increase wait time (slow down)" },
+        toggleFavorite: { label: "Favorite", desc: "Toggle favorite for this work" },
+        favoritesList: { label: "Favorites List", desc: "Show favorites list" }
       }
     },
     ja: {
@@ -1592,6 +2393,17 @@
         showMetadata: "作品情報を表示",
         showHelp: "ヘルプを表示",
         showSearch: "サイト内検索を表示",
+        showFavoritesList: "お気に入り一覧を表示",
+        favoritesList: "ライブラリ",
+        favoritesTab: "お気に入り",
+        historyTab: "履歴",
+        favoritesEmpty: "お気に入りはまだありません。",
+        historyEmpty: "閲覧履歴はまだありません。",
+        favoritesTrend: "あなたの好み",
+        sortByLastViewed: "最近見た順",
+        sortByViewCount: "閲覧回数順",
+        sortByFirstViewed: "古い順",
+        viewCount: "{count}回",
         search: "検索",
         searchPlaceholder: "キーワードを入力...",
         searchHistory: "最近の検索",
@@ -1605,11 +2417,18 @@
         resume: "レジューム",
         resumeNotification: "{page}ページから再開しますか？",
         continueReading: "続きから",
-        startFromBeginning: "最初から"
+        startFromBeginning: "最初から",
+        autoplay: "オートプレイ",
+        seconds: "秒",
+        showAllTags: "すべて表示",
+        showTopTags: "上位のみ",
+        pinTag: "タグをピン留め",
+        unpinTag: "ピン留めを解除"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
         prevPage: { label: "前ページ", desc: "前のページへ移動" },
+        autoplay: { label: "オートプレイ", desc: "オートプレイのON/OFF" },
         dualView: { label: "見開き", desc: "見開きモードのON/OFF" },
         spreadOffset: { label: "見開きオフセット", desc: "見開きオフセットの切替 (0 ↔ 1)", cond: "見開きモード中のみ" },
         metadata: { label: "作品情報", desc: "作品情報（メタデータ）の表示" },
@@ -1617,7 +2436,11 @@
         help: { label: "ヘルプ", desc: "このヘルプの表示" },
         search: { label: "検索", desc: "検索の開始" },
         closeModal: { label: "閉じる", desc: "モーダルを閉じる" },
-        randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" }
+        randomJump: { label: "ランダムジャンプ", desc: "おすすめ（ランダム）へ遷移" },
+        speedUpAutoplay: { label: "オートプレイ加速", desc: "待機時間を減らす（速くする）" },
+        slowDownAutoplay: { label: "オートプレイ減速", desc: "待機時間を増やす（遅くする）" },
+        toggleFavorite: { label: "お気に入り", desc: "お気に入りの追加/解除" },
+        favoritesList: { label: "お気に入り一覧", desc: "お気に入り一覧を表示" }
       }
     }
   };
@@ -1753,6 +2576,94 @@
       }
     };
   }
+  function createAutoplayControls({
+    isAutoplayEnabled,
+    autoplayInterval,
+    onToggle,
+    onChangeInterval
+  }) {
+    const checkbox = createElement("input", {
+      type: "checkbox",
+      checked: isAutoplayEnabled,
+      events: {
+        change: (e) => {
+          const target = e.currentTarget;
+          onToggle(target.checked);
+          if (typeof target.blur === "function") {
+            target.blur();
+          }
+        }
+      }
+    });
+    const intervalInput = createElement("input", {
+      type: "number",
+      className: "comic-helper-autoplay-input",
+      attributes: { min: 1, max: 99 },
+      events: {
+        change: (e) => {
+          const target = e.currentTarget;
+          const val = parseInt(target.value, 10);
+          if (!isNaN(val) && val >= 1 && val <= 99) {
+            onChangeInterval(val);
+          }
+        },
+        keydown: (e) => {
+          if (e instanceof KeyboardEvent && e.key === "Enter") {
+            e.preventDefault();
+            intervalInput.blur();
+          }
+          e.stopPropagation();
+        },
+        focus: () => {
+          intervalInput.select();
+        }
+      }
+    });
+    intervalInput.value = String(autoplayInterval);
+    const label = createElement("label", {
+      className: "comic-helper-label"
+    }, [checkbox, t("ui.autoplay")]);
+    const secLabel = createElement("span", {
+      className: "comic-helper-sec-label",
+      textContent: t("ui.seconds")
+    });
+    const el = createElement("div", {
+      className: "comic-helper-autoplay-wrapper",
+      style: { display: "flex", alignItems: "center" }
+    }, [label, intervalInput, secLabel]);
+    return {
+      el,
+      update: (enabled, interval) => {
+        checkbox.checked = enabled;
+        if (document.activeElement !== intervalInput) {
+          intervalInput.value = String(interval);
+        }
+      }
+    };
+  }
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  function createSvg(pathD, size = 18) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", size.toString());
+    svg.setAttribute("height", size.toString());
+    svg.setAttribute("fill", "currentColor");
+    svg.style.display = "inline-block";
+    svg.style.verticalAlign = "middle";
+    const path = document.createElementNS(SVG_NS, "path");
+    path.setAttribute("d", pathD);
+    svg.appendChild(path);
+    return svg;
+  }
+  function createHeartFilledIcon(size = 18) {
+    return createSvg("M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z", size);
+  }
+  function createPinFilledIcon(size = 14) {
+    return createSvg("M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z", size);
+  }
+  function createHeartOutlineIcon(size = 18) {
+    return createSvg("M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z", size);
+  }
   function createNavigationButtons({
     onFirst,
     onPrev,
@@ -1761,19 +2672,28 @@
     onInfo,
     onHelp,
     onSearch,
-    onLucky
+    onLucky,
+    onToggleFavorite,
+    onFavoritesList
   }) {
-    const configs = [
+    const heartFilledIcon = createHeartFilledIcon(18);
+    const heartOutlineIcon = createHeartOutlineIcon(18);
+    const navConfigs = [
       { text: "<<", title: t("ui.goLast"), action: onLast },
       { text: "<", title: t("ui.goNext"), action: onNext },
-      { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn" },
+      { text: "🎲", title: t("ui.lucky"), action: onLucky, className: "comic-helper-button comic-helper-icon-btn", id: "lucky" },
       { text: ">", title: t("ui.goPrev"), action: onPrev },
-      { text: ">>", title: t("ui.goFirst"), action: onFirst },
-      { text: "Info", title: t("ui.showMetadata"), action: onInfo },
-      { text: "?", title: t("ui.showHelp"), action: onHelp },
-      { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" }
+      { text: ">>", title: t("ui.goFirst"), action: onFirst }
     ];
-    const elements = configs.map((cfg) => createElement("button", {
+    const utilConfigs = [
+      { text: "", title: "Toggle Favorite", action: onToggleFavorite, id: "fav", className: "comic-helper-favorite-btn" },
+      { text: "ℹ️", title: t("ui.showMetadata"), action: onInfo, className: "comic-helper-button comic-helper-icon-btn" },
+      { text: "❓", title: t("ui.showHelp"), action: onHelp, className: "comic-helper-button comic-helper-icon-btn" },
+      { text: "🔍", title: t("ui.showSearch"), action: onSearch, className: "comic-helper-button comic-helper-icon-btn" },
+      { text: "📚", title: t("ui.showFavoritesList"), action: onFavoritesList, className: "comic-helper-button comic-helper-icon-btn" }
+    ];
+    const makeBtn = (cfg) => createElement("button", {
+      id: cfg.id ? `comic-helper-nav-${cfg.id}` : void 0,
       className: cfg.className || "comic-helper-button",
       textContent: cfg.text,
       title: cfg.title,
@@ -1785,16 +2705,36 @@
           e.currentTarget.blur();
         }
       }
-    }));
+    });
+    const navElements = navConfigs.map(makeBtn);
+    const utilElements = utilConfigs.map(makeBtn);
+    const favBtn = utilElements.find((el) => el.id === "comic-helper-nav-fav");
+    const luckyBtn = navElements.find((el) => el.id === "comic-helper-nav-lucky");
     return {
-      elements,
-      update: () => {
+      navElements,
+      utilElements,
+      update: (isFavorite, isLuckyLoading) => {
+        if (favBtn) {
+          favBtn.replaceChildren(isFavorite ? heartFilledIcon : heartOutlineIcon);
+          favBtn.classList.toggle("active", isFavorite);
+          favBtn.classList.toggle("inactive", !isFavorite);
+        }
+        if (luckyBtn instanceof HTMLButtonElement) {
+          luckyBtn.disabled = isLuckyLoading;
+          luckyBtn.classList.toggle("loading", isLuckyLoading);
+          if (isLuckyLoading) {
+            luckyBtn.textContent = "⏳";
+          } else {
+            luckyBtn.textContent = "🎲";
+          }
+        }
       }
-      // No dynamic state for these buttons yet
     };
   }
-  function createMetadataModal({ metadata, onClose, onTagClick }) {
+  function createMetadataModal({ metadata, isFavorite, onClose, onTagClick, onToggleFavorite }) {
     const { title, tags, relatedWorks } = metadata;
+    const heartFilledIcon = createHeartFilledIcon(18);
+    const heartOutlineIcon = createHeartOutlineIcon(18);
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -1806,10 +2746,22 @@
         }
       }
     });
+    const favBtn = createElement("button", {
+      className: `comic-helper-favorite-btn ${isFavorite ? "active" : "inactive"}`,
+      title: isFavorite ? "Remove from Favorites" : "Add to Favorites",
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onToggleFavorite();
+        }
+      }
+    }, [isFavorite ? heartFilledIcon : heartOutlineIcon]);
     const titleEl = createElement("h2", {
-      className: "comic-helper-modal-title",
-      textContent: title
-    });
+      className: "comic-helper-modal-title"
+    }, [
+      createElement("span", { textContent: title + " " }),
+      favBtn
+    ]);
     const tagChips = tags.map((tag) => {
       const className = tag.type ? `comic-helper-tag-chip comic-helper-tag-chip--${tag.type}` : "comic-helper-tag-chip";
       return createElement("a", {
@@ -1868,9 +2820,11 @@
     }, [content]);
     return {
       el: overlay,
-      update: () => {
+      update: (newIsFavorite) => {
+        favBtn.className = `comic-helper-favorite-btn ${newIsFavorite ? "active" : "inactive"}`;
+        favBtn.replaceChildren(newIsFavorite ? heartFilledIcon : heartOutlineIcon);
+        favBtn.title = newIsFavorite ? "Remove from Favorites" : "Add to Favorites";
       }
-      // No dynamic update needed once opened
     };
   }
   const NAV_ARROW_KEYS = {
@@ -1889,6 +2843,12 @@
       label: t("shortcuts.prevPage.label"),
       keys: ["k", "ArrowUp", "PageUp", NAV_ARROW_KEYS.prev, "Shift+Space"],
       description: t("shortcuts.prevPage.desc")
+    },
+    {
+      id: "autoplay",
+      label: t("shortcuts.autoplay.label"),
+      keys: ["a"],
+      description: t("shortcuts.autoplay.desc")
     },
     {
       id: "dualView",
@@ -1932,6 +2892,30 @@
       label: t("shortcuts.randomJump.label"),
       keys: ["p"],
       description: t("shortcuts.randomJump.desc")
+    },
+    {
+      id: "speedUpAutoplay",
+      label: t("shortcuts.speedUpAutoplay.label"),
+      keys: ["]"],
+      description: t("shortcuts.speedUpAutoplay.desc")
+    },
+    {
+      id: "slowDownAutoplay",
+      label: t("shortcuts.slowDownAutoplay.label"),
+      keys: ["["],
+      description: t("shortcuts.slowDownAutoplay.desc")
+    },
+    {
+      id: "toggleFavorite",
+      label: t("shortcuts.toggleFavorite.label"),
+      keys: ["v"],
+      description: t("shortcuts.toggleFavorite.desc")
+    },
+    {
+      id: "favoritesList",
+      label: t("shortcuts.favoritesList.label"),
+      keys: ["l"],
+      description: t("shortcuts.favoritesList.desc")
     },
     {
       id: "closeModal",
@@ -1985,7 +2969,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.4.1"} (${t("ui.stable")})`
+      textContent: `${t("ui.version")}: v${"1.5.0"} (${t("ui.stable")})`
     });
     const content = createElement("div", {
       className: "comic-helper-modal-content",
@@ -2008,7 +2992,7 @@
       }
     };
   }
-  function createResultsSection(searchResults, onPageChange) {
+  function createResultsSection(searchResults, onPageChange, onTagCompletion) {
     const section = createElement("div", {
       className: "comic-helper-search-results-section"
     });
@@ -2017,12 +3001,27 @@
     const header = createElement("div", {
       className: "comic-helper-section-title"
     });
-    let titleText = t("ui.searchResults");
     if (searchContext?.label) {
       const prefix = searchContext.type.charAt(0).toUpperCase() + searchContext.type.slice(1);
-      titleText = `${prefix}: ${searchContext.label}`;
+      const prefixEl = document.createTextNode(`${prefix}: `);
+      const tagEl = createElement("span", {
+        className: "comic-helper-search-header-tag",
+        textContent: searchContext.label,
+        events: {
+          click: (e) => {
+            e.preventDefault();
+            onTagCompletion(searchContext.label || "");
+          }
+        }
+      });
+      header.appendChild(prefixEl);
+      header.appendChild(tagEl);
+      if (totalCount) {
+        header.appendChild(document.createTextNode(` (${totalCount})`));
+      }
+    } else {
+      header.textContent = totalCount ? `${t("ui.searchResults")} (${totalCount})` : t("ui.searchResults");
     }
-    header.textContent = totalCount ? `${titleText} (${totalCount})` : titleText;
     section.appendChild(header);
     if (results.length === 0) {
       section.appendChild(createElement("div", {
@@ -2133,7 +3132,11 @@
         historySection.appendChild(btn);
       });
     }
-    let resultsSection = createResultsSection(searchResults, onPageChange);
+    const onTagCompletion = (label) => {
+      input.value = label + " ";
+      input.focus();
+    };
+    let resultsSection = createResultsSection(searchResults, onPageChange, onTagCompletion);
     const container = createElement("div", {
       className: "comic-helper-search-container"
     }, [form, historySection, resultsSection]);
@@ -2189,7 +3192,7 @@
       el: overlay,
       input,
       updateResults: (newResults) => {
-        const newSection = createResultsSection(newResults, onPageChange);
+        const newSection = createResultsSection(newResults, onPageChange, onTagCompletion);
         container.replaceChild(newSection, resultsSection);
         resultsSection = newSection;
         content.scrollTop = 0;
@@ -2222,6 +3225,326 @@
           }
           loadingStartTime = 0;
         }
+      }
+    };
+  }
+  function normalizeHref(href) {
+    try {
+      const u = new URL(href, window.location.origin || "http://localhost");
+      return u.origin + u.pathname;
+    } catch {
+      return href;
+    }
+  }
+  function formatViewCount(count) {
+    return t("ui.viewCount").replace("{count}", String(count));
+  }
+  function isSafeThumbUrl(thumb) {
+    return thumb.startsWith("http") || thumb.startsWith("https") || thumb.startsWith("/") || thumb.startsWith("blob:");
+  }
+  function createGridItem(item, options) {
+    const { isFavorite, onToggleFavorite, onRemove, viewCount } = options;
+    const thumb = createElement("img", {
+      className: "comic-helper-search-result-thumb",
+      attributes: { src: isSafeThumbUrl(item.thumb) ? item.thumb : "", loading: "lazy" }
+    });
+    const title = createElement("div", {
+      className: "comic-helper-search-result-title",
+      textContent: item.title
+    });
+    const titleWrapper = createElement("div", {}, [title]);
+    if (viewCount !== void 0) {
+      const countEl = createElement("div", {
+        className: "comic-helper-view-count",
+        textContent: formatViewCount(viewCount)
+      });
+      titleWrapper.appendChild(countEl);
+    }
+    const link = createElement("a", {
+      className: "comic-helper-search-result-item",
+      attributes: { href: item.href, target: "_blank" },
+      events: { click: (e) => e.stopPropagation() }
+    }, [thumb, titleWrapper]);
+    const favoriteBtn = createElement("button", {
+      className: `comic-helper-item-favorite-btn${isFavorite ? " active" : ""}`,
+      textContent: "♥",
+      title: t("ui.favoritesTab"),
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggleFavorite(item);
+        }
+      }
+    });
+    const deleteBtn = createElement("button", {
+      className: "comic-helper-favorites-delete-btn",
+      textContent: "×",
+      title: t("ui.close"),
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onRemove(item.href);
+        }
+      }
+    });
+    const wrapper = createElement("div", {
+      className: "comic-helper-favorites-item"
+    }, [link, favoriteBtn, deleteBtn]);
+    return wrapper;
+  }
+  function sortHistory(history, sortMode) {
+    const sorted = [...history];
+    if (sortMode === "viewCount") {
+      sorted.sort((a, b) => b.viewCount - a.viewCount);
+    } else if (sortMode === "firstViewedAt") {
+      sorted.sort((a, b) => a.firstViewedAt - b.firstViewedAt);
+    } else {
+      sorted.sort((a, b) => b.lastViewedAt - a.lastViewedAt);
+    }
+    return sorted;
+  }
+  function createFavoritesGrid(favorites, onRemoveFavorite, onToggleFavorite) {
+    const grid = createElement("div", {
+      className: "comic-helper-search-result-grid"
+    });
+    if (favorites.length === 0) {
+      grid.appendChild(createElement("div", {
+        className: "comic-helper-search-no-results",
+        textContent: t("ui.favoritesEmpty")
+      }));
+      return grid;
+    }
+    favorites.forEach((item) => {
+      const gridItem = createGridItem(item, {
+        isFavorite: true,
+        onToggleFavorite,
+        onRemove: onRemoveFavorite
+      });
+      grid.appendChild(gridItem);
+    });
+    return grid;
+  }
+  function createHistoryGrid(history, favorites, sortMode, onRemoveHistory, onToggleFavorite) {
+    const grid = createElement("div", {
+      className: "comic-helper-search-result-grid"
+    });
+    if (history.length === 0) {
+      grid.appendChild(createElement("div", {
+        className: "comic-helper-search-no-results",
+        textContent: t("ui.historyEmpty")
+      }));
+      return grid;
+    }
+    const sorted = sortHistory(history, sortMode);
+    const favoriteUrls = new Set(favorites.map((f) => normalizeHref(f.href)));
+    sorted.forEach((item) => {
+      const isFav = favoriteUrls.has(normalizeHref(item.href));
+      const gridItem = createGridItem(item, {
+        isFavorite: isFav,
+        onToggleFavorite,
+        onRemove: onRemoveHistory,
+        viewCount: item.viewCount
+      });
+      grid.appendChild(gridItem);
+    });
+    return grid;
+  }
+  function createSortMenu(currentSort, onSort) {
+    const menu = createElement("div", { className: "comic-helper-sort-menu" });
+    const sorts = [
+      { mode: "lastViewedAt", label: t("ui.sortByLastViewed") },
+      { mode: "viewCount", label: t("ui.sortByViewCount") },
+      { mode: "firstViewedAt", label: t("ui.sortByFirstViewed") }
+    ];
+    sorts.forEach(({ mode, label }) => {
+      const btn = createElement("button", {
+        className: `comic-helper-sort-btn${currentSort === mode ? " active" : ""}`,
+        textContent: label,
+        events: { click: () => onSort(mode) }
+      });
+      menu.appendChild(btn);
+    });
+    return menu;
+  }
+  function createTrendSection(favorites, selectedTagTexts, pinnedTags, onInternalTagClick, onTogglePinTag, showAllTags, onToggleShowAll) {
+    const section = createElement("div", {
+      className: "comic-helper-favorites-trend-section"
+    });
+    const trends = calculateTrends(favorites, showAllTags ? 0 : 10, pinnedTags, Array.from(selectedTagTexts));
+    if (trends.length === 0) {
+      section.style.display = "none";
+      return section;
+    }
+    const toggleBtn = createElement("button", {
+      className: "comic-helper-trend-toggle-btn",
+      textContent: showAllTags ? t("ui.showTopTags") : t("ui.showAllTags"),
+      events: { click: onToggleShowAll }
+    });
+    const labelRow = createElement("div", {
+      className: "comic-helper-favorites-trend-label-row"
+    }, [
+      createElement("div", {
+        className: "comic-helper-favorites-trend-label",
+        textContent: t("ui.favoritesTrend")
+      }),
+      toggleBtn
+    ]);
+    const tagsEl = createElement("div", {
+      className: "comic-helper-favorites-trend-tags"
+    });
+    trends.forEach(({ tag, count, isPinned }) => {
+      const typeClass = tag.type ? `comic-helper-tag-chip--${tag.type}` : "";
+      const activeClass = selectedTagTexts.has(tag.text) ? " active" : "";
+      const chip = createElement("button", {
+        className: `comic-helper-tag-chip${activeClass}`,
+        textContent: `${tag.text} (${count})`,
+        events: {
+          click: () => onInternalTagClick(tag.text)
+        }
+      });
+      const pinBtn = createElement("button", {
+        className: `comic-helper-tag-pin${isPinned ? " active" : ""}`,
+        title: isPinned ? t("ui.unpinTag") : t("ui.pinTag"),
+        events: {
+          click: (e) => {
+            e.stopPropagation();
+            onTogglePinTag(tag.text);
+          }
+        }
+      });
+      pinBtn.appendChild(createPinFilledIcon());
+      const container = createElement("div", {
+        className: `comic-helper-tag-chip-container${typeClass ? ` ${typeClass}` : ""}`
+      }, [chip, pinBtn]);
+      tagsEl.appendChild(container);
+    });
+    section.appendChild(labelRow);
+    section.appendChild(tagsEl);
+    return section;
+  }
+  function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose }) {
+    let sortMode = "lastViewedAt";
+    let currentFavorites = favorites;
+    let currentHistory = history;
+    let currentPinnedTags = pinnedTags;
+    let selectedTagTexts = /* @__PURE__ */ new Set();
+    let showAllTags = false;
+    const closeBtn = createElement("button", {
+      className: "comic-helper-modal-close",
+      textContent: "×",
+      title: t("ui.close"),
+      events: {
+        click: (e) => {
+          e.preventDefault();
+          onClose();
+        }
+      }
+    });
+    const titleEl = createElement("h2", {
+      className: "comic-helper-modal-title",
+      textContent: t("ui.favoritesList")
+    });
+    const favTab = createElement("button", {
+      className: "comic-helper-library-tab active",
+      textContent: t("ui.favoritesTab"),
+      events: { click: () => switchTab("favorites") }
+    });
+    const histTab = createElement("button", {
+      className: "comic-helper-library-tab",
+      textContent: t("ui.historyTab"),
+      events: { click: () => switchTab("history") }
+    });
+    const tabs = createElement("div", { className: "comic-helper-library-tabs" }, [favTab, histTab]);
+    function handleTrendTagClick(tagText) {
+      if (selectedTagTexts.has(tagText)) {
+        selectedTagTexts.delete(tagText);
+      } else {
+        selectedTagTexts.add(tagText);
+      }
+      rerenderFavoritesPanel();
+    }
+    function handleToggleShowAll() {
+      showAllTags = !showAllTags;
+      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+      favPanel.replaceChild(newTrendSection, trendSection);
+      trendSection = newTrendSection;
+    }
+    function rerenderFavoritesPanel() {
+      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+      favPanel.replaceChild(newTrendSection, trendSection);
+      trendSection = newTrendSection;
+      const filtered = filterWorksByTags(currentFavorites, selectedTagTexts);
+      const newFavGrid = createFavoritesGrid(filtered, onRemoveFavorite, onToggleFavorite);
+      favPanel.replaceChild(newFavGrid, favGrid);
+      favGrid = newFavGrid;
+    }
+    let trendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+    let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
+    const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [trendSection, favGrid]);
+    let sortMenu = createSortMenu(sortMode, handleSort);
+    let histGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+    const histPanel = createElement("div", { className: "comic-helper-history-panel" }, [sortMenu, histGrid]);
+    histPanel.style.display = "none";
+    const container = createElement("div", {
+      className: "comic-helper-search-container"
+    }, [favPanel, histPanel]);
+    function switchTab(tab) {
+      favTab.classList.toggle("active", tab === "favorites");
+      histTab.classList.toggle("active", tab === "history");
+      favPanel.style.display = tab === "favorites" ? "" : "none";
+      histPanel.style.display = tab === "history" ? "" : "none";
+    }
+    function handleSort(mode) {
+      sortMode = mode;
+      const newSortMenu = createSortMenu(sortMode, handleSort);
+      histPanel.replaceChild(newSortMenu, sortMenu);
+      sortMenu = newSortMenu;
+      const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+      histPanel.replaceChild(newHistGrid, histGrid);
+      histGrid = newHistGrid;
+    }
+    const content = createElement("div", {
+      className: "comic-helper-modal-content",
+      events: {
+        click: (e) => e.stopPropagation()
+      }
+    }, [closeBtn, titleEl, tabs, container]);
+    content.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+    const overlay = createElement("div", {
+      className: "comic-helper-modal-overlay",
+      events: {
+        click: onClose
+      }
+    }, [content]);
+    overlay.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { passive: false });
+    return {
+      el: overlay,
+      updateFavorites: (newFavorites) => {
+        currentFavorites = newFavorites;
+        selectedTagTexts = /* @__PURE__ */ new Set();
+        showAllTags = false;
+        rerenderFavoritesPanel();
+        const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+        histPanel.replaceChild(newHistGrid, histGrid);
+        histGrid = newHistGrid;
+      },
+      updateHistory: (newHistory, newFavorites) => {
+        currentHistory = newHistory;
+        currentFavorites = newFavorites;
+        const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+        histPanel.replaceChild(newHistGrid, histGrid);
+        histGrid = newHistGrid;
+      },
+      updatePinnedTags: (newPinnedTags) => {
+        currentPinnedTags = newPinnedTags;
+        const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+        favPanel.replaceChild(newTrendSection, trendSection);
+        trendSection = newTrendSection;
       }
     };
   }
@@ -2387,39 +3710,32 @@
       document.removeEventListener("mouseup", this._onMouseUp);
     };
   }
-  function isSearchableAdapter(adapter) {
-    return typeof adapter.getSearchUrl === "function" && typeof adapter.parseSearchResults === "function";
-  }
-  function isMetadataAdapter(adapter) {
-    return typeof adapter.getMetadata === "function";
-  }
   const SEARCH_TTL = 60 * 60 * 1e3;
-  function normalizeQuery(query) {
-    return query.trim().toLowerCase().split(/\s+/).sort().join(" ");
-  }
-  function contextsMatch(c1, c2) {
-    if (!c1 && !c2) return true;
-    if (!c1 || !c2) return false;
-    return c1.type === c2.type && c1.label === c2.label;
-  }
   class UIManager {
     adapter;
     store;
     navigator;
+    discoveryManager;
     // Component references
     powerComp = null;
     counterComp = null;
     spreadComp = null;
+    autoplayComp = null;
+    navBtnsComp = null;
     progressComp = null;
     loadingComp = null;
     draggable = null;
-    modalEl = null;
+    topRow = null;
+    bottomRow = null;
+    modalComp = null;
     helpModalEl = null;
     searchModalComp = null;
-    constructor(adapter, store, navigator2) {
+    favoritesModalComp = null;
+    constructor(adapter, store, navigator2, discoveryManager) {
       this.adapter = adapter;
       this.store = store;
       this.navigator = navigator2;
+      this.discoveryManager = discoveryManager;
     }
     init = () => {
       injectStyles();
@@ -2449,6 +3765,10 @@
         if (guiPos) {
           Object.assign(container.style, { top: `${guiPos.top}px`, left: `${guiPos.left}px`, bottom: "auto", right: "auto" });
         }
+        this.topRow = createElement("div", { className: "comic-helper-row" });
+        this.bottomRow = createElement("div", { className: "comic-helper-row" });
+        container.appendChild(this.topRow);
+        container.appendChild(this.bottomRow);
         this.draggable = new Draggable(container, {
           onDragEnd: (top, left) => this.store.setState({ guiPos: { top, left } })
         });
@@ -2459,22 +3779,43 @@
     _initializeComponents = (container) => {
       const state = this.store.getState();
       const imgs = this.navigator.getImages();
+      this._ensureMainControls(container, state, imgs.length);
+      this._ensureOverlayComponents(state);
+      this._ensureNavigationButtons(container);
+      this._updateComponentStates(state);
+    };
+    _ensureNavigationButtons = (container) => {
+      if (!this.navBtnsComp) {
+        this._addNavigationButtons(container);
+      }
+    };
+    _updateComponentStates = (state) => {
+      const favorites = state.favorites;
+      const isFavorite = favorites?.some((f) => f.href === window.location.href) ?? false;
+      this.navBtnsComp?.update(isFavorite, state.isLuckyLoading);
+      if (this.modalComp && state.isMetadataModalOpen) {
+        this.modalComp.update(isFavorite);
+      }
+    };
+    _ensureMainControls = (container, state, totalImgs) => {
+      const topRow = this.topRow || container;
+      const bottomRow = this.bottomRow || container;
       if (!this.powerComp) {
         this.powerComp = createPowerButton({
           isEnabled: state.enabled,
           onClick: () => this.store.setState({ enabled: !this.store.getState().enabled })
         });
-        container.appendChild(this.powerComp.el);
+        topRow.appendChild(this.powerComp.el);
       }
       if (!this.counterComp) {
         this.counterComp = createPageCounter({
           current: state.currentVisibleIndex + 1,
-          total: imgs.length,
+          total: totalImgs,
           onJump: (val) => {
             void this._handleJump(val);
           }
         });
-        container.appendChild(this.counterComp.el);
+        topRow.appendChild(this.counterComp.el);
       }
       if (!this.spreadComp) {
         this.spreadComp = createSpreadControls({
@@ -2482,8 +3823,19 @@
           onToggle: (val) => this.store.setState({ isDualViewEnabled: val }),
           onAdjust: () => this.store.setState({ spreadOffset: this.store.getState().spreadOffset === 0 ? 1 : 0 })
         });
-        container.appendChild(this.spreadComp.el);
+        bottomRow.appendChild(this.spreadComp.el);
       }
+      if (!this.autoplayComp) {
+        this.autoplayComp = createAutoplayControls({
+          isAutoplayEnabled: state.isAutoplayEnabled,
+          autoplayInterval: state.autoplayInterval,
+          onToggle: (val) => this.store.setState({ isAutoplayEnabled: val }),
+          onChangeInterval: (val) => this.store.setState({ autoplayInterval: val })
+        });
+        bottomRow.appendChild(this.autoplayComp.el);
+      }
+    };
+    _ensureOverlayComponents = (state) => {
       if (!this.progressComp) {
         this.progressComp = createProgressBar();
         document.body.appendChild(this.progressComp.el);
@@ -2491,9 +3843,6 @@
       if (!this.loadingComp) {
         this.loadingComp = createLoadingIndicator({ isLoading: state.isLoading });
         document.body.appendChild(this.loadingComp.el);
-      }
-      if (container.querySelectorAll(".comic-helper-button").length === 0) {
-        this._addNavigationButtons(container);
       }
     };
     _handleJump = async (val) => {
@@ -2509,7 +3858,9 @@
       }
     };
     _addNavigationButtons = (container) => {
-      const navBtns = createNavigationButtons({
+      const topRow = this.topRow || container;
+      const bottomRow = this.bottomRow || container;
+      this.navBtnsComp = createNavigationButtons({
         onFirst: () => {
           void this.navigator.scrollToEdge("start");
         },
@@ -2526,23 +3877,77 @@
         onHelp: () => this.store.setState({ isHelpModalOpen: true }),
         onSearch: () => this.store.setState({ isSearchModalOpen: true, searchResults: null }),
         onLucky: () => {
-          jumpToRandomWork(this.store.getState().metadata, this.store.getState().searchCache);
-        }
+          void this.discoveryManager.jumpToRandomWork();
+        },
+        onToggleFavorite: () => {
+          this.toggleFavorite();
+        },
+        onFavoritesList: () => this.store.setState({ isFavoritesModalOpen: true })
       });
-      navBtns.elements.forEach((btn) => container.appendChild(btn));
+      this.navBtnsComp.navElements.forEach((btn) => topRow.appendChild(btn));
+      this.navBtnsComp.utilElements.forEach((btn) => bottomRow.appendChild(btn));
     };
     _updateModals = (state) => {
       this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
         onClose: () => this.store.setState({ isHelpModalOpen: false })
       }));
       this._updateSearchModal(state);
-      this.modalEl = this._manageModal(state.isMetadataModalOpen, this.modalEl, () => createMetadataModal({
-        metadata: state.metadata,
-        onClose: () => this.store.setState({ isMetadataModalOpen: false }),
-        onTagClick: async (tag) => {
-          await this._handleTagClick(tag);
+      this._updateFavoritesModal(state);
+      if (state.isMetadataModalOpen) {
+        if (!this.modalComp) {
+          const isFavorite = state.favorites.some((f) => f.href === window.location.href);
+          this.modalComp = createMetadataModal({
+            metadata: state.metadata,
+            isFavorite,
+            onClose: () => this.store.setState({ isMetadataModalOpen: false }),
+            onTagClick: async (tag) => {
+              await this._handleTagClick(tag);
+            },
+            onToggleFavorite: () => {
+              this.toggleFavorite();
+            }
+          });
+          document.body.appendChild(this.modalComp.el);
         }
-      }));
+      } else if (this.modalComp) {
+        this.modalComp.el.remove();
+        this.modalComp = null;
+      }
+    };
+    _updateFavoritesModal = (state) => {
+      if (state.isFavoritesModalOpen) {
+        if (!this.favoritesModalComp) {
+          this.favoritesModalComp = createFavoritesModal({
+            favorites: state.favorites,
+            history: state.luckyHistory,
+            pinnedTags: state.pinnedTags,
+            onRemoveFavorite: (href) => {
+              const newFavorites = this.store.getState().favorites.filter((f) => f.href !== href);
+              this.store.setState({ favorites: newFavorites });
+            },
+            onRemoveHistory: (href) => {
+              const normalizedHref = normalizeUrl(href);
+              const newHistory = this.store.getState().luckyHistory.filter((e) => normalizeUrl(e.href) !== normalizedHref);
+              this.store.setState({ luckyHistory: newHistory });
+            },
+            onToggleFavorite: (work) => {
+              this._toggleFavoriteWork(work);
+            },
+            onTogglePinTag: (tagText) => {
+              this.store.togglePinnedTag(tagText);
+            },
+            onClose: () => this.store.setState({ isFavoritesModalOpen: false })
+          });
+          document.body.appendChild(this.favoritesModalComp.el);
+        } else {
+          this.favoritesModalComp.updateFavorites(state.favorites);
+          this.favoritesModalComp.updateHistory(state.luckyHistory, state.favorites);
+          this.favoritesModalComp.updatePinnedTags(state.pinnedTags);
+        }
+      } else if (this.favoritesModalComp) {
+        this.favoritesModalComp.el.remove();
+        this.favoritesModalComp = null;
+      }
     };
     _updateSearchModal = (state) => {
       if (state.isSearchModalOpen) {
@@ -2553,15 +3958,17 @@
             searchContext: state.searchContext,
             searchHistory: state.searchHistory,
             onSearch: (q, ctx) => {
-              void this._performSearch(q, false, ctx);
+              void this.discoveryManager.performSearch(q, false, ctx);
             },
             onPageChange: (url) => {
-              void this._performSearch(url);
+              void this.discoveryManager.performSearch(url);
             },
             onClose: () => this.store.setState({ isSearchModalOpen: false })
           });
           document.body.appendChild(this.searchModalComp.el);
           this._handleSearchSWR(state);
+        } else {
+          this.searchModalComp.updateResults(state.searchResults);
         }
       } else if (this.searchModalComp) {
         this.searchModalComp.el.remove();
@@ -2572,37 +3979,70 @@
       const { searchCache, searchQuery, searchContext } = state;
       if (!searchCache) {
         if (searchQuery && searchContext?.type === "keyword") {
-          void this._performSearch(searchQuery);
+          void this.discoveryManager.performSearch(searchQuery);
         }
         return;
       }
       this._processSearchCache(searchCache, searchQuery, searchContext);
     };
     _processSearchCache = (searchCache, searchQuery, searchContext) => {
-      if (searchCache.query === searchQuery && contextsMatch(searchCache.context, searchContext)) {
+      if (searchCache.query === searchQuery && this.discoveryManager.contextsMatch(searchCache.context, searchContext)) {
         this.store.setState({ searchResults: searchCache.results });
         this.searchModalComp?.updateResults(searchCache.results);
         this._revalidateCacheIfNeeded(searchCache, searchQuery, searchContext);
       } else if (searchQuery && searchContext?.type === "keyword") {
-        void this._performSearch(searchQuery);
+        void this.discoveryManager.performSearch(searchQuery);
       }
     };
     _revalidateCacheIfNeeded = (searchCache, searchQuery, searchContext) => {
       if (Date.now() - searchCache.fetchedAt > SEARCH_TTL) {
-        void this._performSearch(searchQuery, true, searchContext);
+        void this.discoveryManager.performSearch(searchQuery, true, searchContext);
       }
     };
-    _handleTagClick = async (tag) => {
-      this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
+    _performTagSearch = (tag) => {
       const contextType = tag.type === "artist" || tag.type === "genre" ? tag.type : "tag";
-      return this._performSearch(tag.href, false, { type: contextType, label: tag.text });
+      return this.discoveryManager.performSearch(tag.href, false, { type: contextType, label: tag.text });
+    };
+    _handleTagClick = (tag) => {
+      this.store.setState({ isMetadataModalOpen: false, isSearchModalOpen: true, searchResults: null });
+      return this._performTagSearch(tag);
+    };
+    _toggleFavoriteWork = (work) => {
+      const state = this.store.getState();
+      const normalizedHref = normalizeUrl(work.href);
+      const isFavorite = state.favorites.some((f) => normalizeUrl(f.href) === normalizedHref);
+      if (isFavorite) {
+        const newFavorites = state.favorites.filter((f) => normalizeUrl(f.href) !== normalizedHref);
+        this.store.setState({ favorites: newFavorites });
+      } else {
+        this.store.setState({ favorites: [...state.favorites, work] });
+      }
+    };
+    toggleFavorite = () => {
+      const state = this.store.getState();
+      const currentUrl = window.location.href;
+      const isFavorite = state.favorites.some((f) => f.href === currentUrl);
+      if (isFavorite) {
+        const newFavorites = state.favorites.filter((f) => f.href !== currentUrl);
+        this.store.setState({ favorites: newFavorites });
+      } else {
+        const currentWork = {
+          title: state.metadata.title,
+          href: currentUrl,
+          thumb: this.navigator.getImages()[0]?.src || "",
+          // Use first image as thumbnail
+          tags: state.metadata.tags
+        };
+        this.store.setState({ favorites: [...state.favorites, currentWork] });
+      }
     };
     _updateVisibility = (container, state) => {
       const imgs = this.navigator.getImages();
       const { enabled, currentVisibleIndex, isDualViewEnabled } = state;
       if (!enabled) {
         container.style.padding = "4px 8px";
-        [this.counterComp, this.spreadComp, this.progressComp].forEach((c) => {
+        if (this.bottomRow) this.bottomRow.style.display = "none";
+        [this.counterComp, this.progressComp].forEach((c) => {
           if (c) c.el.style.display = "none";
         });
         container.querySelectorAll(".comic-helper-button").forEach((btn) => {
@@ -2611,8 +4051,19 @@
         return;
       }
       container.style.padding = "8px";
-      if (this.counterComp) this.counterComp.el.style.display = "flex";
-      if (this.spreadComp) this.spreadComp.el.style.display = "flex";
+      if (this.bottomRow) this.bottomRow.style.display = "flex";
+      if (this.counterComp) {
+        this.counterComp.el.style.display = "flex";
+        this.counterComp.update(currentVisibleIndex + 1, imgs.length);
+      }
+      if (this.spreadComp) {
+        this.spreadComp.el.style.display = "flex";
+        this.spreadComp.update(isDualViewEnabled);
+      }
+      if (this.autoplayComp) {
+        this.autoplayComp.el.style.display = "flex";
+        this.autoplayComp.update(state.isAutoplayEnabled, state.autoplayInterval);
+      }
       if (this.progressComp) {
         this.progressComp.el.style.display = "block";
         this.progressComp.update(currentVisibleIndex, imgs.length);
@@ -2620,8 +4071,6 @@
       container.querySelectorAll(".comic-helper-button").forEach((btn) => {
         btn.style.display = "inline-block";
       });
-      this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
-      this.spreadComp?.update(isDualViewEnabled);
     };
     showResumeNotification = (savedIndex) => {
       const notification = createResumeNotification({
@@ -2647,59 +4096,6 @@
       }
       return modalEl;
     };
-    _performSearch = async (queryOrUrl, silent = false, context) => {
-      if (!isSearchableAdapter(this.adapter)) return;
-      if (!silent) this.store.setState({ searchResults: null });
-      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
-      const { url, query, searchContext } = this._getSearchParameters(queryOrUrl, context);
-      this._updateStoreBeforeSearch(query, searchContext, silent, isUrl);
-      this.searchModalComp?.setUpdating(true);
-      try {
-        const results = await this._fetchSearchResults(url);
-        results.searchContext = searchContext;
-        this.store.setState({ searchResults: results, searchCache: { query, results, fetchedAt: Date.now(), context: searchContext } });
-        this.searchModalComp?.updateResults(results);
-      } catch (error) {
-        console.error("Failed to fetch search results:", error);
-      } finally {
-        this.searchModalComp?.setUpdating(false);
-      }
-    };
-    _updateStoreBeforeSearch = (query, context, silent, isUrl) => {
-      this.store.setState({ searchContext: context });
-      if (!silent && !isUrl && context.type === "keyword") {
-        this.store.setState({ searchQuery: query });
-        this._updateSearchHistory(query);
-      }
-    };
-    _getSearchParameters = (queryOrUrl, context) => {
-      const isUrl = queryOrUrl.startsWith("http") || queryOrUrl.startsWith("/");
-      if (isUrl) {
-        const query2 = context ? context.label || "" : this.store.getState().searchQuery;
-        const searchContext2 = context || this.store.getState().searchContext || { type: "keyword", label: query2 };
-        return { url: queryOrUrl, query: query2, searchContext: searchContext2 };
-      }
-      const query = queryOrUrl;
-      const searchableAdapter = this.adapter;
-      const url = searchableAdapter.getSearchUrl(query);
-      const searchContext = context || { type: "keyword", label: query };
-      return { url, query, searchContext };
-    };
-    _fetchSearchResults = async (url) => {
-      const searchableAdapter = this.adapter;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const html = await res.text();
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      return searchableAdapter.parseSearchResults(doc);
-    };
-    _updateSearchHistory = (query) => {
-      const { searchHistory } = this.store.getState();
-      const normalizedNew = normalizeQuery(query);
-      const filtered = searchHistory.filter((h) => normalizeQuery(h) !== normalizedNew);
-      const newHistory = [query, ...filtered].slice(0, MAX_SEARCH_HISTORY);
-      this.store.setState({ searchHistory: newHistory });
-    };
   }
   const CLICK_THRESHOLD_PX = 5;
   function matchesShortcut(e, id) {
@@ -2724,6 +4120,8 @@
   class InputManager {
     store;
     navigator;
+    discoveryManager;
+    uiManager;
     lastWheelTime;
     WHEEL_THROTTLE_MS = 500;
     WHEEL_THRESHOLD = 1;
@@ -2731,9 +4129,11 @@
     scrollReq;
     mouseDownPos;
     mouseDownTarget;
-    constructor(store, navigator2) {
+    constructor(store, navigator2, discoveryManager, uiManager) {
       this.store = store;
       this.navigator = navigator2;
+      this.discoveryManager = discoveryManager;
+      this.uiManager = uiManager;
       this.lastWheelTime = 0;
       this.mouseDownPos = null;
       this.mouseDownTarget = null;
@@ -2752,8 +4152,8 @@
       return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || !!target.isContentEditable;
     };
     _isAnyModalOpen = () => {
-      const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen } = this.store.getState();
-      return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen;
+      const { isMetadataModalOpen, isHelpModalOpen, isSearchModalOpen, isFavoritesModalOpen } = this.store.getState();
+      return isMetadataModalOpen || isHelpModalOpen || isSearchModalOpen || isFavoritesModalOpen;
     };
     handleWheel = (e) => {
       const state = this.store.getState();
@@ -2791,13 +4191,14 @@
       if (this.isInputField(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
       if (this._handleModalCloseShortcuts(e)) return;
       if (this._handleToggleShortcuts(e)) return;
-      if (!this.store.getState().enabled || this._isAnyModalOpen()) return;
+      const state = this.store.getState();
+      if (!state.enabled || state.isLuckyLoading || this._isAnyModalOpen()) return;
       this._handleShortcutAction(e);
     };
     _handleModalCloseShortcuts = (e) => {
       if (e.key === "Escape" && this._isAnyModalOpen()) {
         e.preventDefault();
-        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false });
+        this.store.setState({ isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: false, isFavoritesModalOpen: false });
         return true;
       }
       return false;
@@ -2818,20 +4219,40 @@
         this.store.setState({ isMetadataModalOpen: !this.store.getState().isMetadataModalOpen });
         return true;
       }
+      if (matchesShortcut(e, "toggleFavorite")) {
+        e.preventDefault();
+        const state = this.store.getState();
+        if (!state.isHelpModalOpen && !state.isSearchModalOpen && !state.isFavoritesModalOpen) {
+          this.uiManager.toggleFavorite();
+        }
+        return true;
+      }
+      if (matchesShortcut(e, "favoritesList")) {
+        e.preventDefault();
+        this.store.setState({ isFavoritesModalOpen: !this.store.getState().isFavoritesModalOpen });
+        return true;
+      }
       return false;
     };
     _handleShortcutAction = (e) => {
-      const { isDualViewEnabled, spreadOffset, metadata, searchCache } = this.store.getState();
+      const { isDualViewEnabled, spreadOffset } = this.store.getState();
       const actions = {
         nextPage: () => this.navigator.scrollToImage(1),
         prevPage: () => this.navigator.scrollToImage(-1),
+        autoplay: () => this.store.setState({ isAutoplayEnabled: !this.store.getState().isAutoplayEnabled }),
         dualView: () => this.store.setState({ isDualViewEnabled: !isDualViewEnabled }),
         spreadOffset: () => {
           if (isDualViewEnabled) this.store.setState({ spreadOffset: spreadOffset === 0 ? 1 : 0 });
         },
         fullscreen: () => this._toggleFullscreen(),
-        randomJump: () => {
-          jumpToRandomWork(metadata, searchCache);
+        randomJump: () => this.discoveryManager.jumpToRandomWork(),
+        speedUpAutoplay: () => {
+          const { autoplayInterval } = this.store.getState();
+          if (autoplayInterval > 1) this.store.setState({ autoplayInterval: autoplayInterval - 1 });
+        },
+        slowDownAutoplay: () => {
+          const { autoplayInterval } = this.store.getState();
+          if (autoplayInterval < 99) this.store.setState({ autoplayInterval: autoplayInterval + 1 });
         }
       };
       for (const [id, action] of Object.entries(actions)) {
@@ -2896,9 +4317,12 @@
   }
   class ResumeManager {
     store;
-    storageKey = "comic-viewer-helper-resume-data";
+    storageKeyBase = "comic-viewer-helper-resume-data";
     constructor(store) {
       this.store = store;
+    }
+    get storageKey() {
+      return `${this.storageKeyBase}-${window.location.hostname}`;
     }
     isEnabled = () => {
       return true;
@@ -2906,7 +4330,7 @@
     savePosition = (url, pageIndex) => {
       const data = this._loadData();
       data[url] = { pageIndex };
-      localStorage.setItem(this.storageKey, JSON.stringify(data));
+      GM_setValue(this.storageKey, JSON.stringify(data));
     };
     loadPosition = (url) => {
       const data = this._loadData();
@@ -2915,7 +4339,7 @@
     };
     _loadData = () => {
       try {
-        const parsed = JSON.parse(localStorage.getItem(this.storageKey) || "{}");
+        const parsed = JSON.parse(GM_getValue(this.storageKey) || "{}");
         return isResumeDataMap(parsed) ? parsed : {};
       } catch {
         return {};
@@ -2925,7 +4349,7 @@
      * Clear all saved positions
      */
     clearAll = () => {
-      localStorage.removeItem(this.storageKey);
+      GM_deleteValue(this.storageKey);
     };
   }
   class PopUnderBlocker {
@@ -2955,6 +4379,7 @@
     store;
     adapter;
     navigator;
+    discoveryManager;
     uiManager;
     inputManager;
     resumeManager;
@@ -2964,8 +4389,9 @@
       const adapters = [DefaultAdapter];
       this.adapter = adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
       this.navigator = new Navigator(this.adapter, this.store);
-      this.uiManager = new UIManager(this.adapter, this.store, this.navigator);
-      this.inputManager = new InputManager(this.store, this.navigator);
+      this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
+      this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager);
+      this.inputManager = new InputManager(this.store, this.navigator, this.discoveryManager, this.uiManager);
       this.resumeManager = new ResumeManager(this.store);
       this.popUnderBlocker = new PopUnderBlocker(this.store);
     }
@@ -2978,6 +4404,12 @@
       this.uiManager.init();
       this.inputManager.init();
       this.popUnderBlocker.init();
+      const firstImageSrc = this.navigator.getImages()[0]?.src || "";
+      this.store.addLuckyHistory({
+        title: metadata.title || document.title,
+        href: window.location.href,
+        thumb: firstImageSrc
+      });
       if (this.resumeManager.isEnabled()) {
         const workKey = window.location.origin + window.location.pathname;
         const savedIndex = this.resumeManager.loadPosition(workKey);
