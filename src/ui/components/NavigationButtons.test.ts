@@ -16,24 +16,25 @@ describe('NavigationButtons', () => {
   };
 
   it('should render all buttons and handle clicks', () => {
-    const { elements } = createNavigationButtons(mockProps);
-    expect(elements.length).toBe(10);
+    const { navElements, utilElements } = createNavigationButtons(mockProps);
+    expect(navElements.length).toBe(5);
+    expect(utilElements.length).toBe(5);
 
     // Test a few buttons
-    const luckyBtn = elements.find(el => el.id === 'comic-helper-nav-lucky') as HTMLElement;
+    const luckyBtn = navElements.find(el => el.id === 'comic-helper-nav-lucky') as HTMLElement;
     expect(luckyBtn).toBeDefined();
     luckyBtn.click();
     expect(mockProps.onLucky).toHaveBeenCalled();
 
-    const searchBtn = elements.find(el => el.textContent === '🔍') as HTMLElement;
+    const searchBtn = utilElements.find(el => el.textContent === '🔍') as HTMLElement;
     searchBtn.click();
     expect(mockProps.onSearch).toHaveBeenCalled();
   });
 
   it('should update favorite and lucky loading states', () => {
-    const { elements, update } = createNavigationButtons(mockProps);
-    const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;
-    const luckyBtn = elements.find(el => el.id === 'comic-helper-nav-lucky') as HTMLButtonElement;
+    const { navElements, utilElements, update } = createNavigationButtons(mockProps);
+    const favBtn = utilElements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;
+    const luckyBtn = navElements.find(el => el.id === 'comic-helper-nav-lucky') as HTMLButtonElement;
 
     // Favorite state
     update(true, false);

@@ -36,6 +36,8 @@ export class UIManager {
   private progressComp: ProgressBarComponent | null = null;
   private loadingComp: LoadingIndicatorComponent | null = null;
   private draggable: Draggable | null = null;
+  private topRow: HTMLElement | null = null;
+  private bottomRow: HTMLElement | null = null;
   private modalComp: MetadataModalComponent | null = null;
   private helpModalEl: HTMLElement | null = null;
   private searchModalComp: SearchModalComponent | null = null;
@@ -84,6 +86,10 @@ export class UIManager {
       if (guiPos) {
         Object.assign(container.style, { top: `${guiPos.top}px`, left: `${guiPos.left}px`, bottom: 'auto', right: 'auto' });
       }
+      this.topRow = createElement('div', { className: 'comic-helper-row' });
+      this.bottomRow = createElement('div', { className: 'comic-helper-row' });
+      container.appendChild(this.topRow);
+      container.appendChild(this.bottomRow);
       this.draggable = new Draggable(container, {
         onDragEnd: (top: number, left: number) => this.store.setState({ guiPos: { top, left } })
       });
@@ -103,7 +109,7 @@ export class UIManager {
   };
 
   private _ensureNavigationButtons = (container: HTMLElement): void => {
-    if (container.querySelectorAll('.comic-helper-button').length === 0) {
+    if (!this.navBtnsComp) {
       this._addNavigationButtons(container);
     }
   };
@@ -119,12 +125,15 @@ export class UIManager {
   };
 
   private _ensureMainControls = (container: HTMLElement, state: StoreState, totalImgs: number): void => {
+    const topRow = this.topRow || container;
+    const bottomRow = this.bottomRow || container;
+
     if (!this.powerComp) {
       this.powerComp = createPowerButton({
         isEnabled: state.enabled,
         onClick: () => this.store.setState({ enabled: !this.store.getState().enabled })
       });
-      container.appendChild(this.powerComp.el);
+      topRow.appendChild(this.powerComp.el);
     }
 
     if (!this.counterComp) {
@@ -133,7 +142,7 @@ export class UIManager {
         total: totalImgs,
         onJump: (val: string) => { void this._handleJump(val); }
       });
-      container.appendChild(this.counterComp.el);
+      topRow.appendChild(this.counterComp.el);
     }
 
     if (!this.spreadComp) {
@@ -142,7 +151,7 @@ export class UIManager {
         onToggle: (val: boolean) => this.store.setState({ isDualViewEnabled: val }),
         onAdjust: () => this.store.setState({ spreadOffset: this.store.getState().spreadOffset === 0 ? 1 : 0 })
       });
-      container.appendChild(this.spreadComp.el);
+      bottomRow.appendChild(this.spreadComp.el);
     }
 
     if (!this.autoplayComp) {
@@ -152,7 +161,7 @@ export class UIManager {
         onToggle: (val: boolean) => this.store.setState({ isAutoplayEnabled: val }),
         onChangeInterval: (val: number) => this.store.setState({ autoplayInterval: val })
       });
-      container.appendChild(this.autoplayComp.el);
+      bottomRow.appendChild(this.autoplayComp.el);
     }
   };
 
@@ -180,6 +189,9 @@ export class UIManager {
   };
 
   private _addNavigationButtons = (container: HTMLElement): void => {
+    const topRow = this.topRow || container;
+    const bottomRow = this.bottomRow || container;
+
     this.navBtnsComp = createNavigationButtons({
       onFirst: () => { void this.navigator.scrollToEdge('start'); },
       onPrev: () => { void this.navigator.scrollToImage(-1); },
@@ -194,7 +206,8 @@ export class UIManager {
       onToggleFavorite: () => { this.toggleFavorite(); },
       onFavoritesList: () => this.store.setState({ isFavoritesModalOpen: true })
     });
-    this.navBtnsComp.elements.forEach(btn => container.appendChild(btn));
+    this.navBtnsComp.navElements.forEach((btn: HTMLElement) => topRow.appendChild(btn));
+    this.navBtnsComp.utilElements.forEach((btn: HTMLElement) => bottomRow.appendChild(btn));
   };
 
   private _updateModals = (state: StoreState): void => {
@@ -353,24 +366,31 @@ export class UIManager {
 
     if (!enabled) {
       container.style.padding = '4px 8px';
-      [this.counterComp, this.spreadComp, this.autoplayComp, this.progressComp].forEach(c => { if (c) c.el.style.display = 'none'; });
+      if (this.bottomRow) this.bottomRow.style.display = 'none';
+      [this.counterComp, this.progressComp].forEach(c => { if (c) c.el.style.display = 'none'; });
       container.querySelectorAll('.comic-helper-button').forEach(btn => { (btn as HTMLElement).style.display = 'none'; });
       return;
     }
 
     container.style.padding = '8px';
-    if (this.counterComp) this.counterComp.el.style.display = 'flex';
-    if (this.spreadComp) this.spreadComp.el.style.display = 'flex';
-    if (this.autoplayComp) this.autoplayComp.el.style.display = 'flex';
+    if (this.bottomRow) this.bottomRow.style.display = 'flex';
+    if (this.counterComp) {
+      this.counterComp.el.style.display = 'flex';
+      this.counterComp.update(currentVisibleIndex + 1, imgs.length);
+    }
+    if (this.spreadComp) {
+      this.spreadComp.el.style.display = 'flex';
+      this.spreadComp.update(isDualViewEnabled);
+    }
+    if (this.autoplayComp) {
+      this.autoplayComp.el.style.display = 'flex';
+      this.autoplayComp.update(state.isAutoplayEnabled, state.autoplayInterval);
+    }
     if (this.progressComp) {
       this.progressComp.el.style.display = 'block';
       this.progressComp.update(currentVisibleIndex, imgs.length);
     }
     container.querySelectorAll('.comic-helper-button').forEach(btn => { (btn as HTMLElement).style.display = 'inline-block'; });
-
-    this.counterComp?.update(currentVisibleIndex + 1, imgs.length);
-    this.spreadComp?.update(isDualViewEnabled);
-    this.autoplayComp?.update(state.isAutoplayEnabled, state.autoplayInterval);
   };
 
   showResumeNotification = (savedIndex: number): void => {
