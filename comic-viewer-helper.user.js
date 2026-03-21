@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.bb72219
+// @version         1.6.0-unstable.2db3136
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -2188,6 +2188,10 @@
     border-bottom: 1px solid ${COLORS.border.dark};
   }
 
+  .comic-helper-shortcut-row:last-child {
+    border-bottom: none;
+  }
+
   @media (max-width: 600px) {
     .comic-helper-shortcut-row {
       display: flex;
@@ -3113,12 +3117,15 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.bb72219"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.2db3136"} (${t("ui.unstable")})`
     });
-    const contentChildren = [closeBtn, titleEl, shortcutList, versionTag];
-    if (extraContent) {
-      contentChildren.push(extraContent);
-    }
+    const contentChildren = [
+      closeBtn,
+      titleEl,
+      shortcutList,
+      ...extraContent ? [extraContent] : [],
+      versionTag
+    ];
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
@@ -3295,6 +3302,7 @@
       style: {
         fontWeight: "bold",
         fontSize: "13px",
+        marginTop: "15px",
         marginBottom: "10px",
         paddingTop: "10px",
         borderTop: `1px solid ${COLORS.border.default}`
