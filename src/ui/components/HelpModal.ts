@@ -68,11 +68,13 @@ export function createHelpModal({ onClose, extraContent }: HelpModalProps): Help
     textContent: `${t('ui.version')}: v${__APP_VERSION__} (${__IS_UNSTABLE__ ? t('ui.unstable') : t('ui.stable')})`
   });
 
-  const contentChildren: HTMLElement[] = [closeBtn, titleEl, shortcutList];
-  if (extraContent) {
-    contentChildren.push(extraContent);
-  }
-  contentChildren.push(versionTag);
+  const contentChildren: HTMLElement[] = [
+    closeBtn,
+    titleEl,
+    shortcutList,
+    ...(extraContent ? [extraContent] : []),
+    versionTag,
+  ];
 
   const content = createElement('div', {
     className: 'comic-helper-modal-content',
