@@ -24,7 +24,7 @@ async function deriveKey(password: string, salt: ArrayBuffer): Promise<CryptoKey
 }
 
 function toBase64(buf: ArrayBuffer): string {
-  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+  return btoa(new Uint8Array(buf).reduce((data, byte) => data + String.fromCharCode(byte), ''));
 }
 
 function fromBase64(b64: string): ArrayBuffer {

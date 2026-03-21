@@ -1,6 +1,7 @@
 import { Store, StoreState } from '../store';
 import { SyncConfig, RelatedWork, HistoryEntry } from '../types';
 import { encrypt, decrypt, isEncrypted } from '../logic';
+import { t } from '../i18n';
 
 export interface SyncProvider {
   upload(data: string, gistId: string): Promise<{ gistId: string }>;
@@ -246,7 +247,7 @@ export class SyncManager {
   private async _decryptIfNeeded(data: string, config: SyncConfig): Promise<string> {
     if (isEncrypted(data)) {
       if (config.encryptionMode !== 'aes' || !config.encryptionPassword) {
-        throw new Error('復号に失敗しました。パスワードを確認してください。');
+        throw new Error(t('ui.syncDecryptionFailed'));
       }
       return decrypt(data, config.encryptionPassword);
     }
