@@ -43,7 +43,8 @@ describe('Store', () => {
       pinnedTags: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5,
-      syncConfig: null
+      syncConfig: null,
+      syncLastError: null
     });
   });
 

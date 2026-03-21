@@ -218,7 +218,7 @@ export class UIManager {
         this.syncSettingsComp = createSyncSettings({
           syncConfig: state.syncConfig,
           onSave: (config) => this.store.setState({ syncConfig: config }),
-          lastError: null
+          lastError: state.syncLastError
         });
         this.helpModalComp = createHelpModal({
           onClose: () => this.store.setState({ isHelpModalOpen: false }),
@@ -226,7 +226,7 @@ export class UIManager {
         });
         document.body.appendChild(this.helpModalComp.el);
       } else {
-        this.syncSettingsComp?.update(state.syncConfig, null);
+        this.syncSettingsComp?.update(state.syncConfig, state.syncLastError);
       }
     } else if (this.helpModalComp) {
       this.helpModalComp.el.remove();

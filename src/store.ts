@@ -50,6 +50,7 @@ export interface StoreState {
   isAutoplayEnabled: boolean;
   autoplayInterval: number;
   syncConfig: SyncConfig | null;
+  syncLastError: string | null;
 }
 
 export type StoreListener = (state: StoreState) => void;
@@ -86,7 +87,8 @@ export class Store {
       pinnedTags: this._loadPinnedTags(),
       isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
       autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10),
-      syncConfig: this._loadSyncConfig()
+      syncConfig: this._loadSyncConfig(),
+      syncLastError: null
     };
     this.listeners = [];
   }

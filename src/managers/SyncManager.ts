@@ -139,11 +139,13 @@ export class SyncManager {
           this._applyRemoteData(data, config);
         } else {
           this.lastError = null;
+          this.store.setState({ syncLastError: null });
         }
       })
       .catch((err: unknown) => {
         console.warn('[SyncManager] pull failed:', err);
         this.lastError = err instanceof Error ? err.message : String(err);
+        this.store.setState({ syncLastError: this.lastError });
       });
   }
 
@@ -204,13 +206,14 @@ export class SyncManager {
         gistId: result.gistId,
         lastSyncedAt: now,
       };
-      this.store.setState({ syncConfig: updatedConfig });
+      this.store.setState({ syncConfig: updatedConfig, syncLastError: null });
       this.lastError = null;
     };
 
     return mergeAndUpload().catch((err: unknown) => {
       console.warn('[SyncManager] upload failed:', err);
       this.lastError = err instanceof Error ? err.message : String(err);
+      this.store.setState({ syncLastError: this.lastError });
     });
   }
 
@@ -242,11 +245,13 @@ export class SyncManager {
       const updatedConfig: SyncConfig = { ...config, lastSyncedAt: payload.lastSyncedAt };
       patch.syncConfig = updatedConfig;
 
+      patch.syncLastError = null;
       this.store.setState(patch);
       this.lastError = null;
     } catch (err) {
       console.warn('[SyncManager] failed to apply remote data:', err);
       this.lastError = err instanceof Error ? err.message : String(err);
+      this.store.setState({ syncLastError: this.lastError });
     }
   }
 }
