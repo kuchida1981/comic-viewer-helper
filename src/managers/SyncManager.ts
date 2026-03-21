@@ -128,6 +128,19 @@ export class SyncManager {
     }, this.DEBOUNCE_DELAY);
   }
 
+  push(): Promise<void> {
+    if (!this.provider) return Promise.resolve();
+    const config = this.store.getState().syncConfig;
+    if (!config?.enabled) return Promise.resolve();
+
+    if (this.debounceTimer !== null) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+
+    return this._doUpload();
+  }
+
   pull(): Promise<void> {
     if (!this.provider) return Promise.resolve();
     const config = this.store.getState().syncConfig;
@@ -157,6 +170,17 @@ export class SyncManager {
     if (!this.provider) return Promise.resolve();
     const config = this.store.getState().syncConfig;
     if (!config?.enabled) return Promise.resolve();
+
+    return this._doUpload().catch((err: unknown) => {
+      console.warn('[SyncManager] upload failed:', err);
+      this.lastError = err instanceof Error ? err.message : String(err);
+      this.store.setState({ syncLastError: this.lastError });
+    });
+  }
+
+  private _doUpload(): Promise<void> {
+    const config = this.store.getState().syncConfig;
+    if (!config) return Promise.resolve();
 
     const state = this.store.getState();
     const host = window.location.hostname;
@@ -206,11 +230,7 @@ export class SyncManager {
       this.lastError = null;
     };
 
-    return mergeAndUpload().catch((err: unknown) => {
-      console.warn('[SyncManager] upload failed:', err);
-      this.lastError = err instanceof Error ? err.message : String(err);
-      this.store.setState({ syncLastError: this.lastError });
-    });
+    return mergeAndUpload();
   }
 
   private _applyRemoteData(data: string, config: SyncConfig): void {

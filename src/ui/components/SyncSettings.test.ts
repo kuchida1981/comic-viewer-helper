@@ -9,7 +9,7 @@ describe('SyncSettings', () => {
 
   describe('createSyncSettings', () => {
     it('should render with null syncConfig', () => {
-      const onSave = vi.fn();
+      const onSave = vi.fn().mockResolvedValue(undefined);
       const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
 
       expect(comp.el).toBeTruthy();
@@ -27,7 +27,7 @@ describe('SyncSettings', () => {
         gistId: 'abc123',
         lastSyncedAt: null
       };
-      const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn(), lastError: null });
+      const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
 
       const checkbox = comp.el.querySelector('input[type="checkbox"]') as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
@@ -46,7 +46,7 @@ describe('SyncSettings', () => {
         gistId: 'gid',
         lastSyncedAt: new Date('2024-01-01').getTime()
       };
-      const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn(), lastError: null });
+      const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
       document.body.appendChild(comp.el);
 
       const statusEls = comp.el.querySelectorAll('div');
@@ -59,7 +59,7 @@ describe('SyncSettings', () => {
 
     it('should show "never synced" when lastSyncedAt is null', () => {
       const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: null };
-      const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn(), lastError: null });
+      const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
       document.body.appendChild(comp.el);
 
       const allText = comp.el.textContent || '';
@@ -69,7 +69,7 @@ describe('SyncSettings', () => {
     it('should show error message when lastError is set', () => {
       const comp = createSyncSettings({
         syncConfig: null,
-        onSave: vi.fn(),
+        onSave: vi.fn().mockResolvedValue(undefined),
         lastError: 'Network error'
       });
       document.body.appendChild(comp.el);
@@ -78,8 +78,8 @@ describe('SyncSettings', () => {
       expect(allText).toContain('Network error');
     });
 
-    it('should call onSave with current form values when save button is clicked', () => {
-      const onSave = vi.fn();
+    it('should call onSave with current form values when save button is clicked', async () => {
+      const onSave = vi.fn().mockResolvedValue(undefined);
       const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
       document.body.appendChild(comp.el);
 
@@ -105,7 +105,7 @@ describe('SyncSettings', () => {
 
     it('should preserve lastSyncedAt from existing config when saving', () => {
       const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: 12345 };
-      const onSave = vi.fn();
+      const onSave = vi.fn().mockResolvedValue(undefined);
       const comp = createSyncSettings({ syncConfig: config, onSave, lastError: null });
       document.body.appendChild(comp.el);
 
@@ -118,7 +118,7 @@ describe('SyncSettings', () => {
     });
 
     it('should trim whitespace from PAT and gistId on save', () => {
-      const onSave = vi.fn();
+      const onSave = vi.fn().mockResolvedValue(undefined);
       const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
       document.body.appendChild(comp.el);
 
@@ -136,9 +136,77 @@ describe('SyncSettings', () => {
       );
     });
 
+    describe('async save feedback', () => {
+      it('should disable save button and show saving text while onSave is pending', async () => {
+        let resolveSave!: () => void;
+        const onSave = vi.fn().mockReturnValue(new Promise<void>(resolve => { resolveSave = resolve; }));
+        const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
+        document.body.appendChild(comp.el);
+
+        const saveBtn = comp.el.querySelector('button') as HTMLButtonElement;
+        saveBtn.click();
+
+        expect(saveBtn.disabled).toBe(true);
+        expect(saveBtn.textContent).toMatch(/Saving|保存中/);
+
+        resolveSave();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+
+      it('should show success message and re-enable button when onSave resolves', async () => {
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
+        document.body.appendChild(comp.el);
+
+        const saveBtn = comp.el.querySelector('button') as HTMLButtonElement;
+        saveBtn.click();
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const allText = comp.el.textContent || '';
+        expect(allText).toMatch(/Saved|保存しました/);
+        expect(saveBtn.disabled).toBe(false);
+        expect(saveBtn.textContent).toMatch(/^Save$|^保存$/);
+      });
+
+      it('should show error message and re-enable button when onSave rejects', async () => {
+        const onSave = vi.fn().mockRejectedValue(new Error('Auth failed'));
+        const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
+        document.body.appendChild(comp.el);
+
+        const saveBtn = comp.el.querySelector('button') as HTMLButtonElement;
+        saveBtn.click();
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        const allText = comp.el.textContent || '';
+        expect(allText).toContain('Auth failed');
+        expect(saveBtn.disabled).toBe(false);
+      });
+
+      it('should not update status text from update() while feedback is shown', async () => {
+        let resolveSave!: () => void;
+        const onSave = vi.fn().mockReturnValue(new Promise<void>(resolve => { resolveSave = resolve; }));
+        const comp = createSyncSettings({ syncConfig: null, onSave, lastError: null });
+        document.body.appendChild(comp.el);
+
+        const saveBtn = comp.el.querySelector('button') as HTMLButtonElement;
+        saveBtn.click();
+
+        // While saving, calling update() should not override the "Saving..." state
+        const config = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null };
+        comp.update(config, null);
+
+        expect(saveBtn.textContent).toMatch(/Saving|保存中/);
+
+        resolveSave();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    });
+
     describe('update', () => {
       it('should update displayed values with new syncConfig', () => {
-        const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn(), lastError: null });
+        const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
         document.body.appendChild(comp.el);
 
         const newConfig: SyncConfig = {
@@ -160,7 +228,7 @@ describe('SyncSettings', () => {
       });
 
       it('should show error message on update when lastError is provided', () => {
-        const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn(), lastError: null });
+        const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
         document.body.appendChild(comp.el);
 
         comp.update(null, 'Connection refused');
@@ -170,7 +238,7 @@ describe('SyncSettings', () => {
       });
 
       it('should clear error and show sync time on update when no error', () => {
-        const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn(), lastError: 'old error' });
+        const comp = createSyncSettings({ syncConfig: null, onSave: vi.fn().mockResolvedValue(undefined), lastError: 'old error' });
         document.body.appendChild(comp.el);
 
         const config: SyncConfig = { enabled: true, pat: 'p', gistId: 'g', lastSyncedAt: null };
@@ -183,7 +251,7 @@ describe('SyncSettings', () => {
 
       it('should handle null syncConfig on update', () => {
         const config: SyncConfig = { enabled: true, pat: 'token', gistId: 'gid', lastSyncedAt: null };
-        const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn(), lastError: null });
+        const comp = createSyncSettings({ syncConfig: config, onSave: vi.fn().mockResolvedValue(undefined), lastError: null });
         document.body.appendChild(comp.el);
 
         comp.update(null, null);

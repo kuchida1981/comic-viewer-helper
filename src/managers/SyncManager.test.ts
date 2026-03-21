@@ -485,6 +485,92 @@ describe('SyncManager', () => {
     });
   });
 
+  describe('push', () => {
+    it('should return early if provider is not set', async () => {
+      store.setState({
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+      });
+
+      await syncManager.push();
+      expect(mockProvider.upload).not.toHaveBeenCalled();
+    });
+
+    it('should return early if sync is disabled', async () => {
+      syncManager.setProvider(mockProvider);
+      store.setState({
+        syncConfig: { enabled: false, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+      });
+
+      await syncManager.push();
+      expect(mockProvider.upload).not.toHaveBeenCalled();
+    });
+
+    it('should upload immediately without debounce', async () => {
+      syncManager.setProvider(mockProvider);
+      store.setState({
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+      });
+      (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      await syncManager.push();
+
+      expect(mockProvider.upload).toHaveBeenCalledTimes(1);
+    });
+
+    it('should cancel pending debounce timer and upload immediately', async () => {
+      vi.useFakeTimers();
+      syncManager.setProvider(mockProvider);
+      store.setState({
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+      });
+      (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      syncManager.scheduleUpload(); // starts debounce timer
+      await syncManager.push();     // should cancel timer and upload immediately
+
+      expect(mockProvider.upload).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
+    });
+
+    it('should resolve and update syncConfig on success', async () => {
+      syncManager.setProvider(mockProvider);
+      store.setState({
+        syncConfig: { enabled: true, pat: 'pat', gistId: '', lastSyncedAt: null }
+      });
+      (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (mockProvider.upload as ReturnType<typeof vi.fn>).mockResolvedValue({ gistId: 'new-gist-id' });
+
+      await syncManager.push();
+
+      expect(store.getState().syncConfig?.gistId).toBe('new-gist-id');
+      expect(syncManager.getLastError()).toBeNull();
+    });
+
+    it('should reject and propagate error on failure', async () => {
+      syncManager.setProvider(mockProvider);
+      store.setState({
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null }
+      });
+      (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (mockProvider.upload as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Auth failed'));
+
+      await expect(syncManager.push()).rejects.toThrow('Auth failed');
+    });
+
+    it('should not update syncLastError in store on failure', async () => {
+      syncManager.setProvider(mockProvider);
+      store.setState({
+        syncConfig: { enabled: true, pat: 'pat', gistId: 'gid', lastSyncedAt: null },
+        syncLastError: null
+      });
+      (mockProvider.download as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (mockProvider.upload as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Push error'));
+
+      await expect(syncManager.push()).rejects.toThrow('Push error');
+      expect(store.getState().syncLastError).toBeNull();
+    });
+  });
+
   describe('setProvider', () => {
     it('should allow setting provider to null', () => {
       syncManager.setProvider(mockProvider);

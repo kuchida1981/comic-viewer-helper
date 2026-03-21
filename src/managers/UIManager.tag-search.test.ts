@@ -68,7 +68,8 @@ describe('UIManager Tag Search', () => {
             contextsMatch: vi.fn().mockImplementation((c1, c2) => c1?.type === c2?.type && c1?.label === c2?.label)
         } as any;
 
-        uiManager = new UIManager(adapter, store, navigator, discoveryManager);
+        const syncManager = { push: vi.fn().mockResolvedValue(undefined) } as any;
+        uiManager = new UIManager(adapter, store, navigator, discoveryManager, syncManager);
 
         vi.stubGlobal('document', {
             getElementById: vi.fn().mockReturnValue(null),
