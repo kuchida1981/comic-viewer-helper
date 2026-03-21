@@ -103,8 +103,9 @@ describe('UI Components', () => {
         onInfo: vi.fn(), onHelp: vi.fn(), onSearch: vi.fn(), onLucky: vi.fn(),
         onToggleFavorite: vi.fn(), onFavoritesList: vi.fn()
       };
-      const { elements } = createNavigationButtons(mockProps);
-      expect(elements.length).toBe(10);
+      const { navElements, utilElements } = createNavigationButtons(mockProps);
+      expect(navElements.length).toBe(5);
+      expect(utilElements.length).toBe(5);
     });
 
     it('should handle favorite toggle', () => {
@@ -114,8 +115,8 @@ describe('UI Components', () => {
         onInfo: vi.fn(), onHelp: vi.fn(), onSearch: vi.fn(), onLucky: vi.fn(),
         onToggleFavorite, onFavoritesList: vi.fn()
       };
-      const { elements, update } = createNavigationButtons(mockProps);
-      const favBtn = elements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;
+      const { utilElements, update } = createNavigationButtons(mockProps);
+      const favBtn = utilElements.find(el => el.id === 'comic-helper-nav-fav') as HTMLElement;
       expect(favBtn).toBeDefined();
       expect(favBtn.querySelector('svg')).toBeDefined();
 

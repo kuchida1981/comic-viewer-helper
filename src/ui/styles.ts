@@ -60,7 +60,8 @@ export const styles = `
     right: 20px;
     z-index: 10000;
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
     background-color: ${COLORS.background.panel};
     padding: 8px;
     border-radius: 8px;
@@ -68,11 +69,17 @@ export const styles = `
     cursor: move;
     user-select: none;
     touch-action: none;
-    align-items: center;
-    white-space: nowrap;
     width: max-content;
     opacity: 0.3;
     transition: opacity 0.3s;
+  }
+
+  .comic-helper-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;
   }
 
   #comic-helper-ui:hover {
