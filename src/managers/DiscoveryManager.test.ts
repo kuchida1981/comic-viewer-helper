@@ -44,7 +44,8 @@ describe('DiscoveryManager', () => {
       isAutoplayEnabled: false,
       autoplayInterval: 5,
       syncConfig: null,
-      syncLastError: null
+      syncLastError: null,
+      workTagsCache: {}
     };
 
     adapter = {

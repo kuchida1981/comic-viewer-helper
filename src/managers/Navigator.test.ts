@@ -271,7 +271,8 @@ describe('Navigator', () => {
       isAutoplayEnabled: false,
       autoplayInterval: 5,
       syncConfig: null,
-      syncLastError: null
+      syncLastError: null,
+      workTagsCache: {}
     });
     navigator.applyLayout();
     expect(logic.revertToOriginal).toHaveBeenCalled();
@@ -323,7 +324,8 @@ describe('Navigator', () => {
         isAutoplayEnabled: false,
         autoplayInterval: 5,
         syncConfig: null,
-      syncLastError: null
+      syncLastError: null,
+      workTagsCache: {}
       });
 
       expect(spy).toHaveBeenCalled();

@@ -8,7 +8,8 @@ import {
   isSearchContext,
   isSearchCache,
   isRelatedWork,
-  isRelatedWorkArray
+  isRelatedWorkArray,
+  isWorkTagsCache
 } from './type-guards';
 
 describe('Type Guards', () => {
@@ -119,6 +120,23 @@ describe('Type Guards', () => {
       expect(isSearchContext({ label: 'No Type' })).toBe(false);
       expect(isSearchContext({})).toBe(false);
       expect(isSearchContext(123)).toBe(false);
+    });
+  });
+
+  describe('isWorkTagsCache', () => {
+    it('should return true for valid work tags cache', () => {
+      expect(isWorkTagsCache({})).toBe(true);
+      expect(isWorkTagsCache({ '/work/1/': [] })).toBe(true);
+      expect(isWorkTagsCache({ '/work/1/': [{ text: 'x', href: '/x', type: 'genre' }] })).toBe(true);
+      expect(isWorkTagsCache({ '/work/1/': [{ text: 'x', href: '/x', type: null }] })).toBe(true);
+    });
+
+    it('should return false for invalid work tags cache', () => {
+      expect(isWorkTagsCache(null)).toBe(false);
+      expect(isWorkTagsCache([])).toBe(false);
+      expect(isWorkTagsCache({ '/work/1/': 'not-array' })).toBe(false);
+      expect(isWorkTagsCache({ '/work/1/': [{ text: 123, href: '/x', type: 'genre' }] })).toBe(false);
+      expect(isWorkTagsCache({ '/work/1/': [{ text: 'x' }] })).toBe(false);
     });
   });
 

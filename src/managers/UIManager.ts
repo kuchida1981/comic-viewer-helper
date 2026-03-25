@@ -18,8 +18,10 @@ import { Store, StoreState } from '../store';
 import { Navigator } from './Navigator';
 import { DiscoveryManager } from './DiscoveryManager';
 import { SyncManager } from './SyncManager';
+import { TagFetchManager } from './TagFetchManager';
 import { SiteAdapter, SearchContext, SearchCache, Tag, RelatedWork } from '../types';
 import { normalizeUrl } from '../logic';
+import { parseMetadataFromDocument } from '../adapters/DefaultAdapter';
 
 const SEARCH_TTL = 60 * 60 * 1000; // 1 hour
 
@@ -47,6 +49,7 @@ export class UIManager {
   private favoritesModalComp: FavoritesModalComponent | null = null;
 
   private syncManager: SyncManager;
+  private tagFetchManager: TagFetchManager;
 
   constructor(adapter: SiteAdapter, store: Store, navigator: Navigator, discoveryManager: DiscoveryManager, syncManager: SyncManager) {
     this.adapter = adapter;
@@ -54,6 +57,7 @@ export class UIManager {
     this.navigator = navigator;
     this.discoveryManager = discoveryManager;
     this.syncManager = syncManager;
+    this.tagFetchManager = new TagFetchManager(store, (doc) => parseMetadataFromDocument(doc).tags);
   }
 
   init = (): void => {
@@ -253,9 +257,13 @@ export class UIManager {
           isFavorite,
           onClose: () => this.store.setState({ isMetadataModalOpen: false }),
           onTagClick: async (tag) => { await this._handleTagClick(tag); },
-          onToggleFavorite: () => { this.toggleFavorite(); }
+          onToggleFavorite: () => { this.toggleFavorite(); },
+          workTagsCache: state.workTagsCache
         });
         document.body.appendChild(this.modalComp.el);
+        this.tagFetchManager.start(state.metadata.relatedWorks);
+      } else {
+        this.modalComp.updateWorkTagsCache(state.workTagsCache);
       }
     } else if (this.modalComp) {
       this.modalComp.el.remove();
@@ -270,6 +278,7 @@ export class UIManager {
           favorites: state.favorites,
           history: state.luckyHistory,
           pinnedTags: state.pinnedTags,
+          workTagsCache: state.workTagsCache,
           onRemoveFavorite: (href) => {
             const newFavorites = this.store.getState().favorites.filter(f => f.href !== href);
             this.store.setState({ favorites: newFavorites });
@@ -284,10 +293,12 @@ export class UIManager {
           onClose: () => this.store.setState({ isFavoritesModalOpen: false })
         });
         document.body.appendChild(this.favoritesModalComp.el);
+        this.tagFetchManager.start(state.luckyHistory);
       } else {
         this.favoritesModalComp.updateFavorites(state.favorites);
         this.favoritesModalComp.updateHistory(state.luckyHistory, state.favorites);
         this.favoritesModalComp.updatePinnedTags(state.pinnedTags);
+        this.favoritesModalComp.updateWorkTagsCache(state.workTagsCache);
       }
     } else if (this.favoritesModalComp) {
       this.favoritesModalComp.el.remove();
@@ -303,19 +314,34 @@ export class UIManager {
           searchQuery: state.searchQuery,
           searchContext: state.searchContext,
           searchHistory: state.searchHistory,
+          workTagsCache: state.workTagsCache,
+          pinnedTags: state.pinnedTags,
           onSearch: (q, ctx) => { void this.discoveryManager.performSearch(q, false, ctx); },
           onPageChange: (url) => { void this.discoveryManager.performSearch(url); },
-          onClose: () => this.store.setState({ isSearchModalOpen: false })
+          onClose: () => this.store.setState({ isSearchModalOpen: false }),
+          onTogglePinTag: (tagText) => { this.store.togglePinnedTag(tagText); }
         });
         document.body.appendChild(this.searchModalComp.el);
         this._handleSearchSWR(state);
+        this._startTagFetchForSearchResults(state);
       } else {
         this.searchModalComp.updateResults(state.searchResults);
+        this.searchModalComp.updateWorkTagsCache(state.workTagsCache);
+        this.searchModalComp.updatePinnedTags(state.pinnedTags);
+        this._startTagFetchForSearchResults(state);
       }
     } else if (this.searchModalComp) {
       this.searchModalComp.el.remove();
       this.searchModalComp = null;
     }
+  };
+
+  private _startTagFetchForSearchResults = (state: StoreState): void => {
+    if (!state.searchResults) return;
+    const works: RelatedWork[] = state.searchResults.results.map(r => ({
+      title: r.title, href: r.href, thumb: r.thumb
+    }));
+    this.tagFetchManager.start(works);
   };
 
   private _handleSearchSWR = (state: StoreState): void => {

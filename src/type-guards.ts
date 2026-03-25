@@ -1,6 +1,7 @@
 import { GuiPos } from './store';
 import { ResumeData } from './managers/ResumeManager';
 import { SearchCache, SearchContext, RelatedWork, HistoryEntry, SyncConfig } from './types';
+import type { Tag } from './types';
 
 /**
  * Checks if the value is a non-null object (and not an array)
@@ -91,6 +92,24 @@ export function isSearchContext(value: unknown): value is SearchContext {
   if (!isObject(value)) return false;
   if (typeof value.type !== 'string') return false;
   return ['keyword', 'tag', 'genre', 'artist'].includes(value.type);
+}
+
+/**
+ * Type guard for Tag
+ */
+function isTag(value: unknown): value is Tag {
+  if (!isObject(value)) return false;
+  return typeof value.text === 'string' &&
+    typeof value.href === 'string' &&
+    (value.type === null || typeof value.type === 'string');
+}
+
+/**
+ * Type guard for Record<string, Tag[]> (work tags cache)
+ */
+export function isWorkTagsCache(value: unknown): value is Record<string, Tag[]> {
+  if (!isObject(value)) return false;
+  return Object.values(value).every(v => Array.isArray(v) && (v as unknown[]).every(isTag));
 }
 
 /**

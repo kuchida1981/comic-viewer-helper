@@ -1,5 +1,5 @@
-import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork, HistoryEntry, SyncConfig } from './types';
-import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray, isHistoryEntryArray, isSyncConfig } from './type-guards';
+import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork, HistoryEntry, SyncConfig, Tag } from './types';
+import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray, isHistoryEntryArray, isSyncConfig, isWorkTagsCache } from './type-guards';
 import { normalizeUrl } from './logic';
 
 export const STORAGE_KEYS = {
@@ -15,7 +15,8 @@ export const STORAGE_KEYS = {
   AUTOPLAY_INTERVAL: 'comic-viewer-helper-autoplay-interval',
   LUCKY_HISTORY: 'comic-viewer-helper-lucky-history',
   PINNED_TAGS: 'comic-viewer-helper-pinned-tags',
-  SYNC_CONFIG: 'comic-viewer-helper-sync-config'
+  SYNC_CONFIG: 'comic-viewer-helper-sync-config',
+  WORK_TAGS_CACHE: 'comic-viewer-helper-work-tags-cache'
 } as const;
 
 export const MAX_SEARCH_HISTORY = 3;
@@ -51,6 +52,7 @@ export interface StoreState {
   autoplayInterval: number;
   syncConfig: SyncConfig | null;
   syncLastError: string | null;
+  workTagsCache: Record<string, Tag[]>;
 }
 
 export type StoreListener = (state: StoreState) => void;
@@ -88,7 +90,8 @@ export class Store {
       isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
       autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10),
       syncConfig: this._loadSyncConfig(),
-      syncLastError: null
+      syncLastError: null,
+      workTagsCache: this._loadWorkTagsCache()
     };
     this.listeners = [];
   }
@@ -128,6 +131,7 @@ export class Store {
 
     this._persistSearchRelatedChanges(patch);
     this._persistLuckyHistory(patch);
+    this._persistWorkTagsCache(patch);
     this._triggerSyncIfNeeded(patch);
   };
 
@@ -177,6 +181,17 @@ export class Store {
     if ('luckyHistory' in patch) {
       const host = window.location.hostname;
       GM_setValue(`${STORAGE_KEYS.LUCKY_HISTORY}-${host}`, JSON.stringify(patch.luckyHistory));
+    }
+  };
+
+  private _persistWorkTagsCache = (patch: Partial<StoreState>): void => {
+    if ('workTagsCache' in patch) {
+      try {
+        const host = window.location.hostname;
+        GM_setValue(`${STORAGE_KEYS.WORK_TAGS_CACHE}-${host}`, JSON.stringify(patch.workTagsCache));
+      } catch (e) {
+        console.warn('Failed to save work tags cache to GM_storage:', e);
+      }
     }
   };
 
@@ -321,6 +336,18 @@ export class Store {
       return isStringArray(parsed) ? parsed : [];
     } catch {
       return [];
+    }
+  };
+
+  private _loadWorkTagsCache = (): Record<string, Tag[]> => {
+    try {
+      const host = window.location.hostname;
+      const saved = GM_getValue(`${STORAGE_KEYS.WORK_TAGS_CACHE}-${host}`);
+      if (!saved) return {};
+      const parsed: unknown = JSON.parse(saved);
+      return isWorkTagsCache(parsed) ? parsed : {};
+    } catch {
+      return {};
     }
   };
 

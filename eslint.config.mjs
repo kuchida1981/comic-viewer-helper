@@ -121,7 +121,7 @@ export default [
           {
             "target": "./src/ui",
             "from": "./src",
-            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./ui/utils.ts", "./ui/styles.ts", "./ui/icons.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./ui/**/*"],
+            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./ui/utils.ts", "./ui/styles.ts", "./ui/icons.ts", "./ui/components/TrendSection.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*", "./ui/**/*"],
             "message": "UI components should only depend on Shared/UI Utilities (autonomous components)."
           }
         ]

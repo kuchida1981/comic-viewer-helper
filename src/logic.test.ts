@@ -16,6 +16,7 @@ import {
   isLuckyPoolDepleted,
   calculateTrends,
   filterWorksByTags,
+  enrichWorksWithCachedTags,
   encrypt,
   decrypt,
   isEncrypted
@@ -889,6 +890,37 @@ describe('filterWorksByTags', () => {
   it('should return empty array for empty works list', () => {
     const result = filterWorksByTags([], new Set(['fantasy']));
     expect(result).toHaveLength(0);
+  });
+});
+
+describe('enrichWorksWithCachedTags', () => {
+  const tag = { text: 'fantasy', href: '/genre/fantasy/', type: 'genre' };
+
+  it('should return works as-is when cache is empty', () => {
+    const works = [{ title: 'Work A', href: '/work/a/', thumb: '' }];
+    expect(enrichWorksWithCachedTags(works, {})).toBe(works);
+  });
+
+  it('should enrich works without tags using cache', () => {
+    const works = [{ title: 'Work A', href: '/work/a/', thumb: '' }];
+    const cache = { '/work/a/': [tag] };
+    const result = enrichWorksWithCachedTags(works, cache);
+    expect(result[0].tags).toEqual([tag]);
+  });
+
+  it('should preserve existing tags on works', () => {
+    const existing = { text: 'existing', href: '/genre/existing/', type: 'genre' };
+    const works = [{ title: 'Work A', href: '/work/a/', thumb: '', tags: [existing] }];
+    const cache = { '/work/a/': [tag] };
+    const result = enrichWorksWithCachedTags(works, cache);
+    expect(result[0].tags).toEqual([existing]);
+  });
+
+  it('should use empty array when work has no tags and no cache entry', () => {
+    const works = [{ title: 'Work B', href: '/work/b/', thumb: '' }];
+    const cache = { '/work/a/': [tag] };
+    const result = enrichWorksWithCachedTags(works, cache);
+    expect(result[0].tags).toEqual([]);
   });
 });
 
