@@ -1,8 +1,8 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
 import { RelatedWork, HistoryEntry } from '../../types';
-import { calculateTrends, filterWorksByTags } from '../../logic';
-import { createPinFilledIcon } from '../icons';
+import { filterWorksByTags, enrichWorksWithCachedTags } from '../../logic';
+import { createTrendSection } from './TrendSection';
 
 function normalizeHref(href: string): string {
   try {
@@ -13,10 +13,13 @@ function normalizeHref(href: string): string {
   }
 }
 
+import { Tag } from '../../types';
+
 export interface FavoritesModalProps {
   favorites: RelatedWork[];
   history: HistoryEntry[];
   pinnedTags: string[];
+  workTagsCache?: Record<string, Tag[]>;
   onRemoveFavorite: (href: string) => void;
   onRemoveHistory: (href: string) => void;
   onToggleFavorite: (work: RelatedWork) => void;
@@ -29,6 +32,7 @@ export interface FavoritesModalComponent {
   updateFavorites: (favorites: RelatedWork[]) => void;
   updateHistory: (history: HistoryEntry[], favorites: RelatedWork[]) => void;
   updatePinnedTags: (pinnedTags: string[]) => void;
+  updateWorkTagsCache: (cache: Record<string, Tag[]>) => void;
 }
 
 type SortMode = 'lastViewedAt' | 'viewCount' | 'firstViewedAt';
@@ -205,86 +209,17 @@ function createSortMenu(
   return menu;
 }
 
-function createTrendSection(
-  favorites: RelatedWork[],
-  selectedTagTexts: Set<string>,
-  pinnedTags: string[],
-  onInternalTagClick: (tagText: string) => void,
-  onTogglePinTag: (tagText: string) => void,
-  showAllTags: boolean,
-  onToggleShowAll: () => void
-): HTMLElement {
-  const section = createElement('div', {
-    className: 'comic-helper-favorites-trend-section'
-  });
 
-  const trends = calculateTrends(favorites, showAllTags ? 0 : 10, pinnedTags, Array.from(selectedTagTexts));
-  if (trends.length === 0) {
-    section.style.display = 'none';
-    return section;
-  }
-
-  const toggleBtn = createElement('button', {
-    className: 'comic-helper-trend-toggle-btn',
-    textContent: showAllTags ? t('ui.showTopTags') : t('ui.showAllTags'),
-    events: { click: onToggleShowAll }
-  });
-
-  const labelRow = createElement('div', {
-    className: 'comic-helper-favorites-trend-label-row'
-  }, [
-    createElement('div', {
-      className: 'comic-helper-favorites-trend-label',
-      textContent: t('ui.favoritesTrend')
-    }),
-    toggleBtn
-  ]);
-
-  const tagsEl = createElement('div', {
-    className: 'comic-helper-favorites-trend-tags'
-  });
-
-  trends.forEach(({ tag, count, isPinned }) => {
-    const typeClass = tag.type ? `comic-helper-tag-chip--${tag.type}` : '';
-    const activeClass = selectedTagTexts.has(tag.text) ? ' active' : '';
-    const chip = createElement('button', {
-      className: `comic-helper-tag-chip${activeClass}`,
-      textContent: `${tag.text} (${count})`,
-      events: {
-        click: () => onInternalTagClick(tag.text)
-      }
-    });
-
-    const pinBtn = createElement('button', {
-      className: `comic-helper-tag-pin${isPinned ? ' active' : ''}`,
-      title: isPinned ? t('ui.unpinTag') : t('ui.pinTag'),
-      events: {
-        click: (e) => {
-          e.stopPropagation();
-          onTogglePinTag(tag.text);
-        }
-      }
-    });
-    pinBtn.appendChild(createPinFilledIcon());
-
-    const container = createElement('div', {
-      className: `comic-helper-tag-chip-container${typeClass ? ` ${typeClass}` : ''}`
-    }, [chip, pinBtn]);
-    tagsEl.appendChild(container);
-  });
-
-  section.appendChild(labelRow);
-  section.appendChild(tagsEl);
-  return section;
-}
-
-export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose }: FavoritesModalProps): FavoritesModalComponent {
+export function createFavoritesModal({ favorites, history, pinnedTags, workTagsCache: initialWorkTagsCache, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose }: FavoritesModalProps): FavoritesModalComponent {
   let sortMode: SortMode = 'lastViewedAt';
   let currentFavorites = favorites;
   let currentHistory = history;
   let currentPinnedTags = pinnedTags;
+  let currentWorkTagsCache: Record<string, Tag[]> = initialWorkTagsCache ?? {};
   let selectedTagTexts: Set<string> = new Set();
   let showAllTags: boolean = false;
+  let histSelectedTagTexts: Set<string> = new Set();
+  let histShowAllTags: boolean = false;
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -325,15 +260,27 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     rerenderFavoritesPanel();
   }
 
+  function makeFavTrendSection(): HTMLElement {
+    return createTrendSection({
+      works: currentFavorites,
+      selectedTagTexts,
+      pinnedTags: currentPinnedTags,
+      onTagClick: handleTrendTagClick,
+      onTogglePinTag,
+      showAllTags,
+      onToggleShowAll: handleToggleShowAll
+    });
+  }
+
   function handleToggleShowAll(): void {
     showAllTags = !showAllTags;
-    const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+    const newTrendSection = makeFavTrendSection();
     favPanel.replaceChild(newTrendSection, trendSection);
     trendSection = newTrendSection;
   }
 
   function rerenderFavoritesPanel(): void {
-    const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+    const newTrendSection = makeFavTrendSection();
     favPanel.replaceChild(newTrendSection, trendSection);
     trendSection = newTrendSection;
 
@@ -343,14 +290,52 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     favGrid = newFavGrid;
   }
 
+  function getEnrichedHistory(): RelatedWork[] {
+    return enrichWorksWithCachedTags(currentHistory as RelatedWork[], currentWorkTagsCache);
+  }
+
+  function makeHistTrendSection(): HTMLElement {
+    return createTrendSection({
+      works: getEnrichedHistory(),
+      selectedTagTexts: histSelectedTagTexts,
+      onTagClick: (tagText: string) => {
+        if (histSelectedTagTexts.has(tagText)) {
+          histSelectedTagTexts.delete(tagText);
+        } else {
+          histSelectedTagTexts.add(tagText);
+        }
+        rerenderHistoryPanel();
+      },
+      showAllTags: histShowAllTags,
+      onToggleShowAll: () => {
+        histShowAllTags = !histShowAllTags;
+        rerenderHistoryPanel();
+      }
+    });
+  }
+
+  function rerenderHistoryPanel(): void {
+    const newHistTrend = makeHistTrendSection();
+    histPanel.replaceChild(newHistTrend, histTrendSection);
+    histTrendSection = newHistTrend;
+
+    const filteredHist = histSelectedTagTexts.size > 0
+      ? filterWorksByTags(getEnrichedHistory(), histSelectedTagTexts) as HistoryEntry[]
+      : currentHistory;
+    const newHistGrid = createHistoryGrid(filteredHist, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+    histPanel.replaceChild(newHistGrid, histGrid);
+    histGrid = newHistGrid;
+  }
+
   // Content area
-  let trendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+  let trendSection = makeFavTrendSection();
   let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
   const favPanel = createElement('div', { className: 'comic-helper-favorites-panel' }, [trendSection, favGrid]);
 
+  let histTrendSection = makeHistTrendSection();
   let sortMenu = createSortMenu(sortMode, handleSort);
   let histGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
-  const histPanel = createElement('div', { className: 'comic-helper-history-panel' }, [sortMenu, histGrid]);
+  const histPanel = createElement('div', { className: 'comic-helper-history-panel' }, [histTrendSection, sortMenu, histGrid]);
   histPanel.style.display = 'none';
 
   const container = createElement('div', {
@@ -399,14 +384,23 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
       showAllTags = false;
       rerenderFavoritesPanel();
 
-      // Also refresh history grid to update favorite icons
-      const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
-      histPanel.replaceChild(newHistGrid, histGrid);
-      histGrid = newHistGrid;
+      // Also refresh history panel to update favorite icons
+      const newHistTrendOnFavUpdate = makeHistTrendSection();
+      histPanel.replaceChild(newHistTrendOnFavUpdate, histTrendSection);
+      histTrendSection = newHistTrendOnFavUpdate;
+      const newHistGridOnFavUpdate = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
+      histPanel.replaceChild(newHistGridOnFavUpdate, histGrid);
+      histGrid = newHistGridOnFavUpdate;
     },
     updateHistory: (newHistory: HistoryEntry[], newFavorites: RelatedWork[]) => {
       currentHistory = newHistory;
       currentFavorites = newFavorites;
+      histSelectedTagTexts = new Set();
+      histShowAllTags = false;
+
+      const newHistTrend = makeHistTrendSection();
+      histPanel.replaceChild(newHistTrend, histTrendSection);
+      histTrendSection = newHistTrend;
 
       const newHistGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
       histPanel.replaceChild(newHistGrid, histGrid);
@@ -414,9 +408,15 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     },
     updatePinnedTags: (newPinnedTags: string[]) => {
       currentPinnedTags = newPinnedTags;
-      const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
+      const newTrendSection = makeFavTrendSection();
       favPanel.replaceChild(newTrendSection, trendSection);
       trendSection = newTrendSection;
+    },
+    updateWorkTagsCache: (cache: Record<string, Tag[]>) => {
+      currentWorkTagsCache = cache;
+      const newHistTrend = makeHistTrendSection();
+      histPanel.replaceChild(newHistTrend, histTrendSection);
+      histTrendSection = newHistTrend;
     }
   };
 }

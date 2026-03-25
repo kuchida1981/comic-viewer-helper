@@ -1,6 +1,8 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
-import { SearchResultsState, SearchContext } from '../../types';
+import { SearchResultsState, SearchContext, Tag, RelatedWork } from '../../types';
+import { filterWorksByTags, enrichWorksWithCachedTags } from '../../logic';
+import { createTrendSection } from './TrendSection';
 
 export interface SearchModalProps {
   onSearch: (query: string, context?: SearchContext) => void;
@@ -10,6 +12,9 @@ export interface SearchModalProps {
   searchQuery?: string;
   searchContext?: SearchContext;
   searchHistory: string[];
+  workTagsCache?: Record<string, Tag[]>;
+  pinnedTags?: string[];
+  onTogglePinTag?: (tagText: string) => void;
 }
 
 export interface SearchModalComponent {
@@ -17,12 +22,15 @@ export interface SearchModalComponent {
   input: HTMLInputElement;
   updateResults: (searchResults: SearchResultsState | null) => void;
   setUpdating: (updating: boolean) => void;
+  updateWorkTagsCache: (cache: Record<string, Tag[]>) => void;
+  updatePinnedTags: (pinnedTags: string[]) => void;
 }
 
 function createResultsSection(
   searchResults: SearchResultsState | null,
   onPageChange: (url: string) => void,
-  onTagCompletion: (label: string) => void
+  onTagCompletion: (label: string) => void,
+  filteredResults?: RelatedWork[]
 ): HTMLElement {
   const section = createElement('div', {
     className: 'comic-helper-search-results-section'
@@ -31,6 +39,7 @@ function createResultsSection(
   if (!searchResults) return section;
 
   const { results, totalCount, pagination, searchContext } = searchResults;
+  const displayResults: { title: string; href: string; thumb: string }[] = (filteredResults ?? results);
 
   const header = createElement('div', {
     className: 'comic-helper-section-title'
@@ -73,7 +82,7 @@ function createResultsSection(
     className: 'comic-helper-search-result-grid'
   });
 
-  results.forEach(item => {
+  displayResults.forEach(item => {
     const thumb = createElement('img', {
       className: 'comic-helper-search-result-thumb',
       attributes: { src: item.thumb, loading: 'lazy' }
@@ -121,7 +130,13 @@ function createResultsSection(
   return section;
 }
 
-export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchContext, searchHistory }: SearchModalProps): SearchModalComponent {
+export function createSearchModal({ onSearch, onPageChange, onClose, searchResults, searchQuery, searchContext, searchHistory, workTagsCache: initialWorkTagsCache, pinnedTags: initialPinnedTags, onTogglePinTag }: SearchModalProps): SearchModalComponent {
+  let currentWorkTagsCache: Record<string, Tag[]> = initialWorkTagsCache ?? {};
+  let currentPinnedTags: string[] = initialPinnedTags ?? [];
+  let currentSearchResults: SearchResultsState | null = searchResults;
+  let selectedTagTexts: Set<string> = new Set();
+  let showAllTags = false;
+
   const displayValue = (searchContext?.type === 'keyword') ? (searchQuery || '') : '';
 
   const input = createElement('input', {
@@ -189,10 +204,54 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     input.focus();
   };
 
+  function getEnrichedResults(): RelatedWork[] {
+    if (!currentSearchResults) return [];
+    const asWorks: RelatedWork[] = currentSearchResults.results.map(r => ({ title: r.title, href: r.href, thumb: r.thumb }));
+    return enrichWorksWithCachedTags(asWorks, currentWorkTagsCache);
+  }
+
+  function makeSearchTrendSection(): HTMLElement {
+    return createTrendSection({
+      works: getEnrichedResults(),
+      selectedTagTexts,
+      pinnedTags: currentPinnedTags,
+      onTagClick: (tagText: string) => {
+        if (selectedTagTexts.has(tagText)) {
+          selectedTagTexts.delete(tagText);
+        } else {
+          selectedTagTexts.add(tagText);
+        }
+        rerenderSearchTrend();
+      },
+      onTogglePinTag,
+      showAllTags,
+      onToggleShowAll: () => {
+        showAllTags = !showAllTags;
+        rerenderSearchTrend();
+      }
+    });
+  }
+
+  function getFilteredResults(): RelatedWork[] | undefined {
+    if (selectedTagTexts.size === 0) return undefined;
+    return filterWorksByTags(getEnrichedResults(), selectedTagTexts);
+  }
+
+  function rerenderSearchTrend(): void {
+    const newTrend = makeSearchTrendSection();
+    container.replaceChild(newTrend, searchTrendSection);
+    searchTrendSection = newTrend;
+
+    const newSection = createResultsSection(currentSearchResults, onPageChange, onTagCompletion, getFilteredResults());
+    container.replaceChild(newSection, resultsSection);
+    resultsSection = newSection;
+  }
+
+  let searchTrendSection = makeSearchTrendSection();
   let resultsSection = createResultsSection(searchResults, onPageChange, onTagCompletion);
   const container = createElement('div', {
     className: 'comic-helper-search-container'
-  }, [form, historySection, resultsSection]);
+  }, [form, historySection, searchTrendSection, resultsSection]);
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -253,10 +312,24 @@ export function createSearchModal({ onSearch, onPageChange, onClose, searchResul
     el: overlay,
     input,
     updateResults: (newResults: SearchResultsState | null) => {
+      currentSearchResults = newResults;
+      selectedTagTexts = new Set();
+      showAllTags = false;
+      const newTrend = makeSearchTrendSection();
+      container.replaceChild(newTrend, searchTrendSection);
+      searchTrendSection = newTrend;
       const newSection = createResultsSection(newResults, onPageChange, onTagCompletion);
       container.replaceChild(newSection, resultsSection);
       resultsSection = newSection;
       content.scrollTop = 0;
+    },
+    updateWorkTagsCache: (cache: Record<string, Tag[]>) => {
+      currentWorkTagsCache = cache;
+      rerenderSearchTrend();
+    },
+    updatePinnedTags: (newPinnedTags: string[]) => {
+      currentPinnedTags = newPinnedTags;
+      rerenderSearchTrend();
     },
     setUpdating: (updating: boolean) => {
       updatingIndicator.style.display = updating ? 'inline' : 'none';

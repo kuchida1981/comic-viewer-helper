@@ -141,6 +141,19 @@ export function calculateTrends(
 }
 
 /**
+ * Enrich works with tags from the cache.
+ * If a work already has tags defined, they are preserved.
+ * Otherwise, tags from the cache (keyed by href) are used.
+ */
+export function enrichWorksWithCachedTags(works: RelatedWork[], cache: Record<string, Tag[]>): RelatedWork[] {
+  if (Object.keys(cache).length === 0) return works;
+  return works.map(w => ({
+    ...w,
+    tags: w.tags ?? cache[w.href] ?? []
+  }));
+}
+
+/**
  * Filter works by selected tag texts (AND logic: all selected tags must be present)
  */
 export function filterWorksByTags(favorites: RelatedWork[], selectedTagTexts: Set<string>): RelatedWork[] {

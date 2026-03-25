@@ -1,7 +1,9 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
-import { Metadata, Tag } from '../../types';
+import { Metadata, Tag, RelatedWork } from '../../types';
 import { createHeartFilledIcon, createHeartOutlineIcon } from '../icons';
+import { filterWorksByTags, enrichWorksWithCachedTags } from '../../logic';
+import { createTrendSection } from './TrendSection';
 
 export interface MetadataModalProps {
   metadata: Metadata;
@@ -9,15 +11,20 @@ export interface MetadataModalProps {
   onClose: () => void;
   onTagClick: (tag: Tag) => Promise<void>;
   onToggleFavorite: () => void;
+  workTagsCache?: Record<string, Tag[]>;
 }
 
 export interface MetadataModalComponent {
   el: HTMLElement;
   update: (isFavorite: boolean) => void;
+  updateWorkTagsCache: (cache: Record<string, Tag[]>) => void;
 }
 
-export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick, onToggleFavorite }: MetadataModalProps): MetadataModalComponent {
+export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick, onToggleFavorite, workTagsCache: initialWorkTagsCache }: MetadataModalProps): MetadataModalComponent {
   const { title, tags, relatedWorks } = metadata;
+  let currentWorkTagsCache: Record<string, Tag[]> = initialWorkTagsCache ?? {};
+  const relatedSelectedTags: Set<string> = new Set();
+  let relatedShowAllTags = false;
 
   const heartFilledIcon = createHeartFilledIcon(18);
   const heartOutlineIcon = createHeartOutlineIcon(18);
@@ -76,29 +83,73 @@ export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick,
     createElement('div', { className: 'comic-helper-tag-list' }, tagChips)
   ]);
 
-  const relatedItems = relatedWorks.map(work => {
-    const thumb = createElement('img', {
-      className: 'comic-helper-related-thumb',
-      attributes: { src: work.thumb, loading: 'lazy' }
+  function createRelatedGrid(works: RelatedWork[]): HTMLElement {
+    const relatedItems = works.map(work => {
+      const thumb = createElement('img', {
+        className: 'comic-helper-related-thumb',
+        attributes: { src: work.thumb, loading: 'lazy' }
+      });
+      const workTitle = createElement('div', {
+        className: 'comic-helper-related-title',
+        textContent: work.title
+      });
+      return createElement('a', {
+        className: 'comic-helper-related-item',
+        attributes: { href: work.href, target: '_blank' },
+        events: { click: (e) => e.stopPropagation() }
+      }, [thumb, workTitle]);
     });
+    return createElement('div', { className: 'comic-helper-related-grid' }, relatedItems);
+  }
 
-    const workTitle = createElement('div', {
-      className: 'comic-helper-related-title',
-      textContent: work.title
-    });
+  function getEnrichedRelated(): RelatedWork[] {
+    return enrichWorksWithCachedTags(relatedWorks, currentWorkTagsCache);
+  }
 
-    return createElement('a', {
-      className: 'comic-helper-related-item',
-      attributes: { href: work.href, target: '_blank' },
-      events: {
-        click: (e) => e.stopPropagation()
+  function makeRelatedTrendSection(): HTMLElement {
+    return createTrendSection({
+      works: getEnrichedRelated(),
+      selectedTagTexts: relatedSelectedTags,
+      onTagClick: (tagText: string) => {
+        if (relatedSelectedTags.has(tagText)) {
+          relatedSelectedTags.delete(tagText);
+        } else {
+          relatedSelectedTags.add(tagText);
+        }
+        rerenderRelated();
+      },
+      showAllTags: relatedShowAllTags,
+      onToggleShowAll: () => {
+        relatedShowAllTags = !relatedShowAllTags;
+        rerenderRelated();
       }
-    }, [thumb, workTitle]);
-  });
+    });
+  }
+
+  let relatedTrendSection = makeRelatedTrendSection();
+  let relatedGrid = createRelatedGrid(
+    relatedSelectedTags.size > 0
+      ? filterWorksByTags(getEnrichedRelated(), relatedSelectedTags)
+      : relatedWorks
+  );
+
+  function rerenderRelated(): void {
+    const newTrend = makeRelatedTrendSection();
+    relatedSection.replaceChild(newTrend, relatedTrendSection);
+    relatedTrendSection = newTrend;
+
+    const filtered = relatedSelectedTags.size > 0
+      ? filterWorksByTags(getEnrichedRelated(), relatedSelectedTags)
+      : relatedWorks;
+    const newGrid = createRelatedGrid(filtered);
+    relatedSection.replaceChild(newGrid, relatedGrid);
+    relatedGrid = newGrid;
+  }
 
   const relatedSection = createElement('div', {}, [
     createElement('div', { className: 'comic-helper-section-title', textContent: t('ui.related') }),
-    createElement('div', { className: 'comic-helper-related-grid' }, relatedItems)
+    relatedTrendSection,
+    relatedGrid
   ]);
 
   const content = createElement('div', {
@@ -124,6 +175,10 @@ export function createMetadataModal({ metadata, isFavorite, onClose, onTagClick,
         favBtn.className = `comic-helper-favorite-btn ${newIsFavorite ? 'active' : 'inactive'}`;
         favBtn.replaceChildren(newIsFavorite ? heartFilledIcon : heartOutlineIcon);
         favBtn.title = newIsFavorite ? 'Remove from Favorites' : 'Add to Favorites';
+      },
+      updateWorkTagsCache: (cache: Record<string, Tag[]>) => {
+        currentWorkTagsCache = cache;
+        rerenderRelated();
       }
     };
   }

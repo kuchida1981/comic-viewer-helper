@@ -517,6 +517,83 @@ describe('FavoritesModal', () => {
     });
   });
 
+  describe('history trend section', () => {
+    const historyWithTags: HistoryEntry[] = [
+      {
+        title: 'History A', href: '/work/10/', thumb: '', viewCount: 5, firstViewedAt: 1000, lastViewedAt: 5000,
+        tags: [{ text: 'fantasy', href: '/tags/fantasy', type: 'genre' }]
+      },
+      {
+        title: 'History B', href: '/work/11/', thumb: '', viewCount: 2, firstViewedAt: 2000, lastViewedAt: 3000
+      }
+    ];
+
+    it('should show history trend section when history items have tags', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, history: historyWithTags });
+      const histTab = el.querySelectorAll('.comic-helper-library-tab')[1] as HTMLElement;
+      histTab.click();
+
+      const histPanel = el.querySelector('.comic-helper-history-panel') as HTMLElement;
+      const trendSection = histPanel.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
+      expect(trendSection.style.display).not.toBe('none');
+    });
+
+    it('should filter history when trend tag is clicked', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, history: historyWithTags });
+      const histTab = el.querySelectorAll('.comic-helper-library-tab')[1] as HTMLElement;
+      histTab.click();
+
+      const histPanel = el.querySelector('.comic-helper-history-panel') as HTMLElement;
+      expect(histPanel.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(2);
+
+      const tagBtn = histPanel.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+      tagBtn.click();
+
+      expect(histPanel.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(1);
+
+      // Deselect
+      const activeBtn = histPanel.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+      activeBtn.click();
+      expect(histPanel.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(2);
+    });
+
+    it('should update workTagsCache and show trend section in history tab', () => {
+      const { el, updateWorkTagsCache } = createFavoritesModal(defaultProps);
+      const histTab = el.querySelectorAll('.comic-helper-library-tab')[1] as HTMLElement;
+      histTab.click();
+
+      const histPanel = el.querySelector('.comic-helper-history-panel') as HTMLElement;
+      const trendSection = histPanel.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
+      expect(trendSection.style.display).toBe('none');
+
+      updateWorkTagsCache({
+        '/work/10/': [{ text: 'fantasy', href: '/tags/fantasy', type: 'genre' }]
+      });
+
+      const updatedTrend = histPanel.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
+      expect(updatedTrend.style.display).not.toBe('none');
+    });
+
+    it('should toggle show all tags in history trend section', () => {
+      const manyTagHistory: HistoryEntry[] = [
+        {
+          title: 'History A', href: '/work/10/', thumb: '', viewCount: 1, firstViewedAt: 1000, lastViewedAt: 1000,
+          tags: Array.from({ length: 15 }, (_, i) => ({ text: `tag${i}`, href: `/tags/tag${i}`, type: null }))
+        }
+      ];
+      const { el } = createFavoritesModal({ ...defaultProps, history: manyTagHistory });
+      const histTab = el.querySelectorAll('.comic-helper-library-tab')[1] as HTMLElement;
+      histTab.click();
+
+      const histPanel = el.querySelector('.comic-helper-history-panel') as HTMLElement;
+      expect(histPanel.querySelectorAll('.comic-helper-tag-chip-container').length).toBe(10);
+
+      const toggleBtn = histPanel.querySelector('.comic-helper-trend-toggle-btn') as HTMLElement;
+      toggleBtn.click();
+      expect(histPanel.querySelectorAll('.comic-helper-tag-chip-container').length).toBe(15);
+    });
+  });
+
   describe('selected tags sorting', () => {
     it('should move clicked tag to the front of the trend list', () => {
       // taggedFavorites: fantasy(count=2), alice(count=1), bob(count=1)

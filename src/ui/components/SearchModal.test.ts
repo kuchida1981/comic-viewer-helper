@@ -286,6 +286,83 @@ describe('SearchModal', () => {
     });
   });
 
+  describe('tag trend filtering', () => {
+    const resultsWithUrls: SearchResultsState = {
+      results: [
+        { title: 'Work A', href: '/work/1/', thumb: '' },
+        { title: 'Work B', href: '/work/2/', thumb: '' }
+      ],
+      totalCount: '2', nextPageUrl: null, pagination: []
+    };
+
+    it('should update work tags cache and show trend section', () => {
+      const { el, updateWorkTagsCache } = createSearchModal({ ...defaultProps, searchResults: resultsWithUrls });
+      const trend = el.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
+      expect(trend.style.display).toBe('none');
+
+      updateWorkTagsCache({
+        '/work/1/': [{ text: 'fantasy', href: '/tags/fantasy', type: 'genre' }]
+      });
+
+      const updatedTrend = el.querySelector('.comic-helper-favorites-trend-section') as HTMLElement;
+      expect(updatedTrend.style.display).not.toBe('none');
+    });
+
+    it('should filter results when trend tag is clicked', () => {
+      const { el, updateWorkTagsCache } = createSearchModal({ ...defaultProps, searchResults: resultsWithUrls });
+      updateWorkTagsCache({
+        '/work/1/': [{ text: 'fantasy', href: '/tags/fantasy', type: 'genre' }]
+      });
+
+      const tagBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+      tagBtn.click();
+
+      const grid = el.querySelector('.comic-helper-search-result-grid') as HTMLElement;
+      expect(grid.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(1);
+
+      // Click again to deselect
+      const activeBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+      activeBtn.click();
+      expect(el.querySelector('.comic-helper-search-result-grid')!.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(2);
+    });
+
+    it('should update pinned tags and re-render trend section', () => {
+      const onTogglePinTag = vi.fn();
+      const { el, updateWorkTagsCache, updatePinnedTags } = createSearchModal({
+        ...defaultProps,
+        searchResults: resultsWithUrls,
+        onTogglePinTag
+      });
+
+      updateWorkTagsCache({
+        '/work/1/': [{ text: 'fantasy', href: '/tags/fantasy', type: 'genre' }]
+      });
+
+      // No active pin buttons initially
+      expect(el.querySelector('.comic-helper-tag-pin.active')).toBeNull();
+
+      updatePinnedTags(['fantasy']);
+
+      // Now pin button should be active
+      expect(el.querySelector('.comic-helper-tag-pin.active')).not.toBeNull();
+    });
+
+    it('should reset tag selection when updateResults is called', () => {
+      const { el, updateWorkTagsCache, updateResults } = createSearchModal({ ...defaultProps, searchResults: resultsWithUrls });
+      updateWorkTagsCache({
+        '/work/1/': [{ text: 'fantasy', href: '/tags/fantasy', type: 'genre' }]
+      });
+
+      const tagBtn = el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement;
+      tagBtn.click();
+      expect(el.querySelector('.comic-helper-search-result-grid')!.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(1);
+
+      // Update results should reset filters
+      updateResults(resultsWithUrls);
+      expect(el.querySelector('.comic-helper-search-result-grid')!.querySelectorAll('.comic-helper-search-result-item')).toHaveLength(2);
+    });
+  });
+
   describe('scroll isolation', () => {
     it('should prevent wheel event on overlay from propagating', () => {
       const { el } = createSearchModal(defaultProps);

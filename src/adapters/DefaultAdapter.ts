@@ -24,6 +24,39 @@ function getTagType(href: string): string | null {
 }
 
 /**
+ * Parse metadata (title, tags, relatedWorks) from a given Document.
+ * Can be used on the current page document or a fetched/parsed document.
+ */
+export function parseMetadataFromDocument(doc: Document): Metadata {
+  const titleEl = doc.querySelector('h1');
+  const title = titleEl?.textContent?.trim() || 'Unknown Title';
+
+  const tags = Array.from(doc.querySelectorAll<HTMLAnchorElement>('#post-tag a')).map(a => {
+    const href = a.href;
+    return {
+      text: a.textContent?.trim() || '',
+      href,
+      type: getTagType(href)
+    };
+  });
+
+  const relatedWorks = Array.from(doc.querySelectorAll<HTMLElement>('.post-list-image')).map(el => {
+    const anchor = el.closest('a');
+    const img = el.querySelector('img');
+    const spanEl = el.querySelector('span') || anchor?.querySelector('span');
+    const workTitle = spanEl?.textContent?.trim() || 'Untitled';
+    return {
+      title: workTitle,
+      href: anchor?.href || '',
+      thumb: img?.src || '',
+      isPrivate: workTitle.startsWith('非公開')
+    };
+  });
+
+  return { title, tags, relatedWorks };
+}
+
+/**
  * Default adapter for the existing site structure
  */
 export const DefaultAdapter: SiteAdapter = {
@@ -44,34 +77,7 @@ export const DefaultAdapter: SiteAdapter = {
     return url.toString();
   },
   getMetadata: (): Metadata => {
-    const titleEl = document.querySelector('h1');
-    const title = titleEl?.textContent?.trim() || 'Unknown Title';
-
-    const tags = Array.from(document.querySelectorAll<HTMLAnchorElement>('#post-tag a')).map(a => {
-      const href = a.href;
-      return {
-        text: a.textContent?.trim() || '',
-        href,
-        type: getTagType(href)
-      };
-    });
-
-    const relatedWorks = Array.from(document.querySelectorAll<HTMLElement>('.post-list-image')).map(el => {
-      const anchor = el.closest('a');
-      const img = el.querySelector('img');
-      // Assuming title is in a span inside or near .post-list-image based on issue description
-      const titleEl = el.querySelector('span') || anchor?.querySelector('span');
-
-      const title = titleEl?.textContent?.trim() || 'Untitled';
-      return {
-        title,
-        href: anchor?.href || '',
-        thumb: img?.src || '',
-        isPrivate: title.startsWith('非公開')
-      };
-    });
-
-    return { title, tags, relatedWorks };
+    return parseMetadataFromDocument(document);
   },
   parseSearchResults: (doc: Document): SearchResultsState => {
     const results = Array.from(doc.querySelectorAll<HTMLAnchorElement>('div.post-list > a')).map(a => {

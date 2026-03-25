@@ -19,10 +19,10 @@ vi.mock('../ui/components/PageCounter', () => ({ createPageCounter: vi.fn().mock
 vi.mock('../ui/components/SpreadControls', () => ({ createSpreadControls: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/AutoplayControls', () => ({ createAutoplayControls: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/NavigationButtons', () => ({ createNavigationButtons: vi.fn().mockReturnValue({ navElements: [document.createElement('button')], utilElements: [document.createElement('button')], update: vi.fn() }) }));
-vi.mock('../ui/components/MetadataModal', () => ({ createMetadataModal: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
+vi.mock('../ui/components/MetadataModal', () => ({ createMetadataModal: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn(), updateWorkTagsCache: vi.fn() }) }));
 vi.mock('../ui/components/HelpModal', () => ({ createHelpModal: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
-vi.mock('../ui/components/SearchModal', () => ({ createSearchModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateResults: vi.fn(), setUpdating: vi.fn() }) }));
-vi.mock('../ui/components/FavoritesModal', () => ({ createFavoritesModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateFavorites: vi.fn(), updateHistory: vi.fn(), updatePinnedTags: vi.fn() }) }));
+vi.mock('../ui/components/SearchModal', () => ({ createSearchModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateResults: vi.fn(), setUpdating: vi.fn(), updateWorkTagsCache: vi.fn(), updatePinnedTags: vi.fn() }) }));
+vi.mock('../ui/components/FavoritesModal', () => ({ createFavoritesModal: vi.fn().mockReturnValue({ el: document.createElement('div'), updateFavorites: vi.fn(), updateHistory: vi.fn(), updatePinnedTags: vi.fn(), updateWorkTagsCache: vi.fn() }) }));
 vi.mock('../ui/components/ProgressBar', () => ({ createProgressBar: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/ResumeNotification', () => ({ createResumeNotification: vi.fn().mockReturnValue({ el: document.createElement('div') }) }));
 vi.mock('../ui/components/LoadingIndicator', () => ({ createLoadingIndicator: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
@@ -93,7 +93,8 @@ describe('UIManager', () => {
       isAutoplayEnabled: false,
       autoplayInterval: 5,
       syncConfig: null,
-      syncLastError: null
+      syncLastError: null,
+      workTagsCache: {}
     };
 
     store = {
