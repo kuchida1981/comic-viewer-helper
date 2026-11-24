@@ -668,14 +668,15 @@ export const styles = `
     line-height: 1.3;
     transition: opacity 0.15s;
   }
-  .comic-helper-tag-cloud-item:hover {
-    opacity: 0.65;
+  .comic-helper-tag-cloud .comic-helper-tag-cloud-item:hover {
+    opacity: 1;
+    text-decoration: underline;
   }
-  .comic-helper-tag-cloud-item--level-1 { font-size: 11px; opacity: 0.7; }
-  .comic-helper-tag-cloud-item--level-2 { font-size: 14px; opacity: 0.8; }
-  .comic-helper-tag-cloud-item--level-3 { font-size: 18px; }
-  .comic-helper-tag-cloud-item--level-4 { font-size: 24px; font-weight: bold; }
-  .comic-helper-tag-cloud-item--level-5 { font-size: 32px; font-weight: bold; }
+  .comic-helper-tag-cloud-item--level-1 { font-size: 10px; opacity: 0.55; }
+  .comic-helper-tag-cloud-item--level-2 { font-size: 14px; opacity: 0.7; }
+  .comic-helper-tag-cloud-item--level-3 { font-size: 20px; font-weight: bold; }
+  .comic-helper-tag-cloud-item--level-4 { font-size: 30px; font-weight: bold; }
+  .comic-helper-tag-cloud-item--level-5 { font-size: 44px; font-weight: bold; }
 
   .comic-helper-favorites-trend-section {
     padding: 8px 0 12px;

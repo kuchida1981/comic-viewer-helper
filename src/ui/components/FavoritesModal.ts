@@ -33,7 +33,7 @@ export interface FavoritesModalComponent {
 
 type FavoritesView = 'list' | 'cloud';
 
-const TAG_CLOUD_LIMIT = 30;
+const TAG_CLOUD_LIMIT = 200;
 type SortMode = 'lastViewedAt' | 'viewCount' | 'firstViewedAt';
 
 function formatViewCount(count: number): string {

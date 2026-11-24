@@ -625,25 +625,25 @@ describe('FavoritesModal tag cloud view', () => {
     expect(viewButtons(el)[1].classList.contains('active')).toBe(true);
   });
 
-  it('タグが30種類以下なら全タグが表示される', () => {
+  it('タグが200種類以下なら全タグが表示される', () => {
     const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTags });
     viewButtons(el)[1].click();
     expect(cloudEl(el).querySelectorAll('.comic-helper-tag-cloud-item')).toHaveLength(12);
   });
 
-  it('タグが31種類以上なら出現件数上位30件のみ表示される', () => {
+  it('タグが201種類以上なら出現件数上位200件のみ表示される', () => {
     const many: RelatedWork[] = [
       {
         title: 'M1', href: '/work/m1/', thumb: '/thumb/m1.webp',
-        tags: Array.from({ length: 35 }, (_, i) => ({ text: `t${i}`, href: `/tags/${i}`, type: 'tag' as const }))
+        tags: Array.from({ length: 205 }, (_, i) => ({ text: `t${i}`, href: `/tags/${i}`, type: 'tag' as const }))
       },
-      { title: 'M2', href: '/work/m2/', thumb: '/thumb/m2.webp', tags: [{ text: 't34', href: '/tags/34', type: 'tag' }] }
+      { title: 'M2', href: '/work/m2/', thumb: '/thumb/m2.webp', tags: [{ text: 't204', href: '/tags/204', type: 'tag' }] }
     ];
     const { el } = createFavoritesModal({ ...defaultProps, favorites: many });
     viewButtons(el)[1].click();
     const texts = Array.from(cloudEl(el).querySelectorAll('.comic-helper-tag-cloud-item')).map(i => i.textContent);
-    expect(texts).toHaveLength(30);
-    expect(texts).toContain('t34');
+    expect(texts).toHaveLength(200);
+    expect(texts).toContain('t204');
   });
 
   it('件数が多いタグほど大きい段階になり、最少は最小段階', () => {
