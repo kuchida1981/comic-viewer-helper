@@ -32,6 +32,8 @@ export interface FavoritesModalComponent {
 }
 
 type FavoritesView = 'list' | 'cloud';
+
+const TAG_CLOUD_LIMIT = 30;
 type SortMode = 'lastViewedAt' | 'viewCount' | 'firstViewedAt';
 
 function formatViewCount(count: number): string {
@@ -285,7 +287,7 @@ function createTagCloudSection(
   onTagClick: (tagText: string) => void
 ): HTMLElement {
   const section = createElement('div', { className: 'comic-helper-tag-cloud' });
-  const trends = calculateTrends(favorites, 0);
+  const trends = calculateTrends(favorites, TAG_CLOUD_LIMIT);
   if (trends.length === 0) {
     section.appendChild(createElement('div', {
       className: 'comic-helper-search-no-results',

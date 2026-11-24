@@ -625,10 +625,25 @@ describe('FavoritesModal tag cloud view', () => {
     expect(viewButtons(el)[1].classList.contains('active')).toBe(true);
   });
 
-  it('10種類を超える全タグが表示される', () => {
+  it('タグが30種類以下なら全タグが表示される', () => {
     const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTags });
     viewButtons(el)[1].click();
     expect(cloudEl(el).querySelectorAll('.comic-helper-tag-cloud-item')).toHaveLength(12);
+  });
+
+  it('タグが31種類以上なら出現件数上位30件のみ表示される', () => {
+    const many: RelatedWork[] = [
+      {
+        title: 'M1', href: '/work/m1/', thumb: '/thumb/m1.webp',
+        tags: Array.from({ length: 35 }, (_, i) => ({ text: `t${i}`, href: `/tags/${i}`, type: 'tag' as const }))
+      },
+      { title: 'M2', href: '/work/m2/', thumb: '/thumb/m2.webp', tags: [{ text: 't34', href: '/tags/34', type: 'tag' }] }
+    ];
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: many });
+    viewButtons(el)[1].click();
+    const texts = Array.from(cloudEl(el).querySelectorAll('.comic-helper-tag-cloud-item')).map(i => i.textContent);
+    expect(texts).toHaveLength(30);
+    expect(texts).toContain('t34');
   });
 
   it('件数が多いタグほど大きい段階になり、最少は最小段階', () => {
