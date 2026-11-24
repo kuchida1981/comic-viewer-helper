@@ -3,6 +3,7 @@ schema: spec-driven
 context: |
   言語: 日本語
   すべての成果物は日本語で作成してください
+skillsScope: project
 
 # Project context (optional)
 # This is shown to AI when creating artifacts.
