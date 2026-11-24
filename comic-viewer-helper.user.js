@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.5.0
+// @version         1.6.0
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -15,6 +15,8 @@
 // @grant           GM_setValue
 // @grant           GM_getValue
 // @grant           GM_deleteValue
+// @grant           GM_xmlhttpRequest
+// @connect         api.github.com
 // ==/UserScript==
 
 /**
@@ -26,6 +28,10 @@
   "use strict";
   function isObject(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+  }
+  function isSyncConfig(value) {
+    if (!isObject(value)) return false;
+    return typeof value.enabled === "boolean" && typeof value.pat === "string" && typeof value.gistId === "string" && (value.lastSyncedAt === null || typeof value.lastSyncedAt === "number");
   }
   function isStringArray(value) {
     return Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -68,6 +74,73 @@
     if (typeof value.fetchedAt !== "number") return false;
     if (!isObject(value.results)) return false;
     return Array.isArray(value.results["results"]);
+  }
+  const AES_GCM_PREFIX = "AES-GCM:v1:";
+  async function deriveKey(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      enc.encode(password),
+      "PBKDF2",
+      false,
+      ["deriveKey"]
+    );
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt, iterations: 1e5, hash: "SHA-256" },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+  function toBase64(buf) {
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    return btoa(bytes.reduce((data, byte) => data + String.fromCharCode(byte), ""));
+  }
+  function fromBase64(b64) {
+    const str = atob(b64);
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      bytes[i] = str.charCodeAt(i);
+    }
+    return bytes;
+  }
+  async function encrypt(plaintext, password) {
+    const enc = new TextEncoder();
+    const salt = new Uint8Array(16);
+    crypto.getRandomValues(salt);
+    const iv = new Uint8Array(12);
+    crypto.getRandomValues(iv);
+    const key = await deriveKey(password, salt);
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      enc.encode(plaintext)
+    );
+    return `${AES_GCM_PREFIX}${toBase64(salt)}:${toBase64(iv)}:${toBase64(ciphertext)}`;
+  }
+  async function decrypt(encrypted, password) {
+    if (!encrypted.startsWith(AES_GCM_PREFIX)) {
+      throw new Error("Invalid encrypted data format");
+    }
+    const parts = encrypted.slice(AES_GCM_PREFIX.length).split(":");
+    if (parts.length !== 3) {
+      throw new Error("Invalid encrypted data format");
+    }
+    const [saltB64, ivB64, ciphertextB64] = parts;
+    const salt = fromBase64(saltB64);
+    const iv = fromBase64(ivB64);
+    const ciphertext = fromBase64(ciphertextB64);
+    const key = await deriveKey(password, salt);
+    const plaintext = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv },
+      key,
+      ciphertext
+    );
+    return new TextDecoder().decode(plaintext);
+  }
+  function isEncrypted(data) {
+    return data.startsWith(AES_GCM_PREFIX);
   }
   const FAVORITE_PICK_CHANCE = 0.25;
   function calculateTrends(favorites, limit = 10, pinnedTags = [], selectedTags = []) {
@@ -457,7 +530,8 @@
     AUTOPLAY_ENABLED: "comic-viewer-helper-autoplay-enabled",
     AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval",
     LUCKY_HISTORY: "comic-viewer-helper-lucky-history",
-    PINNED_TAGS: "comic-viewer-helper-pinned-tags"
+    PINNED_TAGS: "comic-viewer-helper-pinned-tags",
+    SYNC_CONFIG: "comic-viewer-helper-sync-config"
   };
   const MAX_SEARCH_HISTORY = 3;
   class Store {
@@ -490,7 +564,9 @@
         favorites: this._loadFavorites(),
         pinnedTags: this._loadPinnedTags(),
         isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
-        autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10)
+        autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10),
+        syncConfig: this._loadSyncConfig(),
+        syncLastError: null
       };
       this.listeners = [];
     }
@@ -510,14 +586,36 @@
         this._notify();
       }
     };
+    _syncTrigger = null;
+    setSyncTrigger(cb) {
+      this._syncTrigger = cb;
+    }
     _persistChanges = (patch) => {
       if ("enabled" in patch) GM_setValue(STORAGE_KEYS.ENABLED, String(patch.enabled));
       if ("isDualViewEnabled" in patch) GM_setValue(STORAGE_KEYS.DUAL_VIEW, String(patch.isDualViewEnabled));
       if ("guiPos" in patch) GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
       if ("isAutoplayEnabled" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
       if ("autoplayInterval" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+      if ("syncConfig" in patch) GM_setValue(STORAGE_KEYS.SYNC_CONFIG, JSON.stringify(patch.syncConfig));
       this._persistSearchRelatedChanges(patch);
       this._persistLuckyHistory(patch);
+      this._triggerSyncIfNeeded(patch);
+    };
+    _triggerSyncIfNeeded = (patch) => {
+      if (!this._syncTrigger) return;
+      const syncableKeys = [
+        "favorites",
+        "luckyHistory",
+        "searchHistory",
+        "pinnedTags",
+        "enabled",
+        "isDualViewEnabled",
+        "isAutoplayEnabled",
+        "autoplayInterval"
+      ];
+      if (syncableKeys.some((k) => k in patch)) {
+        this._syncTrigger();
+      }
     };
     _persistSearchRelatedChanges = (patch) => {
       const host = window.location.hostname;
@@ -679,6 +777,16 @@
         return isStringArray(parsed) ? parsed : [];
       } catch {
         return [];
+      }
+    };
+    _loadSyncConfig = () => {
+      try {
+        const saved = GM_getValue(STORAGE_KEYS.SYNC_CONFIG);
+        if (!saved) return null;
+        const parsed = JSON.parse(saved);
+        return isSyncConfig(parsed) ? parsed : null;
+      } catch {
+        return null;
       }
     };
     _loadGuiPos = () => {
@@ -2080,6 +2188,10 @@
     border-bottom: 1px solid ${COLORS.border.dark};
   }
 
+  .comic-helper-shortcut-row:last-child {
+    border-bottom: none;
+  }
+
   @media (max-width: 600px) {
     .comic-helper-shortcut-row {
       display: flex;
@@ -2120,6 +2232,13 @@
   .comic-helper-shortcut-desc {
     color: #bbb;
     font-size: 13px;
+  }
+
+  .comic-helper-sync-description {
+    font-size: 10px;
+    color: ${COLORS.text.muted};
+    margin-bottom: 4px;
+    line-height: 1.4;
   }
 
   /* Progress Bar Styles */
@@ -2352,7 +2471,30 @@
         showAllTags: "Show All",
         showTopTags: "Top Only",
         pinTag: "Pin tag",
-        unpinTag: "Unpin tag"
+        unpinTag: "Unpin tag",
+        syncSettings: "Sync Settings",
+        syncEnabled: "Enable Sync",
+        syncPat: "GitHub Personal Access Token",
+        syncGistId: "Gist ID (leave blank to create new)",
+        syncSave: "Save",
+        syncSaving: "Saving...",
+        syncSaveSuccess: "Saved",
+        syncSaveError: "Save failed: {error}",
+        syncStatus: "Last synced: {time}",
+        syncNeverSynced: "Never synced",
+        syncError: "Sync error: {error}",
+        syncEncryptionMode: "Encryption",
+        syncEncryptionNone: "None (plaintext)",
+        syncEncryptionAes: "AES Encryption",
+        syncEncryptionPassword: "Encryption Password",
+        syncEncryptionPasswordPlaceholder: "Enter password...",
+        syncEncryptionPasswordRequired: "Password is required when AES encryption is selected.",
+        syncDecryptionFailed: "Decryption failed. Please check your password.",
+        syncSettingsDesc: "Sync your reading history and settings across devices using GitHub Gist.",
+        syncPatDesc: 'A GitHub Personal Access Token with "gist" scope. Generate one from GitHub Settings > Developer settings > Personal access tokens.',
+        syncGistIdDesc: "The ID of the Gist used for syncing. Leave blank to create a new Gist automatically on first save.",
+        syncEncryptionModeDesc: "Choose whether to encrypt your data before storing it in the Gist. AES encryption requires a password.",
+        syncEncryptionPasswordDesc: "Password used to encrypt/decrypt your data. If you forget it, your synced data cannot be recovered. To change the password or disable encryption, update the setting here and save; existing data will be re-encrypted (or decrypted) with the next sync."
       },
       shortcuts: {
         nextPage: { label: "Next Page", desc: "Move to next page" },
@@ -2423,7 +2565,30 @@
         showAllTags: "すべて表示",
         showTopTags: "上位のみ",
         pinTag: "タグをピン留め",
-        unpinTag: "ピン留めを解除"
+        unpinTag: "ピン留めを解除",
+        syncSettings: "同期設定",
+        syncEnabled: "同期を有効にする",
+        syncPat: "GitHub Personal Access Token",
+        syncGistId: "Gist ID（空白の場合は新規作成）",
+        syncSave: "保存",
+        syncSaving: "保存中...",
+        syncSaveSuccess: "保存しました",
+        syncSaveError: "保存に失敗しました: {error}",
+        syncStatus: "最終同期: {time}",
+        syncNeverSynced: "未同期",
+        syncError: "同期エラー: {error}",
+        syncEncryptionMode: "暗号化",
+        syncEncryptionNone: "なし（平文）",
+        syncEncryptionAes: "AES暗号化",
+        syncEncryptionPassword: "暗号化パスワード",
+        syncEncryptionPasswordPlaceholder: "パスワードを入力...",
+        syncEncryptionPasswordRequired: "AES暗号化を選択した場合、パスワードは必須です。",
+        syncDecryptionFailed: "復号に失敗しました。パスワードを確認してください。",
+        syncSettingsDesc: "GitHub Gist を使って、閲覧履歴や設定を複数の端末で同期します。",
+        syncPatDesc: '"gist" スコープを持つ GitHub Personal Access Token です。GitHub の Settings > Developer settings > Personal access tokens から生成してください。',
+        syncGistIdDesc: "同期に使用する Gist の ID です。空欄にすると、初回保存時に自動で新規 Gist が作成されます。",
+        syncEncryptionModeDesc: "Gist に保存するデータを暗号化するかどうかを選択します。AES 暗号化を選択した場合、パスワードが必要です。",
+        syncEncryptionPasswordDesc: "データの暗号化・復号に使用するパスワードです。忘れると同期データを復元できなくなります。パスワードの変更や暗号化の解除は、設定を変更して保存することで行えます（次回同期時にデータが再暗号化または復号されます）。"
       },
       shortcuts: {
         nextPage: { label: "次ページ", desc: "次のページへ移動" },
@@ -2924,7 +3089,7 @@
       description: t("shortcuts.closeModal.desc")
     }
   ];
-  function createHelpModal({ onClose }) {
+  function createHelpModal({ onClose, extraContent }) {
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -2969,14 +3134,21 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.5.0"} (${t("ui.stable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0"} (${t("ui.stable")})`
     });
+    const contentChildren = [
+      closeBtn,
+      titleEl,
+      shortcutList,
+      ...extraContent ? [extraContent] : [],
+      versionTag
+    ];
     const content = createElement("div", {
       className: "comic-helper-modal-content",
       events: {
         click: (e) => e.stopPropagation()
       }
-    }, [closeBtn, titleEl, shortcutList, versionTag]);
+    }, contentChildren);
     const overlay = createElement("div", {
       className: "comic-helper-modal-overlay",
       events: {
@@ -2989,6 +3161,232 @@
     return {
       el: overlay,
       update: () => {
+      }
+    };
+  }
+  function formatSyncTime(lastSyncedAt) {
+    if (!lastSyncedAt) return t("ui.syncNeverSynced");
+    const date = new Date(lastSyncedAt);
+    return t("ui.syncStatus").replace("{time}", date.toLocaleString());
+  }
+  function getStatusText(lastError, lastSyncedAt) {
+    if (lastError) return t("ui.syncError").replace("{error}", lastError);
+    return formatSyncTime(lastSyncedAt);
+  }
+  function getStatusColor(lastError) {
+    return lastError ? "#ff6b6b" : COLORS.text.muted;
+  }
+  function createTextInput(type, placeholder, value) {
+    return createElement("input", {
+      attributes: { type, placeholder, value },
+      style: {
+        width: "100%",
+        boxSizing: "border-box",
+        background: COLORS.background.input,
+        border: `1px solid ${COLORS.border.default}`,
+        borderRadius: "3px",
+        color: COLORS.text.primary,
+        padding: "4px 6px",
+        fontSize: "12px",
+        marginBottom: "8px"
+      }
+    });
+  }
+  function createEncryptionRow(syncConfig) {
+    const encryptionModeSelect = createElement("select", {
+      style: {
+        width: "100%",
+        boxSizing: "border-box",
+        background: COLORS.background.input,
+        border: `1px solid ${COLORS.border.default}`,
+        borderRadius: "3px",
+        color: COLORS.text.primary,
+        padding: "4px 6px",
+        fontSize: "12px",
+        marginBottom: "8px"
+      }
+    });
+    const optionNone = document.createElement("option");
+    optionNone.value = "none";
+    optionNone.textContent = t("ui.syncEncryptionNone");
+    const optionAes = document.createElement("option");
+    optionAes.value = "aes";
+    optionAes.textContent = t("ui.syncEncryptionAes");
+    encryptionModeSelect.appendChild(optionNone);
+    encryptionModeSelect.appendChild(optionAes);
+    encryptionModeSelect.value = syncConfig ? syncConfig.encryptionMode : "none";
+    const encryptionPasswordInput = createTextInput(
+      "password",
+      t("ui.syncEncryptionPasswordPlaceholder"),
+      syncConfig ? syncConfig.encryptionPassword ?? "" : ""
+    );
+    const encryptionPasswordLabel = createElement("label", {
+      textContent: t("ui.syncEncryptionPassword"),
+      style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
+    });
+    const encryptionPasswordRow = createElement("div", {}, [encryptionPasswordLabel, encryptionPasswordInput]);
+    encryptionPasswordRow.style.display = encryptionModeSelect.value === "aes" ? "block" : "none";
+    encryptionModeSelect.addEventListener("change", () => {
+      encryptionPasswordRow.style.display = encryptionModeSelect.value === "aes" ? "block" : "none";
+    });
+    return { encryptionModeSelect, encryptionPasswordRow, encryptionPasswordInput };
+  }
+  function createSyncSettings({ syncConfig, onSave, lastError }) {
+    let currentConfig = syncConfig;
+    let latestSyncConfig = syncConfig;
+    let latestLastError = lastError;
+    let isFeedbackShown = false;
+    const enabledCheckbox = createElement("input", {
+      attributes: { type: "checkbox", id: "comic-helper-sync-enabled" }
+    });
+    enabledCheckbox.checked = syncConfig ? syncConfig.enabled : false;
+    const enabledLabel = createElement("label", {
+      attributes: { for: "comic-helper-sync-enabled" },
+      textContent: t("ui.syncEnabled"),
+      style: { marginLeft: "6px", cursor: "pointer" }
+    });
+    const enabledRow = createElement("div", {
+      style: { display: "flex", alignItems: "center", marginBottom: "8px" }
+    }, [enabledCheckbox, enabledLabel]);
+    const patLabel = createElement("label", {
+      textContent: t("ui.syncPat"),
+      style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
+    });
+    const patInput = createTextInput("password", "ghp_...", syncConfig ? syncConfig.pat : "");
+    const gistIdLabel = createElement("label", {
+      textContent: t("ui.syncGistId"),
+      style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
+    });
+    const gistIdInput = createTextInput("text", "abc123...", syncConfig ? syncConfig.gistId : "");
+    const encryptionModeLabel = createElement("label", {
+      textContent: t("ui.syncEncryptionMode"),
+      style: { display: "block", fontSize: "11px", color: COLORS.text.muted, marginBottom: "3px" }
+    });
+    const { encryptionModeSelect, encryptionPasswordRow, encryptionPasswordInput } = createEncryptionRow(syncConfig);
+    const lastSyncedAt = syncConfig ? syncConfig.lastSyncedAt : null;
+    const statusEl = createElement("div", {
+      textContent: getStatusText(lastError, lastSyncedAt),
+      style: {
+        fontSize: "11px",
+        color: getStatusColor(lastError),
+        marginBottom: "8px"
+      }
+    });
+    const saveBtn = createElement("button", {
+      className: "comic-helper-button",
+      textContent: t("ui.syncSave"),
+      events: {
+        click: () => {
+          const mode = encryptionModeSelect.value;
+          if (mode === "aes" && !encryptionPasswordInput.value.trim()) {
+            statusEl.textContent = t("ui.syncEncryptionPasswordRequired");
+            statusEl.style.color = "#ff6b6b";
+            return;
+          }
+          const newConfig = {
+            enabled: enabledCheckbox.checked,
+            pat: patInput.value.trim(),
+            gistId: gistIdInput.value.trim(),
+            lastSyncedAt: currentConfig ? currentConfig.lastSyncedAt : null,
+            encryptionMode: mode,
+            ...mode === "aes" ? { encryptionPassword: encryptionPasswordInput.value.trim() } : {}
+          };
+          currentConfig = newConfig;
+          isFeedbackShown = true;
+          saveBtn.disabled = true;
+          saveBtn.textContent = t("ui.syncSaving");
+          onSave(newConfig).then(() => {
+            statusEl.textContent = t("ui.syncSaveSuccess");
+            statusEl.style.color = COLORS.text.success;
+            setTimeout(() => {
+              isFeedbackShown = false;
+              statusEl.textContent = getStatusText(latestLastError, latestSyncConfig?.lastSyncedAt ?? null);
+              statusEl.style.color = getStatusColor(latestLastError);
+            }, 3e3);
+          }).catch((err) => {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            statusEl.textContent = t("ui.syncSaveError").replace("{error}", errMsg);
+            statusEl.style.color = getStatusColor("error");
+          }).finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.textContent = t("ui.syncSave");
+          });
+        }
+      }
+    });
+    const titleEl = createElement("div", {
+      textContent: t("ui.syncSettings"),
+      style: {
+        fontWeight: "bold",
+        fontSize: "13px",
+        marginTop: "15px",
+        marginBottom: "10px",
+        paddingTop: "10px",
+        borderTop: `1px solid ${COLORS.border.default}`
+      }
+    });
+    const introDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncSettingsDesc"),
+      style: { marginBottom: "10px" }
+    });
+    const patDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncPatDesc")
+    });
+    const gistIdDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncGistIdDesc")
+    });
+    const encryptionModeDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncEncryptionModeDesc")
+    });
+    const encryptionPasswordDesc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.syncEncryptionPasswordDesc")
+    });
+    encryptionPasswordRow.insertBefore(encryptionPasswordDesc, encryptionPasswordInput);
+    const container = createElement("div", {
+      style: { padding: "0 2px" }
+    }, [
+      titleEl,
+      introDesc,
+      enabledRow,
+      patLabel,
+      patDesc,
+      patInput,
+      gistIdLabel,
+      gistIdDesc,
+      gistIdInput,
+      encryptionModeLabel,
+      encryptionModeDesc,
+      encryptionModeSelect,
+      encryptionPasswordRow,
+      statusEl,
+      saveBtn
+    ]);
+    const updateEncryptionFields = (newSyncConfig) => {
+      const mode = newSyncConfig ? newSyncConfig.encryptionMode : "none";
+      encryptionModeSelect.value = mode;
+      encryptionPasswordInput.value = newSyncConfig ? newSyncConfig.encryptionPassword ?? "" : "";
+      encryptionPasswordRow.style.display = mode === "aes" ? "block" : "none";
+    };
+    return {
+      el: container,
+      update: (newSyncConfig, newLastError) => {
+        latestSyncConfig = newSyncConfig;
+        latestLastError = newLastError;
+        currentConfig = newSyncConfig;
+        enabledCheckbox.checked = newSyncConfig ? newSyncConfig.enabled : false;
+        patInput.value = newSyncConfig ? newSyncConfig.pat : "";
+        gistIdInput.value = newSyncConfig ? newSyncConfig.gistId : "";
+        updateEncryptionFields(newSyncConfig);
+        if (!isFeedbackShown) {
+          const newLastSyncedAt = newSyncConfig ? newSyncConfig.lastSyncedAt : null;
+          statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);
+          statusEl.style.color = getStatusColor(newLastError);
+        }
       }
     };
   }
@@ -3728,14 +4126,17 @@
     topRow = null;
     bottomRow = null;
     modalComp = null;
-    helpModalEl = null;
+    helpModalComp = null;
+    syncSettingsComp = null;
     searchModalComp = null;
     favoritesModalComp = null;
-    constructor(adapter, store, navigator2, discoveryManager) {
+    syncManager;
+    constructor(adapter, store, navigator2, discoveryManager, syncManager) {
       this.adapter = adapter;
       this.store = store;
       this.navigator = navigator2;
       this.discoveryManager = discoveryManager;
+      this.syncManager = syncManager;
     }
     init = () => {
       injectStyles();
@@ -3888,9 +4289,30 @@
       this.navBtnsComp.utilElements.forEach((btn) => bottomRow.appendChild(btn));
     };
     _updateModals = (state) => {
-      this.helpModalEl = this._manageModal(state.isHelpModalOpen, this.helpModalEl, () => createHelpModal({
-        onClose: () => this.store.setState({ isHelpModalOpen: false })
-      }));
+      if (state.isHelpModalOpen) {
+        if (!this.helpModalComp) {
+          this.syncSettingsComp = createSyncSettings({
+            syncConfig: state.syncConfig,
+            onSave: async (config) => {
+              const prevConfig = this.store.getState().syncConfig;
+              this.store.setState({ syncConfig: config });
+              await this.syncManager.push(prevConfig);
+            },
+            lastError: state.syncLastError
+          });
+          this.helpModalComp = createHelpModal({
+            onClose: () => this.store.setState({ isHelpModalOpen: false }),
+            extraContent: this.syncSettingsComp.el
+          });
+          document.body.appendChild(this.helpModalComp.el);
+        } else {
+          this.syncSettingsComp?.update(state.syncConfig, state.syncLastError);
+        }
+      } else if (this.helpModalComp) {
+        this.helpModalComp.el.remove();
+        this.helpModalComp = null;
+        this.syncSettingsComp = null;
+      }
       this._updateSearchModal(state);
       this._updateFavoritesModal(state);
       if (state.isMetadataModalOpen) {
@@ -4375,6 +4797,234 @@
       window.location.href = link.href;
     };
   }
+  const GIST_FILENAME = "comic-viewer-helper-sync.json";
+  class GistSyncProvider {
+    constructor(pat) {
+      this.pat = pat;
+    }
+    upload(data, gistId) {
+      return new Promise((resolve, reject) => {
+        const method = gistId ? "PATCH" : "POST";
+        const url = gistId ? `https://api.github.com/gists/${gistId}` : "https://api.github.com/gists";
+        GM_xmlhttpRequest({
+          method,
+          url,
+          headers: {
+            "Authorization": `token ${this.pat}`,
+            "Content-Type": "application/json"
+          },
+          data: JSON.stringify({
+            description: "comic-viewer-helper sync data",
+            public: false,
+            files: {
+              [GIST_FILENAME]: { content: data }
+            }
+          }),
+          onload: (response) => {
+            if (response.status >= 200 && response.status < 300) {
+              try {
+                const body = JSON.parse(response.responseText);
+                resolve({ gistId: body.id });
+              } catch {
+                reject(new Error("Failed to parse upload response"));
+              }
+            } else {
+              reject(new Error(`Upload failed with status ${response.status}`));
+            }
+          },
+          onerror: () => reject(new Error("Network error during upload"))
+        });
+      });
+    }
+    download(gistId) {
+      return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: `https://api.github.com/gists/${gistId}`,
+          headers: {
+            "Authorization": `token ${this.pat}`
+          },
+          onload: (response) => {
+            if (response.status === 404) {
+              resolve(null);
+              return;
+            }
+            if (response.status >= 200 && response.status < 300) {
+              try {
+                const body = JSON.parse(response.responseText);
+                const file = body.files[GIST_FILENAME];
+                resolve(file ? file.content : null);
+              } catch {
+                reject(new Error("Failed to parse download response"));
+              }
+            } else {
+              reject(new Error(`Download failed with status ${response.status}`));
+            }
+          },
+          onerror: () => reject(new Error("Network error during download"))
+        });
+      });
+    }
+  }
+  class SyncManager {
+    constructor(store) {
+      this.store = store;
+    }
+    provider = null;
+    debounceTimer = null;
+    DEBOUNCE_DELAY = 3e4;
+    // 30 seconds
+    lastError = null;
+    setProvider(provider) {
+      this.provider = provider;
+    }
+    scheduleUpload() {
+      if (!this.provider) return;
+      const config = this.store.getState().syncConfig;
+      if (!config?.enabled) return;
+      if (this.debounceTimer !== null) {
+        clearTimeout(this.debounceTimer);
+      }
+      this.debounceTimer = setTimeout(() => {
+        void this._upload();
+      }, this.DEBOUNCE_DELAY);
+    }
+    push(prevConfig) {
+      if (!this.provider) return Promise.resolve();
+      const config = this.store.getState().syncConfig;
+      if (!config?.enabled) return Promise.resolve();
+      if (this.debounceTimer !== null) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null;
+      }
+      return this._doUpload(prevConfig ?? null);
+    }
+    pull() {
+      if (!this.provider) return Promise.resolve();
+      const config = this.store.getState().syncConfig;
+      if (!config?.enabled || !config.gistId) return Promise.resolve();
+      return this.provider.download(config.gistId).then(async (data) => {
+        if (data) {
+          await this._applyRemoteData(data, config);
+        } else {
+          this.lastError = null;
+          this.store.setState({ syncLastError: null });
+        }
+      }).catch((err) => {
+        console.warn("[SyncManager] pull failed:", err);
+        this.lastError = err instanceof Error ? err.message : String(err);
+        this.store.setState({ syncLastError: this.lastError });
+      });
+    }
+    getLastError() {
+      return this.lastError;
+    }
+    _upload() {
+      if (!this.provider) return Promise.resolve();
+      const config = this.store.getState().syncConfig;
+      if (!config?.enabled) return Promise.resolve();
+      return this._doUpload().catch((err) => {
+        console.warn("[SyncManager] upload failed:", err);
+        this.lastError = err instanceof Error ? err.message : String(err);
+        this.store.setState({ syncLastError: this.lastError });
+      });
+    }
+    _doUpload(prevConfig = null) {
+      const config = this.store.getState().syncConfig;
+      if (!config) return Promise.resolve();
+      const state = this.store.getState();
+      const host = window.location.hostname;
+      const now = Date.now();
+      const hostData = {
+        favorites: state.favorites,
+        luckyHistory: state.luckyHistory,
+        searchHistory: state.searchHistory,
+        pinnedTags: state.pinnedTags
+      };
+      const downloadConfig = prevConfig ?? config;
+      const mergeAndUpload = async () => {
+        let existingHosts = {};
+        if (config.gistId) {
+          const existing = await this.provider.download(config.gistId);
+          if (existing) {
+            const jsonStr = await this._decryptIfNeeded(existing, downloadConfig);
+            const existingPayload = JSON.parse(jsonStr);
+            existingHosts = existingPayload.hosts ?? {};
+          }
+        }
+        const payload = {
+          version: 1,
+          lastSyncedAt: now,
+          settings: {
+            enabled: state.enabled,
+            isDualViewEnabled: state.isDualViewEnabled,
+            isAutoplayEnabled: state.isAutoplayEnabled,
+            autoplayInterval: state.autoplayInterval
+          },
+          hosts: { ...existingHosts, [host]: hostData }
+        };
+        const dataToUpload = await this._encryptIfNeeded(JSON.stringify(payload), config);
+        const result = await this.provider.upload(dataToUpload, config.gistId);
+        const latestConfig = this.store.getState().syncConfig;
+        if (!latestConfig) return;
+        const updatedConfig = {
+          ...latestConfig,
+          gistId: result.gistId,
+          lastSyncedAt: now
+        };
+        this.store.setState({ syncConfig: updatedConfig, syncLastError: null });
+        this.lastError = null;
+      };
+      return mergeAndUpload();
+    }
+    _encryptIfNeeded(data, config) {
+      if (config.encryptionMode === "aes" && config.encryptionPassword) {
+        return encrypt(data, config.encryptionPassword);
+      }
+      return Promise.resolve(data);
+    }
+    async _decryptIfNeeded(data, config) {
+      if (isEncrypted(data)) {
+        if (config.encryptionMode !== "aes" || !config.encryptionPassword) {
+          throw new Error(t("ui.syncDecryptionFailed"));
+        }
+        return decrypt(data, config.encryptionPassword);
+      }
+      return data;
+    }
+    async _applyRemoteData(data, config) {
+      try {
+        const jsonStr = await this._decryptIfNeeded(data, config);
+        const payload = JSON.parse(jsonStr);
+        const localLastSynced = config.lastSyncedAt ?? 0;
+        if (payload.lastSyncedAt <= localLastSynced) return;
+        const host = window.location.hostname;
+        const hostData = payload.hosts?.[host];
+        const patch = {};
+        if (payload.settings) {
+          patch.enabled = payload.settings.enabled;
+          patch.isDualViewEnabled = payload.settings.isDualViewEnabled;
+          patch.isAutoplayEnabled = payload.settings.isAutoplayEnabled;
+          patch.autoplayInterval = payload.settings.autoplayInterval;
+        }
+        if (hostData) {
+          patch.favorites = hostData.favorites;
+          patch.luckyHistory = hostData.luckyHistory;
+          patch.searchHistory = hostData.searchHistory;
+          patch.pinnedTags = hostData.pinnedTags;
+        }
+        const updatedConfig = { ...config, lastSyncedAt: payload.lastSyncedAt };
+        patch.syncConfig = updatedConfig;
+        patch.syncLastError = null;
+        this.store.setState(patch);
+        this.lastError = null;
+      } catch (err) {
+        console.warn("[SyncManager] failed to apply remote data:", err);
+        this.lastError = err instanceof Error ? err.message : String(err);
+        this.store.setState({ syncLastError: this.lastError });
+      }
+    }
+  }
   class App {
     store;
     adapter;
@@ -4384,17 +5034,36 @@
     inputManager;
     resumeManager;
     popUnderBlocker;
+    syncManager;
     constructor() {
       this.store = new Store();
+      this.syncManager = new SyncManager(this.store);
+      this._initSync();
       const adapters = [DefaultAdapter];
       this.adapter = adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
       this.navigator = new Navigator(this.adapter, this.store);
       this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
-      this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager);
+      this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager, this.syncManager);
       this.inputManager = new InputManager(this.store, this.navigator, this.discoveryManager, this.uiManager);
       this.resumeManager = new ResumeManager(this.store);
       this.popUnderBlocker = new PopUnderBlocker(this.store);
     }
+    _initSync = () => {
+      const config = this.store.getState().syncConfig;
+      let activePat = config?.enabled && config.pat ? config.pat : null;
+      if (activePat) {
+        this.syncManager.setProvider(new GistSyncProvider(activePat));
+      }
+      this.store.setSyncTrigger(() => this.syncManager.scheduleUpload());
+      this.store.subscribe((state) => {
+        const cfg = state.syncConfig;
+        const newPat = cfg?.enabled && cfg.pat ? cfg.pat : null;
+        if (newPat !== activePat) {
+          activePat = newPat;
+          this.syncManager.setProvider(newPat ? new GistSyncProvider(newPat) : null);
+        }
+      });
+    };
     init = () => {
       const container = this.adapter.getContainer();
       if (!container) return;
@@ -4404,6 +5073,7 @@
       this.uiManager.init();
       this.inputManager.init();
       this.popUnderBlocker.init();
+      void this.syncManager.pull();
       const firstImageSrc = this.navigator.getImages()[0]?.src || "";
       this.store.addLuckyHistory({
         title: metadata.title || document.title,
