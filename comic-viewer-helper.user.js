@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.326a076
+// @version         1.6.0-unstable.d620f7a
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -3176,7 +3176,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.326a076"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.d620f7a"} (${t("ui.unstable")})`
     });
     const contentChildren = [
       closeBtn,
@@ -3797,7 +3797,7 @@
       }));
       return grid;
     }
-    favorites.forEach((item) => {
+    [...favorites].reverse().forEach((item) => {
       const gridItem = createGridItem(item, {
         isFavorite: true,
         onToggleFavorite,
