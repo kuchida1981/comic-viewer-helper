@@ -141,6 +141,17 @@ export function calculateTrends(
 }
 
 /**
+ * Calculate the tag cloud size level (1..levels) for a tag count.
+ * Linear scale between min and max. When min === max, the middle level is returned.
+ */
+export function calculateTagCloudLevel(count: number, min: number, max: number, levels: number = 5): number {
+  if (max <= min) return Math.ceil(levels / 2);
+  const ratio = (count - min) / (max - min);
+  const level = 1 + Math.round(ratio * (levels - 1));
+  return Math.min(levels, Math.max(1, level));
+}
+
+/**
  * Filter works by selected tag texts (AND logic: all selected tags must be present)
  */
 export function filterWorksByTags(favorites: RelatedWork[], selectedTagTexts: Set<string>): RelatedWork[] {

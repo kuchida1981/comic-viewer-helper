@@ -594,3 +594,108 @@ describe('FavoritesModal', () => {
     });
   });
 });
+
+describe('FavoritesModal tag cloud view', () => {
+  const manyTags: RelatedWork[] = [
+    {
+      title: 'W1', href: '/work/1/', thumb: '/thumb/1.webp',
+      tags: Array.from({ length: 12 }, (_, i) => ({ text: `tag${i}`, href: `/tags/${i}`, type: 'tag' as const }))
+    },
+    { title: 'W2', href: '/work/2/', thumb: '/thumb/2.webp', tags: [{ text: 'tag0', href: '/tags/0', type: 'tag' }] },
+    { title: 'W3', href: '/work/3/', thumb: '/thumb/3.webp', tags: [{ text: 'tag0', href: '/tags/0', type: 'tag' }] }
+  ];
+
+  const viewButtons = (el: HTMLElement) =>
+    el.querySelectorAll<HTMLElement>('.comic-helper-favorites-view-btn');
+  const cloudEl = (el: HTMLElement) => el.querySelector('.comic-helper-tag-cloud') as HTMLElement;
+  const listViewEl = (el: HTMLElement) => el.querySelector('.comic-helper-favorites-list-view') as HTMLElement;
+
+  it('デフォルトでは一覧ビューが表示されクラウドは非表示', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    expect(viewButtons(el)).toHaveLength(2);
+    expect(listViewEl(el).style.display).not.toBe('none');
+    expect(cloudEl(el).style.display).toBe('none');
+  });
+
+  it('タグクラウドに切り替えると作品グリッドが非表示になる', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    viewButtons(el)[1].click();
+    expect(cloudEl(el).style.display).not.toBe('none');
+    expect(listViewEl(el).style.display).toBe('none');
+    expect(viewButtons(el)[1].classList.contains('active')).toBe(true);
+  });
+
+  it('10種類を超える全タグが表示される', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTags });
+    viewButtons(el)[1].click();
+    expect(cloudEl(el).querySelectorAll('.comic-helper-tag-cloud-item')).toHaveLength(12);
+  });
+
+  it('件数が多いタグほど大きい段階になり、最少は最小段階', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: manyTags });
+    viewButtons(el)[1].click();
+    const items = Array.from(cloudEl(el).querySelectorAll<HTMLElement>('.comic-helper-tag-cloud-item'));
+    const top = items.find(i => i.textContent === 'tag0')!;
+    const low = items.find(i => i.textContent === 'tag1')!;
+    expect(top.className).toContain('--level-5');
+    expect(low.className).toContain('--level-1');
+  });
+
+  it('全タグの件数が同じなら同一段階', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: [manyTags[0]] });
+    viewButtons(el)[1].click();
+    const levels = new Set(Array.from(cloudEl(el).querySelectorAll('.comic-helper-tag-cloud-item')).map(i => i.className));
+    expect(levels.size).toBe(1);
+  });
+
+  it('タグが存在しない場合はメッセージを表示する', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: sampleFavorites });
+    viewButtons(el)[1].click();
+    expect(cloudEl(el).querySelectorAll('.comic-helper-tag-cloud-item')).toHaveLength(0);
+    expect(cloudEl(el).textContent).toContain(t('ui.tagCloudEmpty'));
+  });
+
+  it('クラウドのタグをクリックすると一覧ビューでそのタグに絞り込まれる', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    viewButtons(el)[1].click();
+    const bob = Array.from(cloudEl(el).querySelectorAll<HTMLElement>('.comic-helper-tag-cloud-item'))
+      .find(i => i.textContent === 'bob')!;
+    bob.click();
+
+    expect(listViewEl(el).style.display).not.toBe('none');
+    expect(cloudEl(el).style.display).toBe('none');
+    const items = listViewEl(el).querySelectorAll('.comic-helper-search-result-item');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain('Work B');
+    expect(listViewEl(el).querySelector('.comic-helper-tag-chip.active')?.textContent).toContain('bob');
+  });
+
+  it('選択中のタグがある状態で別のタグをクリックするとAND絞り込みになる', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    viewButtons(el)[1].click();
+    const click = (name: string) => Array.from(cloudEl(el).querySelectorAll<HTMLElement>('.comic-helper-tag-cloud-item'))
+      .find(i => i.textContent === name)!.click();
+    click('fantasy');
+    viewButtons(el)[1].click();
+    click('alice');
+    const items = listViewEl(el).querySelectorAll('.comic-helper-search-result-item');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain('Work A');
+  });
+
+  it('一覧ビューに戻すとトレンドセクションが表示される', () => {
+    const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    viewButtons(el)[1].click();
+    viewButtons(el)[0].click();
+    expect(listViewEl(el).querySelector('.comic-helper-favorites-trend-section')).not.toBeNull();
+    expect(listViewEl(el).style.display).not.toBe('none');
+  });
+
+  it('クラウド表示中にお気に入りが更新されても、ビューは維持され再集計される', () => {
+    const comp = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+    viewButtons(comp.el)[1].click();
+    comp.updateFavorites(manyTags);
+    expect(cloudEl(comp.el).style.display).not.toBe('none');
+    expect(cloudEl(comp.el).querySelectorAll('.comic-helper-tag-cloud-item')).toHaveLength(12);
+  });
+});
