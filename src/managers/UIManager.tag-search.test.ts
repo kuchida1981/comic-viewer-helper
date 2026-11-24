@@ -13,6 +13,7 @@ describe('UIManager Tag Search', () => {
     beforeEach(() => {
         adapter = {
             match: vi.fn().mockReturnValue(true),
+            isWorkPage: vi.fn().mockReturnValue(true),
             getContainer: vi.fn(),
             getImages: vi.fn().mockReturnValue([]),
             getMetadata: vi.fn(),
@@ -43,6 +44,7 @@ describe('UIManager Tag Search', () => {
             pinnedTags: [],
             isAutoplayEnabled: false,
             autoplayInterval: 5,
+            isRedirectEnabled: false,
             syncConfig: null,
       syncLastError: null
         };

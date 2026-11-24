@@ -43,12 +43,14 @@ describe('DiscoveryManager', () => {
       searchHistory: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5,
+      isRedirectEnabled: false,
       syncConfig: null,
       syncLastError: null
     };
 
     adapter = {
       match: vi.fn().mockReturnValue(true),
+      isWorkPage: vi.fn().mockReturnValue(true),
       getSearchUrl: vi.fn().mockImplementation((q) => `http://site.com/search?q=${q}`),
       parseSearchResults: vi.fn().mockReturnValue({ results: [], nextPageUrl: null, pagination: [] }),
       searchConfig: { baseUrl: '/', queryParam: 's' }

@@ -64,6 +64,8 @@ export interface SearchConfig {
 
 export interface SiteAdapter {
   match: (url: string) => boolean;
+  /** URLのみに基づき、作品ページ(画像閲覧ページ)かどうかを判定する。DOMに依存しない */
+  isWorkPage: (url: string) => boolean;
   getContainer: () => HTMLElement | null;
   getImages: () => HTMLImageElement[];
   getMetadata?: () => Metadata;

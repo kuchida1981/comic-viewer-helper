@@ -7,6 +7,32 @@ describe('DefaultAdapter', () => {
     expect(DefaultAdapter.match('http://any.url')).toBe(true);
   });
 
+  describe('isWorkPage', () => {
+    it.each([
+      'https://example.com/magazine/123',
+      'https://example.com/fanzine/abc/def',
+      'https://example.com/magazine/123?page=2#top',
+      '/fanzine/456'
+    ])('should treat %s as a work page', (url) => {
+      expect(DefaultAdapter.isWorkPage(url)).toBe(true);
+    });
+
+    it.each([
+      'https://example.com/',
+      'https://example.com/?s=keyword',
+      'https://example.com/magazine/',
+      'https://example.com/magazine',
+      'https://example.com/artist/foo',
+      'https://example.com/other/magazine/123'
+    ])('should not treat %s as a work page', (url) => {
+      expect(DefaultAdapter.isWorkPage(url)).toBe(false);
+    });
+
+    it('should return false for an unparsable URL', () => {
+      expect(DefaultAdapter.isWorkPage('http://[invalid')).toBe(false);
+    });
+  });
+
   it('should return container and images via methods', () => {
     const mockContainer = { id: 'post-comic' };
     const mockImg = { src: 'test.jpg' };

@@ -11,9 +11,11 @@ import { createMetadataModal } from '../ui/components/MetadataModal';
 import { createHelpModal } from '../ui/components/HelpModal';
 import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createFavoritesModal } from '../ui/components/FavoritesModal';
+import { createRedirectSettings } from '../ui/components/RedirectSettings';
 
 vi.mock('../ui/styles', () => ({ injectStyles: vi.fn() }));
 vi.mock('../ui/components/SyncSettings', () => ({ createSyncSettings: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
+vi.mock('../ui/components/RedirectSettings', () => ({ createRedirectSettings: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/PowerButton', () => ({ createPowerButton: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
 vi.mock('../ui/components/PageCounter', () => ({ createPageCounter: vi.fn().mockReturnValue({ el: document.createElement('div'), input: document.createElement('input'), update: vi.fn() }) }));
 vi.mock('../ui/components/SpreadControls', () => ({ createSpreadControls: vi.fn().mockReturnValue({ el: document.createElement('div'), update: vi.fn() }) }));
@@ -92,6 +94,7 @@ describe('UIManager', () => {
       pinnedTags: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5,
+      isRedirectEnabled: false,
       syncConfig: null,
       syncLastError: null
     };
@@ -107,6 +110,7 @@ describe('UIManager', () => {
     
     const adapter = {
       match: vi.fn().mockReturnValue(true),
+      isWorkPage: vi.fn().mockReturnValue(true),
       getContainer: vi.fn().mockReturnValue(createMockElement('div')),
       getImages: vi.fn().mockReturnValue([{ src: '1.jpg' }]),
       getMetadata: vi.fn().mockReturnValue(currentState.metadata)
@@ -237,6 +241,12 @@ describe('UIManager', () => {
     // Re-open to cover updateFavorites branch
     currentState.isFavoritesModalOpen = true;
     uiManager.updateUI(); // favoritesModalComp already exists, calls updateFavorites
+
+    // Redirect settings toggle (rendered inside the help modal)
+    const redirectProps = (createRedirectSettings as Mock).mock.calls[0][0];
+    expect(redirectProps.isRedirectEnabled).toBe(false);
+    redirectProps.onToggle(true);
+    expect(currentState.isRedirectEnabled).toBe(true);
 
     // Help Modal Close
     const helpOnClose = (createHelpModal as Mock).mock.calls[0][0].onClose;

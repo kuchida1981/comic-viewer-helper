@@ -15,6 +15,7 @@ A browser extension (UserScript) that enhances the reading experience on specifi
 ## Key Features
 
 - **Resume Reading Position**: Automatically saves your last read page and offers to resume when you revisit the same URL.
+- **Jump to Last Viewed Work (optional)**: When you open a non-work page from outside the site (bookmark, typed URL, another site), you are taken to the last work you viewed. Off by default; toggle it in the Help (`?`) settings dialog. Does nothing for in-site navigation, reload, or back/forward.
 - **Spread View**: View two pages at once for a better reading experience.
 - **Progress Bar**: Visual progress tracking.
 - **Keyboard Navigation**: Fast and easy navigation using keyboard shortcuts.

@@ -7,6 +7,7 @@ import { InputManager } from './managers/InputManager';
 import { ResumeManager } from './managers/ResumeManager';
 import { PopUnderBlocker } from './managers/PopUnderBlocker';
 import { SyncManager, GistSyncProvider } from './managers/SyncManager';
+import { RedirectManager } from './managers/RedirectManager';
 import { SiteAdapter, isMetadataAdapter } from './types';
 
 class App {
@@ -20,14 +21,12 @@ class App {
   private popUnderBlocker: PopUnderBlocker;
   private syncManager: SyncManager;
 
-  constructor() {
+  constructor(adapter: SiteAdapter) {
     this.store = new Store();
     this.syncManager = new SyncManager(this.store);
     this._initSync();
 
-    // Select adapter (currently only DefaultAdapter)
-    const adapters: SiteAdapter[] = [DefaultAdapter];
-    this.adapter = adapters.find(a => a.match(window.location.href)) || DefaultAdapter;
+    this.adapter = adapter;
 
     this.navigator = new Navigator(this.adapter, this.store);
     this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
@@ -103,9 +102,29 @@ class App {
   };
 }
 
-const app = new App();
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', app.init);
-} else {
-  app.init();
+/**
+ * Select adapter (currently only DefaultAdapter)
+ */
+function selectAdapter(): SiteAdapter {
+  const adapters: SiteAdapter[] = [DefaultAdapter];
+  return adapters.find(a => a.match(window.location.href)) || DefaultAdapter;
 }
+
+function bootstrap(): void {
+  const adapter = selectAdapter();
+
+  // 作品ページ以外ではリダイレクト判定のみ行い、他の機能は初期化しない
+  if (!adapter.isWorkPage(window.location.href)) {
+    new RedirectManager(new Store(), adapter).run();
+    return;
+  }
+
+  const app = new App(adapter);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', app.init);
+  } else {
+    app.init();
+  }
+}
+
+bootstrap();

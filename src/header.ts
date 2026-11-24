@@ -7,11 +7,10 @@
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
-// @match           https://something/magazine/*
-// @match           https://something/fanzine/*
+// @match           https://something/*
 // @updateURL       https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
 // @downloadURL     https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/stable/comic-viewer-helper.user.js
-// @run-at          document-idle
+// @run-at          document-start
 // @grant           GM_setValue
 // @grant           GM_getValue
 // @grant           GM_deleteValue

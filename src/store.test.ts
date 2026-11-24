@@ -43,6 +43,7 @@ describe('Store', () => {
       pinnedTags: [],
       isAutoplayEnabled: false,
       autoplayInterval: 5,
+      isRedirectEnabled: false,
       syncConfig: null,
       syncLastError: null
     });
@@ -61,6 +62,18 @@ describe('Store', () => {
     expect(state.isDualViewEnabled).toBe(true);
     expect(state.guiPos).toEqual({ top: 100, left: 200 });
     expect(state.luckyHistory).toEqual([historyEntry]);
+  });
+
+  it('should default isRedirectEnabled to false and persist changes', () => {
+    const store = new Store();
+    expect(store.getState().isRedirectEnabled).toBe(false);
+
+    store.setState({ isRedirectEnabled: true });
+    expect(GM_getValue(STORAGE_KEYS.REDIRECT_ENABLED)).toBe('true');
+    expect(new Store().getState().isRedirectEnabled).toBe(true);
+
+    store.setState({ isRedirectEnabled: false });
+    expect(new Store().getState().isRedirectEnabled).toBe(false);
   });
 
   it('should migrate old string[] luckyHistory to empty array', () => {

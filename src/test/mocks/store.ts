@@ -23,6 +23,7 @@ const DEFAULT_STATE: StoreState = {
   pinnedTags: [],
   isAutoplayEnabled: false,
   autoplayInterval: 5,
+  isRedirectEnabled: false,
   syncConfig: null,
       syncLastError: null
 };
