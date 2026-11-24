@@ -1,7 +1,7 @@
 # vertical-alignment Specification
 
 ## Purpose
-TBD - created by archiving change center-vertical-alignment. Update Purpose after archive.
+画像をビューポートの垂直方向の中央に配置し、単一画像表示でも見開き表示でも上下の余白が均等になる、見やすい表示にする。
 ## Requirements
 ### Requirement: 画像の垂直方向アライメント
 画像はビューポートの垂直方向の中央に配置されなければならない（MUST）。

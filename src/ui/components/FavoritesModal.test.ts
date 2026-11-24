@@ -182,12 +182,42 @@ describe('FavoritesModal', () => {
     expect(items).toHaveLength(2);
   });
 
+  describe('display order (newest first)', () => {
+    const titlesIn = (el: HTMLElement): string[] =>
+      Array.from(el.querySelectorAll('.comic-helper-favorites-panel .comic-helper-search-result-title'))
+        .map(e => e.textContent);
+
+    it('should render favorites in descending order of addition', () => {
+      const { el } = createFavoritesModal(defaultProps);
+      expect(titlesIn(el)).toEqual(['Work B', 'Work A']);
+    });
+
+    it('should keep descending order after updateFavorites()', () => {
+      const { el, updateFavorites } = createFavoritesModal({ ...defaultProps, favorites: [] });
+      updateFavorites(taggedFavorites);
+      expect(titlesIn(el)).toEqual(['Work C', 'Work B', 'Work A']);
+    });
+
+    it('should keep descending order when filtered by tag', () => {
+      const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
+      (el.querySelector('.comic-helper-favorites-trend-tags button') as HTMLElement).click();
+      expect(titlesIn(el)).toEqual(['Work B', 'Work A']);
+    });
+
+    it('should not mutate the favorites array passed in', () => {
+      const favorites = [...sampleFavorites];
+      createFavoritesModal({ ...defaultProps, favorites });
+      expect(favorites).toEqual(sampleFavorites);
+    });
+  });
+
   it('should display titles and thumbnails', () => {
     const { el } = createFavoritesModal(defaultProps);
     expect(el.textContent).toContain('Work A');
     expect(el.textContent).toContain('Work B');
     const thumbs = el.querySelectorAll('.comic-helper-search-result-thumb') as NodeListOf<HTMLImageElement>;
-    expect(thumbs[0].src).toContain('/thumb/1.webp');
+    // newest first: Work B is displayed before Work A
+    expect(thumbs[0].src).toContain('/thumb/2.webp');
   });
 
   it('should not set unsafe thumb URLs as src', () => {
@@ -243,7 +273,7 @@ describe('FavoritesModal', () => {
     const { el } = createFavoritesModal({ ...defaultProps, onRemoveFavorite });
     const deleteBtns = el.querySelectorAll('.comic-helper-favorites-delete-btn');
     (deleteBtns[0] as HTMLElement).click();
-    expect(onRemoveFavorite).toHaveBeenCalledWith('/work/1/');
+    expect(onRemoveFavorite).toHaveBeenCalledWith('/work/2/');
   });
 
   it('should call onRemoveHistory when delete button clicked in history tab', () => {
@@ -262,7 +292,7 @@ describe('FavoritesModal', () => {
     const { el } = createFavoritesModal({ ...defaultProps, onToggleFavorite });
     const favBtns = el.querySelectorAll('.comic-helper-item-favorite-btn');
     (favBtns[0] as HTMLElement).click();
-    expect(onToggleFavorite).toHaveBeenCalledWith(sampleFavorites[0]);
+    expect(onToggleFavorite).toHaveBeenCalledWith(sampleFavorites[1]);
   });
 
   it('should call onToggleFavorite from history tab', () => {
@@ -298,7 +328,7 @@ describe('FavoritesModal', () => {
   it('should open work in new tab when tile is clicked', () => {
     const { el } = createFavoritesModal(defaultProps);
     const link = el.querySelector('.comic-helper-search-result-item') as HTMLAnchorElement;
-    expect(link.href).toContain('/work/1/');
+    expect(link.href).toContain('/work/2/');
     expect(link.target).toBe('_blank');
   });
 

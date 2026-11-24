@@ -1,7 +1,7 @@
 # mouse-wheel-navigation Specification
 
 ## Purpose
-TBD - created by archiving change support-mouse-wheel-scroll. Update Purpose after archive.
+マウスホイールの回転方向に応じてページを前後に移動できるようにし、キーボードやクリック以外の閲覧操作を提供する。
 ## Requirements
 ### Requirement: マウスホイールによるページ移動
 ユーザーがマウスホイールを回転させたとき、システムはその回転方向に応じてページを前後に移動させなければならない（SHALL）。

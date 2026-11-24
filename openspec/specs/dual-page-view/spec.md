@@ -1,7 +1,7 @@
 # dual-page-view Specification
 
 ## Purpose
-TBD - created by archiving change support-dual-page-display. Update Purpose after archive.
+縦長の画像が連続する場合に、日本の漫画の右綴じに従って2ページを横並びで表示する「見開きモード」の描画要件を定義する。
 ## Requirements
 ### Requirement: Dual Page Rendering
 システムは、「見開きモード（Dual Page Mode）」が有効で、かつ連続する2枚の画像が縦長（portrait）である場合、それらを横並びに描画しなければならない（SHALL）。

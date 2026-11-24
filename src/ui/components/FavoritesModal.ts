@@ -136,7 +136,8 @@ function createFavoritesGrid(
     return grid;
   }
 
-  favorites.forEach(item => {
+  // Stored in insertion order (oldest first); display newest first without mutating the source
+  [...favorites].reverse().forEach(item => {
     const gridItem = createGridItem(item, {
       isFavorite: true,
       onToggleFavorite,

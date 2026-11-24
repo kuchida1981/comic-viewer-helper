@@ -1,7 +1,7 @@
 # ci-deployment Specification
 
 ## Purpose
-TBD - created by archiving change improve-build-artifact-management. Update Purpose after archive.
+開発状況（`master` へのプッシュやリリース）に応じて、ビルド成果物を適切な配布用ブランチへ自動的にデプロイし、ユーザーが最新のスクリプトを入手できる状態を保つ。
 ## Requirements
 ### Requirement: 配布用ブランチへの自動デプロイ
 システムは、開発状況に応じた適切な配布用ブランチへ、ビルド成果物を自動的にデプロイしなければならない（SHALL）。

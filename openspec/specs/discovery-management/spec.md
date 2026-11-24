@@ -1,7 +1,7 @@
 # discovery-management Specification
 
 ## Purpose
-TBD - created by archiving change lucky-nav-replenishment. Update Purpose after archive.
+ランダムジャンプの候補作品が不足したとき、検索結果の追加取得やタグベースの検索によって、外部から作品を能動的に補充する要件を定義する。
 ## Requirements
 ### Requirement: 候補プールの能動的補充 (Replenishment)
 システムは、ランダムジャンプの候補作品数が不足している場合、能動的に外部から作品を補充しなければならない (SHALL)。

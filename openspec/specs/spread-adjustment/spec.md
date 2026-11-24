@@ -1,7 +1,7 @@
 # spread-adjustment Specification
 
 ## Purpose
-TBD - created by archiving change fix-dual-view-stability. Update Purpose after archive.
+見開きモードでのページのペアリングがずれた場合に、ユーザーが手動で見開きオフセット（0/1）を切り替えて調整できるようにする。
 ## Requirements
 ### Requirement: Manual Offset Adjustment
 システムは、「見開きモード」が有効な場合のみ表示されるユーザーインターフェース（ラベル：`Offset`）を提供し、ユーザーが手動で見開きオフセット（0/1）を切り替えられるようにしなければならない（SHALL）。ラベルおよびツールチップ（`Shift spread pairing by 1 page (Offset)` 相当）は、現在の言語設定に応じた翻訳テキストで表示されなければならない（SHALL）。
