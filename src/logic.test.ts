@@ -18,7 +18,9 @@ import {
   filterWorksByTags,
   encrypt,
   decrypt,
-  isEncrypted
+  isEncrypted,
+  resolveRedirectTarget,
+  RedirectContext
   } from './logic';
 
 import { Metadata } from './types.js';
@@ -936,5 +938,69 @@ describe('encrypt / decrypt / isEncrypted', () => {
     const enc1 = await encrypt(plaintext, password);
     const enc2 = await encrypt(plaintext, password);
     expect(enc1).not.toBe(enc2);
+  });
+  describe('resolveRedirectTarget', () => {
+    const isWorkUrl = (url: string) => /\/magazine\//.test(url);
+    const base: RedirectContext = {
+      enabled: true,
+      currentUrl: 'https://example.com/',
+      referrer: '',
+      navigationType: 'navigate',
+      history: [
+        { href: 'https://example.com/magazine/1', lastViewedAt: 100 },
+        { href: 'https://example.com/magazine/2', lastViewedAt: 300 },
+        { href: 'https://example.com/magazine/3', lastViewedAt: 200 }
+      ],
+      isWorkUrl
+    };
+
+    it('redirects to the most recently viewed work (not the first element)', () => {
+      expect(resolveRedirectTarget(base)).toBe('https://example.com/magazine/2');
+    });
+
+    it('redirects when the referrer is from another origin', () => {
+      expect(resolveRedirectTarget({ ...base, referrer: 'https://other.example.org/page' }))
+        .toBe('https://example.com/magazine/2');
+    });
+
+    it('redirects when the referrer cannot be parsed', () => {
+      expect(resolveRedirectTarget({ ...base, referrer: 'not a url' }))
+        .toBe('https://example.com/magazine/2');
+    });
+
+    it('does not redirect when disabled', () => {
+      expect(resolveRedirectTarget({ ...base, enabled: false })).toBeNull();
+    });
+
+    it('does not redirect on a work page', () => {
+      expect(resolveRedirectTarget({ ...base, currentUrl: 'https://example.com/magazine/9' })).toBeNull();
+    });
+
+    it.each(['reload', 'back_forward'])('does not redirect on %s navigation', (navigationType) => {
+      expect(resolveRedirectTarget({ ...base, navigationType })).toBeNull();
+    });
+
+    it('does not redirect on in-site navigation (same-origin referrer)', () => {
+      expect(resolveRedirectTarget({ ...base, referrer: 'https://example.com/magazine/1' })).toBeNull();
+    });
+
+    it('does not redirect when history is empty', () => {
+      expect(resolveRedirectTarget({ ...base, history: [] })).toBeNull();
+    });
+
+    it('does not redirect when the target equals the current URL', () => {
+      const ctx = {
+        ...base,
+        currentUrl: 'https://example.com/foo?x=1',
+        history: [{ href: 'https://example.com/foo', lastViewedAt: 1 }],
+        isWorkUrl: () => false
+      };
+      expect(resolveRedirectTarget(ctx)).toBeNull();
+    });
+
+    it('does not redirect when the target is not a work page (no loop)', () => {
+      const ctx = { ...base, history: [{ href: 'https://example.com/search', lastViewedAt: 1 }] };
+      expect(resolveRedirectTarget(ctx)).toBeNull();
+    });
   });
 });

@@ -15,7 +15,8 @@ export const STORAGE_KEYS = {
   AUTOPLAY_INTERVAL: 'comic-viewer-helper-autoplay-interval',
   LUCKY_HISTORY: 'comic-viewer-helper-lucky-history',
   PINNED_TAGS: 'comic-viewer-helper-pinned-tags',
-  SYNC_CONFIG: 'comic-viewer-helper-sync-config'
+  SYNC_CONFIG: 'comic-viewer-helper-sync-config',
+  REDIRECT_ENABLED: 'comic-viewer-helper-redirect-enabled'
 } as const;
 
 export const MAX_SEARCH_HISTORY = 3;
@@ -49,6 +50,7 @@ export interface StoreState {
   pinnedTags: string[];
   isAutoplayEnabled: boolean;
   autoplayInterval: number;
+  isRedirectEnabled: boolean;
   syncConfig: SyncConfig | null;
   syncLastError: string | null;
 }
@@ -87,6 +89,7 @@ export class Store {
       pinnedTags: this._loadPinnedTags(),
       isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === 'true',
       autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || '5', 10),
+      isRedirectEnabled: GM_getValue(STORAGE_KEYS.REDIRECT_ENABLED) === 'true',
       syncConfig: this._loadSyncConfig(),
       syncLastError: null
     };
@@ -124,6 +127,7 @@ export class Store {
     if ('guiPos' in patch) GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
     if ('isAutoplayEnabled' in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
     if ('autoplayInterval' in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+    if ('isRedirectEnabled' in patch) GM_setValue(STORAGE_KEYS.REDIRECT_ENABLED, String(patch.isRedirectEnabled));
     if ('syncConfig' in patch) GM_setValue(STORAGE_KEYS.SYNC_CONFIG, JSON.stringify(patch.syncConfig));
 
     this._persistSearchRelatedChanges(patch);

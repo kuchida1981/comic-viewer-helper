@@ -1,6 +1,7 @@
 import { SiteAdapter, Metadata, SearchResultsState, PaginationItem } from '../types';
 
 const CONTAINER_SELECTOR = '#post-comic';
+const WORK_PATH_PATTERN = /^\/(magazine|fanzine)\/.+/;
 const TAG_TYPES = ['artist', 'character', 'circle', 'fanzine', 'genre', 'magazine', 'parody'];
 
 /**
@@ -29,6 +30,13 @@ function getTagType(href: string): string | null {
 export const DefaultAdapter: SiteAdapter = {
   // Always match as a fallback (should be checked last)
   match: () => true,
+  isWorkPage: (url: string) => {
+    try {
+      return WORK_PATH_PATTERN.test(new URL(url, 'http://localhost').pathname);
+    } catch {
+      return false;
+    }
+  },
   getContainer: () => document.querySelector<HTMLElement>(CONTAINER_SELECTOR),
   getImages: () =>
     Array.from(document.querySelectorAll<HTMLImageElement>(`${CONTAINER_SELECTOR} img`)),

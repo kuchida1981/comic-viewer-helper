@@ -47,6 +47,7 @@ describe('Navigator', () => {
 
     adapter = {
       match: vi.fn().mockReturnValue(true),
+      isWorkPage: vi.fn().mockReturnValue(true),
       getContainer: vi.fn().mockReturnValue({ id: 'mock-container', style: {}, appendChild: vi.fn(), querySelectorAll: vi.fn().mockReturnValue([]) }),
       getImages: vi.fn().mockReturnValue(mockImages)
     } as unknown as typeof DefaultAdapter;
@@ -270,6 +271,7 @@ describe('Navigator', () => {
       guiPos: null,
       isAutoplayEnabled: false,
       autoplayInterval: 5,
+      isRedirectEnabled: false,
       syncConfig: null,
       syncLastError: null
     });
@@ -322,6 +324,7 @@ describe('Navigator', () => {
         guiPos: null,
         isAutoplayEnabled: false,
         autoplayInterval: 5,
+        isRedirectEnabled: false,
         syncConfig: null,
       syncLastError: null
       });
@@ -477,6 +480,7 @@ describe('Navigator', () => {
                                   ...vi.mocked(store.getState)(), 
                                   isAutoplayEnabled: true, 
                                   autoplayInterval: 1,
+                                  isRedirectEnabled: false,
                                   luckyHistory: []
                                 });
                                 subscribeCb(vi.mocked(store.getState)());
@@ -508,6 +512,7 @@ describe('Navigator', () => {
                                   ...vi.mocked(store.getState)(), 
                                   isAutoplayEnabled: true, 
                                   autoplayInterval: 1,
+                                  isRedirectEnabled: false,
                                   luckyHistory: []
                                 });
                                 subscribeCb(vi.mocked(store.getState)());
@@ -548,6 +553,7 @@ describe('Navigator', () => {
                                   ...vi.mocked(store.getState)(), 
                                   isAutoplayEnabled: true, 
                                   autoplayInterval: 1,
+                                  isRedirectEnabled: false,
                                   isSearchModalOpen: false,
                                   isHelpModalOpen: false,
                                   isMetadataModalOpen: false

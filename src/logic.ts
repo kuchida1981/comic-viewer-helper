@@ -691,3 +691,57 @@ function getDiscoveryPool(metadata: Metadata, searchCache?: SearchCache | null, 
   return uniquePool;
 }
 
+
+export interface RedirectContext {
+  enabled: boolean;
+  currentUrl: string;
+  /** document.referrer (empty string when none) */
+  referrer: string;
+  /** Navigation Timing の type ('navigate' | 'reload' | 'back_forward' | 'prerender' | '') */
+  navigationType: string;
+  history: { href: string; lastViewedAt: number }[];
+  /** URLが作品ページかどうかの判定 (SiteAdapter.isWorkPage) */
+  isWorkUrl: (url: string) => boolean;
+}
+
+/**
+ * Whether the referrer is a page on the same origin as the current URL.
+ * An empty or unparsable referrer is treated as external.
+ */
+function isSameOriginReferrer(referrer: string, currentUrl: string): boolean {
+  if (!referrer) return false;
+  try {
+    return new URL(referrer).origin === new URL(currentUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pick the entry with the greatest lastViewedAt (not relying on array order).
+ */
+function pickLastViewed<T extends { lastViewedAt: number }>(history: T[]): T | null {
+  let latest: T | null = null;
+  for (const entry of history) {
+    if (!latest || entry.lastViewedAt > latest.lastViewedAt) latest = entry;
+  }
+  return latest;
+}
+
+/**
+ * Decide where to redirect when a non-work page is opened.
+ * Returns the URL of the last viewed work, or null if no redirect should happen.
+ */
+export function resolveRedirectTarget(ctx: RedirectContext): string | null {
+  if (!ctx.enabled) return null;
+  if (ctx.isWorkUrl(ctx.currentUrl)) return null;
+  if (ctx.navigationType === 'reload' || ctx.navigationType === 'back_forward') return null;
+  if (isSameOriginReferrer(ctx.referrer, ctx.currentUrl)) return null;
+
+  const latest = pickLastViewed(ctx.history);
+  if (!latest) return null;
+
+  if (normalizeUrl(latest.href) === normalizeUrl(ctx.currentUrl)) return null;
+  if (!ctx.isWorkUrl(latest.href)) return null;
+  return latest.href;
+}
