@@ -3,15 +3,14 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.f8f0379
+// @version         1.6.0-unstable.326a076
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
-// @match           https://something/magazine/*
-// @match           https://something/fanzine/*
+// @match           https://something/*
 // @updateURL       https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js
 // @downloadURL     https://raw.githubusercontent.com/kuchida1981/comic-viewer-helper/unstable/comic-viewer-helper.user.js
-// @run-at          document-idle
+// @run-at          document-start
 // @grant           GM_setValue
 // @grant           GM_getValue
 // @grant           GM_deleteValue
@@ -518,6 +517,32 @@
     }
     return uniquePool;
   }
+  function isSameOriginReferrer(referrer, currentUrl) {
+    if (!referrer) return false;
+    try {
+      return new URL(referrer).origin === new URL(currentUrl).origin;
+    } catch {
+      return false;
+    }
+  }
+  function pickLastViewed(history) {
+    let latest = null;
+    for (const entry of history) {
+      if (!latest || entry.lastViewedAt > latest.lastViewedAt) latest = entry;
+    }
+    return latest;
+  }
+  function resolveRedirectTarget(ctx) {
+    if (!ctx.enabled) return null;
+    if (ctx.isWorkUrl(ctx.currentUrl)) return null;
+    if (ctx.navigationType === "reload" || ctx.navigationType === "back_forward") return null;
+    if (isSameOriginReferrer(ctx.referrer, ctx.currentUrl)) return null;
+    const latest = pickLastViewed(ctx.history);
+    if (!latest) return null;
+    if (normalizeUrl(latest.href) === normalizeUrl(ctx.currentUrl)) return null;
+    if (!ctx.isWorkUrl(latest.href)) return null;
+    return latest.href;
+  }
   const STORAGE_KEYS = {
     DUAL_VIEW: "comic-viewer-helper-dual-view",
     GUI_POS: "comic-viewer-helper-gui-pos",
@@ -531,7 +556,8 @@
     AUTOPLAY_INTERVAL: "comic-viewer-helper-autoplay-interval",
     LUCKY_HISTORY: "comic-viewer-helper-lucky-history",
     PINNED_TAGS: "comic-viewer-helper-pinned-tags",
-    SYNC_CONFIG: "comic-viewer-helper-sync-config"
+    SYNC_CONFIG: "comic-viewer-helper-sync-config",
+    REDIRECT_ENABLED: "comic-viewer-helper-redirect-enabled"
   };
   const MAX_SEARCH_HISTORY = 3;
   class Store {
@@ -565,6 +591,7 @@
         pinnedTags: this._loadPinnedTags(),
         isAutoplayEnabled: GM_getValue(STORAGE_KEYS.AUTOPLAY_ENABLED) === "true",
         autoplayInterval: parseInt(GM_getValue(STORAGE_KEYS.AUTOPLAY_INTERVAL) || "5", 10),
+        isRedirectEnabled: GM_getValue(STORAGE_KEYS.REDIRECT_ENABLED) === "true",
         syncConfig: this._loadSyncConfig(),
         syncLastError: null
       };
@@ -596,6 +623,7 @@
       if ("guiPos" in patch) GM_setValue(STORAGE_KEYS.GUI_POS, JSON.stringify(patch.guiPos));
       if ("isAutoplayEnabled" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_ENABLED, String(patch.isAutoplayEnabled));
       if ("autoplayInterval" in patch) GM_setValue(STORAGE_KEYS.AUTOPLAY_INTERVAL, String(patch.autoplayInterval));
+      if ("isRedirectEnabled" in patch) GM_setValue(STORAGE_KEYS.REDIRECT_ENABLED, String(patch.isRedirectEnabled));
       if ("syncConfig" in patch) GM_setValue(STORAGE_KEYS.SYNC_CONFIG, JSON.stringify(patch.syncConfig));
       this._persistSearchRelatedChanges(patch);
       this._persistLuckyHistory(patch);
@@ -806,6 +834,7 @@
     };
   }
   const CONTAINER_SELECTOR = "#post-comic";
+  const WORK_PATH_PATTERN = /^\/(magazine|fanzine)\/.+/;
   const TAG_TYPES = ["artist", "character", "circle", "fanzine", "genre", "magazine", "parody"];
   function getTagType(href) {
     try {
@@ -824,6 +853,13 @@
   const DefaultAdapter = {
     // Always match as a fallback (should be checked last)
     match: () => true,
+    isWorkPage: (url) => {
+      try {
+        return WORK_PATH_PATTERN.test(new URL(url, "http://localhost").pathname);
+      } catch {
+        return false;
+      }
+    },
     getContainer: () => document.querySelector(CONTAINER_SELECTOR),
     getImages: () => Array.from(document.querySelectorAll(`${CONTAINER_SELECTOR} img`)),
     searchConfig: {
@@ -2472,6 +2508,9 @@
         showTopTags: "Top Only",
         pinTag: "Pin tag",
         unpinTag: "Unpin tag",
+        redirectSettings: "Redirect Settings",
+        redirectEnabled: "Open the last viewed work when visiting other pages",
+        redirectDesc: "When you open a page other than a work page from outside the site (bookmark, URL, other site), you are taken to the last work you viewed. Does nothing for in-site navigation, reload, or back/forward.",
         syncSettings: "Sync Settings",
         syncEnabled: "Enable Sync",
         syncPat: "GitHub Personal Access Token",
@@ -2566,6 +2605,9 @@
         showTopTags: "上位のみ",
         pinTag: "タグをピン留め",
         unpinTag: "ピン留めを解除",
+        redirectSettings: "リダイレクト設定",
+        redirectEnabled: "作品ページ以外を開いたとき、最後に閲覧した作品を開く",
+        redirectDesc: "ブックマーク・URL直打ち・他サイトのリンクなど、サイトの外から作品ページ以外を開いたとき、最後に閲覧した作品へ移動します。サイト内の移動、リロード、戻る/進むでは動作しません。",
         syncSettings: "同期設定",
         syncEnabled: "同期を有効にする",
         syncPat: "GitHub Personal Access Token",
@@ -3134,7 +3176,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.f8f0379"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.326a076"} (${t("ui.unstable")})`
     });
     const contentChildren = [
       closeBtn,
@@ -3387,6 +3429,47 @@
           statusEl.textContent = getStatusText(newLastError, newLastSyncedAt);
           statusEl.style.color = getStatusColor(newLastError);
         }
+      }
+    };
+  }
+  function createRedirectSettings({ isRedirectEnabled, onToggle }) {
+    const checkbox = createElement("input", {
+      attributes: { type: "checkbox", id: "comic-helper-redirect-enabled" },
+      events: {
+        change: (e) => {
+          onToggle(e.currentTarget.checked);
+        }
+      }
+    });
+    checkbox.checked = isRedirectEnabled;
+    const label = createElement("label", {
+      attributes: { for: "comic-helper-redirect-enabled" },
+      textContent: t("ui.redirectEnabled"),
+      style: { marginLeft: "6px", cursor: "pointer" }
+    });
+    const row = createElement("div", {
+      style: { display: "flex", alignItems: "center", marginBottom: "8px" }
+    }, [checkbox, label]);
+    const titleEl = createElement("div", {
+      textContent: t("ui.redirectSettings"),
+      style: {
+        fontWeight: "bold",
+        fontSize: "13px",
+        marginTop: "15px",
+        marginBottom: "10px",
+        paddingTop: "10px",
+        borderTop: `1px solid ${COLORS.border.default}`
+      }
+    });
+    const desc = createElement("div", {
+      className: "comic-helper-sync-description",
+      textContent: t("ui.redirectDesc")
+    });
+    const el = createElement("div", {}, [titleEl, row, desc]);
+    return {
+      el,
+      update: (enabled) => {
+        checkbox.checked = enabled;
       }
     };
   }
@@ -4128,6 +4211,7 @@
     modalComp = null;
     helpModalComp = null;
     syncSettingsComp = null;
+    redirectSettingsComp = null;
     searchModalComp = null;
     favoritesModalComp = null;
     syncManager;
@@ -4300,18 +4384,27 @@
             },
             lastError: state.syncLastError
           });
+          this.redirectSettingsComp = createRedirectSettings({
+            isRedirectEnabled: state.isRedirectEnabled,
+            onToggle: (enabled) => this.store.setState({ isRedirectEnabled: enabled })
+          });
+          const extraContent = document.createElement("div");
+          extraContent.appendChild(this.redirectSettingsComp.el);
+          extraContent.appendChild(this.syncSettingsComp.el);
           this.helpModalComp = createHelpModal({
             onClose: () => this.store.setState({ isHelpModalOpen: false }),
-            extraContent: this.syncSettingsComp.el
+            extraContent
           });
           document.body.appendChild(this.helpModalComp.el);
         } else {
           this.syncSettingsComp?.update(state.syncConfig, state.syncLastError);
+          this.redirectSettingsComp?.update(state.isRedirectEnabled);
         }
       } else if (this.helpModalComp) {
         this.helpModalComp.el.remove();
         this.helpModalComp = null;
         this.syncSettingsComp = null;
+        this.redirectSettingsComp = null;
       }
       this._updateSearchModal(state);
       this._updateFavoritesModal(state);
@@ -5025,6 +5118,32 @@
       }
     }
   }
+  class RedirectManager {
+    store;
+    adapter;
+    constructor(store, adapter) {
+      this.store = store;
+      this.adapter = adapter;
+    }
+    /**
+     * @returns リダイレクトを実行した場合 true
+     */
+    run = () => {
+      const state = this.store.getState();
+      const navigation = performance.getEntriesByType("navigation")[0];
+      const target = resolveRedirectTarget({
+        enabled: state.isRedirectEnabled,
+        currentUrl: window.location.href,
+        referrer: document.referrer,
+        navigationType: navigation?.type ?? "",
+        history: state.luckyHistory,
+        isWorkUrl: (url) => this.adapter.isWorkPage(url)
+      });
+      if (target === null) return false;
+      window.location.replace(target);
+      return true;
+    };
+  }
   class App {
     store;
     adapter;
@@ -5035,12 +5154,11 @@
     resumeManager;
     popUnderBlocker;
     syncManager;
-    constructor() {
+    constructor(adapter) {
       this.store = new Store();
       this.syncManager = new SyncManager(this.store);
       this._initSync();
-      const adapters = [DefaultAdapter];
-      this.adapter = adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
+      this.adapter = adapter;
       this.navigator = new Navigator(this.adapter, this.store);
       this.discoveryManager = new DiscoveryManager(this.adapter, this.store);
       this.uiManager = new UIManager(this.adapter, this.store, this.navigator, this.discoveryManager, this.syncManager);
@@ -5096,10 +5214,22 @@
       });
     };
   }
-  const app = new App();
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", app.init);
-  } else {
-    app.init();
+  function selectAdapter() {
+    const adapters = [DefaultAdapter];
+    return adapters.find((a) => a.match(window.location.href)) || DefaultAdapter;
   }
+  function bootstrap() {
+    const adapter = selectAdapter();
+    if (!adapter.isWorkPage(window.location.href)) {
+      new RedirectManager(new Store(), adapter).run();
+      return;
+    }
+    const app = new App(adapter);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", app.init);
+    } else {
+      app.init();
+    }
+  }
+  bootstrap();
 })();
