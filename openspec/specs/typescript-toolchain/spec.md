@@ -1,7 +1,7 @@
 # typescript-toolchain Specification
 
 ## Purpose
-TBD - created by archiving change typescript-migration. Update Purpose after archive.
+プロジェクト全体を TypeScript で開発できるようにし、実装コードとテストコードの型チェック・コンパイルが正常に行える環境を維持する。
 ## Requirements
 ### Requirement: TypeScript 開発環境の構築
 プロジェクト全体で TypeScript をネイティブにサポートし、型チェックとコンパイルが正常に行われる環境を SHALL 構築する。テストコード (`src/**/*.test.ts`) についても `// @ts-nocheck` なしで型チェックが通過することを SHALL 保証する。

@@ -1,7 +1,7 @@
 # sync-data-via-gist Specification
 
 ## Purpose
-TBD - created by archiving change sync-data-via-gist. Update Purpose after archive.
+GitHub Gist を介して、お気に入り・閲覧履歴・設定などのデータを複数の端末間で同期できるようにする。
 ## Requirements
 ### Requirement: GitHub Gist 連携設定
 システムは、ユーザーが GitHub Personal Access Token (PAT) と Gist ID を入力し、同期を有効化・無効化できる設定項目を提供しなければならない (MUST)。また、設定の保存時には、その有効性を即座に確認し、ユーザーにフィードバックを提供しなければならない (SHALL)。

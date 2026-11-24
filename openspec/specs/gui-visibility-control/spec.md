@@ -1,7 +1,7 @@
 # gui-visibility-control Specification
 
 ## Purpose
-TBD - created by archiving change improve-gui-ux. Update Purpose after archive.
+マウスホバーの状態に応じて GUI コンテナの不透明度を変化させ、閲覧時の没入感を妨げずに操作性を確保する。
 ## Requirements
 ### Requirement: ホバー状態に応じた不透明度制御
 GUI コンテナは、ユーザーの没入感を妨げないよう、マウスホバーの状態に応じて不透明度を動的に変更しなければならない（SHALL）。

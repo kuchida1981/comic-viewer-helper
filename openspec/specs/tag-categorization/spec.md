@@ -1,7 +1,7 @@
 # tag-categorization Specification
 
 ## Purpose
-TBD - created by archiving change tag-color-by-path. Update Purpose after archive.
+タグのリンク先 URL パスに基づいてタグの種別（作者・キャラクターなど）を判定し、種別ごとに表示を区別できるようにする。
 ## Requirements
 ### Requirement: タグ種別の判定
 

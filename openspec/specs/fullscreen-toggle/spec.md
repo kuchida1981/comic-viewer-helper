@@ -1,7 +1,7 @@
 # fullscreen-toggle Specification
 
 ## Purpose
-TBD - created by archiving change fullscreen-toggle. Update Purpose after archive.
+`f` キーでブラウザのフルスクリーン表示（Fullscreen API）を切り替えられるようにし、漫画の閲覧時の没入感を高める。
 ## Requirements
 ### Requirement: Fullscreen Toggle via Keyboard
 システムは、ユーザーが `f` キーを押下した際に、ブラウザのフルスクリーン表示をトグルしなければらない（SHALL）。フルスクリーン切り替えは Fullscreen API を経由し、対象は `document.documentElement`（ページ全体）とする。

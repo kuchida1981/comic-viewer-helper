@@ -1,7 +1,7 @@
 # popunder-blocking Specification
 
 ## Purpose
-TBD - created by archiving change add-popunder-blocker. Update Purpose after archive.
+サイト側スクリプトによるポップアンダー広告のリダイレクトを、リンクのクリック時に抑制し、意図しないタブ遷移を防ぐ。
 ## Requirements
 ### Requirement: ポップアンダー広告リダイレクトの抑制
 `PopUnderBlocker` SHALL ページ内の `<a>` タグへのクリックイベントをキャプチャフェーズでインターセプトし、サイト側スクリプトによるポップアンダー広告リダイレクトを抑制する。インターセプト時には `stopImmediatePropagation()` と `preventDefault()` を呼び、`window.location.href` で現在のタブで直接遷移を実行する。
