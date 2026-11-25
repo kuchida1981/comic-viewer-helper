@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.d620f7a
+// @version         1.6.0-unstable.4a9fc9d
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -169,6 +169,12 @@
     });
     const results = limit > 0 ? sorted.slice(0, Math.max(limit, selectedSet.size)) : sorted;
     return results.map(({ tag, count, isPinned }) => ({ tag, count, isPinned }));
+  }
+  function calculateTagCloudLevel(count, min, max, levels = 5) {
+    if (max <= min) return Math.ceil(levels / 2);
+    const ratio = (count - min) / (max - min);
+    const level = 1 + Math.round(ratio * (levels - 1));
+    return Math.min(levels, Math.max(1, level));
   }
   function filterWorksByTags(favorites, selectedTagTexts) {
     if (selectedTagTexts.size === 0) return favorites;
@@ -1958,6 +1964,55 @@
     margin-top: 2px;
   }
 
+  .comic-helper-favorites-view-switch {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .comic-helper-favorites-view-btn {
+    background: transparent;
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.muted};
+    font-size: 11px;
+    cursor: pointer;
+    padding: 3px 10px;
+    border-radius: 12px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .comic-helper-favorites-view-btn:hover {
+    background: ${COLORS.background.tagHover};
+  }
+  .comic-helper-favorites-view-btn.active {
+    border-color: ${COLORS.border.accent};
+    color: ${COLORS.border.accent};
+  }
+  .comic-helper-tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px 14px;
+    padding: 16px 8px;
+  }
+  .comic-helper-tag-cloud-item {
+    background: transparent;
+    border: none;
+    color: ${COLORS.border.accent};
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1.3;
+    transition: opacity 0.15s;
+  }
+  .comic-helper-tag-cloud .comic-helper-tag-cloud-item:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+  .comic-helper-tag-cloud-item--level-1 { font-size: 10px; opacity: 0.55; }
+  .comic-helper-tag-cloud-item--level-2 { font-size: 14px; opacity: 0.7; }
+  .comic-helper-tag-cloud-item--level-3 { font-size: 20px; font-weight: bold; }
+  .comic-helper-tag-cloud-item--level-4 { font-size: 30px; font-weight: bold; }
+  .comic-helper-tag-cloud-item--level-5 { font-size: 44px; font-weight: bold; }
+
   .comic-helper-favorites-trend-section {
     padding: 8px 0 12px;
     border-bottom: 1px solid ${COLORS.border.light};
@@ -2506,6 +2561,9 @@
         seconds: "sec",
         showAllTags: "Show All",
         showTopTags: "Top Only",
+        favoritesViewList: "List",
+        favoritesViewCloud: "Tag Cloud",
+        tagCloudEmpty: "No tags yet.",
         pinTag: "Pin tag",
         unpinTag: "Unpin tag",
         redirectSettings: "Redirect Settings",
@@ -2603,6 +2661,9 @@
         seconds: "秒",
         showAllTags: "すべて表示",
         showTopTags: "上位のみ",
+        favoritesViewList: "一覧",
+        favoritesViewCloud: "タグクラウド",
+        tagCloudEmpty: "タグがありません。",
         pinTag: "タグをピン留め",
         unpinTag: "ピン留めを解除",
         redirectSettings: "リダイレクト設定",
@@ -3176,7 +3237,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.d620f7a"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.4a9fc9d"} (${t("ui.unstable")})`
     });
     const contentChildren = [
       closeBtn,
@@ -3717,6 +3778,7 @@
       return href;
     }
   }
+  const TAG_CLOUD_LIMIT = 200;
   function formatViewCount(count) {
     return t("ui.viewCount").replace("{count}", String(count));
   }
@@ -3905,6 +3967,31 @@
     section.appendChild(tagsEl);
     return section;
   }
+  function createTagCloudSection(favorites, onTagClick) {
+    const section = createElement("div", { className: "comic-helper-tag-cloud" });
+    const trends = calculateTrends(favorites, TAG_CLOUD_LIMIT);
+    if (trends.length === 0) {
+      section.appendChild(createElement("div", {
+        className: "comic-helper-search-no-results",
+        textContent: t("ui.tagCloudEmpty")
+      }));
+      return section;
+    }
+    const counts = trends.map(({ count }) => count);
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    const sorted = [...trends].sort((a, b) => a.tag.text.localeCompare(b.tag.text));
+    sorted.forEach(({ tag, count }) => {
+      const level = calculateTagCloudLevel(count, min, max);
+      section.appendChild(createElement("button", {
+        className: `comic-helper-tag-cloud-item comic-helper-tag-cloud-item--level-${level}`,
+        textContent: tag.text,
+        title: `${tag.text} (${count})`,
+        events: { click: () => onTagClick(tag.text) }
+      }));
+    });
+    return section;
+  }
   function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose }) {
     let sortMode = "lastViewedAt";
     let currentFavorites = favorites;
@@ -3912,6 +3999,7 @@
     let currentPinnedTags = pinnedTags;
     let selectedTagTexts = /* @__PURE__ */ new Set();
     let showAllTags = false;
+    let favoritesView = "list";
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -3949,21 +4037,51 @@
     function handleToggleShowAll() {
       showAllTags = !showAllTags;
       const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
-      favPanel.replaceChild(newTrendSection, trendSection);
+      listView.replaceChild(newTrendSection, trendSection);
       trendSection = newTrendSection;
     }
+    function handleCloudTagClick(tagText) {
+      selectedTagTexts.add(tagText);
+      setFavoritesView("list");
+    }
+    function setFavoritesView(view) {
+      favoritesView = view;
+      listViewBtn.classList.toggle("active", view === "list");
+      cloudViewBtn.classList.toggle("active", view === "cloud");
+      listView.style.display = view === "list" ? "" : "none";
+      cloudView.style.display = view === "cloud" ? "" : "none";
+      rerenderFavoritesPanel();
+    }
     function rerenderFavoritesPanel() {
+      const newCloud = createTagCloudSection(currentFavorites, handleCloudTagClick);
+      cloudView.replaceWith(newCloud);
+      cloudView = newCloud;
+      cloudView.style.display = favoritesView === "cloud" ? "" : "none";
       const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
-      favPanel.replaceChild(newTrendSection, trendSection);
+      listView.replaceChild(newTrendSection, trendSection);
       trendSection = newTrendSection;
       const filtered = filterWorksByTags(currentFavorites, selectedTagTexts);
       const newFavGrid = createFavoritesGrid(filtered, onRemoveFavorite, onToggleFavorite);
-      favPanel.replaceChild(newFavGrid, favGrid);
+      listView.replaceChild(newFavGrid, favGrid);
       favGrid = newFavGrid;
     }
     let trendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
     let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
-    const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [trendSection, favGrid]);
+    const listView = createElement("div", { className: "comic-helper-favorites-list-view" }, [trendSection, favGrid]);
+    let cloudView = createTagCloudSection(currentFavorites, handleCloudTagClick);
+    cloudView.style.display = "none";
+    const listViewBtn = createElement("button", {
+      className: "comic-helper-favorites-view-btn active",
+      textContent: t("ui.favoritesViewList"),
+      events: { click: () => setFavoritesView("list") }
+    });
+    const cloudViewBtn = createElement("button", {
+      className: "comic-helper-favorites-view-btn",
+      textContent: t("ui.favoritesViewCloud"),
+      events: { click: () => setFavoritesView("cloud") }
+    });
+    const viewSwitch = createElement("div", { className: "comic-helper-favorites-view-switch" }, [listViewBtn, cloudViewBtn]);
+    const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [viewSwitch, listView, cloudView]);
     let sortMenu = createSortMenu(sortMode, handleSort);
     let histGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
     const histPanel = createElement("div", { className: "comic-helper-history-panel" }, [sortMenu, histGrid]);
@@ -4024,7 +4142,7 @@
       updatePinnedTags: (newPinnedTags) => {
         currentPinnedTags = newPinnedTags;
         const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
-        favPanel.replaceChild(newTrendSection, trendSection);
+        listView.replaceChild(newTrendSection, trendSection);
         trendSection = newTrendSection;
       }
     };
