@@ -801,3 +801,51 @@ describe('FavoritesModal tag cloud type filter', () => {
     expect(itemTexts(second.el)).toEqual(['alice', 'fantasy', 'misc']);
   });
 });
+
+describe('FavoritesModal tag cloud center layout', () => {
+  const work = (n: number, tags: Array<{ text: string; type: string | null }>): RelatedWork => ({
+    title: `W${n}`, href: `/work/${n}/`, thumb: '',
+    tags: tags.map(tg => ({ text: tg.text, href: `/tags/${tg.text}`, type: tg.type }))
+  });
+  // A: 5件, B: 4件, C: 3件, D: 2件, E: 1件
+  const counted: RelatedWork[] = [
+    work(1, [{ text: 'A', type: 'genre' }, { text: 'B', type: 'genre' }, { text: 'C', type: 'artist' }, { text: 'D', type: 'genre' }, { text: 'E', type: 'genre' }]),
+    work(2, [{ text: 'A', type: 'genre' }, { text: 'B', type: 'genre' }, { text: 'C', type: 'artist' }, { text: 'D', type: 'genre' }]),
+    work(3, [{ text: 'A', type: 'genre' }, { text: 'B', type: 'genre' }, { text: 'C', type: 'artist' }]),
+    work(4, [{ text: 'A', type: 'genre' }, { text: 'B', type: 'genre' }]),
+    work(5, [{ text: 'A', type: 'genre' }])
+  ];
+
+  const openCloud = (favorites: RelatedWork[]) => {
+    const comp = createFavoritesModal({ ...defaultProps, favorites });
+    comp.el.querySelectorAll<HTMLElement>('.comic-helper-favorites-view-btn')[1].click();
+    return comp;
+  };
+  const order = (el: HTMLElement) =>
+    Array.from(el.querySelectorAll('.comic-helper-tag-cloud-item')).map(i => i.textContent);
+
+  it('件数の多いタグが中央、少ないタグが外側に並ぶ', () => {
+    const { el } = openCloud(counted);
+    expect(order(el)).toEqual(['E', 'C', 'A', 'B', 'D']);
+  });
+
+  it('同じ件数のタグは文字列昇順で順位付けされる', () => {
+    const { el } = openCloud([work(1, [{ text: 'b', type: null }, { text: 'c', type: null }, { text: 'a', type: null }])]);
+    expect(order(el)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('種類フィルタで除外した後のタグが中央から配置される', () => {
+    const { el } = openCloud(counted);
+    const artistChip = Array.from(el.querySelectorAll<HTMLElement>('.comic-helper-tag-type-chip'))
+      .find(c => c.textContent === 'artist') as HTMLElement;
+    artistChip.click();
+    expect(order(el)).toEqual(['D', 'A', 'B', 'E']);
+  });
+
+  it('一覧ビューのトレンドセクションの並びは変わらない', () => {
+    const { el } = openCloud(counted);
+    const list = el.querySelector('.comic-helper-favorites-list-view') as HTMLElement;
+    const trend = Array.from(list.querySelectorAll('.comic-helper-tag-chip-container .comic-helper-tag-chip')).map(c => c.textContent);
+    expect(trend).toEqual(['A (5)', 'B (4)', 'C (3)', 'D (2)', 'E (1)']);
+  });
+});

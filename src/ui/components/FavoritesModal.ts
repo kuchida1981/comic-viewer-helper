@@ -1,7 +1,7 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
 import { RelatedWork, HistoryEntry } from '../../types';
-import { calculateTrends, calculateTagCloudLevel, filterWorksByTags, getTagTypes } from '../../logic';
+import { calculateTrends, calculateTagCloudLevel, filterWorksByTags, getTagTypes, arrangeTagCloud } from '../../logic';
 import { createPinFilledIcon } from '../icons';
 
 function normalizeHref(href: string): string {
@@ -324,9 +324,9 @@ function createTagCloudSection(
   const counts = trends.map(({ count }) => count);
   const min = Math.min(...counts);
   const max = Math.max(...counts);
-  const sorted = [...trends].sort((a, b) => a.tag.text.localeCompare(b.tag.text));
+  const arranged = arrangeTagCloud(trends);
 
-  sorted.forEach(({ tag, count }) => {
+  arranged.forEach(({ tag, count }) => {
     const level = calculateTagCloudLevel(count, min, max);
     section.appendChild(createElement('button', {
       className: `comic-helper-tag-cloud-item comic-helper-tag-cloud-item--level-${level}`,

@@ -154,6 +154,23 @@ export function calculateTagCloudLevel(count: number, min: number, max: number, 
 }
 
 /**
+ * Arrange tag cloud items so that the most frequent ones sit in the center.
+ * Items are ranked by count (descending, ties by text ascending); rank 1 goes to the
+ * center, rank 2 to its right, rank 3 to its left, and so on alternating outward.
+ * The input array is not modified.
+ */
+export function arrangeTagCloud<T extends { tag: { text: string }; count: number }>(items: T[]): T[] {
+  const ranked = [...items].sort((a, b) => b.count - a.count || a.tag.text.localeCompare(b.tag.text));
+  if (ranked.length === 0) return [];
+  const left: T[] = [];
+  const right: T[] = [];
+  ranked.slice(1).forEach((item, i) => {
+    (i % 2 === 0 ? right : left).push(item);
+  });
+  return [...left.reverse(), ranked[0], ...right];
+}
+
+/**
  * Collect the distinct tag types present in favorites (`null` for untyped tags, always last).
  */
 export function getTagTypes(favorites: RelatedWork[]): Array<string | null> {
