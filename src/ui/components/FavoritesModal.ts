@@ -1,7 +1,7 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
 import { RelatedWork, HistoryEntry } from '../../types';
-import { calculateTrends, calculateTagCloudLevel, filterWorksByTags } from '../../logic';
+import { calculateTrends, calculateTagCloudLevel, filterWorksByTags, getTagTypes } from '../../logic';
 import { createPinFilledIcon } from '../icons';
 
 function normalizeHref(href: string): string {
@@ -282,12 +282,37 @@ function createTrendSection(
   return section;
 }
 
+function createTagTypeChips(
+  types: Array<string | null>,
+  excludedTypes: ReadonlySet<string | null>,
+  onToggleType: (type: string | null) => void
+): HTMLElement {
+  const row = createElement('div', { className: 'comic-helper-tag-type-filter' });
+  types.forEach(type => {
+    const typeClass = type ? ` comic-helper-tag-chip--${type}` : '';
+    const disabledClass = excludedTypes.has(type) ? ' disabled' : '';
+    row.appendChild(createElement('button', {
+      className: `comic-helper-tag-chip comic-helper-tag-type-chip${typeClass}${disabledClass}`,
+      textContent: type ?? t('ui.tagTypeOther'),
+      events: { click: () => onToggleType(type) }
+    }));
+  });
+  return row;
+}
+
 function createTagCloudSection(
   favorites: RelatedWork[],
-  onTagClick: (tagText: string) => void
+  onTagClick: (tagText: string) => void,
+  excludedTypes: ReadonlySet<string | null>,
+  onToggleType: (type: string | null) => void
 ): HTMLElement {
   const section = createElement('div', { className: 'comic-helper-tag-cloud' });
-  const trends = calculateTrends(favorites, TAG_CLOUD_LIMIT);
+  const types = getTagTypes(favorites);
+  if (types.length >= 2) {
+    section.appendChild(createTagTypeChips(types, excludedTypes, onToggleType));
+  }
+
+  const trends = calculateTrends(favorites, TAG_CLOUD_LIMIT, [], [], excludedTypes);
   if (trends.length === 0) {
     section.appendChild(createElement('div', {
       className: 'comic-helper-search-no-results',
@@ -320,6 +345,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   let currentPinnedTags = pinnedTags;
   let selectedTagTexts: Set<string> = new Set();
   let showAllTags: boolean = false;
+  const excludedTypes: Set<string | null> = new Set();
   let favoritesView: FavoritesView = 'list';
 
   const closeBtn = createElement('button', {
@@ -368,6 +394,22 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     trendSection = newTrendSection;
   }
 
+  function rerenderCloudView(): void {
+    const newCloud = createTagCloudSection(currentFavorites, handleCloudTagClick, excludedTypes, handleToggleType);
+    cloudView.replaceWith(newCloud);
+    cloudView = newCloud;
+    cloudView.style.display = favoritesView === 'cloud' ? '' : 'none';
+  }
+
+  function handleToggleType(type: string | null): void {
+    if (excludedTypes.has(type)) {
+      excludedTypes.delete(type);
+    } else {
+      excludedTypes.add(type);
+    }
+    rerenderCloudView();
+  }
+
   function handleCloudTagClick(tagText: string): void {
     selectedTagTexts.add(tagText);
     setFavoritesView('list');
@@ -383,10 +425,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   }
 
   function rerenderFavoritesPanel(): void {
-    const newCloud = createTagCloudSection(currentFavorites, handleCloudTagClick);
-    cloudView.replaceWith(newCloud);
-    cloudView = newCloud;
-    cloudView.style.display = favoritesView === 'cloud' ? '' : 'none';
+    rerenderCloudView();
 
     const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
     listView.replaceChild(newTrendSection, trendSection);
@@ -402,7 +441,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   let trendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
   let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
   const listView = createElement('div', { className: 'comic-helper-favorites-list-view' }, [trendSection, favGrid]);
-  let cloudView = createTagCloudSection(currentFavorites, handleCloudTagClick);
+  let cloudView = createTagCloudSection(currentFavorites, handleCloudTagClick, excludedTypes, handleToggleType);
   cloudView.style.display = 'none';
   const listViewBtn = createElement('button', {
     className: 'comic-helper-favorites-view-btn active',

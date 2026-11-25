@@ -16,6 +16,7 @@ import {
   isLuckyPoolDepleted,
   calculateTrends,
   calculateTagCloudLevel,
+  getTagTypes,
   filterWorksByTags,
   encrypt,
   decrypt,
@@ -838,6 +839,79 @@ describe('calculateTrends', () => {
     };
     const trends = calculateTrends([manyTagFavorite], 0, [], ['tag0']);
     expect(trends.length).toBe(15);
+  });
+});
+
+describe('calculateTrends (excludedTypes)', () => {
+  const works = [
+    {
+      title: 'A', href: '/work/1/', thumb: '',
+      tags: [
+        { text: 'fantasy', href: '/t/fantasy', type: 'genre' },
+        { text: 'alice', href: '/t/alice', type: 'artist' },
+        { text: 'misc', href: '/t/misc', type: null }
+      ]
+    },
+    {
+      title: 'B', href: '/work/2/', thumb: '',
+      tags: [{ text: 'fantasy', href: '/t/fantasy', type: 'genre' }]
+    }
+  ];
+
+  it('should not exclude anything by default', () => {
+    expect(calculateTrends(works, 0)).toHaveLength(3);
+  });
+
+  it('should exclude tags of the given type', () => {
+    const trends = calculateTrends(works, 0, [], [], new Set(['genre']));
+    expect(trends.map(t => t.tag.text).sort()).toEqual(['alice', 'misc']);
+  });
+
+  it('should exclude untyped tags when null is given', () => {
+    const trends = calculateTrends(works, 0, [], [], new Set([null]));
+    expect(trends.map(t => t.tag.text).sort()).toEqual(['alice', 'fantasy']);
+  });
+
+  it('should return empty when all types are excluded', () => {
+    const trends = calculateTrends(works, 0, [], [], new Set(['genre', 'artist', null]));
+    expect(trends).toHaveLength(0);
+  });
+
+  it('should apply the limit after exclusion', () => {
+    const many = {
+      title: 'M', href: '/work/9/', thumb: '',
+      tags: [
+        ...Array.from({ length: 5 }, (_, i) => ({ text: `g${i}`, href: `/t/g${i}`, type: 'genre' })),
+        { text: 'a0', href: '/t/a0', type: 'artist' },
+        { text: 'a1', href: '/t/a1', type: 'artist' }
+      ]
+    };
+    const trends = calculateTrends([many], 2, [], [], new Set(['genre']));
+    expect(trends.map(t => t.tag.text).sort()).toEqual(['a0', 'a1']);
+  });
+});
+
+describe('getTagTypes', () => {
+  it('should return distinct types sorted with null last', () => {
+    const works = [
+      { title: 'A', href: '/1/', thumb: '', tags: [
+        { text: 'x', href: '/x', type: 'genre' },
+        { text: 'y', href: '/y', type: null },
+        { text: 'z', href: '/z', type: 'artist' }
+      ] },
+      { title: 'B', href: '/2/', thumb: '', tags: [{ text: 'x2', href: '/x2', type: 'genre' }] }
+    ];
+    expect(getTagTypes(works)).toEqual(['artist', 'genre', null]);
+  });
+
+  it('should omit null when all tags are typed', () => {
+    const works = [{ title: 'A', href: '/1/', thumb: '', tags: [{ text: 'x', href: '/x', type: 'genre' }] }];
+    expect(getTagTypes(works)).toEqual(['genre']);
+  });
+
+  it('should return empty for works without tags', () => {
+    expect(getTagTypes([{ title: 'A', href: '/1/', thumb: '' }])).toEqual([]);
+    expect(getTagTypes([])).toEqual([]);
   });
 });
 
