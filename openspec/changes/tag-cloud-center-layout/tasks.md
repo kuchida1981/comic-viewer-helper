@@ -1,13 +1,12 @@
 ## 1. ロジック（`src/logic.ts`）
 
-- [ ] 1.1 順位順の配列を中央から外側へ並べ替える `arrangeCenterOut` を追加する
-- [ ] 1.2 `logic.test.ts` に 0件・1件・偶数件・奇数件・順位の維持（元配列を変更しない）のテストを追加し、100% カバレッジを維持する
+- [ ] 1.1 件数降順（同数は文字列昇順）で順位付けし、中央から外側へ並べ替える `arrangeTagCloud` を追加する
+- [ ] 1.2 `logic.test.ts` に 0件・1件・偶数件・奇数件・同数のタイブレーク・入力配列を変更しないことのテストを追加し、100% カバレッジを維持する
 
-## 2. UI
+## 2. UI（`src/ui/components/FavoritesModal.ts`）
 
-- [ ] 2.1 `FavoritesModal.ts` の `createTrendSection` で、`calculateTrends` の結果に `arrangeCenterOut` を適用して描画する
-- [ ] 2.2 `styles.ts` の `.comic-helper-favorites-trend-tags` に `justify-content: center` を追加する
-- [ ] 2.3 `FavoritesModal.test.ts` に、中央配置・上位10件・すべて表示・ピン留め/選択中の配置のテストを追加する
+- [ ] 2.1 `createTagCloudSection` の文字列昇順ソートを `arrangeTagCloud` に置き換える
+- [ ] 2.2 `FavoritesModal.test.ts` の既存の並び順のテストを更新し、中央配置・種類フィルタ後・同数タグのテストを追加する
 
 ## 3. 検証
 
