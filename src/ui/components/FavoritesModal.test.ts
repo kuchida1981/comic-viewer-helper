@@ -714,3 +714,90 @@ describe('FavoritesModal tag cloud view', () => {
     expect(cloudEl(comp.el).querySelectorAll('.comic-helper-tag-cloud-item')).toHaveLength(12);
   });
 });
+
+describe('FavoritesModal tag cloud type filter', () => {
+  const typedFavorites: RelatedWork[] = [
+    {
+      title: 'W1', href: '/work/1/', thumb: '/thumb/1.webp',
+      tags: [
+        { text: 'fantasy', href: '/tags/fantasy', type: 'genre' },
+        { text: 'alice', href: '/artists/alice', type: 'artist' },
+        { text: 'misc', href: '/tags/misc', type: null }
+      ]
+    },
+    { title: 'W2', href: '/work/2/', thumb: '/thumb/2.webp', tags: [{ text: 'fantasy', href: '/tags/fantasy', type: 'genre' }] }
+  ];
+
+  const openCloud = (favorites: RelatedWork[]) => {
+    const comp = createFavoritesModal({ ...defaultProps, favorites });
+    comp.el.querySelectorAll<HTMLElement>('.comic-helper-favorites-view-btn')[1].click();
+    return comp;
+  };
+  const cloudEl = (el: HTMLElement) => el.querySelector('.comic-helper-tag-cloud') as HTMLElement;
+  const itemTexts = (el: HTMLElement) =>
+    Array.from(cloudEl(el).querySelectorAll('.comic-helper-tag-cloud-item')).map(i => i.textContent).sort();
+  const chips = (el: HTMLElement) =>
+    Array.from(cloudEl(el).querySelectorAll<HTMLElement>('.comic-helper-tag-type-chip'));
+  const chip = (el: HTMLElement, label: string) => chips(el).find(c => c.textContent === label) as HTMLElement;
+
+  it('デフォルトでは存在する種類のチップが有効状態で表示され、全タグが表示される', () => {
+    const { el } = openCloud(typedFavorites);
+    expect(chips(el).map(c => c.textContent)).toEqual(['artist', 'genre', t('ui.tagTypeOther')]);
+    expect(chips(el).some(c => c.classList.contains('disabled'))).toBe(false);
+    expect(itemTexts(el)).toEqual(['alice', 'fantasy', 'misc']);
+  });
+
+  it('種類を無効にするとその種類のタグが消え、再度クリックで戻る', () => {
+    const { el } = openCloud(typedFavorites);
+    chip(el, 'genre').click();
+    expect(itemTexts(el)).toEqual(['alice', 'misc']);
+    expect(chip(el, 'genre').classList.contains('disabled')).toBe(true);
+    chip(el, 'genre').click();
+    expect(itemTexts(el)).toEqual(['alice', 'fantasy', 'misc']);
+    expect(chip(el, 'genre').classList.contains('disabled')).toBe(false);
+  });
+
+  it('「その他」チップで type が null のタグを切り替えられる', () => {
+    const { el } = openCloud(typedFavorites);
+    chip(el, t('ui.tagTypeOther')).click();
+    expect(itemTexts(el)).toEqual(['alice', 'fantasy']);
+  });
+
+  it('すべて無効にしてもチップは残り、空メッセージが表示される', () => {
+    const { el } = openCloud(typedFavorites);
+    ['artist', 'genre', t('ui.tagTypeOther')].forEach(label => chip(el, label).click());
+    expect(chips(el)).toHaveLength(3);
+    expect(itemTexts(el)).toEqual([]);
+    expect(cloudEl(el).textContent).toContain(t('ui.tagCloudEmpty'));
+  });
+
+  it('種類が1つ以下ならチップは表示されない', () => {
+    const { el } = openCloud([
+      { title: 'W', href: '/work/1/', thumb: '', tags: [{ text: 'a', href: '/a', type: 'genre' }] }
+    ]);
+    expect(chips(el)).toHaveLength(0);
+  });
+
+  it('種類フィルタは一覧ビューのトレンドと作品グリッドに影響しない', () => {
+    const { el } = openCloud(typedFavorites);
+    chip(el, 'genre').click();
+    const list = el.querySelector('.comic-helper-favorites-list-view') as HTMLElement;
+    expect(list.querySelectorAll('.comic-helper-tag-chip-container')).toHaveLength(3);
+    expect(list.querySelector('.comic-helper-search-result-grid')?.children).toHaveLength(2);
+  });
+
+  it('クラウド表示中にお気に入りが更新されても除外状態は維持される', () => {
+    const comp = openCloud(typedFavorites);
+    chip(comp.el, 'genre').click();
+    comp.updateFavorites(typedFavorites);
+    expect(itemTexts(comp.el)).toEqual(['alice', 'misc']);
+    expect(cloudEl(comp.el).style.display).not.toBe('none');
+  });
+
+  it('モーダルを作り直すと全種類が有効に戻る', () => {
+    const first = openCloud(typedFavorites);
+    chip(first.el, 'genre').click();
+    const second = openCloud(typedFavorites);
+    expect(itemTexts(second.el)).toEqual(['alice', 'fantasy', 'misc']);
+  });
+});

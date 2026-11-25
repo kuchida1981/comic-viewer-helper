@@ -105,12 +105,14 @@ const FAVORITE_PICK_CHANCE = 0.25;
  * @param limit Max number of tags to return. 0 means no limit (return all).
  * @param pinnedTags List of tag texts that are pinned (shown first).
  * @param selectedTags List of tag texts that are currently selected (shown before pinned).
+ * @param excludedTypes Tag types to exclude (`null` means tags without a type). Applied before sorting and limiting.
  */
 export function calculateTrends(
   favorites: RelatedWork[],
   limit: number = 10,
   pinnedTags: string[] = [],
-  selectedTags: string[] = []
+  selectedTags: string[] = [],
+  excludedTypes: ReadonlySet<string | null> = new Set()
 ): Array<{ tag: Tag; count: number; isPinned: boolean }> {
   const map = new Map<string, { tag: Tag; count: number }>();
   for (const fav of favorites) {
@@ -125,7 +127,7 @@ export function calculateTrends(
   }
   const pinnedSet = new Set(pinnedTags);
   const selectedSet = new Set(selectedTags);
-  const withMeta = Array.from(map.values()).map(({ tag, count }) => ({
+  const withMeta = Array.from(map.values()).filter(({ tag }) => !excludedTypes.has(tag.type)).map(({ tag, count }) => ({
     tag,
     count,
     isPinned: pinnedSet.has(tag.text),
@@ -149,6 +151,20 @@ export function calculateTagCloudLevel(count: number, min: number, max: number, 
   const ratio = (count - min) / (max - min);
   const level = 1 + Math.round(ratio * (levels - 1));
   return Math.min(levels, Math.max(1, level));
+}
+
+/**
+ * Collect the distinct tag types present in favorites (`null` for untyped tags, always last).
+ */
+export function getTagTypes(favorites: RelatedWork[]): Array<string | null> {
+  const types = new Set<string | null>();
+  for (const fav of favorites) {
+    for (const tag of (fav.tags ?? [])) {
+      types.add(tag.type);
+    }
+  }
+  const typed = Array.from(types).filter((type): type is string => type !== null).sort();
+  return types.has(null) ? [...typed, null] : typed;
 }
 
 /**

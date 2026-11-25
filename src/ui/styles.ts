@@ -659,6 +659,23 @@ export const styles = `
     gap: 6px 14px;
     padding: 16px 8px;
   }
+  .comic-helper-tag-type-filter {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    flex-basis: 100%;
+    margin-bottom: 8px;
+  }
+  .comic-helper-tag-type-chip {
+    border: none;
+    cursor: pointer;
+  }
+  .comic-helper-tag-type-chip.disabled {
+    opacity: 0.4;
+    text-decoration: line-through;
+  }
+
   .comic-helper-tag-cloud-item {
     background: transparent;
     border: none;
