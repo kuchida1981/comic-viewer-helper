@@ -1,7 +1,7 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
 import { RelatedWork, HistoryEntry } from '../../types';
-import { calculateTrends, filterWorksByTags } from '../../logic';
+import { calculateTrends, calculateTagCloudLevel, filterWorksByTags } from '../../logic';
 import { createPinFilledIcon } from '../icons';
 
 function normalizeHref(href: string): string {
@@ -31,6 +31,9 @@ export interface FavoritesModalComponent {
   updatePinnedTags: (pinnedTags: string[]) => void;
 }
 
+type FavoritesView = 'list' | 'cloud';
+
+const TAG_CLOUD_LIMIT = 200;
 type SortMode = 'lastViewedAt' | 'viewCount' | 'firstViewedAt';
 
 function formatViewCount(count: number): string {
@@ -279,6 +282,37 @@ function createTrendSection(
   return section;
 }
 
+function createTagCloudSection(
+  favorites: RelatedWork[],
+  onTagClick: (tagText: string) => void
+): HTMLElement {
+  const section = createElement('div', { className: 'comic-helper-tag-cloud' });
+  const trends = calculateTrends(favorites, TAG_CLOUD_LIMIT);
+  if (trends.length === 0) {
+    section.appendChild(createElement('div', {
+      className: 'comic-helper-search-no-results',
+      textContent: t('ui.tagCloudEmpty')
+    }));
+    return section;
+  }
+
+  const counts = trends.map(({ count }) => count);
+  const min = Math.min(...counts);
+  const max = Math.max(...counts);
+  const sorted = [...trends].sort((a, b) => a.tag.text.localeCompare(b.tag.text));
+
+  sorted.forEach(({ tag, count }) => {
+    const level = calculateTagCloudLevel(count, min, max);
+    section.appendChild(createElement('button', {
+      className: `comic-helper-tag-cloud-item comic-helper-tag-cloud-item--level-${level}`,
+      textContent: tag.text,
+      title: `${tag.text} (${count})`,
+      events: { click: () => onTagClick(tag.text) }
+    }));
+  });
+  return section;
+}
+
 export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose }: FavoritesModalProps): FavoritesModalComponent {
   let sortMode: SortMode = 'lastViewedAt';
   let currentFavorites = favorites;
@@ -286,6 +320,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   let currentPinnedTags = pinnedTags;
   let selectedTagTexts: Set<string> = new Set();
   let showAllTags: boolean = false;
+  let favoritesView: FavoritesView = 'list';
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -329,25 +364,58 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   function handleToggleShowAll(): void {
     showAllTags = !showAllTags;
     const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
-    favPanel.replaceChild(newTrendSection, trendSection);
+    listView.replaceChild(newTrendSection, trendSection);
     trendSection = newTrendSection;
   }
 
+  function handleCloudTagClick(tagText: string): void {
+    selectedTagTexts.add(tagText);
+    setFavoritesView('list');
+  }
+
+  function setFavoritesView(view: FavoritesView): void {
+    favoritesView = view;
+    listViewBtn.classList.toggle('active', view === 'list');
+    cloudViewBtn.classList.toggle('active', view === 'cloud');
+    listView.style.display = view === 'list' ? '' : 'none';
+    cloudView.style.display = view === 'cloud' ? '' : 'none';
+    rerenderFavoritesPanel();
+  }
+
   function rerenderFavoritesPanel(): void {
+    const newCloud = createTagCloudSection(currentFavorites, handleCloudTagClick);
+    cloudView.replaceWith(newCloud);
+    cloudView = newCloud;
+    cloudView.style.display = favoritesView === 'cloud' ? '' : 'none';
+
     const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
-    favPanel.replaceChild(newTrendSection, trendSection);
+    listView.replaceChild(newTrendSection, trendSection);
     trendSection = newTrendSection;
 
     const filtered = filterWorksByTags(currentFavorites, selectedTagTexts);
     const newFavGrid = createFavoritesGrid(filtered, onRemoveFavorite, onToggleFavorite);
-    favPanel.replaceChild(newFavGrid, favGrid);
+    listView.replaceChild(newFavGrid, favGrid);
     favGrid = newFavGrid;
   }
 
   // Content area
   let trendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
   let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
-  const favPanel = createElement('div', { className: 'comic-helper-favorites-panel' }, [trendSection, favGrid]);
+  const listView = createElement('div', { className: 'comic-helper-favorites-list-view' }, [trendSection, favGrid]);
+  let cloudView = createTagCloudSection(currentFavorites, handleCloudTagClick);
+  cloudView.style.display = 'none';
+  const listViewBtn = createElement('button', {
+    className: 'comic-helper-favorites-view-btn active',
+    textContent: t('ui.favoritesViewList'),
+    events: { click: () => setFavoritesView('list') }
+  });
+  const cloudViewBtn = createElement('button', {
+    className: 'comic-helper-favorites-view-btn',
+    textContent: t('ui.favoritesViewCloud'),
+    events: { click: () => setFavoritesView('cloud') }
+  });
+  const viewSwitch = createElement('div', { className: 'comic-helper-favorites-view-switch' }, [listViewBtn, cloudViewBtn]);
+  const favPanel = createElement('div', { className: 'comic-helper-favorites-panel' }, [viewSwitch, listView, cloudView]);
 
   let sortMenu = createSortMenu(sortMode, handleSort);
   let histGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
@@ -416,7 +484,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     updatePinnedTags: (newPinnedTags: string[]) => {
       currentPinnedTags = newPinnedTags;
       const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
-      favPanel.replaceChild(newTrendSection, trendSection);
+      listView.replaceChild(newTrendSection, trendSection);
       trendSection = newTrendSection;
     }
   };

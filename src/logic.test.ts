@@ -15,6 +15,7 @@ import {
   getLuckyCandidatesCount,
   isLuckyPoolDepleted,
   calculateTrends,
+  calculateTagCloudLevel,
   filterWorksByTags,
   encrypt,
   decrypt,
@@ -1002,5 +1003,34 @@ describe('encrypt / decrypt / isEncrypted', () => {
       const ctx = { ...base, history: [{ href: 'https://example.com/search', lastViewedAt: 1 }] };
       expect(resolveRedirectTarget(ctx)).toBeNull();
     });
+  });
+});
+
+describe('calculateTagCloudLevel', () => {
+  it('最小件数は最小段階を返す', () => {
+    expect(calculateTagCloudLevel(1, 1, 10)).toBe(1);
+  });
+
+  it('最大件数は最大段階を返す', () => {
+    expect(calculateTagCloudLevel(10, 1, 10)).toBe(5);
+  });
+
+  it('中間の件数は線形に段階が決まる', () => {
+    expect(calculateTagCloudLevel(5, 1, 9)).toBe(3);
+    expect(calculateTagCloudLevel(3, 1, 9)).toBe(2);
+  });
+
+  it('min と max が等しい場合は中間段階を返す', () => {
+    expect(calculateTagCloudLevel(3, 3, 3)).toBe(3);
+    expect(calculateTagCloudLevel(3, 3, 3, 4)).toBe(2);
+  });
+
+  it('範囲外の件数は 1..levels にクランプされる', () => {
+    expect(calculateTagCloudLevel(0, 1, 10)).toBe(1);
+    expect(calculateTagCloudLevel(20, 1, 10)).toBe(5);
+  });
+
+  it('levels を指定できる', () => {
+    expect(calculateTagCloudLevel(10, 1, 10, 3)).toBe(3);
   });
 });

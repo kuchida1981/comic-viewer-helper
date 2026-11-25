@@ -629,6 +629,55 @@ export const styles = `
     margin-top: 2px;
   }
 
+  .comic-helper-favorites-view-switch {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .comic-helper-favorites-view-btn {
+    background: transparent;
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.muted};
+    font-size: 11px;
+    cursor: pointer;
+    padding: 3px 10px;
+    border-radius: 12px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .comic-helper-favorites-view-btn:hover {
+    background: ${COLORS.background.tagHover};
+  }
+  .comic-helper-favorites-view-btn.active {
+    border-color: ${COLORS.border.accent};
+    color: ${COLORS.border.accent};
+  }
+  .comic-helper-tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px 14px;
+    padding: 16px 8px;
+  }
+  .comic-helper-tag-cloud-item {
+    background: transparent;
+    border: none;
+    color: ${COLORS.border.accent};
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1.3;
+    transition: opacity 0.15s;
+  }
+  .comic-helper-tag-cloud .comic-helper-tag-cloud-item:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+  .comic-helper-tag-cloud-item--level-1 { font-size: 10px; opacity: 0.55; }
+  .comic-helper-tag-cloud-item--level-2 { font-size: 14px; opacity: 0.7; }
+  .comic-helper-tag-cloud-item--level-3 { font-size: 20px; font-weight: bold; }
+  .comic-helper-tag-cloud-item--level-4 { font-size: 30px; font-weight: bold; }
+  .comic-helper-tag-cloud-item--level-5 { font-size: 44px; font-weight: bold; }
+
   .comic-helper-favorites-trend-section {
     padding: 8px 0 12px;
     border-bottom: 1px solid ${COLORS.border.light};
