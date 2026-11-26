@@ -185,6 +185,33 @@ export function getTagTypes(favorites: RelatedWork[]): Array<string | null> {
 }
 
 /**
+ * Toggle tag type filter state for the tag cloud view.
+ * - When all types are selected (`excludedTypes.size === 0`), clicking a type selects only that type (excludes all others).
+ * - When an excluded type is clicked, it becomes selected (removed from `excludedTypes`).
+ * - When a selected type is clicked while others are excluded, it becomes excluded, except the last remaining selected type cannot be excluded.
+ */
+export function toggleTagTypeFilter(
+  excludedTypes: ReadonlySet<string | null>,
+  allTypes: ReadonlyArray<string | null>,
+  clickedType: string | null
+): Set<string | null> {
+  if (excludedTypes.size === 0) {
+    return new Set(allTypes.filter(type => type !== clickedType));
+  }
+  const next = new Set(excludedTypes);
+  if (next.has(clickedType)) {
+    next.delete(clickedType);
+    return next;
+  }
+  const activeCount = allTypes.filter(type => !excludedTypes.has(type)).length;
+  if (activeCount <= 1) {
+    return next;
+  }
+  next.add(clickedType);
+  return next;
+}
+
+/**
  * Filter works by selected tag texts (AND logic: all selected tags must be present)
  */
 export function filterWorksByTags(favorites: RelatedWork[], selectedTagTexts: Set<string>): RelatedWork[] {
