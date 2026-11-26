@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.49ab372
+// @version         1.6.0-unstable.72169ab
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -175,6 +175,16 @@
     const ratio = (count - min) / (max - min);
     const level = 1 + Math.round(ratio * (levels - 1));
     return Math.min(levels, Math.max(1, level));
+  }
+  function arrangeTagCloud(items) {
+    const ranked = [...items].sort((a, b) => b.count - a.count || a.tag.text.localeCompare(b.tag.text));
+    if (ranked.length === 0) return [];
+    const left = [];
+    const right = [];
+    ranked.slice(1).forEach((item, i) => {
+      (i % 2 === 0 ? right : left).push(item);
+    });
+    return [...left.reverse(), ranked[0], ...right];
   }
   function getTagTypes(favorites) {
     const types = /* @__PURE__ */ new Set();
@@ -3266,7 +3276,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.49ab372"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.72169ab"} (${t("ui.unstable")})`
     });
     const contentChildren = [
       closeBtn,
@@ -4026,8 +4036,8 @@
     const counts = trends.map(({ count }) => count);
     const min = Math.min(...counts);
     const max = Math.max(...counts);
-    const sorted = [...trends].sort((a, b) => a.tag.text.localeCompare(b.tag.text));
-    sorted.forEach(({ tag, count }) => {
+    const arranged = arrangeTagCloud(trends);
+    arranged.forEach(({ tag, count }) => {
       const level = calculateTagCloudLevel(count, min, max);
       section.appendChild(createElement("button", {
         className: `comic-helper-tag-cloud-item comic-helper-tag-cloud-item--level-${level}`,
