@@ -17,6 +17,7 @@ import {
   calculateTrends,
   calculateTagCloudLevel,
   getTagTypes,
+  arrangeTagCloud,
   filterWorksByTags,
   encrypt,
   decrypt,
@@ -888,6 +889,40 @@ describe('calculateTrends (excludedTypes)', () => {
     };
     const trends = calculateTrends([many], 2, [], [], new Set(['genre']));
     expect(trends.map(t => t.tag.text).sort()).toEqual(['a0', 'a1']);
+  });
+});
+
+describe('arrangeTagCloud', () => {
+  const item = (text: string, count: number) => ({ tag: { text }, count });
+  const texts = (items: Array<{ tag: { text: string } }>) => items.map(i => i.tag.text);
+
+  it('should place the most frequent item in the center (odd count)', () => {
+    const items = [item('E', 1), item('A', 5), item('C', 3), item('B', 4), item('D', 2)];
+    expect(texts(arrangeTagCloud(items))).toEqual(['E', 'C', 'A', 'B', 'D']);
+  });
+
+  it('should handle an even number of items', () => {
+    const items = [item('A', 4), item('B', 3), item('C', 2), item('D', 1)];
+    expect(texts(arrangeTagCloud(items))).toEqual(['C', 'A', 'B', 'D']);
+  });
+
+  it('should break ties by text ascending', () => {
+    const items = [item('b', 2), item('c', 2), item('a', 2)];
+    expect(texts(arrangeTagCloud(items))).toEqual(['c', 'a', 'b']);
+  });
+
+  it('should return a single item as is', () => {
+    expect(texts(arrangeTagCloud([item('only', 1)]))).toEqual(['only']);
+  });
+
+  it('should return empty for empty input', () => {
+    expect(arrangeTagCloud([])).toEqual([]);
+  });
+
+  it('should not modify the input array', () => {
+    const items = [item('B', 1), item('A', 2)];
+    arrangeTagCloud(items);
+    expect(texts(items)).toEqual(['B', 'A']);
   });
 });
 
