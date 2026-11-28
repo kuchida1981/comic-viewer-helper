@@ -442,8 +442,10 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   function rerenderGraphView(): void {
     const types = getTagTypes(currentFavorites);
     const hasChips = types.length >= 2;
-    // Without the chips there is no way to undo a filter, so drop it
-    if (!hasChips) graphExcludedTypes = new Set();
+    // Forget types that no longer exist
+    graphExcludedTypes = new Set(types.filter(type => graphExcludedTypes.has(type)));
+    // Drop the filter if it cannot be undone (no chips) or would hide every type
+    if (!hasChips || graphExcludedTypes.size === types.length) graphExcludedTypes = new Set();
     graphTypeFilter.replaceChildren(...(hasChips
       ? [createTagTypeChips(types, graphExcludedTypes, handleToggleGraphType, handleResetGraphTypes)]
       : []));

@@ -190,8 +190,16 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
     drag = null;
     bodies = bodies.map(body => ({ ...body, fixed: false }));
     window.removeEventListener('pointermove', handlePointerMove);
-    window.removeEventListener('pointerup', endDrag);
-    window.removeEventListener('pointercancel', endDrag);
+    window.removeEventListener('pointerup', releaseDrag);
+    window.removeEventListener('pointercancel', releaseDrag);
+    window.removeEventListener('blur', releaseDrag);
+  }
+
+  /** End a drag by user input: the highlight stays only while the pointer is still on the node */
+  function releaseDrag(): void {
+    const id = drag?.id;
+    endDrag();
+    if (id && !nodeEls.get(id)?.matches(':hover')) highlight(null);
   }
 
   function startDrag(e: MouseEvent, id: string | null): void {
@@ -202,9 +210,13 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
     const client = { x: e.clientX, y: e.clientY };
     drag = { id, start: client, last: client };
     dragged = false;
+    // Hold the pressed node still so that it does not slip away from under the pointer
+    bodies = bodies.map(body => body.id === id ? { ...body, fixed: true } : body);
     window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', endDrag);
-    window.addEventListener('pointercancel', endDrag);
+    window.addEventListener('pointerup', releaseDrag);
+    window.addEventListener('pointercancel', releaseDrag);
+    // The pointerup is lost when the window loses focus during a drag
+    window.addEventListener('blur', releaseDrag);
   }
 
   svg.addEventListener('pointerdown', (e) => startDrag(e, null));
@@ -300,6 +312,8 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
       } else {
         endDrag();
         stopAnimation();
+        // A hidden node never receives pointerleave
+        highlight(null);
       }
     },
     destroy: () => {

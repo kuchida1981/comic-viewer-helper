@@ -76,6 +76,15 @@ describe('FavoritesModal tag graph view', () => {
     expect(graphIds(modal.el)).toEqual(['fantasy']);
   });
 
+  it('選択中の種類がなくなると絞り込みを解除する', () => {
+    const three: RelatedWork = { title: 'X', href: '/work/8/', thumb: '', tags: [tag('g', 'genre'), tag('a', 'artist'), tag('c', 'circle')] };
+    const modal = openGraph({ favorites: [three] });
+    typeChip(graphView(modal.el), 'genre').click();
+    modal.updateFavorites([{ ...three, tags: [tag('a', 'artist'), tag('c', 'circle')] }]);
+    expect(graphIds(modal.el)).toEqual(['a', 'c']);
+    expect((graphView(modal.el).querySelector('.comic-helper-tag-type-reset') as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('グラフが画面にあるときだけアクティブにする', () => {
     const spy = spyOnGraph();
     const { el, buttons } = openGraph({ createTagGraph: spy.createTagGraph });

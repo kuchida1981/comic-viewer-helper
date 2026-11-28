@@ -221,6 +221,36 @@ describe('TagGraphView', () => {
     pointer(node('a'), 'pointerdown');
     node('a').dispatchEvent(new Event('pointerleave'));
     expect(svg.classList.contains('has-highlight')).toBe(true);
+    // Released away from the node
     pointer(window, 'pointerup');
+    expect(svg.classList.contains('has-highlight')).toBe(false);
+  });
+
+  it('非表示にすると強調を解除する', () => {
+    const { graph, node, svg } = setup();
+    node('a').dispatchEvent(new Event('pointerenter'));
+    graph.setActive(false);
+    expect(svg.classList.contains('has-highlight')).toBe(false);
+  });
+
+  it('押しているノードは動かさなくても固定される', () => {
+    const { graph, node } = setup();
+    graph.setActive(true);
+    const before = position(node('a'));
+    pointer(node('a'), 'pointerdown');
+    runFrames(20);
+    expect(position(node('a'))).toBe(before);
+    pointer(window, 'pointerup');
+  });
+
+  it('ドラッグ中にウィンドウがフォーカスを失うとドラッグを終え、やがて停止する', () => {
+    const { graph, node } = setup();
+    graph.setActive(true);
+    pointer(node('a'), 'pointerdown');
+    pointer(window, 'pointermove', 100, 50);
+    window.dispatchEvent(new Event('blur'));
+    pointer(window, 'pointermove', 200, 200);
+    expect(position(node('a'))).toBe('translate(100 50)');
+    expect(runFrames()).toBeLessThan(1000);
   });
 });
