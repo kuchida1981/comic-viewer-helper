@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.1c0c55b
+// @version         1.6.0-unstable.38baf73
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -233,12 +233,13 @@
     return true;
   }
   function getPrimaryVisibleImageIndex(imgs, windowHeight) {
-    if (!imgs || !Array.isArray(imgs) || imgs.length === 0) return -1;
+    const list = Array.isArray(imgs) ? imgs : [];
+    if (list.length === 0) return -1;
     let maxVisibleHeight = 0;
     let minDistanceToCenter = Infinity;
     let primaryIndex = -1;
     const viewportCenter = windowHeight / 2;
-    imgs.forEach((img, index) => {
+    list.forEach((img, index) => {
       if (!img || typeof img.getBoundingClientRect !== "function") {
         return;
       }
@@ -256,10 +257,6 @@
     });
     return primaryIndex;
   }
-  function getImageElementByIndex(imgs, index) {
-    if (index < 0 || index >= imgs.length) return null;
-    return imgs[index];
-  }
   function isEligibleForPairing(i, total, spreadOffset) {
     const effectiveIndex = i - spreadOffset;
     const isPairingPosition = effectiveIndex >= 0 && effectiveIndex % 2 === 0;
@@ -267,205 +264,11 @@
     const isNextLastPage = i + 1 === total - 1;
     return isPairingPosition && i + 1 < total && !isFirstPage && !isNextLastPage;
   }
-  function getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled) {
-    if (!isDualViewEnabled || !isEligibleForPairing(i, allImages.length, spreadOffset)) {
-      return { pairWithNext: false, nextImg: null };
-    }
-    const img = allImages[i];
-    const candidate = allImages[i + 1];
-    if (img && candidate && typeof img.naturalWidth === "number" && typeof candidate.naturalWidth === "number") {
-      const isLandscape = img.naturalWidth > img.naturalHeight;
-      const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
-      if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
-        return { pairWithNext: true, nextImg: candidate };
-      }
-    }
-    return { pairWithNext: false, nextImg: null };
-  }
-  function applyRowLayout(wrapper, img, nextImg, viewport) {
-    Object.assign(wrapper.style, {
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      width: "100vw",
-      maxWidth: "100vw",
-      marginLeft: "calc(50% - 50vw)",
-      marginRight: "calc(50% - 50vw)",
-      height: "100vh",
-      marginBottom: "0",
-      position: "relative",
-      boxSizing: "border-box"
-    });
-    if (nextImg) {
-      wrapper.style.flexDirection = "row-reverse";
-      [img, nextImg].forEach((im) => {
-        Object.assign(im.style, {
-          maxWidth: "50%",
-          maxHeight: "100%",
-          width: "auto",
-          height: "auto",
-          objectFit: "contain",
-          margin: "0",
-          display: "block"
-        });
-      });
-      if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
-        wrapper.replaceChildren(img, nextImg);
-      }
-    } else {
-      wrapper.style.flexDirection = "row";
-      Object.assign(img.style, {
-        maxWidth: `${viewport.vw}px`,
-        maxHeight: `${viewport.vh}px`,
-        width: "auto",
-        height: "auto",
-        display: "block",
-        margin: "0 auto",
-        flexShrink: "0",
-        objectFit: "contain"
-      });
-      if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
-        wrapper.replaceChildren(img);
-      }
-    }
-  }
-  function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
-    if (!container) return;
-    const viewport = { vw: window.innerWidth, vh: window.innerHeight };
-    Object.assign(container.style, {
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      padding: "0",
-      margin: "0",
-      width: "100%",
-      maxWidth: "none"
-    });
-    const allImages = Array.from(container.querySelectorAll("img"));
-    const existingWrappers = Array.from(container.querySelectorAll(".comic-row-wrapper"));
-    let wrapperIndex = 0;
-    for (let i = 0; i < allImages.length; i++) {
-      const img = allImages[i];
-      if (!img || typeof img.naturalWidth !== "number") continue;
-      const { pairWithNext, nextImg } = getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled);
-      const wrapper = existingWrappers[wrapperIndex];
-      if (wrapper === void 0) {
-        const newWrapper = document.createElement("div");
-        newWrapper.className = "comic-row-wrapper";
-        container.appendChild(newWrapper);
-        applyRowLayout(newWrapper, img, nextImg, viewport);
-      } else {
-        container.appendChild(wrapper);
-        applyRowLayout(wrapper, img, nextImg, viewport);
-      }
-      if (pairWithNext) i++;
-      wrapperIndex++;
-    }
-    while (wrapperIndex < existingWrappers.length) {
-      existingWrappers[wrapperIndex].remove();
-      wrapperIndex++;
-    }
-  }
-  function revertToOriginal(originalImages, container) {
-    if (!container) return;
-    container.style.cssText = "";
-    if (!originalImages || !Array.isArray(originalImages)) return;
-    originalImages.forEach((img) => {
-      if (img && img.style) {
-        img.style.cssText = "";
-      }
-      if (img instanceof Node) {
-        container.appendChild(img);
-      }
-    });
-    const wrappers = container.querySelectorAll(".comic-row-wrapper");
-    wrappers.forEach((w) => w.remove());
-  }
-  function getClickNavigationDirection(img) {
-    const wrapper = img.parentElement;
-    if (!wrapper || !wrapper.classList.contains("comic-row-wrapper")) {
-      return "next";
-    }
-    const siblings = Array.from(wrapper.querySelectorAll("img"));
-    if (siblings.length < 2) {
-      return "next";
-    }
-    return img === siblings[0] ? "prev" : "next";
-  }
   function getNavigationDirection(event, threshold = 50) {
     if (Math.abs(event.deltaY) < threshold) {
       return "none";
     }
     return event.deltaY > 0 ? "next" : "prev";
-  }
-  async function waitForImageLoad(img, timeout = 5e3) {
-    if (!img) return Promise.resolve();
-    if (img.complete && img.naturalHeight !== 0) {
-      return;
-    }
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => {
-        cleanup();
-        resolve();
-      }, timeout);
-      const onLoad = () => {
-        cleanup();
-        resolve();
-      };
-      const onError = () => {
-        cleanup();
-        resolve();
-      };
-      const cleanup = () => {
-        clearTimeout(timer);
-        if (img && typeof img.removeEventListener === "function") {
-          img.removeEventListener("load", onLoad);
-          img.removeEventListener("error", onError);
-        }
-      };
-      if (img && typeof img.addEventListener === "function") {
-        img.addEventListener("load", onLoad);
-        img.addEventListener("error", onError);
-      } else {
-        clearTimeout(timer);
-        resolve();
-      }
-    });
-  }
-  function forceImageLoad(img) {
-    if (!img) return;
-    if (typeof img.getAttribute === "function" && img.getAttribute("loading") === "lazy") {
-      img.setAttribute("loading", "eager");
-    }
-    if ("decode" in img && typeof img.decode === "function") {
-      img.decode().catch(() => {
-      });
-    }
-  }
-  function triggerImageDecode(img) {
-    if (img && !img.complete) {
-      img.loading = "eager";
-      if ("decode" in img && typeof img.decode === "function") {
-        img.decode().catch(() => {
-        });
-      }
-    }
-  }
-  function preloadImages(images, currentIndex, count = 3) {
-    if (!images || !Array.isArray(images) || images.length === 0) return;
-    for (let i = 1; i <= count; i++) {
-      const nextIndex = currentIndex + i;
-      if (nextIndex < images.length) {
-        triggerImageDecode(images[nextIndex]);
-      }
-    }
-    const prevCount = Math.min(count, 2);
-    for (let i = 1; i <= prevCount; i++) {
-      const prevIndex = currentIndex - i;
-      if (prevIndex >= 0) {
-        triggerImageDecode(images[prevIndex]);
-      }
-    }
   }
   function toCandidates(works) {
     if (!Array.isArray(works)) return [];
@@ -477,36 +280,39 @@
     }
     return res;
   }
-  function normalizeUrl(url) {
+  function normalizeUrl(url, baseOrigin) {
     try {
-      let base;
-      if (typeof window !== "undefined" && window.location) {
-        base = window.location.origin;
-      }
-      if (!base || base === "null" || base === "undefined") {
-        base = "http://localhost";
-      }
+      const base = baseOrigin && baseOrigin !== "null" && baseOrigin !== "undefined" ? baseOrigin : "http://localhost";
       const u = new URL(url, base);
       return u.origin + u.pathname;
     } catch {
       return url;
     }
   }
+  function extractOrigin(url) {
+    try {
+      return new URL(url).origin;
+    } catch {
+      return void 0;
+    }
+  }
   function getLuckyCandidatesCount(metadata, luckyHistory, currentUrl, searchCache, favorites = []) {
-    const normalizedCurrent = normalizeUrl(currentUrl);
-    const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h));
+    const origin = extractOrigin(currentUrl);
+    const normalizedCurrent = normalizeUrl(currentUrl, origin);
+    const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h, origin));
     const pool = getDiscoveryPool(metadata, searchCache, favorites);
     const excludeSet = /* @__PURE__ */ new Set();
     excludeSet.add(normalizedCurrent);
     normalizedHistory.forEach((h) => excludeSet.add(h));
-    return pool.filter((w) => !excludeSet.has(normalizeUrl(w.href))).length;
+    return pool.filter((w) => !excludeSet.has(normalizeUrl(w.href, origin))).length;
   }
   function isLuckyPoolDepleted(metadata, luckyHistory, currentUrl, searchCache, favorites = [], threshold = 5) {
     return getLuckyCandidatesCount(metadata, luckyHistory, currentUrl, searchCache, favorites) < threshold;
   }
   function pickRandomWork(metadata, luckyHistory, currentUrl, searchCache, favorites = []) {
-    const normalizedCurrent = normalizeUrl(currentUrl);
-    const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h));
+    const origin = extractOrigin(currentUrl);
+    const normalizedCurrent = normalizeUrl(currentUrl, origin);
+    const normalizedHistory = luckyHistory.map((h) => normalizeUrl(h, origin));
     const getFilteredPool = (excludeHistoryCount) => {
       const pool = getDiscoveryPool(metadata, searchCache, favorites);
       const excludeSet = /* @__PURE__ */ new Set();
@@ -516,7 +322,7 @@
       } else if (typeof excludeHistoryCount === "number" && excludeHistoryCount > 0) {
         normalizedHistory.slice(0, excludeHistoryCount).forEach((h) => excludeSet.add(h));
       }
-      return pool.filter((w) => !excludeSet.has(normalizeUrl(w.href)));
+      return pool.filter((w) => !excludeSet.has(normalizeUrl(w.href, origin)));
     };
     let candidates = getFilteredPool("all");
     if (candidates.length === 0) {
@@ -527,7 +333,7 @@
     }
     if (candidates.length === 0) return null;
     const favoritePool = toCandidates(favorites).filter(
-      (f) => candidates.some((c) => normalizeUrl(c.href) === normalizeUrl(f.href))
+      (f) => candidates.some((c) => normalizeUrl(c.href, origin) === normalizeUrl(f.href, origin))
     );
     if (favoritePool.length > 0 && Math.random() < FAVORITE_PICK_CHANCE) {
       const target = favoritePool[Math.floor(Math.random() * favoritePool.length)];
@@ -539,12 +345,12 @@
   }
   function getDiscoveryPool(metadata, searchCache, favorites = []) {
     const sources = [];
-    if (metadata.relatedWorks) {
+    if (Array.isArray(metadata.relatedWorks)) {
       for (const w of metadata.relatedWorks) {
         if (!w.isPrivate && w.href) sources.push({ href: w.href });
       }
     }
-    if (searchCache && searchCache.results) {
+    if (searchCache?.results) {
       sources.push(...toCandidates(searchCache.results.results));
     }
     sources.push(...toCandidates(favorites));
@@ -581,7 +387,8 @@
     if (isSameOriginReferrer(ctx.referrer, ctx.currentUrl)) return null;
     const latest = pickLastViewed(ctx.history);
     if (!latest) return null;
-    if (normalizeUrl(latest.href) === normalizeUrl(ctx.currentUrl)) return null;
+    const origin = extractOrigin(ctx.currentUrl);
+    if (normalizeUrl(latest.href, origin) === normalizeUrl(ctx.currentUrl, origin)) return null;
     if (!ctx.isWorkUrl(latest.href)) return null;
     return latest.href;
   }
@@ -736,11 +543,12 @@
       this.state[key] = value;
     };
     addLuckyHistory = (work) => {
-      const normalizedUrl = normalizeUrl(work.href);
+      const origin = typeof window !== "undefined" ? window.location.origin : void 0;
+      const normalizedUrl = normalizeUrl(work.href, origin);
       const now = Date.now();
       const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1e3;
       const existing = this.state.luckyHistory.find(
-        (entry) => normalizeUrl(entry.href) === normalizedUrl
+        (entry) => normalizeUrl(entry.href, origin) === normalizedUrl
       );
       let newHistory;
       if (existing) {
@@ -750,7 +558,7 @@
           lastViewedAt: now,
           viewCount: shouldIncrement ? existing.viewCount + 1 : existing.viewCount
         };
-        newHistory = [updated, ...this.state.luckyHistory.filter((e) => normalizeUrl(e.href) !== normalizedUrl)];
+        newHistory = [updated, ...this.state.luckyHistory.filter((e) => normalizeUrl(e.href, origin) !== normalizedUrl)];
       } else {
         const newEntry = {
           ...work,
@@ -917,11 +725,11 @@
     },
     getMetadata: () => {
       const titleEl = document.querySelector("h1");
-      const title = titleEl?.textContent?.trim() || "Unknown Title";
+      const title = titleEl?.textContent.trim() || "Unknown Title";
       const tags = Array.from(document.querySelectorAll("#post-tag a")).map((a) => {
         const href = a.href;
         return {
-          text: a.textContent?.trim() || "",
+          text: a.textContent.trim() || "",
           href,
           type: getTagType(href)
         };
@@ -930,7 +738,7 @@
         const anchor = el.closest("a");
         const img = el.querySelector("img");
         const titleEl2 = el.querySelector("span") || anchor?.querySelector("span");
-        const title2 = titleEl2?.textContent?.trim() || "Untitled";
+        const title2 = titleEl2?.textContent.trim() || "Untitled";
         return {
           title: title2,
           href: anchor?.href || "",
@@ -945,13 +753,13 @@
         const img = a.querySelector(".post-list-image img");
         const titleEl = a.querySelector(":scope > span");
         return {
-          title: titleEl?.textContent?.trim() || "",
+          title: titleEl?.textContent.trim() || "",
           href: a.getAttribute("href") || "",
           thumb: img?.getAttribute("src") || ""
         };
       });
       const totalCountEl = doc.querySelector("div.page-h > span");
-      const totalCount = totalCountEl?.textContent?.trim() || null;
+      const totalCount = totalCountEl?.textContent.trim() || null;
       const nextPageUrl = doc.querySelector("div.wp-pagenavi a.nextpostslink")?.getAttribute("href") || null;
       const pagination = [];
       const pagenavi = doc.querySelector(".wp-pagenavi");
@@ -969,7 +777,7 @@
             else if (isPrev) type = "prev";
             else if (isExtend) type = "extend";
             pagination.push({
-              label: el.textContent?.trim() || "",
+              label: el.textContent.trim() || "",
               url: el.getAttribute("href"),
               isCurrent,
               type
@@ -980,6 +788,214 @@
       return { results, totalCount, nextPageUrl, pagination };
     }
   };
+  function hasStyleProp(el) {
+    return Boolean(el.style);
+  }
+  function hasNumericNaturalWidth(el) {
+    return el !== void 0 && typeof el.naturalWidth === "number";
+  }
+  function hasFunctionProp(obj, prop) {
+    return typeof obj[prop] === "function";
+  }
+  function getImageElementByIndex(imgs, index) {
+    if (index < 0 || index >= imgs.length) return null;
+    return imgs[index];
+  }
+  function getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled) {
+    if (!isDualViewEnabled || !isEligibleForPairing(i, allImages.length, spreadOffset)) {
+      return { pairWithNext: false, nextImg: null };
+    }
+    const img = allImages[i];
+    const candidate = allImages.at(i + 1);
+    if (hasNumericNaturalWidth(img) && hasNumericNaturalWidth(candidate) && candidate) {
+      const isLandscape = img.naturalWidth > img.naturalHeight;
+      const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
+      if (shouldPairWithNext({ isLandscape }, { isLandscape: nextIsLandscape }, isDualViewEnabled)) {
+        return { pairWithNext: true, nextImg: candidate };
+      }
+    }
+    return { pairWithNext: false, nextImg: null };
+  }
+  function applyRowLayout(wrapper, img, nextImg, viewport) {
+    Object.assign(wrapper.style, {
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      width: "100vw",
+      maxWidth: "100vw",
+      marginLeft: "calc(50% - 50vw)",
+      marginRight: "calc(50% - 50vw)",
+      height: "100vh",
+      marginBottom: "0",
+      position: "relative",
+      boxSizing: "border-box"
+    });
+    if (nextImg) {
+      wrapper.style.flexDirection = "row-reverse";
+      [img, nextImg].forEach((im) => {
+        Object.assign(im.style, {
+          maxWidth: "50%",
+          maxHeight: "100%",
+          width: "auto",
+          height: "auto",
+          objectFit: "contain",
+          margin: "0",
+          display: "block"
+        });
+      });
+      if (wrapper.children[0] !== img || wrapper.children[1] !== nextImg || wrapper.children.length !== 2) {
+        wrapper.replaceChildren(img, nextImg);
+      }
+    } else {
+      wrapper.style.flexDirection = "row";
+      Object.assign(img.style, {
+        maxWidth: `${viewport.vw}px`,
+        maxHeight: `${viewport.vh}px`,
+        width: "auto",
+        height: "auto",
+        display: "block",
+        margin: "0 auto",
+        flexShrink: "0",
+        objectFit: "contain"
+      });
+      if (wrapper.children.length !== 1 || wrapper.children[0] !== img) {
+        wrapper.replaceChildren(img);
+      }
+    }
+  }
+  function fitImagesToViewport(container, spreadOffset = 0, isDualViewEnabled = false) {
+    if (!container) return;
+    const viewport = { vw: window.innerWidth, vh: window.innerHeight };
+    Object.assign(container.style, {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: "0",
+      margin: "0",
+      width: "100%",
+      maxWidth: "none"
+    });
+    const allImages = Array.from(container.querySelectorAll("img"));
+    const existingWrappers = Array.from(container.querySelectorAll(".comic-row-wrapper"));
+    let wrapperIndex = 0;
+    for (let i = 0; i < allImages.length; i++) {
+      const img = allImages[i];
+      if (!hasNumericNaturalWidth(img)) continue;
+      const { pairWithNext, nextImg } = getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled);
+      const wrapper = existingWrappers.at(wrapperIndex);
+      if (wrapper === void 0) {
+        const newWrapper = document.createElement("div");
+        newWrapper.className = "comic-row-wrapper";
+        container.appendChild(newWrapper);
+        applyRowLayout(newWrapper, img, nextImg, viewport);
+      } else {
+        container.appendChild(wrapper);
+        applyRowLayout(wrapper, img, nextImg, viewport);
+      }
+      if (pairWithNext) i++;
+      wrapperIndex++;
+    }
+    while (wrapperIndex < existingWrappers.length) {
+      existingWrappers[wrapperIndex].remove();
+      wrapperIndex++;
+    }
+  }
+  function revertToOriginal(originalImages, container) {
+    if (!container) return;
+    container.style.cssText = "";
+    if (!Array.isArray(originalImages)) return;
+    originalImages.forEach((img) => {
+      if (!img) return;
+      if (hasStyleProp(img)) {
+        img.style.cssText = "";
+      }
+      if (img instanceof Node) {
+        container.appendChild(img);
+      }
+    });
+    const wrappers = container.querySelectorAll(".comic-row-wrapper");
+    wrappers.forEach((w) => w.remove());
+  }
+  function getClickNavigationDirection(img) {
+    const wrapper = img.parentElement;
+    if (!wrapper || !wrapper.classList.contains("comic-row-wrapper")) {
+      return "next";
+    }
+    const siblings = Array.from(wrapper.querySelectorAll("img"));
+    if (siblings.length < 2) {
+      return "next";
+    }
+    return img === siblings[0] ? "prev" : "next";
+  }
+  async function waitForImageLoad(img, timeout = 5e3) {
+    if (!img) return Promise.resolve();
+    if (img.complete && img.naturalHeight !== 0) {
+      return;
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve();
+      }, timeout);
+      const onLoad = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = () => {
+        cleanup();
+        resolve();
+      };
+      const cleanup = () => {
+        clearTimeout(timer);
+        if (hasFunctionProp(img, "removeEventListener")) {
+          img.removeEventListener("load", onLoad);
+          img.removeEventListener("error", onError);
+        }
+      };
+      if (hasFunctionProp(img, "addEventListener")) {
+        img.addEventListener("load", onLoad);
+        img.addEventListener("error", onError);
+      } else {
+        clearTimeout(timer);
+        resolve();
+      }
+    });
+  }
+  function forceImageLoad(img) {
+    if (!img) return;
+    if (hasFunctionProp(img, "getAttribute") && img.getAttribute("loading") === "lazy") {
+      img.setAttribute("loading", "eager");
+    }
+    if ("decode" in img && typeof img.decode === "function") {
+      img.decode().catch(() => {
+      });
+    }
+  }
+  function triggerImageDecode(img) {
+    if (img && !img.complete) {
+      img.loading = "eager";
+      if ("decode" in img && typeof img.decode === "function") {
+        img.decode().catch(() => {
+        });
+      }
+    }
+  }
+  function preloadImages(images, currentIndex, count = 3) {
+    if (!Array.isArray(images) || images.length === 0) return;
+    for (let i = 1; i <= count; i++) {
+      const nextIndex = currentIndex + i;
+      if (nextIndex < images.length) {
+        triggerImageDecode(images[nextIndex]);
+      }
+    }
+    const prevCount = Math.min(count, 2);
+    for (let i = 1; i <= prevCount; i++) {
+      const prevIndex = currentIndex - i;
+      if (prevIndex >= 0) {
+        triggerImageDecode(images[prevIndex]);
+      }
+    }
+  }
   class Navigator {
     adapter;
     store;
@@ -1121,8 +1137,8 @@
       let targetIndex = currentIndex + direction;
       if (targetIndex < 0) return 0;
       if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-        const currentImg = imgs[currentIndex];
-        const prospective = imgs[targetIndex];
+        const currentImg = imgs.at(currentIndex);
+        const prospective = imgs.at(targetIndex);
         if (currentImg && prospective && prospective.parentElement === currentImg.parentElement && prospective.parentElement?.classList.contains("comic-row-wrapper")) {
           targetIndex += direction;
         }
@@ -2570,7 +2586,7 @@
   }
   function createElement(tag, options = {}, children = []) {
     const el = document.createElement(tag);
-    const opts = options || {};
+    const opts = options ?? {};
     applyBasicProperties(el, opts);
     applyInputProperties(el, opts);
     if (opts.style) {
@@ -3312,7 +3328,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.1c0c55b"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.38baf73"} (${t("ui.unstable")})`
     });
     const contentChildren = [
       closeBtn,
@@ -4670,8 +4686,8 @@
               this.store.setState({ favorites: newFavorites });
             },
             onRemoveHistory: (href) => {
-              const normalizedHref = normalizeUrl(href);
-              const newHistory = this.store.getState().luckyHistory.filter((e) => normalizeUrl(e.href) !== normalizedHref);
+              const normalizedHref = normalizeUrl(href, window.location.origin);
+              const newHistory = this.store.getState().luckyHistory.filter((e) => normalizeUrl(e.href, window.location.origin) !== normalizedHref);
               this.store.setState({ luckyHistory: newHistory });
             },
             onToggleFavorite: (work) => {
@@ -4753,10 +4769,10 @@
     };
     _toggleFavoriteWork = (work) => {
       const state = this.store.getState();
-      const normalizedHref = normalizeUrl(work.href);
-      const isFavorite = state.favorites.some((f) => normalizeUrl(f.href) === normalizedHref);
+      const normalizedHref = normalizeUrl(work.href, window.location.origin);
+      const isFavorite = state.favorites.some((f) => normalizeUrl(f.href, window.location.origin) === normalizedHref);
       if (isFavorite) {
-        const newFavorites = state.favorites.filter((f) => normalizeUrl(f.href) !== normalizedHref);
+        const newFavorites = state.favorites.filter((f) => normalizeUrl(f.href, window.location.origin) !== normalizedHref);
         this.store.setState({ favorites: newFavorites });
       } else {
         this.store.setState({ favorites: [...state.favorites, work] });
