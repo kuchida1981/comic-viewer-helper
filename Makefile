@@ -28,7 +28,7 @@ typecheck:
 
 docs:
 	@echo "docs..."
-	openspec validate --strict --all
+	npx openspec validate --strict --all
 
 build:
 	@echo "build..."

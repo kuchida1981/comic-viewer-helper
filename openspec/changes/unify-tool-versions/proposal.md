@@ -11,7 +11,7 @@
 
 - `Makefile` の `docs` ターゲットを `npx openspec validate --strict --all` に統一する。
 - `package.json` の `@fission-ai/openspec` を `^2.1.1` に更新（および `package-lock.json` を更新）し、スキル・ローカル・CI で同一の OpenSpec CLI バージョン（v2 系）を利用できるようにする。
-- リポジトリルートに `.nvmrc`（`20`）を追加し、`package.json` に `engines.node` を定義する。
+- リポジトリルートに `.nvmrc`（`22`）を追加し、`package.json` に `engines.node`（`>=22.20.0`）を定義する。
 - `.github/workflows/` 配下の全ワークフロー（`build.yml`, `check-openspec.yml`, `deploy.yml`, `lint.yml`, `test.yml`）の `actions/setup-node@v4` 設定を `node-version-file: '.nvmrc'` に変更し、ローカルと CI で Node.js バージョンの定義元を一元化する。
 
 ## Capabilities
