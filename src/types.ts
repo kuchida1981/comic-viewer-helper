@@ -111,3 +111,13 @@ export interface SyncConfig {
   encryptionMode: 'none' | 'aes';
   encryptionPassword?: string;
 }
+
+export interface TagGraphViewComponent {
+  el: HTMLElement;
+  update: (favorites: RelatedWork[], excludedTypes: ReadonlySet<string | null>) => void;
+  /** Run the animation only while the graph is on screen */
+  setActive: (active: boolean) => void;
+  destroy: () => void;
+}
+
+export type TagGraphViewFactory = (props: { onSelectTag: (tagText: string) => void }) => TagGraphViewComponent;

@@ -1,6 +1,6 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
-import { RelatedWork, HistoryEntry } from '../../types';
+import { RelatedWork, HistoryEntry, TagGraphViewFactory } from '../../types';
 import { calculateTrends, calculateTagCloudLevel, filterWorksByTags, getTagTypes, toggleTagTypeFilter, arrangeTagCloud } from '../../logic';
 import { createPinFilledIcon } from '../icons';
 
@@ -22,6 +22,7 @@ export interface FavoritesModalProps {
   onToggleFavorite: (work: RelatedWork) => void;
   onTogglePinTag: (tagText: string) => void;
   onClose: () => void;
+  createTagGraph: TagGraphViewFactory;
 }
 
 export interface FavoritesModalComponent {
@@ -29,9 +30,11 @@ export interface FavoritesModalComponent {
   updateFavorites: (favorites: RelatedWork[]) => void;
   updateHistory: (history: HistoryEntry[], favorites: RelatedWork[]) => void;
   updatePinnedTags: (pinnedTags: string[]) => void;
+  /** Release running resources; call before removing the element */
+  destroy: () => void;
 }
 
-type FavoritesView = 'list' | 'cloud';
+type FavoritesView = 'list' | 'cloud' | 'graph';
 
 const TAG_CLOUD_LIMIT = 200;
 type SortMode = 'lastViewedAt' | 'viewCount' | 'firstViewedAt';
@@ -347,7 +350,7 @@ function createTagCloudSection(
   return section;
 }
 
-export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose }: FavoritesModalProps): FavoritesModalComponent {
+export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose, createTagGraph }: FavoritesModalProps): FavoritesModalComponent {
   let sortMode: SortMode = 'lastViewedAt';
   let currentFavorites = favorites;
   let currentHistory = history;
@@ -356,6 +359,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   let showAllTags: boolean = false;
   let excludedTypes: Set<string | null> = new Set();
   let favoritesView: FavoritesView = 'list';
+  let graphExcludedTypes: Set<string | null> = new Set();
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -425,17 +429,42 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     setFavoritesView('list');
   }
 
+  function handleToggleGraphType(type: string | null): void {
+    graphExcludedTypes = toggleTagTypeFilter(graphExcludedTypes, getTagTypes(currentFavorites), type);
+    rerenderGraphView();
+  }
+
+  function handleResetGraphTypes(): void {
+    graphExcludedTypes = new Set();
+    rerenderGraphView();
+  }
+
+  function rerenderGraphView(): void {
+    const types = getTagTypes(currentFavorites);
+    const hasChips = types.length >= 2;
+    // Without the chips there is no way to undo a filter, so drop it
+    if (!hasChips) graphExcludedTypes = new Set();
+    graphTypeFilter.replaceChildren(...(hasChips
+      ? [createTagTypeChips(types, graphExcludedTypes, handleToggleGraphType, handleResetGraphTypes)]
+      : []));
+    tagGraph.update(currentFavorites, graphExcludedTypes);
+  }
+
   function setFavoritesView(view: FavoritesView): void {
     favoritesView = view;
     listViewBtn.classList.toggle('active', view === 'list');
     cloudViewBtn.classList.toggle('active', view === 'cloud');
     listView.style.display = view === 'list' ? '' : 'none';
     cloudView.style.display = view === 'cloud' ? '' : 'none';
+    graphViewBtn.classList.toggle('active', view === 'graph');
+    graphView.style.display = view === 'graph' ? '' : 'none';
     rerenderFavoritesPanel();
+    tagGraph.setActive(view === 'graph');
   }
 
   function rerenderFavoritesPanel(): void {
     rerenderCloudView();
+    rerenderGraphView();
 
     const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
     listView.replaceChild(newTrendSection, trendSection);
@@ -463,8 +492,18 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     textContent: t('ui.favoritesViewCloud'),
     events: { click: () => setFavoritesView('cloud') }
   });
-  const viewSwitch = createElement('div', { className: 'comic-helper-favorites-view-switch' }, [listViewBtn, cloudViewBtn]);
-  const favPanel = createElement('div', { className: 'comic-helper-favorites-panel' }, [viewSwitch, listView, cloudView]);
+  const graphViewBtn = createElement('button', {
+    className: 'comic-helper-favorites-view-btn',
+    textContent: t('ui.favoritesViewGraph'),
+    events: { click: () => setFavoritesView('graph') }
+  });
+  const tagGraph = createTagGraph({ onSelectTag: handleCloudTagClick });
+  const graphTypeFilter = createElement('div');
+  const graphView = createElement('div', { className: 'comic-helper-tag-graph-view' }, [graphTypeFilter, tagGraph.el]);
+  graphView.style.display = 'none';
+  rerenderGraphView();
+  const viewSwitch = createElement('div', { className: 'comic-helper-favorites-view-switch' }, [listViewBtn, cloudViewBtn, graphViewBtn]);
+  const favPanel = createElement('div', { className: 'comic-helper-favorites-panel' }, [viewSwitch, listView, cloudView, graphView]);
 
   let sortMenu = createSortMenu(sortMode, handleSort);
   let histGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
@@ -480,6 +519,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     histTab.classList.toggle('active', tab === 'history');
     favPanel.style.display = (tab === 'favorites') ? '' : 'none';
     histPanel.style.display = (tab === 'history') ? '' : 'none';
+    tagGraph.setActive(tab === 'favorites' && favoritesView === 'graph');
   }
 
   function handleSort(mode: SortMode): void {
@@ -511,6 +551,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
 
   return {
     el: overlay,
+    destroy: () => tagGraph.destroy(),
     updateFavorites: (newFavorites: RelatedWork[]) => {
       currentFavorites = newFavorites;
       selectedTagTexts = new Set();
