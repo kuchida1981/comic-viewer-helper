@@ -373,4 +373,41 @@ describe('Store', () => {
     const store = new Store();
     expect(store.getState().pinnedTags).toEqual([]);
   });
+
+  describe('tagGraphNodeLimit', () => {
+    it('should default to 50 when not saved', () => {
+      const store = new Store();
+      expect(store.getTagGraphNodeLimit()).toBe(50);
+    });
+
+    it('should persist and restore node limit without triggering sync or notifying listeners', () => {
+      const store = new Store();
+      const listener = vi.fn();
+      const syncTrigger = vi.fn();
+      store.subscribe(listener);
+      store.setSyncTrigger(syncTrigger);
+
+      store.setTagGraphNodeLimit(80);
+      expect(GM_getValue(STORAGE_KEYS.TAG_GRAPH_NODE_LIMIT)).toBe('80');
+      expect(store.getTagGraphNodeLimit()).toBe(80);
+      expect(new Store().getTagGraphNodeLimit()).toBe(80);
+      expect(listener).not.toHaveBeenCalled();
+      expect(syncTrigger).not.toHaveBeenCalled();
+    });
+
+    it('should normalize invalid, out-of-range, or unaligned saved values', () => {
+      const store = new Store();
+      GM_setValue(STORAGE_KEYS.TAG_GRAPH_NODE_LIMIT, 'abc');
+      expect(store.getTagGraphNodeLimit()).toBe(50);
+
+      GM_setValue(STORAGE_KEYS.TAG_GRAPH_NODE_LIMIT, '');
+      expect(store.getTagGraphNodeLimit()).toBe(50);
+
+      GM_setValue(STORAGE_KEYS.TAG_GRAPH_NODE_LIMIT, '73');
+      expect(store.getTagGraphNodeLimit()).toBe(70);
+
+      GM_setValue(STORAGE_KEYS.TAG_GRAPH_NODE_LIMIT, 150 as unknown as string);
+      expect(store.getTagGraphNodeLimit()).toBe(100);
+    });
+  });
 });

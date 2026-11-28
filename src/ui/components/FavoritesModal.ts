@@ -1,7 +1,18 @@
 import { createElement } from '../utils';
 import { t } from '../../i18n';
 import { RelatedWork, HistoryEntry, TagGraphViewFactory } from '../../types';
-import { calculateTrends, calculateTagCloudLevel, filterWorksByTags, getTagTypes, toggleTagTypeFilter, arrangeTagCloud } from '../../logic';
+import {
+  calculateTrends,
+  calculateTagCloudLevel,
+  filterWorksByTags,
+  getTagTypes,
+  toggleTagTypeFilter,
+  arrangeTagCloud,
+  normalizeTagGraphNodeLimit,
+  TAG_GRAPH_NODE_LIMIT_MIN,
+  TAG_GRAPH_NODE_LIMIT_MAX,
+  TAG_GRAPH_NODE_LIMIT_STEP
+} from '../../logic';
 import { createPinFilledIcon } from '../icons';
 
 function normalizeHref(href: string): string {
@@ -23,6 +34,8 @@ export interface FavoritesModalProps {
   onTogglePinTag: (tagText: string) => void;
   onClose: () => void;
   createTagGraph: TagGraphViewFactory;
+  graphNodeLimit?: number;
+  onChangeGraphNodeLimit?: (limit: number) => void;
 }
 
 export interface FavoritesModalComponent {
@@ -350,7 +363,7 @@ function createTagCloudSection(
   return section;
 }
 
-export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose, createTagGraph }: FavoritesModalProps): FavoritesModalComponent {
+export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose, createTagGraph, graphNodeLimit, onChangeGraphNodeLimit }: FavoritesModalProps): FavoritesModalComponent {
   let sortMode: SortMode = 'lastViewedAt';
   let currentFavorites = favorites;
   let currentHistory = history;
@@ -360,6 +373,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   let excludedTypes: Set<string | null> = new Set();
   let favoritesView: FavoritesView = 'list';
   let graphExcludedTypes: Set<string | null> = new Set();
+  let currentGraphNodeLimit = normalizeTagGraphNodeLimit(graphNodeLimit);
 
   const closeBtn = createElement('button', {
     className: 'comic-helper-modal-close',
@@ -449,7 +463,7 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
     graphTypeFilter.replaceChildren(...(hasChips
       ? [createTagTypeChips(types, graphExcludedTypes, handleToggleGraphType, handleResetGraphTypes)]
       : []));
-    tagGraph.update(currentFavorites, graphExcludedTypes);
+    tagGraph.update(currentFavorites, graphExcludedTypes, currentGraphNodeLimit);
   }
 
   function setFavoritesView(view: FavoritesView): void {
@@ -501,7 +515,38 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   });
   const tagGraph = createTagGraph({ onSelectTag: handleCloudTagClick });
   const graphTypeFilter = createElement('div');
-  const graphView = createElement('div', { className: 'comic-helper-tag-graph-view' }, [graphTypeFilter, tagGraph.el]);
+  const graphLimitValue = createElement('span', {
+    className: 'comic-helper-tag-graph-limit-value',
+    textContent: String(currentGraphNodeLimit)
+  });
+  const graphLimitSlider = createElement('input', {
+    className: 'comic-helper-tag-graph-limit-slider',
+    attributes: {
+      type: 'range',
+      min: String(TAG_GRAPH_NODE_LIMIT_MIN),
+      max: String(TAG_GRAPH_NODE_LIMIT_MAX),
+      step: String(TAG_GRAPH_NODE_LIMIT_STEP),
+      value: String(currentGraphNodeLimit),
+      'aria-label': t('ui.tagGraphNodeLimit')
+    }
+  }) as HTMLInputElement;
+  graphLimitSlider.value = String(currentGraphNodeLimit);
+  graphLimitSlider.addEventListener('input', () => {
+    currentGraphNodeLimit = normalizeTagGraphNodeLimit(Number(graphLimitSlider.value));
+    graphLimitValue.textContent = String(currentGraphNodeLimit);
+    rerenderGraphView();
+  });
+  graphLimitSlider.addEventListener('change', () => {
+    currentGraphNodeLimit = normalizeTagGraphNodeLimit(Number(graphLimitSlider.value));
+    graphLimitValue.textContent = String(currentGraphNodeLimit);
+    onChangeGraphNodeLimit?.(currentGraphNodeLimit);
+  });
+  const graphLimitControl = createElement('div', { className: 'comic-helper-tag-graph-limit' }, [
+    createElement('span', { className: 'comic-helper-tag-graph-limit-label', textContent: t('ui.tagGraphNodeLimit') }),
+    graphLimitSlider,
+    graphLimitValue
+  ]);
+  const graphView = createElement('div', { className: 'comic-helper-tag-graph-view' }, [graphTypeFilter, graphLimitControl, tagGraph.el]);
   graphView.style.display = 'none';
   rerenderGraphView();
   const viewSwitch = createElement('div', { className: 'comic-helper-favorites-view-switch' }, [listViewBtn, cloudViewBtn, graphViewBtn]);

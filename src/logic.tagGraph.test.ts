@@ -2,10 +2,15 @@ import { describe, it, expect } from 'vitest';
 import {
   buildTagGraph,
   createGraphBody,
+  placeGraphBody,
+  normalizeTagGraphNodeLimit,
   stepTagGraph,
   zoomGraphView,
   toViewBoxPoint,
   TAG_GRAPH_NODE_LIMIT,
+  TAG_GRAPH_NODE_LIMIT_MIN,
+  TAG_GRAPH_NODE_LIMIT_MAX,
+  TAG_GRAPH_NODE_LIMIT_STEP,
   GRAPH_ALPHA_MIN,
   GRAPH_MIN_SCALE,
   GRAPH_MAX_SCALE
@@ -56,6 +61,31 @@ describe('buildTagGraph', () => {
   });
 });
 
+describe('normalizeTagGraphNodeLimit', () => {
+  it('範囲と刻みの定数が仕様どおりである', () => {
+    expect(TAG_GRAPH_NODE_LIMIT_MIN).toBe(10);
+    expect(TAG_GRAPH_NODE_LIMIT_MAX).toBe(100);
+    expect(TAG_GRAPH_NODE_LIMIT_STEP).toBe(10);
+    expect(TAG_GRAPH_NODE_LIMIT).toBe(50);
+  });
+
+  it('数値以外の値は初期値 50 にする', () => {
+    for (const invalid of ['50', null, undefined, {}, NaN, Infinity, -Infinity]) {
+      expect(normalizeTagGraphNodeLimit(invalid)).toBe(50);
+    }
+  });
+
+  it('範囲外と刻みに合わない数値は範囲内の最も近い刻みの値にする', () => {
+    expect(normalizeTagGraphNodeLimit(-10)).toBe(10);
+    expect(normalizeTagGraphNodeLimit(5)).toBe(10);
+    expect(normalizeTagGraphNodeLimit(14)).toBe(10);
+    expect(normalizeTagGraphNodeLimit(15)).toBe(20);
+    expect(normalizeTagGraphNodeLimit(73)).toBe(70);
+    expect(normalizeTagGraphNodeLimit(96)).toBe(100);
+    expect(normalizeTagGraphNodeLimit(150)).toBe(100);
+  });
+});
+
 describe('tag graph simulation', () => {
   const body = (id: string, x: number, y: number, fixed = false) =>
     ({ id, x, y, vx: 0, vy: 0, radius: 7, fixed });
@@ -100,6 +130,37 @@ describe('tag graph simulation', () => {
     expect(Math.max(...bodies.map(b => Math.abs(b.x)))).toBeLessThan(400);
     expect(Math.max(...bodies.map(b => Math.abs(b.y)))).toBeLessThan(250);
     expect(Math.max(...bodies.map(b => Math.hypot(b.vx, b.vy)))).toBeLessThan(1);
+  });
+
+  it('100ノードでも収束し、表示領域に収まる', () => {
+    let bodies = Array.from({ length: 100 }, (_, i) => createGraphBody(String(i), i, 10));
+    let alpha = 1;
+    while (alpha >= GRAPH_ALPHA_MIN) {
+      ({ bodies, alpha } = stepTagGraph(bodies, [], alpha));
+    }
+    expect(Math.max(...bodies.map(b => Math.abs(b.x)))).toBeLessThan(400);
+    expect(Math.max(...bodies.map(b => Math.abs(b.y)))).toBeLessThan(250);
+    expect(Math.max(...bodies.map(b => Math.hypot(b.vx, b.vy)))).toBeLessThan(1);
+  });
+
+  it('増えるノードはつながる既存ノードの近くに、相手がなければらせん上に置く', () => {
+    const previous = new Map([
+      ['a', { x: 200, y: -100 }],
+      ['b', { x: 240, y: -60 }]
+    ]);
+    const links = [
+      { source: 'a', target: 'new1', strength: 0.5 },
+      { source: 'new1', target: 'b', strength: 0.5 },
+      { source: 'new2', target: 'missing', strength: 0.5 }
+    ];
+
+    const near = placeGraphBody('new1', 4, 7, previous, links);
+    expect(near).toEqual(placeGraphBody('new1', 4, 7, previous, links));
+    expect(Math.hypot(near.x - 220, near.y - (-80))).toBeGreaterThan(0);
+    expect(Math.hypot(near.x - 220, near.y - (-80))).toBeLessThan(20);
+
+    const isolated = placeGraphBody('new2', 4, 7, previous, links);
+    expect(isolated).toEqual(createGraphBody('new2', 4, 7));
   });
 });
 

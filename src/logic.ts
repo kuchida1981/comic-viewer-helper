@@ -552,9 +552,19 @@ export interface TagGraph {
   links: TagGraphLink[];
 }
 
+export const TAG_GRAPH_NODE_LIMIT_MIN = 10;
+export const TAG_GRAPH_NODE_LIMIT_MAX = 100;
+export const TAG_GRAPH_NODE_LIMIT_STEP = 10;
 export const TAG_GRAPH_NODE_LIMIT = 50;
 const TAG_GRAPH_MIN_CO_OCCURRENCE = 2;
 const TAG_GRAPH_LINKS_PER_NODE = 3;
+
+/** Normalize a tag graph node limit to the valid range and step, falling back to the default. */
+export function normalizeTagGraphNodeLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return TAG_GRAPH_NODE_LIMIT;
+  const clamped = Math.max(TAG_GRAPH_NODE_LIMIT_MIN, Math.min(TAG_GRAPH_NODE_LIMIT_MAX, value));
+  return Math.round(clamped / TAG_GRAPH_NODE_LIMIT_STEP) * TAG_GRAPH_NODE_LIMIT_STEP;
+}
 
 function uniqueTags(tags: Tag[]): Tag[] {
   return Array.from(new Map(tags.map(tag => [tag.text, tag])).values());
@@ -640,6 +650,7 @@ const GRAPH_GRAVITY_Y = 0.07;
 const GRAPH_ISOLATED_GRAVITY_FACTOR = 3;
 const GRAPH_DAMPING = 0.8;
 const GRAPH_MAX_SPEED = 20;
+const GRAPH_NEIGHBOR_OFFSET = 12;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 /** Deterministic initial placement on a spiral around the origin. */
@@ -657,6 +668,41 @@ export function createGraphBody(id: string, index: number, radius: number): Grap
   };
 }
 
+/**
+ * Place a newly added graph body near the average position of its linked existing neighbors,
+ * or on the default spiral if it has no linked neighbors in `previous`.
+ */
+export function placeGraphBody(
+  id: string,
+  index: number,
+  radius: number,
+  previous: ReadonlyMap<string, Pick<GraphBody, 'x' | 'y'>>,
+  links: TagGraphLink[]
+): GraphBody {
+  const neighbors: Array<Pick<GraphBody, 'x' | 'y'>> = [];
+  for (const link of links) {
+    const neighborId = link.source === id ? link.target : link.target === id ? link.source : null;
+    if (neighborId !== null) {
+      const neighbor = previous.get(neighborId);
+      if (neighbor) neighbors.push(neighbor);
+    }
+  }
+  if (neighbors.length === 0) return createGraphBody(id, index, radius);
+
+  const avgX = neighbors.reduce((sum, n) => sum + n.x, 0) / neighbors.length;
+  const avgY = neighbors.reduce((sum, n) => sum + n.y, 0) / neighbors.length;
+  const angle = index * GOLDEN_ANGLE;
+  return {
+    id,
+    x: avgX + GRAPH_NEIGHBOR_OFFSET * Math.cos(angle),
+    y: avgY + GRAPH_NEIGHBOR_OFFSET * Math.sin(angle),
+    vx: 0,
+    vy: 0,
+    radius,
+    fixed: false
+  };
+}
+
 function applyForce(a: GraphBody, b: GraphBody, fx: number, fy: number): void {
   a.vx += fx;
   a.vy += fy;
@@ -664,13 +710,13 @@ function applyForce(a: GraphBody, b: GraphBody, fx: number, fy: number): void {
   b.vy -= fy;
 }
 
-function applyRepulsion(a: GraphBody, b: GraphBody, alpha: number): void {
+function applyRepulsion(a: GraphBody, b: GraphBody, alpha: number, repulsionScale: number): void {
   // Separate exactly overlapping bodies along the x axis
   const dx = b.x - a.x || (a.y === b.y ? 1 : 0);
   const dy = b.y - a.y;
   const distance = Math.max(1, Math.hypot(dx, dy));
   const overlap = Math.max(0, a.radius + b.radius + GRAPH_COLLISION_PADDING - distance);
-  const force = (GRAPH_REPULSION / distance + overlap * GRAPH_COLLISION_STRENGTH) * alpha;
+  const force = ((GRAPH_REPULSION * repulsionScale) / distance + overlap * GRAPH_COLLISION_STRENGTH) * alpha;
   applyForce(a, b, -(dx / distance) * force, -(dy / distance) * force);
 }
 
@@ -705,8 +751,9 @@ export function stepTagGraph(
   alpha: number
 ): { bodies: GraphBody[]; alpha: number } {
   const next = bodies.map(body => ({ ...body }));
+  const repulsionScale = next.length > TAG_GRAPH_NODE_LIMIT ? TAG_GRAPH_NODE_LIMIT / next.length : 1;
   next.forEach((a, i) => {
-    for (const b of next.slice(i + 1)) applyRepulsion(a, b, alpha);
+    for (const b of next.slice(i + 1)) applyRepulsion(a, b, alpha, repulsionScale);
   });
   const byId = new Map(next.map(body => [body.id, body]));
   const degrees = new Map<string, number>();
@@ -722,6 +769,37 @@ export function stepTagGraph(
   }
   for (const body of next) moveBody(body, degrees.has(body.id) ? alpha : alpha * GRAPH_ISOLATED_GRAVITY_FACTOR);
   return { bodies: next, alpha: alpha * GRAPH_ALPHA_DECAY };
+}
+
+/**
+ * Size, in viewBox units, of the area an element shows with preserveAspectRatio "xMidYMid meet".
+ * It is larger than the viewBox when the aspect ratios differ.
+ */
+export function getVisibleViewBox(
+  rect: { width: number; height: number },
+  viewBox: { width: number; height: number }
+): { width: number; height: number } {
+  const scale = Math.min(rect.width / viewBox.width, rect.height / viewBox.height);
+  // An element that is not laid out has no size
+  if (!scale) return viewBox;
+  return { width: rect.width / scale, height: rect.height / scale };
+}
+
+const GRAPH_LABEL_HALF_WIDTH = 30;
+const GRAPH_LABEL_HEIGHT = 16;
+
+/**
+ * Scale (at most 1) that keeps every body and its label inside a viewBox centered on the origin.
+ */
+export function fitGraphScale(
+  bodies: Array<Pick<GraphBody, 'x' | 'y' | 'radius'>>,
+  viewBox: { width: number; height: number }
+): number {
+  return bodies.reduce((scale, { x, y, radius }) => Math.min(
+    scale,
+    viewBox.width / 2 / (Math.abs(x) + Math.max(radius, GRAPH_LABEL_HALF_WIDTH)),
+    viewBox.height / 2 / (Math.abs(y) + radius + GRAPH_LABEL_HEIGHT)
+  ), 1);
 }
 
 /** Pan offset and zoom scale of the graph, in viewBox units */

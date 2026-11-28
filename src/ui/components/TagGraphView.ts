@@ -4,11 +4,14 @@ import { Tag, TagGraphViewComponent } from '../../types';
 import {
   buildTagGraph,
   calculateTagCloudLevel,
-  createGraphBody,
+  placeGraphBody,
+  fitGraphScale,
+  getVisibleViewBox,
   stepTagGraph,
   toViewBoxPoint,
   zoomGraphView,
   GRAPH_ALPHA_MIN,
+  TAG_GRAPH_NODE_LIMIT,
   GraphBody,
   GraphView,
   TagGraph
@@ -20,6 +23,8 @@ const DRAG_THRESHOLD = 4;
 const DRAG_ALPHA = 0.3;
 const UPDATE_ALPHA = 0.6;
 const ZOOM_SENSITIVITY = 0.0015;
+/** Share of the remaining difference the automatic fit closes per frame */
+const FIT_EASING = 0.1;
 const WHEEL_LINE_HEIGHT = 16;
 
 interface Point {
@@ -71,6 +76,8 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
   let bodies: GraphBody[] = [];
   let alpha = 0;
   let view: GraphView = { x: 0, y: 0, scale: 1 };
+  // Automatic shrink for layouts wider than the view, independent of the user's zoom
+  let fit = 1;
   let active = false;
   let frame: number | null = null;
   let drag: DragState | null = null;
@@ -103,7 +110,7 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
 
   function applyView(next: GraphView): void {
     view = next;
-    viewport.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.scale})`);
+    viewport.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.scale * fit})`);
   }
 
   function toPoint(client: Point): Point {
@@ -138,6 +145,12 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
       bodies = next.bodies;
       // Stay warm while a node is being dragged so that its neighbors keep following
       alpha = drag?.id ? Math.max(next.alpha, DRAG_ALPHA) : next.alpha;
+      // Holding still while a node is dragged keeps it under the pointer
+      if (!drag?.id) {
+        const visible = getVisibleViewBox(svg.getBoundingClientRect(), VIEW_BOX);
+        fit += (fitGraphScale(bodies, visible) - fit) * FIT_EASING;
+        applyView(view);
+      }
       renderPositions();
       startAnimation();
     });
@@ -158,8 +171,8 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
 
   function moveNode(id: string, client: Point): void {
     const point = toPoint(client);
-    const x = (point.x - view.x) / view.scale;
-    const y = (point.y - view.y) / view.scale;
+    const x = (point.x - view.x) / (view.scale * fit);
+    const y = (point.y - view.y) / (view.scale * fit);
     bodies = bodies.map(body => body.id === id ? { ...body, x, y, fixed: true } : body);
     alpha = Math.max(alpha, DRAG_ALPHA);
     renderPositions();
@@ -269,7 +282,7 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
       nodeEls.set(tag.text, node);
       nodeLayer.appendChild(node);
       const kept = previous.get(tag.text);
-      return kept ? { ...kept, radius } : createGraphBody(tag.text, index, radius);
+      return kept ? { ...kept, radius } : placeGraphBody(tag.text, index, radius, previous, graph.links);
     });
     linkEls = graph.links.map(({ source, target, strength }) => ({
       el: createSvgElement('line', {
@@ -294,8 +307,8 @@ export function createTagGraphView({ onSelectTag }: { onSelectTag: (tagText: str
 
   return {
     el,
-    update: (favorites, excludedTypes) => {
-      const next = buildTagGraph(favorites, excludedTypes);
+    update: (favorites, excludedTypes, limit = TAG_GRAPH_NODE_LIMIT) => {
+      const next = buildTagGraph(favorites, excludedTypes, limit);
       const nextSignature = JSON.stringify([
         next.nodes.map(({ tag, count }) => [tag.text, tag.type, count]),
         next.links

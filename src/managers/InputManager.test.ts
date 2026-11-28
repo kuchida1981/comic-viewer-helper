@@ -91,6 +91,9 @@ describe('InputManager', () => {
   it('isInputField should work', () => {
     const input = document.createElement('input');
     expect(inputManager.isInputField(input)).toBe(true);
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    expect(inputManager.isInputField(slider)).toBe(false);
     const div = document.createElement('div');
     expect(inputManager.isInputField(div)).toBe(false);
     expect(inputManager.isInputField(null)).toBe(false);
