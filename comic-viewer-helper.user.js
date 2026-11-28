@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.72169ab
+// @version         1.6.0-unstable.096ba29
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -195,6 +195,22 @@
     }
     const typed = Array.from(types).filter((type) => type !== null).sort();
     return types.has(null) ? [...typed, null] : typed;
+  }
+  function toggleTagTypeFilter(excludedTypes, allTypes, clickedType) {
+    if (excludedTypes.size === 0) {
+      return new Set(allTypes.filter((type) => type !== clickedType));
+    }
+    const next = new Set(excludedTypes);
+    if (next.has(clickedType)) {
+      next.delete(clickedType);
+      return next;
+    }
+    const activeCount = allTypes.filter((type) => !excludedTypes.has(type)).length;
+    if (activeCount <= 1) {
+      return next;
+    }
+    next.add(clickedType);
+    return next;
   }
   function filterWorksByTags(favorites, selectedTagTexts) {
     if (selectedTagTexts.size === 0) return favorites;
@@ -2030,6 +2046,24 @@
     opacity: 0.4;
     text-decoration: line-through;
   }
+  .comic-helper-tag-type-reset {
+    background: transparent;
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.muted};
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, opacity 0.15s;
+  }
+  .comic-helper-tag-type-reset:hover:not(:disabled) {
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
+  }
+  .comic-helper-tag-type-reset:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 
   .comic-helper-tag-cloud-item {
     background: transparent;
@@ -2602,6 +2636,7 @@
         favoritesViewCloud: "Tag Cloud",
         tagCloudEmpty: "No tags yet.",
         tagTypeOther: "other",
+        tagTypeReset: "Reset",
         pinTag: "Pin tag",
         unpinTag: "Unpin tag",
         redirectSettings: "Redirect Settings",
@@ -2703,6 +2738,7 @@
         favoritesViewCloud: "タグクラウド",
         tagCloudEmpty: "タグがありません。",
         tagTypeOther: "その他",
+        tagTypeReset: "リセット",
         pinTag: "タグをピン留め",
         unpinTag: "ピン留めを解除",
         redirectSettings: "リダイレクト設定",
@@ -3276,7 +3312,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.72169ab"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.096ba29"} (${t("ui.unstable")})`
     });
     const contentChildren = [
       closeBtn,
@@ -4006,7 +4042,7 @@
     section.appendChild(tagsEl);
     return section;
   }
-  function createTagTypeChips(types, excludedTypes, onToggleType) {
+  function createTagTypeChips(types, excludedTypes, onToggleType, onResetTypes) {
     const row = createElement("div", { className: "comic-helper-tag-type-filter" });
     types.forEach((type) => {
       const typeClass = type ? ` comic-helper-tag-chip--${type}` : "";
@@ -4017,13 +4053,20 @@
         events: { click: () => onToggleType(type) }
       }));
     });
+    const resetBtn = createElement("button", {
+      className: "comic-helper-tag-type-reset",
+      textContent: t("ui.tagTypeReset"),
+      events: { click: () => onResetTypes() }
+    });
+    resetBtn.disabled = excludedTypes.size === 0;
+    row.appendChild(resetBtn);
     return row;
   }
-  function createTagCloudSection(favorites, onTagClick, excludedTypes, onToggleType) {
+  function createTagCloudSection(favorites, onTagClick, excludedTypes, onToggleType, onResetTypes) {
     const section = createElement("div", { className: "comic-helper-tag-cloud" });
     const types = getTagTypes(favorites);
     if (types.length >= 2) {
-      section.appendChild(createTagTypeChips(types, excludedTypes, onToggleType));
+      section.appendChild(createTagTypeChips(types, excludedTypes, onToggleType, onResetTypes));
     }
     const trends = calculateTrends(favorites, TAG_CLOUD_LIMIT, [], [], excludedTypes);
     if (trends.length === 0) {
@@ -4055,7 +4098,7 @@
     let currentPinnedTags = pinnedTags;
     let selectedTagTexts = /* @__PURE__ */ new Set();
     let showAllTags = false;
-    const excludedTypes = /* @__PURE__ */ new Set();
+    let excludedTypes = /* @__PURE__ */ new Set();
     let favoritesView = "list";
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
@@ -4098,17 +4141,17 @@
       trendSection = newTrendSection;
     }
     function rerenderCloudView() {
-      const newCloud = createTagCloudSection(currentFavorites, handleCloudTagClick, excludedTypes, handleToggleType);
+      const newCloud = createTagCloudSection(currentFavorites, handleCloudTagClick, excludedTypes, handleToggleType, handleResetTypes);
       cloudView.replaceWith(newCloud);
       cloudView = newCloud;
       cloudView.style.display = favoritesView === "cloud" ? "" : "none";
     }
     function handleToggleType(type) {
-      if (excludedTypes.has(type)) {
-        excludedTypes.delete(type);
-      } else {
-        excludedTypes.add(type);
-      }
+      excludedTypes = toggleTagTypeFilter(excludedTypes, getTagTypes(currentFavorites), type);
+      rerenderCloudView();
+    }
+    function handleResetTypes() {
+      excludedTypes = /* @__PURE__ */ new Set();
       rerenderCloudView();
     }
     function handleCloudTagClick(tagText) {
@@ -4136,7 +4179,7 @@
     let trendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
     let favGrid = createFavoritesGrid(filterWorksByTags(currentFavorites, selectedTagTexts), onRemoveFavorite, onToggleFavorite);
     const listView = createElement("div", { className: "comic-helper-favorites-list-view" }, [trendSection, favGrid]);
-    let cloudView = createTagCloudSection(currentFavorites, handleCloudTagClick, excludedTypes, handleToggleType);
+    let cloudView = createTagCloudSection(currentFavorites, handleCloudTagClick, excludedTypes, handleToggleType, handleResetTypes);
     cloudView.style.display = "none";
     const listViewBtn = createElement("button", {
       className: "comic-helper-favorites-view-btn active",
