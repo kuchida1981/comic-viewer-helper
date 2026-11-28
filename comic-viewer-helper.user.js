@@ -3,7 +3,7 @@
 // @name:ja         マガジン・コミック・ビューア・ヘルパー
 // @author          kuchida1981
 // @namespace       https://github.com/kuchida1981/comic-viewer-helper
-// @version         1.6.0-unstable.38baf73
+// @version         1.6.0-unstable.8d693ec
 // @description     A Tampermonkey script for specific comic sites that fits images to the viewport and enables precise image-by-image scrolling.
 // @description:ja  特定の漫画サイトで画像をビューポートに合わせ、画像単位のスクロールを可能にするユーザースクリプトです。
 // @license         ISC
@@ -391,6 +391,144 @@
     if (normalizeUrl(latest.href, origin) === normalizeUrl(ctx.currentUrl, origin)) return null;
     if (!ctx.isWorkUrl(latest.href)) return null;
     return latest.href;
+  }
+  const TAG_GRAPH_NODE_LIMIT = 50;
+  const TAG_GRAPH_MIN_CO_OCCURRENCE = 2;
+  const TAG_GRAPH_LINKS_PER_NODE = 3;
+  function uniqueTags(tags) {
+    return Array.from(new Map(tags.map((tag) => [tag.text, tag])).values());
+  }
+  function countTagPairs(works, ids) {
+    const pairs = /* @__PURE__ */ new Map();
+    for (const work of works) {
+      const texts = work.tags.map((tag) => tag.text).filter((text) => ids.has(text)).sort();
+      texts.forEach((source, i) => {
+        for (const target of texts.slice(i + 1)) {
+          const key = JSON.stringify([source, target]);
+          const together = (pairs.get(key)?.together ?? 0) + 1;
+          pairs.set(key, { source, target, together });
+        }
+      });
+    }
+    return Array.from(pairs.values());
+  }
+  function pruneTagLinks(links) {
+    const ranked = [...links].sort((a, b) => b.strength - a.strength || a.source.localeCompare(b.source) || a.target.localeCompare(b.target));
+    const used = /* @__PURE__ */ new Map();
+    return ranked.filter(({ source, target }) => {
+      const sourceUsed = used.get(source) ?? 0;
+      const targetUsed = used.get(target) ?? 0;
+      used.set(source, sourceUsed + 1);
+      used.set(target, targetUsed + 1);
+      return sourceUsed < TAG_GRAPH_LINKS_PER_NODE || targetUsed < TAG_GRAPH_LINKS_PER_NODE;
+    });
+  }
+  function buildTagGraph(favorites, excludedTypes = /* @__PURE__ */ new Set(), limit = TAG_GRAPH_NODE_LIMIT) {
+    const works = favorites.map((work) => ({ ...work, tags: uniqueTags(work.tags ?? []) }));
+    const nodes = calculateTrends(works, 0, [], [], excludedTypes).sort((a, b) => b.count - a.count || a.tag.text.localeCompare(b.tag.text)).slice(0, limit).map(({ tag, count }) => ({ tag, count }));
+    const counts = new Map(nodes.map(({ tag, count }) => [tag.text, count]));
+    const candidates = countTagPairs(works, new Set(counts.keys())).filter(({ together }) => together >= TAG_GRAPH_MIN_CO_OCCURRENCE).map(({ source, target, together }) => ({
+      source,
+      target,
+      strength: together / (counts.get(source) + counts.get(target) - together)
+    }));
+    return { nodes, links: pruneTagLinks(candidates) };
+  }
+  const GRAPH_ALPHA_MIN = 0.02;
+  const GRAPH_ALPHA_DECAY = 0.985;
+  const GRAPH_REPULSION = 120;
+  const GRAPH_COLLISION_PADDING = 28;
+  const GRAPH_COLLISION_STRENGTH = 0.25;
+  const GRAPH_LINK_LENGTH = 80;
+  const GRAPH_LINK_STRENGTH = 0.12;
+  const GRAPH_GRAVITY_X = 0.025;
+  const GRAPH_GRAVITY_Y = 0.07;
+  const GRAPH_ISOLATED_GRAVITY_FACTOR = 3;
+  const GRAPH_DAMPING = 0.8;
+  const GRAPH_MAX_SPEED = 20;
+  const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+  function createGraphBody(id, index, radius) {
+    const distance = 30 * Math.sqrt(index + 0.5);
+    const angle = index * GOLDEN_ANGLE;
+    return {
+      id,
+      x: distance * Math.cos(angle),
+      y: distance * Math.sin(angle),
+      vx: 0,
+      vy: 0,
+      radius,
+      fixed: false
+    };
+  }
+  function applyForce(a, b, fx, fy) {
+    a.vx += fx;
+    a.vy += fy;
+    b.vx -= fx;
+    b.vy -= fy;
+  }
+  function applyRepulsion(a, b, alpha) {
+    const dx = b.x - a.x || (a.y === b.y ? 1 : 0);
+    const dy = b.y - a.y;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const overlap = Math.max(0, a.radius + b.radius + GRAPH_COLLISION_PADDING - distance);
+    const force = (GRAPH_REPULSION / distance + overlap * GRAPH_COLLISION_STRENGTH) * alpha;
+    applyForce(a, b, -(dx / distance) * force, -(dy / distance) * force);
+  }
+  function applySpring(a, b, stiffness, alpha) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const force = (distance - GRAPH_LINK_LENGTH) * GRAPH_LINK_STRENGTH * stiffness * alpha;
+    applyForce(a, b, dx / distance * force, dy / distance * force);
+  }
+  function moveBody(body, gravity) {
+    if (body.fixed) {
+      body.vx = 0;
+      body.vy = 0;
+      return;
+    }
+    const clamp = (v) => Math.max(-GRAPH_MAX_SPEED, Math.min(GRAPH_MAX_SPEED, v));
+    body.vx = clamp((body.vx - body.x * GRAPH_GRAVITY_X * gravity) * GRAPH_DAMPING);
+    body.vy = clamp((body.vy - body.y * GRAPH_GRAVITY_Y * gravity) * GRAPH_DAMPING);
+    body.x += body.vx;
+    body.y += body.vy;
+  }
+  function stepTagGraph(bodies, links, alpha) {
+    const next = bodies.map((body) => ({ ...body }));
+    next.forEach((a, i) => {
+      for (const b of next.slice(i + 1)) applyRepulsion(a, b, alpha);
+    });
+    const byId = new Map(next.map((body) => [body.id, body]));
+    const degrees = /* @__PURE__ */ new Map();
+    for (const { source, target } of links) {
+      degrees.set(source, (degrees.get(source) ?? 0) + 1);
+      degrees.set(target, (degrees.get(target) ?? 0) + 1);
+    }
+    for (const { source, target, strength } of links) {
+      const a = byId.get(source);
+      const b = byId.get(target);
+      if (a && b) applySpring(a, b, (0.5 + strength) / Math.min(degrees.get(source), degrees.get(target)), alpha);
+    }
+    for (const body of next) moveBody(body, degrees.has(body.id) ? alpha : alpha * GRAPH_ISOLATED_GRAVITY_FACTOR);
+    return { bodies: next, alpha: alpha * GRAPH_ALPHA_DECAY };
+  }
+  const GRAPH_MIN_SCALE = 0.3;
+  const GRAPH_MAX_SCALE = 4;
+  function zoomGraphView(view, point, factor) {
+    const scale = Math.max(GRAPH_MIN_SCALE, Math.min(GRAPH_MAX_SCALE, view.scale * factor));
+    const ratio = scale / view.scale;
+    return {
+      x: point.x - (point.x - view.x) * ratio,
+      y: point.y - (point.y - view.y) * ratio,
+      scale
+    };
+  }
+  function toViewBoxPoint(client, rect, viewBox) {
+    const scale = Math.min(rect.width / viewBox.width, rect.height / viewBox.height) || 1;
+    return {
+      x: (client.x - rect.left - rect.width / 2) / scale,
+      y: (client.y - rect.top - rect.height / 2) / scale
+    };
   }
   const STORAGE_KEYS = {
     DUAL_VIEW: "comic-viewer-helper-dual-view",
@@ -2100,6 +2238,73 @@
   .comic-helper-tag-cloud-item--level-4 { font-size: 30px; font-weight: bold; }
   .comic-helper-tag-cloud-item--level-5 { font-size: 44px; font-weight: bold; }
 
+  .comic-helper-tag-graph-canvas {
+    position: relative;
+  }
+  .comic-helper-tag-graph-svg {
+    display: block;
+    width: 100%;
+    height: min(50vh, 500px);
+    border: 1px solid ${COLORS.border.light};
+    border-radius: 8px;
+    cursor: grab;
+    user-select: none;
+  }
+  .comic-helper-tag-graph-svg:active {
+    cursor: grabbing;
+  }
+  .comic-helper-tag-graph-reset {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: ${COLORS.background.tag};
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.muted};
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .comic-helper-tag-graph-reset:hover {
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
+  }
+  .comic-helper-tag-graph-link {
+    stroke: ${COLORS.text.muted};
+    stroke-opacity: 0.35;
+    transition: stroke-opacity 0.15s;
+  }
+  .comic-helper-tag-graph-node {
+    cursor: pointer;
+    outline: none;
+    transition: opacity 0.15s;
+  }
+  .comic-helper-tag-graph-node circle { fill: ${COLORS.border.accent}; }
+  .comic-helper-tag-graph-node text {
+    fill: ${COLORS.text.primary};
+    font-size: 11px;
+  }
+  .comic-helper-tag-graph-node:focus-visible circle {
+    stroke: ${COLORS.text.primary};
+    stroke-width: 2px;
+  }
+  .comic-helper-tag-graph-node--artist circle { fill: #d9809c; }
+  .comic-helper-tag-graph-node--character circle { fill: #6fcf97; }
+  .comic-helper-tag-graph-node--circle circle { fill: #7da7e8; }
+  .comic-helper-tag-graph-node--fanzine circle { fill: #e8a87d; }
+  .comic-helper-tag-graph-node--genre circle { fill: #b0b0b0; }
+  .comic-helper-tag-graph-node--magazine circle { fill: #ad8ee0; }
+  .comic-helper-tag-graph-node--parody circle { fill: #6fd3d3; }
+  .comic-helper-tag-graph-svg.has-highlight .comic-helper-tag-graph-node:not(.is-highlighted) {
+    opacity: 0.2;
+  }
+  .comic-helper-tag-graph-svg.has-highlight .comic-helper-tag-graph-link:not(.is-highlighted) {
+    stroke-opacity: 0.08;
+  }
+  .comic-helper-tag-graph-svg.has-highlight .comic-helper-tag-graph-link.is-highlighted {
+    stroke-opacity: 0.9;
+  }
+
   .comic-helper-favorites-trend-section {
     padding: 8px 0 12px;
     border-bottom: 1px solid ${COLORS.border.light};
@@ -2650,6 +2855,8 @@
         showTopTags: "Top Only",
         favoritesViewList: "List",
         favoritesViewCloud: "Tag Cloud",
+        favoritesViewGraph: "Graph",
+        tagGraphResetView: "Reset view",
         tagCloudEmpty: "No tags yet.",
         tagTypeOther: "other",
         tagTypeReset: "Reset",
@@ -2752,6 +2959,8 @@
         showTopTags: "上位のみ",
         favoritesViewList: "一覧",
         favoritesViewCloud: "タグクラウド",
+        favoritesViewGraph: "グラフ",
+        tagGraphResetView: "表示を元に戻す",
         tagCloudEmpty: "タグがありません。",
         tagTypeOther: "その他",
         tagTypeReset: "リセット",
@@ -3000,16 +3209,16 @@
       }
     };
   }
-  const SVG_NS = "http://www.w3.org/2000/svg";
+  const SVG_NS$1 = "http://www.w3.org/2000/svg";
   function createSvg(pathD, size = 18) {
-    const svg = document.createElementNS(SVG_NS, "svg");
+    const svg = document.createElementNS(SVG_NS$1, "svg");
     svg.setAttribute("viewBox", "0 0 24 24");
     svg.setAttribute("width", size.toString());
     svg.setAttribute("height", size.toString());
     svg.setAttribute("fill", "currentColor");
     svg.style.display = "inline-block";
     svg.style.verticalAlign = "middle";
-    const path = document.createElementNS(SVG_NS, "path");
+    const path = document.createElementNS(SVG_NS$1, "path");
     path.setAttribute("d", pathD);
     svg.appendChild(path);
     return svg;
@@ -3328,7 +3537,7 @@
         borderTop: `1px solid ${COLORS.border.default}`,
         paddingTop: "5px"
       },
-      textContent: `${t("ui.version")}: v${"1.6.0-unstable.38baf73"} (${t("ui.unstable")})`
+      textContent: `${t("ui.version")}: v${"1.6.0-unstable.8d693ec"} (${t("ui.unstable")})`
     });
     const contentChildren = [
       closeBtn,
@@ -4107,7 +4316,7 @@
     });
     return section;
   }
-  function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose }) {
+  function createFavoritesModal({ favorites, history, pinnedTags, onRemoveFavorite, onRemoveHistory, onToggleFavorite, onTogglePinTag, onClose, createTagGraph }) {
     let sortMode = "lastViewedAt";
     let currentFavorites = favorites;
     let currentHistory = history;
@@ -4116,6 +4325,7 @@
     let showAllTags = false;
     let excludedTypes = /* @__PURE__ */ new Set();
     let favoritesView = "list";
+    let graphExcludedTypes = /* @__PURE__ */ new Set();
     const closeBtn = createElement("button", {
       className: "comic-helper-modal-close",
       textContent: "×",
@@ -4174,16 +4384,36 @@
       selectedTagTexts.add(tagText);
       setFavoritesView("list");
     }
+    function handleToggleGraphType(type) {
+      graphExcludedTypes = toggleTagTypeFilter(graphExcludedTypes, getTagTypes(currentFavorites), type);
+      rerenderGraphView();
+    }
+    function handleResetGraphTypes() {
+      graphExcludedTypes = /* @__PURE__ */ new Set();
+      rerenderGraphView();
+    }
+    function rerenderGraphView() {
+      const types = getTagTypes(currentFavorites);
+      const hasChips = types.length >= 2;
+      graphExcludedTypes = new Set(types.filter((type) => graphExcludedTypes.has(type)));
+      if (!hasChips || graphExcludedTypes.size === types.length) graphExcludedTypes = /* @__PURE__ */ new Set();
+      graphTypeFilter.replaceChildren(...hasChips ? [createTagTypeChips(types, graphExcludedTypes, handleToggleGraphType, handleResetGraphTypes)] : []);
+      tagGraph.update(currentFavorites, graphExcludedTypes);
+    }
     function setFavoritesView(view) {
       favoritesView = view;
       listViewBtn.classList.toggle("active", view === "list");
       cloudViewBtn.classList.toggle("active", view === "cloud");
       listView.style.display = view === "list" ? "" : "none";
       cloudView.style.display = view === "cloud" ? "" : "none";
+      graphViewBtn.classList.toggle("active", view === "graph");
+      graphView.style.display = view === "graph" ? "" : "none";
       rerenderFavoritesPanel();
+      tagGraph.setActive(view === "graph");
     }
     function rerenderFavoritesPanel() {
       rerenderCloudView();
+      rerenderGraphView();
       const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
       listView.replaceChild(newTrendSection, trendSection);
       trendSection = newTrendSection;
@@ -4207,8 +4437,18 @@
       textContent: t("ui.favoritesViewCloud"),
       events: { click: () => setFavoritesView("cloud") }
     });
-    const viewSwitch = createElement("div", { className: "comic-helper-favorites-view-switch" }, [listViewBtn, cloudViewBtn]);
-    const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [viewSwitch, listView, cloudView]);
+    const graphViewBtn = createElement("button", {
+      className: "comic-helper-favorites-view-btn",
+      textContent: t("ui.favoritesViewGraph"),
+      events: { click: () => setFavoritesView("graph") }
+    });
+    const tagGraph = createTagGraph({ onSelectTag: handleCloudTagClick });
+    const graphTypeFilter = createElement("div");
+    const graphView = createElement("div", { className: "comic-helper-tag-graph-view" }, [graphTypeFilter, tagGraph.el]);
+    graphView.style.display = "none";
+    rerenderGraphView();
+    const viewSwitch = createElement("div", { className: "comic-helper-favorites-view-switch" }, [listViewBtn, cloudViewBtn, graphViewBtn]);
+    const favPanel = createElement("div", { className: "comic-helper-favorites-panel" }, [viewSwitch, listView, cloudView, graphView]);
     let sortMenu = createSortMenu(sortMode, handleSort);
     let histGrid = createHistoryGrid(currentHistory, currentFavorites, sortMode, onRemoveHistory, onToggleFavorite);
     const histPanel = createElement("div", { className: "comic-helper-history-panel" }, [sortMenu, histGrid]);
@@ -4221,6 +4461,7 @@
       histTab.classList.toggle("active", tab === "history");
       favPanel.style.display = tab === "favorites" ? "" : "none";
       histPanel.style.display = tab === "history" ? "" : "none";
+      tagGraph.setActive(tab === "favorites" && favoritesView === "graph");
     }
     function handleSort(mode) {
       sortMode = mode;
@@ -4238,18 +4479,25 @@
       }
     }, [closeBtn, titleEl, tabs, container]);
     content.addEventListener("wheel", (e) => e.stopPropagation(), { passive: true });
+    let pressedInside = false;
     const overlay = createElement("div", {
       className: "comic-helper-modal-overlay",
       events: {
-        click: onClose
+        click: () => {
+          if (!pressedInside) onClose();
+        }
       }
     }, [content]);
+    overlay.addEventListener("pointerdown", (e) => {
+      pressedInside = e.target !== overlay;
+    }, true);
     overlay.addEventListener("wheel", (e) => {
       e.preventDefault();
       e.stopPropagation();
     }, { passive: false });
     return {
       el: overlay,
+      destroy: () => tagGraph.destroy(),
       updateFavorites: (newFavorites) => {
         currentFavorites = newFavorites;
         selectedTagTexts = /* @__PURE__ */ new Set();
@@ -4271,6 +4519,264 @@
         const newTrendSection = createTrendSection(currentFavorites, selectedTagTexts, currentPinnedTags, handleTrendTagClick, onTogglePinTag, showAllTags, handleToggleShowAll);
         listView.replaceChild(newTrendSection, trendSection);
         trendSection = newTrendSection;
+      }
+    };
+  }
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const VIEW_BOX = { width: 800, height: 500 };
+  const DRAG_THRESHOLD = 4;
+  const DRAG_ALPHA = 0.3;
+  const UPDATE_ALPHA = 0.6;
+  const ZOOM_SENSITIVITY = 15e-4;
+  const WHEEL_LINE_HEIGHT = 16;
+  function createSvgElement(tag, attributes = {}) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attributes)) el.setAttribute(name, value);
+    return el;
+  }
+  function createNodeElement(tag, count, radius) {
+    const description = `${tag.text} (${count})`;
+    const node = createSvgElement("g", {
+      class: `comic-helper-tag-graph-node${tag.type ? ` comic-helper-tag-graph-node--${tag.type}` : ""}`,
+      tabindex: "0",
+      role: "button",
+      "aria-label": description
+    });
+    const title = createSvgElement("title");
+    title.textContent = description;
+    const label = createSvgElement("text", { y: String(radius + 12), "text-anchor": "middle" });
+    label.textContent = tag.text;
+    node.append(title, createSvgElement("circle", { r: String(radius) }), label);
+    return node;
+  }
+  function createTagGraphView({ onSelectTag }) {
+    let graph = { nodes: [], links: [] };
+    let signature = "";
+    let bodies = [];
+    let alpha = 0;
+    let view = { x: 0, y: 0, scale: 1 };
+    let active = false;
+    let frame = null;
+    let drag = null;
+    let dragged = false;
+    const nodeEls = /* @__PURE__ */ new Map();
+    let linkEls = [];
+    const viewport = createSvgElement("g");
+    const linkLayer = createSvgElement("g");
+    const nodeLayer = createSvgElement("g");
+    viewport.append(linkLayer, nodeLayer);
+    const svg = createSvgElement("svg", {
+      class: "comic-helper-tag-graph-svg",
+      viewBox: `${-800 / 2} ${-500 / 2} ${VIEW_BOX.width} ${VIEW_BOX.height}`
+    });
+    svg.appendChild(viewport);
+    const resetBtn = createElement("button", {
+      className: "comic-helper-tag-graph-reset",
+      textContent: t("ui.tagGraphResetView"),
+      events: { click: () => applyView({ x: 0, y: 0, scale: 1 }) }
+    });
+    const canvas = createElement("div", { className: "comic-helper-tag-graph-canvas" });
+    canvas.append(svg, resetBtn);
+    const emptyEl = createElement("div", {
+      className: "comic-helper-search-no-results",
+      textContent: t("ui.tagCloudEmpty")
+    });
+    const el = createElement("div", { className: "comic-helper-tag-graph" }, [emptyEl, canvas]);
+    function applyView(next) {
+      view = next;
+      viewport.setAttribute("transform", `translate(${view.x} ${view.y}) scale(${view.scale})`);
+    }
+    function toPoint(client) {
+      return toViewBoxPoint(client, svg.getBoundingClientRect(), VIEW_BOX);
+    }
+    function renderPositions() {
+      const byId = new Map(bodies.map((body) => [body.id, body]));
+      for (const body of bodies) {
+        nodeEls.get(body.id).setAttribute("transform", `translate(${body.x} ${body.y})`);
+      }
+      for (const { el: line, source, target } of linkEls) {
+        const a = byId.get(source);
+        const b = byId.get(target);
+        line.setAttribute("x1", String(a.x));
+        line.setAttribute("y1", String(a.y));
+        line.setAttribute("x2", String(b.x));
+        line.setAttribute("y2", String(b.y));
+      }
+    }
+    function stopAnimation() {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+    }
+    function startAnimation() {
+      if (!active || frame !== null || bodies.length === 0 || alpha < GRAPH_ALPHA_MIN) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const next = stepTagGraph(bodies, graph.links, alpha);
+        bodies = next.bodies;
+        alpha = drag?.id ? Math.max(next.alpha, DRAG_ALPHA) : next.alpha;
+        renderPositions();
+        startAnimation();
+      });
+    }
+    function highlight(id) {
+      const related = new Set(id === null ? [] : [id]);
+      for (const { el: line, source, target } of linkEls) {
+        const connected = source === id || target === id;
+        line.classList.toggle("is-highlighted", connected);
+        if (connected) related.add(source).add(target);
+      }
+      for (const [nodeId, node] of nodeEls) {
+        node.classList.toggle("is-highlighted", related.has(nodeId));
+      }
+      svg.classList.toggle("has-highlight", id !== null);
+    }
+    function moveNode(id, client) {
+      const point = toPoint(client);
+      const x = (point.x - view.x) / view.scale;
+      const y = (point.y - view.y) / view.scale;
+      bodies = bodies.map((body) => body.id === id ? { ...body, x, y, fixed: true } : body);
+      alpha = Math.max(alpha, DRAG_ALPHA);
+      renderPositions();
+      startAnimation();
+    }
+    function pan(from, to) {
+      const a = toPoint(from);
+      const b = toPoint(to);
+      applyView({ ...view, x: view.x + b.x - a.x, y: view.y + b.y - a.y });
+    }
+    function handlePointerMove(e) {
+      const current = drag;
+      const client = { x: e.clientX, y: e.clientY };
+      if (!dragged && Math.hypot(client.x - current.start.x, client.y - current.start.y) < DRAG_THRESHOLD) return;
+      dragged = true;
+      if (current.id === null) {
+        pan(current.last, client);
+      } else {
+        moveNode(current.id, client);
+      }
+      current.last = client;
+    }
+    function endDrag() {
+      if (!drag) return;
+      drag = null;
+      bodies = bodies.map((body) => ({ ...body, fixed: false }));
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", releaseDrag);
+      window.removeEventListener("pointercancel", releaseDrag);
+      window.removeEventListener("blur", releaseDrag);
+    }
+    function releaseDrag() {
+      const id = drag?.id;
+      endDrag();
+      if (id && !nodeEls.get(id)?.matches(":hover")) highlight(null);
+    }
+    function startDrag(e, id) {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      endDrag();
+      const client = { x: e.clientX, y: e.clientY };
+      drag = { id, start: client, last: client };
+      dragged = false;
+      bodies = bodies.map((body) => body.id === id ? { ...body, fixed: true } : body);
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", releaseDrag);
+      window.addEventListener("pointercancel", releaseDrag);
+      window.addEventListener("blur", releaseDrag);
+    }
+    svg.addEventListener("pointerdown", (e) => startDrag(e, null));
+    svg.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * WHEEL_LINE_HEIGHT : e.deltaY;
+      const point = toPoint({ x: e.clientX, y: e.clientY });
+      applyView(zoomGraphView(view, point, Math.exp(-delta * ZOOM_SENSITIVITY)));
+    }, { passive: false });
+    function bindNodeEvents(node, id) {
+      node.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+        startDrag(e, id);
+      });
+      node.addEventListener("click", () => {
+        if (!dragged) onSelectTag(id);
+      });
+      node.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        e.stopPropagation();
+        onSelectTag(id);
+      });
+      const enter = () => highlight(id);
+      const leave = () => {
+        if (!drag) highlight(null);
+      };
+      node.addEventListener("pointerenter", enter);
+      node.addEventListener("focus", enter);
+      node.addEventListener("pointerleave", leave);
+      node.addEventListener("blur", leave);
+    }
+    function rebuild() {
+      endDrag();
+      stopAnimation();
+      const previous = new Map(bodies.map((body) => [body.id, body]));
+      const counts = graph.nodes.map(({ count }) => count);
+      const min = Math.min(...counts);
+      const max = Math.max(...counts);
+      nodeEls.clear();
+      nodeLayer.replaceChildren();
+      bodies = graph.nodes.map(({ tag, count }, index) => {
+        const radius = 4 + calculateTagCloudLevel(count, min, max) * 3;
+        const node = createNodeElement(tag, count, radius);
+        bindNodeEvents(node, tag.text);
+        nodeEls.set(tag.text, node);
+        nodeLayer.appendChild(node);
+        const kept = previous.get(tag.text);
+        return kept ? { ...kept, radius } : createGraphBody(tag.text, index, radius);
+      });
+      linkEls = graph.links.map(({ source, target, strength }) => ({
+        el: createSvgElement("line", {
+          class: "comic-helper-tag-graph-link",
+          "stroke-width": String(1 + strength * 3)
+        }),
+        source,
+        target
+      }));
+      linkLayer.replaceChildren(...linkEls.map((link) => link.el));
+      highlight(null);
+      alpha = previous.size > 0 ? UPDATE_ALPHA : 1;
+      emptyEl.style.display = bodies.length > 0 ? "none" : "";
+      canvas.style.display = bodies.length > 0 ? "" : "none";
+      renderPositions();
+      startAnimation();
+    }
+    applyView(view);
+    rebuild();
+    return {
+      el,
+      update: (favorites, excludedTypes) => {
+        const next = buildTagGraph(favorites, excludedTypes);
+        const nextSignature = JSON.stringify([
+          next.nodes.map(({ tag, count }) => [tag.text, tag.type, count]),
+          next.links
+        ]);
+        if (nextSignature === signature) return;
+        signature = nextSignature;
+        graph = next;
+        rebuild();
+      },
+      setActive: (value) => {
+        active = value;
+        if (active) {
+          startAnimation();
+        } else {
+          endDrag();
+          stopAnimation();
+          highlight(null);
+        }
+      },
+      destroy: () => {
+        active = false;
+        endDrag();
+        stopAnimation();
       }
     };
   }
@@ -4696,7 +5202,8 @@
             onTogglePinTag: (tagText) => {
               this.store.togglePinnedTag(tagText);
             },
-            onClose: () => this.store.setState({ isFavoritesModalOpen: false })
+            onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
+            createTagGraph: createTagGraphView
           });
           document.body.appendChild(this.favoritesModalComp.el);
         } else {
@@ -4705,6 +5212,7 @@
           this.favoritesModalComp.updatePinnedTags(state.pinnedTags);
         }
       } else if (this.favoritesModalComp) {
+        this.favoritesModalComp.destroy();
         this.favoritesModalComp.el.remove();
         this.favoritesModalComp = null;
       }
