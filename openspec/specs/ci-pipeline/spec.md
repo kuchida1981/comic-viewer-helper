@@ -2,7 +2,9 @@
 
 ## Purpose
 GitHub Actions を使用して、プルリクエストごとに自動的に品質チェック（テスト、Lint、型チェック、ビルド）を実行し、マージ前のコード品質を担保します。
+
 ## Requirements
+
 ### Requirement: 継続的インテグレーションによる品質保証
 システムは、プルリクエストの作成時または更新時、および配布用ブランチへのデプロイ前に、定義されたすべての品質チェックを自動的に実行しなければならない（SHALL）。
 
@@ -25,3 +27,13 @@ Lint エラー、警告、またはテストの失敗が検出された場合、
 - **WHEN** `npm run build` を実行して `dist/` ディレクトリが生成される
 - **THEN** `git status` において `dist/` 配下のファイルが追跡対象（untracked）にならない
 
+### Requirement: ツールバージョンのリポジトリ一元管理と整合
+システムは、CI パイプラインおよびローカル検証スクリプトが、リポジトリ内で固定・定義された Node.js バージョン（`.nvmrc`）およびローカル依存の CLI ツール（`npx` 経由）を使用して実行されることを保証しなければならない（SHALL）。
+
+#### Scenario: CI ワークフローでの Node.js バージョン参照
+- **WHEN** GitHub Actions の各ワークフローが Node.js 環境をセットアップする
+- **THEN** `.nvmrc` ファイルから Node.js バージョンを読み込んで実行環境を構築すること
+
+#### Scenario: OpenSpec CLI のローカル依存バージョン実行
+- **WHEN** `make docs`、`make all`、`.husky/pre-commit`、または CI ワークフローが OpenSpec 検証を実行する
+- **THEN** グローバルにインストールされた版ではなく `npx openspec` により `package.json` で固定されたローカル依存バージョンが実行されること
