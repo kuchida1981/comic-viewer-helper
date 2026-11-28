@@ -118,6 +118,44 @@ describe('logic.ts', () => {
     });
   });
 
+  describe('relative URL matching with currentUrl origin', () => {
+    it('should exclude relative candidate matching currentUrl origin and path', () => {
+      const metadata: Metadata = {
+        title: 'Test',
+        tags: [],
+        relatedWorks: [
+          { title: 'Current', href: '/magazine/123', thumb: '', isPrivate: false },
+          { title: 'Other', href: '/magazine/456', thumb: '', isPrivate: false }
+        ]
+      };
+      expect(getLuckyCandidatesCount(metadata, [], 'https://example.com/magazine/123')).toBe(1);
+      expect(pickRandomWork(metadata, [], 'https://example.com/magazine/123')).toBe('/magazine/456');
+    });
+
+    it('should return null in resolveRedirectTarget when relative latest.href matches currentUrl', () => {
+      const ctx: RedirectContext = {
+        enabled: true,
+        currentUrl: 'https://example.com/magazine/123',
+        referrer: '',
+        navigationType: 'navigate',
+        history: [{ href: '/magazine/123', lastViewedAt: 100 }],
+        isWorkUrl: () => true
+      };
+      expect(resolveRedirectTarget(ctx)).toBeNull();
+    });
+
+    it('should handle invalid currentUrl gracefully when extracting origin', () => {
+      const metadata: Metadata = {
+        title: 'Test',
+        tags: [],
+        relatedWorks: [
+          { title: 'Other', href: 'https://example.com/magazine/456', thumb: '', isPrivate: false }
+        ]
+      };
+      expect(getLuckyCandidatesCount(metadata, [], 'not-a-valid-url')).toBe(1);
+    });
+  });
+
   describe('getLuckyCandidatesCount', () => {
     const metadata = {
       title: 'T',
@@ -711,6 +749,17 @@ describe('encrypt / decrypt / isEncrypted', () => {
     it('does not redirect when the target is not a work page (no loop)', () => {
       const ctx = { ...base, history: [{ href: 'https://example.com/search', lastViewedAt: 1 }] };
       expect(resolveRedirectTarget(ctx)).toBeNull();
+    });
+
+    it('should handle invalid currentUrl gracefully when extracting origin', () => {
+      const metadata: Metadata = {
+        title: 'Test',
+        tags: [],
+        relatedWorks: [
+          { title: 'Other', href: 'https://example.com/magazine/456', thumb: '', isPrivate: false }
+        ]
+      };
+      expect(getLuckyCandidatesCount(metadata, [], 'not-a-valid-url')).toBe(1);
     });
   });
 });

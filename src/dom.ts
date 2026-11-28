@@ -1,5 +1,17 @@
 import { isEligibleForPairing, shouldPairWithNext } from './logic';
 
+function hasStyleProp(el: { style?: { cssText: string } }): el is { style: { cssText: string } } {
+  return Boolean(el.style);
+}
+
+function hasNumericNaturalWidth(el: { naturalWidth?: unknown } | undefined): boolean {
+  return el !== undefined && typeof el.naturalWidth === 'number';
+}
+
+function hasFunctionProp(obj: Record<string, unknown>, prop: string): boolean {
+  return typeof obj[prop] === 'function';
+}
+
 /**
  * Get image element by index (0-based)
  */
@@ -21,7 +33,7 @@ export function cleanupDOM(container: HTMLElement | null | undefined): HTMLImage
   wrappers.forEach(w => w.remove());
 
   allImages.forEach(img => {
-    if (img.style as CSSStyleDeclaration | undefined) {
+    if (hasStyleProp(img)) {
       img.style.cssText = '';
     }
   });
@@ -43,12 +55,9 @@ function getPairingInfo(
   }
 
   const img = allImages[i];
-  const candidate: HTMLImageElement | undefined = allImages[i + 1];
+  const candidate = allImages.at(i + 1);
 
-  if (
-    typeof (img as { naturalWidth?: unknown }).naturalWidth === 'number' &&
-    typeof (candidate as { naturalWidth?: unknown } | undefined)?.naturalWidth === 'number'
-  ) {
+  if (hasNumericNaturalWidth(img) && hasNumericNaturalWidth(candidate) && candidate) {
     const isLandscape = img.naturalWidth > img.naturalHeight;
     const nextIsLandscape = candidate.naturalWidth > candidate.naturalHeight;
 
@@ -122,7 +131,7 @@ export function fitImagesToViewport(
   for (let i = 0; i < allImages.length; i++) {
     const img = allImages[i];
 
-    if (typeof (img as { naturalWidth?: unknown }).naturalWidth !== 'number') continue;
+    if (!hasNumericNaturalWidth(img)) continue;
 
     const { pairWithNext, nextImg } = getPairingInfo(allImages, i, spreadOffset, isDualViewEnabled);
 
@@ -152,7 +161,7 @@ export function fitImagesToViewport(
  * Revert changes: clear styles and restore original DOM structure
  */
 export function revertToOriginal(
-  originalImages: HTMLImageElement[] | null | undefined,
+  originalImages: (HTMLImageElement | null | undefined)[] | null | undefined,
   container: HTMLElement | null | undefined
 ): void {
   if (!container) return;
@@ -162,7 +171,9 @@ export function revertToOriginal(
   if (!Array.isArray(originalImages)) return;
 
   originalImages.forEach(img => {
-    if ((img as { style?: CSSStyleDeclaration }).style) {
+    if (!img) return;
+
+    if (hasStyleProp(img)) {
       img.style.cssText = '';
     }
 
@@ -226,13 +237,13 @@ export async function waitForImageLoad(img: HTMLImageElement | null | undefined,
     const cleanup = () => {
       clearTimeout(timer);
 
-      if (typeof (img as { removeEventListener?: unknown }).removeEventListener === 'function') {
+      if (hasFunctionProp(img as unknown as Record<string, unknown>, 'removeEventListener')) {
         img.removeEventListener('load', onLoad);
         img.removeEventListener('error', onError);
       }
     };
 
-    if (typeof (img as { addEventListener?: unknown }).addEventListener === 'function') {
+    if (hasFunctionProp(img as unknown as Record<string, unknown>, 'addEventListener')) {
       img.addEventListener('load', onLoad);
       img.addEventListener('error', onError);
     } else {
@@ -248,7 +259,7 @@ export async function waitForImageLoad(img: HTMLImageElement | null | undefined,
 export function forceImageLoad(img: HTMLImageElement | null | undefined): void {
   if (!img) return;
 
-  if (typeof (img as { getAttribute?: unknown }).getAttribute === 'function' && img.getAttribute('loading') === 'lazy') {
+  if (hasFunctionProp(img as unknown as Record<string, unknown>, 'getAttribute') && img.getAttribute('loading') === 'lazy') {
     img.setAttribute('loading', 'eager');
   }
 

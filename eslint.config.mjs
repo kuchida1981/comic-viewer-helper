@@ -4,6 +4,29 @@ import tseslint from "typescript-eslint";
 import pluginUserscripts from "eslint-plugin-userscripts";
 import pluginImportX from "eslint-plugin-import-x";
 
+const allowedLogicGlobals = new Set([
+  "URL",
+  "URLSearchParams",
+  "TextEncoder",
+  "TextDecoder",
+  "crypto",
+  "btoa",
+  "atob",
+  "console",
+  "setTimeout",
+  "clearTimeout",
+  "Uint8Array",
+  "ArrayBuffer",
+]);
+
+const restrictedLogicGlobals = [
+  ...new Set([
+    ...Object.keys(globals.browser),
+    ...Object.keys(globals.greasemonkey),
+    "globalThis",
+  ]),
+].filter(name => !allowedLogicGlobals.has(name));
+
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
@@ -141,36 +164,23 @@ export default [
     rules: {
       "no-restricted-globals": [
         "error",
-        { "name": "window", "message": "src/logic.ts must be DOM-independent (do not reference window)." },
-        { "name": "document", "message": "src/logic.ts must be DOM-independent (do not reference document)." },
-        { "name": "self", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "navigator", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "location", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "history", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "localStorage", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "sessionStorage", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "HTMLElement", "message": "src/logic.ts must not reference DOM types." },
-        { "name": "HTMLImageElement", "message": "src/logic.ts must not reference DOM types." },
-        { "name": "Element", "message": "src/logic.ts must not reference DOM types." },
-        { "name": "Node", "message": "src/logic.ts must not reference DOM types." },
-        { "name": "Document", "message": "src/logic.ts must not reference DOM types." },
-        { "name": "Window", "message": "src/logic.ts must not reference DOM types." },
-        { "name": "Event", "message": "src/logic.ts must not reference DOM types." },
-        { "name": "WheelEvent", "message": "src/logic.ts must not reference DOM types." },
-        { "name": "MutationObserver", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "IntersectionObserver", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "ResizeObserver", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "requestAnimationFrame", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "cancelAnimationFrame", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "getComputedStyle", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "alert", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "confirm", "message": "src/logic.ts must be DOM-independent." },
-        { "name": "prompt", "message": "src/logic.ts must be DOM-independent." }
+        ...restrictedLogicGlobals.map(name => ({
+          name,
+          message: `src/logic.ts must be DOM/browser-independent (do not reference ${name}).`
+        }))
       ],
       "no-restricted-syntax": [
         "error",
         {
-          "selector": "TSTypeReference > Identifier[name=/^(Window|Document|HTMLElement|HTMLImageElement|HTMLAnchorElement|HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement|Element|Node|NodeList|Event|WheelEvent|MouseEvent|KeyboardEvent)$/]",
+          "selector": "MemberExpression[object.name='globalThis']",
+          "message": "src/logic.ts must not access browser/global properties via globalThis."
+        },
+        {
+          "selector": "TSQualifiedName[left.name='globalThis']",
+          "message": "src/logic.ts must not reference DOM/browser types via globalThis."
+        },
+        {
+          "selector": "TSTypeReference > Identifier[name=/^(Window|Document|HTMLElement|HTML.*Element|SVG.*Element|Element|Node|NodeList|HTMLCollection|DOMRect|DOMParser|Event|.*Event|CSSStyleDeclaration|StyleSheet|Range|Selection|MutationObserver|IntersectionObserver|ResizeObserver)$/]",
           "message": "src/logic.ts must not reference DOM types (pure functions only)."
         }
       ]

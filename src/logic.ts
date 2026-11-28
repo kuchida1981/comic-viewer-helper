@@ -339,6 +339,17 @@ export function normalizeUrl(url: string, baseOrigin?: string): string {
 }
 
 /**
+ * Extract origin from an absolute URL safely.
+ */
+function extractOrigin(url: string): string | undefined {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Get the current number of unique candidates for random jump,
  * excluding history and current URL according to normal rules.
  */
@@ -349,15 +360,16 @@ export function getLuckyCandidatesCount(
   searchCache?: SearchCache | null,
   favorites: RelatedWork[] = []
 ): number {
-  const normalizedCurrent = normalizeUrl(currentUrl);
-  const normalizedHistory = luckyHistory.map(h => normalizeUrl(h));
+  const origin = extractOrigin(currentUrl);
+  const normalizedCurrent = normalizeUrl(currentUrl, origin);
+  const normalizedHistory = luckyHistory.map(h => normalizeUrl(h, origin));
 
   const pool = getDiscoveryPool(metadata, searchCache, favorites);
   const excludeSet = new Set<string>();
   excludeSet.add(normalizedCurrent);
   normalizedHistory.forEach(h => excludeSet.add(h));
 
-  return pool.filter(w => !excludeSet.has(normalizeUrl(w.href))).length;
+  return pool.filter(w => !excludeSet.has(normalizeUrl(w.href, origin))).length;
 }
 
 /**
@@ -386,8 +398,9 @@ export function pickRandomWork(
   searchCache?: SearchCache | null,
   favorites: RelatedWork[] = []
 ): string | null {
-  const normalizedCurrent = normalizeUrl(currentUrl);
-  const normalizedHistory = luckyHistory.map(h => normalizeUrl(h));
+  const origin = extractOrigin(currentUrl);
+  const normalizedCurrent = normalizeUrl(currentUrl, origin);
+  const normalizedHistory = luckyHistory.map(h => normalizeUrl(h, origin));
 
   const getFilteredPool = (excludeHistoryCount: number | 'all'): { href: string }[] => {
     const pool = getDiscoveryPool(metadata, searchCache, favorites);
@@ -400,7 +413,7 @@ export function pickRandomWork(
       normalizedHistory.slice(0, excludeHistoryCount).forEach(h => excludeSet.add(h));
     }
 
-    return pool.filter(w => !excludeSet.has(normalizeUrl(w.href)));
+    return pool.filter(w => !excludeSet.has(normalizeUrl(w.href, origin)));
   };
 
   // Try strict mode (all history + current)
@@ -420,7 +433,7 @@ export function pickRandomWork(
 
   // 2-step slot selection within the final candidates
   const favoritePool = toCandidates(favorites).filter(f =>
-    candidates.some(c => normalizeUrl(c.href) === normalizeUrl(f.href))
+    candidates.some(c => normalizeUrl(c.href, origin) === normalizeUrl(f.href, origin))
   );
 
   if (favoritePool.length > 0 && Math.random() < FAVORITE_PICK_CHANCE) {
@@ -435,10 +448,14 @@ export function pickRandomWork(
 /**
  * Collect all available works for discovery, filtered and deduplicated
  */
-function getDiscoveryPool(metadata: Metadata, searchCache?: SearchCache | null, favorites: RelatedWork[] = []): { href: string }[] {
+function getDiscoveryPool(
+  metadata: { relatedWorks?: RelatedWork[] | null },
+  searchCache?: SearchCache | null,
+  favorites: RelatedWork[] = []
+): { href: string }[] {
   const sources: { href: string }[] = [];
 
-  if (Array.isArray((metadata as { relatedWorks?: unknown }).relatedWorks)) {
+  if (Array.isArray(metadata.relatedWorks)) {
     for (const w of metadata.relatedWorks) {
       if (!w.isPrivate && w.href) sources.push({ href: w.href });
     }
@@ -512,7 +529,8 @@ export function resolveRedirectTarget(ctx: RedirectContext): string | null {
   const latest = pickLastViewed(ctx.history);
   if (!latest) return null;
 
-  if (normalizeUrl(latest.href) === normalizeUrl(ctx.currentUrl)) return null;
+  const origin = extractOrigin(ctx.currentUrl);
+  if (normalizeUrl(latest.href, origin) === normalizeUrl(ctx.currentUrl, origin)) return null;
   if (!ctx.isWorkUrl(latest.href)) return null;
   return latest.href;
 }

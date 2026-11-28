@@ -522,7 +522,7 @@ describe('dom.ts', () => {
         revertToOriginal(null, container);
 
         const invalidOriginalImg = {} as unknown as HTMLImageElement;
-        revertToOriginal([invalidOriginalImg], container);
+        expect(() => revertToOriginal([null, invalidOriginalImg], container)).not.toThrow();
       });
 
       it('should reset cssText when img has a style property', () => {

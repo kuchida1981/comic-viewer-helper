@@ -53,7 +53,7 @@ export const DefaultAdapter: SiteAdapter = {
   },
   getMetadata: (): Metadata => {
     const titleEl = document.querySelector('h1');
-    const title = titleEl ? titleEl.textContent.trim() || 'Unknown Title' : 'Unknown Title';
+    const title = titleEl?.textContent.trim() || 'Unknown Title';
 
     const tags = Array.from(document.querySelectorAll<HTMLAnchorElement>('#post-tag a')).map(a => {
       const href = a.href;
@@ -70,7 +70,7 @@ export const DefaultAdapter: SiteAdapter = {
       // Assuming title is in a span inside or near .post-list-image based on issue description
       const titleEl = el.querySelector('span') || anchor?.querySelector('span');
 
-      const title = titleEl ? titleEl.textContent.trim() || 'Untitled' : 'Untitled';
+      const title = titleEl?.textContent.trim() || 'Untitled';
       return {
         title,
         href: anchor?.href || '',
@@ -86,14 +86,14 @@ export const DefaultAdapter: SiteAdapter = {
       const img = a.querySelector<HTMLImageElement>('.post-list-image img');
       const titleEl = a.querySelector<HTMLSpanElement>(':scope > span');
       return {
-        title: titleEl ? titleEl.textContent.trim() || '' : '',
+        title: titleEl?.textContent.trim() || '',
         href: a.getAttribute('href') || '',
         thumb: img?.getAttribute('src') || ''
       };
     });
 
     const totalCountEl = doc.querySelector<HTMLElement>('div.page-h > span');
-    const totalCount = totalCountEl ? totalCountEl.textContent.trim() || null : null;
+    const totalCount = totalCountEl?.textContent.trim() || null;
     const nextPageUrl = doc.querySelector<HTMLAnchorElement>('div.wp-pagenavi a.nextpostslink')?.getAttribute('href') || null;
 
     const pagination: PaginationItem[] = [];

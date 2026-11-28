@@ -593,5 +593,17 @@ describe('Navigator', () => {
                                 // タイマーが再開するはず
                                 expect(vi.getTimerCount()).toBe(initialTimers);
                               });
+
+                              it('should open metadata modal without throwing on the last page in dual-view mode', async () => {
+                                (store.getState as Mock).mockReturnValue({
+                                  ...vi.mocked(store.getState)(),
+                                  isDualViewEnabled: true,
+                                  isMetadataModalOpen: false
+                                });
+                                vi.mocked(logic.getPrimaryVisibleImageIndex).mockReturnValue(mockImages.length - 1);
+
+                                await expect(navigator.scrollToImage(1)).resolves.toBeUndefined();
+                                expect(store.setState).toHaveBeenCalledWith({ isMetadataModalOpen: true });
+                              });
                             });
                           });
