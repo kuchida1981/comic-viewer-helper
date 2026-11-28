@@ -200,12 +200,13 @@ export class Store {
   };
 
   addLuckyHistory = (work: RelatedWork): void => {
-    const normalizedUrl = normalizeUrl(work.href);
+    const origin = typeof window !== 'undefined' ? window.location.origin : undefined;
+    const normalizedUrl = normalizeUrl(work.href, origin);
     const now = Date.now();
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
     const existing = this.state.luckyHistory.find(
-      entry => normalizeUrl(entry.href) === normalizedUrl
+      entry => normalizeUrl(entry.href, origin) === normalizedUrl
     );
 
     let newHistory: HistoryEntry[];
@@ -216,7 +217,7 @@ export class Store {
         lastViewedAt: now,
         viewCount: shouldIncrement ? existing.viewCount + 1 : existing.viewCount
       };
-      newHistory = [updated, ...this.state.luckyHistory.filter(e => normalizeUrl(e.href) !== normalizedUrl)];
+      newHistory = [updated, ...this.state.luckyHistory.filter(e => normalizeUrl(e.href, origin) !== normalizedUrl)];
     } else {
       const newEntry: HistoryEntry = {
         ...work,

@@ -1,4 +1,5 @@
-import { fitImagesToViewport, getPrimaryVisibleImageIndex, getImageElementByIndex, revertToOriginal, waitForImageLoad, preloadImages, forceImageLoad, pickRandomWork } from '../logic';
+import { getPrimaryVisibleImageIndex, pickRandomWork } from '../logic';
+import { fitImagesToViewport, getImageElementByIndex, revertToOriginal, waitForImageLoad, preloadImages, forceImageLoad } from '../dom';
 import { SiteAdapter } from '../types';
 import { Store, StoreState } from '../store';
 
@@ -178,9 +179,9 @@ export class Navigator {
     if (targetIndex < 0) return 0;
 
     if (isDualViewEnabled && direction !== 0 && currentIndex !== -1) {
-      const currentImg = imgs[currentIndex];
-      const prospective = imgs[targetIndex];
-      if (currentImg && prospective && prospective.parentElement === currentImg.parentElement && 
+      const currentImg = imgs.at(currentIndex);
+      const prospective = imgs.at(targetIndex);
+      if (currentImg && prospective && prospective.parentElement === currentImg.parentElement &&
           prospective.parentElement?.classList.contains('comic-row-wrapper')) {
         targetIndex += direction;
       }

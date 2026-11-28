@@ -3,7 +3,6 @@ import { createElement } from './utils.js';
 
 describe('createElement (Safety)', () => {
   it('should handle null/undefined options safely', () => {
-    // @ts-expect-error Testing runtime safety
     expect(createElement('div', null)).toBeInstanceOf(HTMLElement);
     expect(createElement('div', undefined)).toBeInstanceOf(HTMLElement);
   });

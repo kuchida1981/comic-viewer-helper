@@ -35,7 +35,7 @@ function applyInputProperties(el: HTMLElement, opts: ElementOptions): void {
 /**
  * Apply attributes to the element
  */
-function applyAttributes(el: HTMLElement, attributes?: Record<string, string | number | boolean>): void {
+function applyAttributes(el: HTMLElement, attributes?: Record<string, string | number | boolean | null | undefined>): void {
   if (!attributes) return;
   for (const [key, value] of Object.entries(attributes)) {
     if (value !== null && value !== undefined) {
@@ -72,13 +72,12 @@ function appendChildren(el: HTMLElement, children: (Element | string | null | un
  */
 export function createElement<K extends keyof HTMLElementTagNameMap>(
   tag: K,
-  options: ElementOptions = {},
+  options: ElementOptions | null = {},
   children: (Element | string | null | undefined)[] = []
 ): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   // Ensure options is an object even if null is passed (for safety/tests)
-   
-  const opts = (options || {}) as ElementOptions;
+  const opts = options ?? {};
 
   applyBasicProperties(el, opts);
   applyInputProperties(el, opts);

@@ -4,6 +4,29 @@ import tseslint from "typescript-eslint";
 import pluginUserscripts from "eslint-plugin-userscripts";
 import pluginImportX from "eslint-plugin-import-x";
 
+const allowedLogicGlobals = new Set([
+  "URL",
+  "URLSearchParams",
+  "TextEncoder",
+  "TextDecoder",
+  "crypto",
+  "btoa",
+  "atob",
+  "console",
+  "setTimeout",
+  "clearTimeout",
+  "Uint8Array",
+  "ArrayBuffer",
+]);
+
+const restrictedLogicGlobals = [
+  ...new Set([
+    ...Object.keys(globals.browser),
+    ...Object.keys(globals.greasemonkey),
+    "globalThis",
+  ]),
+].filter(name => !allowedLogicGlobals.has(name));
+
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
@@ -103,6 +126,13 @@ export default [
             "except": ["./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*"],
             "message": "Logic layer must not depend on other layers (pure functions only)."
           },
+          // dom.ts can only depend on logic and shared
+          {
+            "target": "./src/dom.ts",
+            "from": "./src",
+            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*"],
+            "message": "DOM helper layer can only depend on Logic and Shared layers."
+          },
           // store.ts can only depend on logic and shared
           {
             "target": "./src/store.ts",
@@ -128,11 +158,32 @@ export default [
       }]
     }
   },
-  // Specific suppressions
+  // Enforce pure functions (no browser globals or DOM types) in logic.ts
   {
-    files: ["src/logic.ts", "src/ui/utils.ts", "src/adapters/DefaultAdapter.ts", "src/managers/Navigator.ts"],
+    files: ["src/logic.ts"],
     rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off"
+      "no-restricted-globals": [
+        "error",
+        ...restrictedLogicGlobals.map(name => ({
+          name,
+          message: `src/logic.ts must be DOM/browser-independent (do not reference ${name}).`
+        }))
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          "selector": "MemberExpression[object.name='globalThis']",
+          "message": "src/logic.ts must not access browser/global properties via globalThis."
+        },
+        {
+          "selector": "TSQualifiedName[left.name='globalThis']",
+          "message": "src/logic.ts must not reference DOM/browser types via globalThis."
+        },
+        {
+          "selector": "TSTypeReference > Identifier[name=/^(Window|Document|HTMLElement|HTML.*Element|SVG.*Element|Element|Node|NodeList|HTMLCollection|DOMRect|DOMParser|Event|.*Event|CSSStyleDeclaration|StyleSheet|Range|Selection|MutationObserver|IntersectionObserver|ResizeObserver)$/]",
+          "message": "src/logic.ts must not reference DOM types (pure functions only)."
+        }
+      ]
     }
   },
   // Test files: relaxed rules
