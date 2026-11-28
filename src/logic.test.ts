@@ -17,6 +17,7 @@ import {
   calculateTrends,
   calculateTagCloudLevel,
   getTagTypes,
+  toggleTagTypeFilter,
   arrangeTagCloud,
   filterWorksByTags,
   encrypt,
@@ -1141,5 +1142,39 @@ describe('calculateTagCloudLevel', () => {
 
   it('levels を指定できる', () => {
     expect(calculateTagCloudLevel(10, 1, 10, 3)).toBe(3);
+  });
+});
+
+describe('toggleTagTypeFilter', () => {
+  const allTypes: Array<string | null> = ['artist', 'genre', null];
+
+  it('全選択状態で種類をクリックすると、その種類以外がすべて除外される', () => {
+    const result = toggleTagTypeFilter(new Set(), allTypes, 'genre');
+    expect(result).toEqual(new Set(['artist', null]));
+  });
+
+  it('除外されている種類をクリックすると、除外から外れて選択状態になる', () => {
+    const excluded = new Set<string | null>(['artist', null]);
+    const result = toggleTagTypeFilter(excluded, allTypes, 'artist');
+    expect(result).toEqual(new Set([null]));
+  });
+
+  it('複数選択中に選択済みの種類をクリックすると、その種類が除外される', () => {
+    const excluded = new Set<string | null>([null]);
+    const result = toggleTagTypeFilter(excluded, allTypes, 'genre');
+    expect(result).toEqual(new Set([null, 'genre']));
+  });
+
+  it('最後の1種類を選択中にクリックしても除外されない', () => {
+    const excluded = new Set<string | null>(['artist', null]);
+    const result = toggleTagTypeFilter(excluded, allTypes, 'genre');
+    expect(result).toEqual(new Set(['artist', null]));
+  });
+
+  it('元の Set を変更しない', () => {
+    const excluded = new Set<string | null>(['artist']);
+    const result = toggleTagTypeFilter(excluded, allTypes, null);
+    expect(excluded).toEqual(new Set(['artist']));
+    expect(result).toEqual(new Set(['artist', null]));
   });
 });

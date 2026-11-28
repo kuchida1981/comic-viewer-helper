@@ -675,6 +675,24 @@ export const styles = `
     opacity: 0.4;
     text-decoration: line-through;
   }
+  .comic-helper-tag-type-reset {
+    background: transparent;
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.muted};
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, opacity 0.15s;
+  }
+  .comic-helper-tag-type-reset:hover:not(:disabled) {
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
+  }
+  .comic-helper-tag-type-reset:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
 
   .comic-helper-tag-cloud-item {
     background: transparent;
