@@ -98,6 +98,23 @@ describe('FavoritesModal tag graph view', () => {
     expect(spy.setActive).toHaveBeenLastCalledWith(false);
   });
 
+  it('グラフ内で押してモーダルの外で離しても閉じない', () => {
+    const onClose = vi.fn();
+    const { el } = openGraph({ onClose });
+    const press = (target: Element) => target.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+    for (const selector of ['.comic-helper-tag-graph-svg', '.comic-helper-tag-graph-node']) {
+      press(graphView(el).querySelector(selector)!);
+      window.dispatchEvent(new MouseEvent('pointerup'));
+      el.click();
+    }
+    expect(onClose).not.toHaveBeenCalled();
+
+    // Pressing on the overlay itself still closes
+    press(el);
+    el.click();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('destroy はグラフを破棄する', () => {
     const spy = spyOnGraph();
     openGraph({ createTagGraph: spy.createTagGraph }).destroy();

@@ -543,12 +543,18 @@ export function createFavoritesModal({ favorites, history, pinnedTags, onRemoveF
   }, [closeBtn, titleEl, tabs, container]);
   content.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
 
+  // A drag that starts inside the modal and ends outside fires `click` on the overlay
+  let pressedInside = false;
   const overlay = createElement('div', {
     className: 'comic-helper-modal-overlay',
     events: {
-      click: onClose
+      click: () => {
+        if (!pressedInside) onClose();
+      }
     }
   }, [content]);
+  // Capture phase, so that handlers stopping propagation inside the modal do not hide the press
+  overlay.addEventListener('pointerdown', (e) => { pressedInside = e.target !== overlay; }, true);
   overlay.addEventListener('wheel', (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
 
   return {
