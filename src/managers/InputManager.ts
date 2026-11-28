@@ -76,7 +76,8 @@ export class InputManager {
   isInputField = (target: EventTarget | null): boolean => {
     if (!(target instanceof HTMLElement)) return false;
     return (
-      target instanceof HTMLInputElement ||
+      // A slider takes no text, so shortcuts such as Escape must keep working while it has focus
+      (target instanceof HTMLInputElement && target.type !== 'range') ||
       target instanceof HTMLTextAreaElement ||
       target instanceof HTMLSelectElement ||
       !!target.isContentEditable

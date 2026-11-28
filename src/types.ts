@@ -114,7 +114,7 @@ export interface SyncConfig {
 
 export interface TagGraphViewComponent {
   el: HTMLElement;
-  update: (favorites: RelatedWork[], excludedTypes: ReadonlySet<string | null>) => void;
+  update: (favorites: RelatedWork[], excludedTypes: ReadonlySet<string | null>, limit?: number) => void;
   /** Run the animation only while the graph is on screen */
   setActive: (active: boolean) => void;
   destroy: () => void;

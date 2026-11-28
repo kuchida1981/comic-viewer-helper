@@ -253,4 +253,62 @@ describe('TagGraphView', () => {
     expect(position(node('a'))).toBe('translate(100 50)');
     expect(runFrames()).toBeLessThan(1000);
   });
+
+  it('上限を変えても残るノードの位置とズーム・表示位置を保ち、増えるノードを相手の近くに置く', () => {
+    const works = [
+      work('a', 'b'),
+      work('a', 'b'),
+      work('a', 'c'),
+      work('a', 'c'),
+      work('a'),
+      work('b')
+    ];
+    const { graph, nodes, node, svg, viewport } = setup(works);
+    graph.update(works, new Set(), 2);
+    expect(nodes()).toHaveLength(2);
+    graph.setActive(true);
+    runFrames();
+
+    pointer(node('a'), 'pointerdown');
+    pointer(window, 'pointermove', 120, 40);
+    pointer(window, 'pointerup');
+    svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true }));
+    const viewBefore = position(viewport);
+    const posABefore = position(node('a'));
+    const parsePos = (el: Element) => {
+      const m = /translate\(([^ ]+) ([^)]+)\)/.exec(position(el)!)!;
+      return { x: Number(m[1]), y: Number(m[2]) };
+    };
+    const posA = parsePos(node('a'));
+
+    graph.update(works, new Set(), 3);
+    expect(nodes()).toHaveLength(3);
+    expect(position(viewport)).toBe(viewBefore);
+    expect(position(node('a'))).toBe(posABefore);
+    const posC = parsePos(node('c'));
+    expect(Math.hypot(posC.x - posA.x, posC.y - posA.y)).toBeGreaterThan(0);
+    expect(Math.hypot(posC.x - posA.x, posC.y - posA.y)).toBeLessThan(20);
+
+    graph.update(works, new Set(), 2);
+    expect(nodes()).toHaveLength(2);
+    expect(position(viewport)).toBe(viewBefore);
+    expect(position(node('a'))).toBe(posABefore);
+  });
+
+  it('はみ出すときだけ縮小し、ノードのドラッグ中は倍率を変えない', () => {
+    const { graph, node, viewport } = setup();
+    const scale = () => Number(/scale\((.+)\)/.exec(position(viewport)!)![1]);
+    graph.setActive(true);
+    runFrames();
+    expect(scale()).toBe(1);
+
+    pointer(node('a'), 'pointerdown');
+    pointer(window, 'pointermove', 2000, 0);
+    runFrames(20);
+    expect(scale()).toBe(1);
+
+    pointer(window, 'pointerup');
+    runFrames(1);
+    expect(scale()).toBeLessThan(1);
+  });
 });

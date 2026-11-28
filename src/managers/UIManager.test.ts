@@ -105,7 +105,9 @@ describe('UIManager', () => {
         currentState = { ...currentState, ...patch };
       }),
       subscribe: vi.fn(),
-      togglePinnedTag: vi.fn()
+      togglePinnedTag: vi.fn(),
+      getTagGraphNodeLimit: vi.fn().mockReturnValue(50),
+      setTagGraphNodeLimit: vi.fn()
     } as unknown as Store;
     
     const adapter = {
@@ -320,5 +322,26 @@ describe('UIManager', () => {
     favModalProps.onToggleFavorite(workToToggle);
     expect(currentState.favorites.length).toBe(0);
 
+  });
+
+  it('passes tag graph node limit to FavoritesModal and restores it on reopen', () => {
+    (store.getTagGraphNodeLimit as Mock).mockReturnValue(80);
+    currentState.isFavoritesModalOpen = true;
+    uiManager.updateUI();
+
+    const firstProps = (createFavoritesModal as Mock).mock.calls.at(-1)![0];
+    expect(firstProps.graphNodeLimit).toBe(80);
+
+    firstProps.onChangeGraphNodeLimit(30);
+    expect(store.setTagGraphNodeLimit).toHaveBeenCalledWith(30);
+
+    (store.getTagGraphNodeLimit as Mock).mockReturnValue(30);
+    firstProps.onClose();
+    uiManager.updateUI();
+    currentState.isFavoritesModalOpen = true;
+    uiManager.updateUI();
+
+    const reopenedProps = (createFavoritesModal as Mock).mock.calls.at(-1)![0];
+    expect(reopenedProps.graphNodeLimit).toBe(30);
   });
 });

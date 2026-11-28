@@ -713,6 +713,26 @@ export const styles = `
   .comic-helper-tag-cloud-item--level-4 { font-size: 30px; font-weight: bold; }
   .comic-helper-tag-cloud-item--level-5 { font-size: 44px; font-weight: bold; }
 
+  .comic-helper-tag-graph-limit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: ${COLORS.text.muted};
+  }
+  .comic-helper-tag-graph-limit-slider {
+    width: 140px;
+    accent-color: ${COLORS.border.accent};
+    cursor: pointer;
+  }
+  .comic-helper-tag-graph-limit-value {
+    min-width: 24px;
+    text-align: right;
+    color: ${COLORS.text.primary};
+    font-variant-numeric: tabular-nums;
+  }
   .comic-helper-tag-graph-canvas {
     position: relative;
   }

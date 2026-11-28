@@ -294,7 +294,9 @@ export class UIManager {
           onToggleFavorite: (work) => { this._toggleFavoriteWork(work); },
           onTogglePinTag: (tagText) => { this.store.togglePinnedTag(tagText); },
           onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
-          createTagGraph: createTagGraphView
+          createTagGraph: createTagGraphView,
+          graphNodeLimit: this.store.getTagGraphNodeLimit(),
+          onChangeGraphNodeLimit: (limit) => { this.store.setTagGraphNodeLimit(limit); }
         });
         document.body.appendChild(this.favoritesModalComp.el);
       } else {

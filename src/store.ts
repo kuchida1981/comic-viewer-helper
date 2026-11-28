@@ -1,6 +1,6 @@
 import { Metadata, SearchResultsState, SearchCache, SearchContext, RelatedWork, HistoryEntry, SyncConfig } from './types';
 import { isGuiPos, isStringArray, isSearchCache, isSearchContext, isRelatedWorkArray, isHistoryEntryArray, isSyncConfig } from './type-guards';
-import { normalizeUrl } from './logic';
+import { normalizeUrl, normalizeTagGraphNodeLimit } from './logic';
 
 export const STORAGE_KEYS = {
   DUAL_VIEW: 'comic-viewer-helper-dual-view',
@@ -16,7 +16,8 @@ export const STORAGE_KEYS = {
   LUCKY_HISTORY: 'comic-viewer-helper-lucky-history',
   PINNED_TAGS: 'comic-viewer-helper-pinned-tags',
   SYNC_CONFIG: 'comic-viewer-helper-sync-config',
-  REDIRECT_ENABLED: 'comic-viewer-helper-redirect-enabled'
+  REDIRECT_ENABLED: 'comic-viewer-helper-redirect-enabled',
+  TAG_GRAPH_NODE_LIMIT: 'comic-viewer-helper-tag-graph-node-limit'
 } as const;
 
 export const MAX_SEARCH_HISTORY = 3;
@@ -238,6 +239,20 @@ export class Store {
       ? pinnedTags.filter(t => t !== tagText)
       : [...pinnedTags, tagText];
     this.setState({ pinnedTags: newPinnedTags });
+  };
+
+  getTagGraphNodeLimit = (): number => {
+    const saved: unknown = GM_getValue(STORAGE_KEYS.TAG_GRAPH_NODE_LIMIT);
+    const parsed = typeof saved === 'number'
+      ? saved
+      : typeof saved === 'string' && saved.trim() !== ''
+        ? Number(saved)
+        : NaN;
+    return normalizeTagGraphNodeLimit(parsed);
+  };
+
+  setTagGraphNodeLimit = (limit: number): void => {
+    GM_setValue(STORAGE_KEYS.TAG_GRAPH_NODE_LIMIT, String(normalizeTagGraphNodeLimit(limit)));
   };
 
   private _loadSearchHistory = (): string[] => {

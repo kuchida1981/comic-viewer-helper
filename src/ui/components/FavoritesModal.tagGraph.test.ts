@@ -120,4 +120,49 @@ describe('FavoritesModal tag graph view', () => {
     openGraph({ createTagGraph: spy.createTagGraph }).destroy();
     expect(spy.destroy).toHaveBeenCalled();
   });
+
+  it('スライダーの初期値・範囲・刻みを表示し、input で反映して change で保存する', () => {
+    const manyTags: RelatedWork[] = [{
+      title: 'Many',
+      href: '/work/many/',
+      thumb: '',
+      tags: Array.from({ length: 60 }, (_, i) => tag(`tag-${String(i).padStart(2, '0')}`, 'genre'))
+    }];
+    const onChangeGraphNodeLimit = vi.fn();
+    const { el } = openGraph({ favorites: manyTags, onChangeGraphNodeLimit });
+    const slider = graphView(el).querySelector<HTMLInputElement>('.comic-helper-tag-graph-limit-slider')!;
+    const valueEl = graphView(el).querySelector<HTMLElement>('.comic-helper-tag-graph-limit-value')!;
+
+    expect(slider.min).toBe('10');
+    expect(slider.max).toBe('100');
+    expect(slider.step).toBe('10');
+    expect(slider.value).toBe('50');
+    expect(valueEl.textContent).toBe('50');
+    expect(graphIds(el)).toHaveLength(50);
+
+    slider.value = '30';
+    slider.dispatchEvent(new Event('input'));
+    expect(valueEl.textContent).toBe('30');
+    expect(graphIds(el)).toHaveLength(30);
+    expect(onChangeGraphNodeLimit).not.toHaveBeenCalled();
+
+    slider.dispatchEvent(new Event('change'));
+    expect(onChangeGraphNodeLimit).toHaveBeenCalledWith(30);
+  });
+
+  it('渡された初期ノード数をスライダーとグラフに反映する', () => {
+    const manyTags: RelatedWork[] = [{
+      title: 'Many',
+      href: '/work/many/',
+      thumb: '',
+      tags: Array.from({ length: 90 }, (_, i) => tag(`tag-${String(i).padStart(2, '0')}`, 'genre'))
+    }];
+    const { el } = openGraph({ favorites: manyTags, graphNodeLimit: 80 });
+    const slider = graphView(el).querySelector<HTMLInputElement>('.comic-helper-tag-graph-limit-slider')!;
+    const valueEl = graphView(el).querySelector<HTMLElement>('.comic-helper-tag-graph-limit-value')!;
+
+    expect(slider.value).toBe('80');
+    expect(valueEl.textContent).toBe('80');
+    expect(graphIds(el)).toHaveLength(80);
+  });
 });
