@@ -10,6 +10,7 @@ import { createSyncSettings, SyncSettingsComponent } from '../ui/components/Sync
 import { createRedirectSettings, RedirectSettingsComponent } from '../ui/components/RedirectSettings';
 import { createSearchModal, SearchModalComponent } from '../ui/components/SearchModal';
 import { createFavoritesModal, FavoritesModalComponent } from '../ui/components/FavoritesModal';
+import { createTagGraphView } from '../ui/components/TagGraphView';
 import { createProgressBar, ProgressBarComponent } from '../ui/components/ProgressBar';
 import { createResumeNotification } from '../ui/components/ResumeNotification';
 import { createLoadingIndicator, LoadingIndicatorComponent } from '../ui/components/LoadingIndicator';
@@ -292,7 +293,8 @@ export class UIManager {
           },
           onToggleFavorite: (work) => { this._toggleFavoriteWork(work); },
           onTogglePinTag: (tagText) => { this.store.togglePinnedTag(tagText); },
-          onClose: () => this.store.setState({ isFavoritesModalOpen: false })
+          onClose: () => this.store.setState({ isFavoritesModalOpen: false }),
+          createTagGraph: createTagGraphView
         });
         document.body.appendChild(this.favoritesModalComp.el);
       } else {
@@ -301,6 +303,7 @@ export class UIManager {
         this.favoritesModalComp.updatePinnedTags(state.pinnedTags);
       }
     } else if (this.favoritesModalComp) {
+      this.favoritesModalComp.destroy();
       this.favoritesModalComp.el.remove();
       this.favoritesModalComp = null;
     }

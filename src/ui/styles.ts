@@ -713,6 +713,73 @@ export const styles = `
   .comic-helper-tag-cloud-item--level-4 { font-size: 30px; font-weight: bold; }
   .comic-helper-tag-cloud-item--level-5 { font-size: 44px; font-weight: bold; }
 
+  .comic-helper-tag-graph-canvas {
+    position: relative;
+  }
+  .comic-helper-tag-graph-svg {
+    display: block;
+    width: 100%;
+    height: min(50vh, 500px);
+    border: 1px solid ${COLORS.border.light};
+    border-radius: 8px;
+    cursor: grab;
+    user-select: none;
+  }
+  .comic-helper-tag-graph-svg:active {
+    cursor: grabbing;
+  }
+  .comic-helper-tag-graph-reset {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: ${COLORS.background.tag};
+    border: 1px solid ${COLORS.border.light};
+    color: ${COLORS.text.muted};
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .comic-helper-tag-graph-reset:hover {
+    background: ${COLORS.background.tagHover};
+    color: ${COLORS.text.primary};
+  }
+  .comic-helper-tag-graph-link {
+    stroke: ${COLORS.text.muted};
+    stroke-opacity: 0.35;
+    transition: stroke-opacity 0.15s;
+  }
+  .comic-helper-tag-graph-node {
+    cursor: pointer;
+    outline: none;
+    transition: opacity 0.15s;
+  }
+  .comic-helper-tag-graph-node circle { fill: ${COLORS.border.accent}; }
+  .comic-helper-tag-graph-node text {
+    fill: ${COLORS.text.primary};
+    font-size: 11px;
+  }
+  .comic-helper-tag-graph-node:focus-visible circle {
+    stroke: ${COLORS.text.primary};
+    stroke-width: 2px;
+  }
+  .comic-helper-tag-graph-node--artist circle { fill: #d9809c; }
+  .comic-helper-tag-graph-node--character circle { fill: #6fcf97; }
+  .comic-helper-tag-graph-node--circle circle { fill: #7da7e8; }
+  .comic-helper-tag-graph-node--fanzine circle { fill: #e8a87d; }
+  .comic-helper-tag-graph-node--genre circle { fill: #b0b0b0; }
+  .comic-helper-tag-graph-node--magazine circle { fill: #ad8ee0; }
+  .comic-helper-tag-graph-node--parody circle { fill: #6fd3d3; }
+  .comic-helper-tag-graph-svg.has-highlight .comic-helper-tag-graph-node:not(.is-highlighted) {
+    opacity: 0.2;
+  }
+  .comic-helper-tag-graph-svg.has-highlight .comic-helper-tag-graph-link:not(.is-highlighted) {
+    stroke-opacity: 0.08;
+  }
+  .comic-helper-tag-graph-svg.has-highlight .comic-helper-tag-graph-link.is-highlighted {
+    stroke-opacity: 0.9;
+  }
+
   .comic-helper-favorites-trend-section {
     padding: 8px 0 12px;
     border-bottom: 1px solid ${COLORS.border.light};

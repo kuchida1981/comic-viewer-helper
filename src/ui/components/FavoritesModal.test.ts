@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createFavoritesModal } from './FavoritesModal';
+import { createTagGraphView } from './TagGraphView';
 import { calculateTrends } from '../../logic';
 import { t } from '../../i18n';
 import { RelatedWork, HistoryEntry } from '../../types';
@@ -43,7 +44,8 @@ const defaultProps = {
   onRemoveHistory: () => {},
   onToggleFavorite: () => {},
   onTogglePinTag: () => {},
-  onClose: () => {}
+  onClose: () => {},
+  createTagGraph: createTagGraphView
 };
 
 describe('calculateTrends', () => {
@@ -612,7 +614,7 @@ describe('FavoritesModal tag cloud view', () => {
 
   it('デフォルトでは一覧ビューが表示されクラウドは非表示', () => {
     const { el } = createFavoritesModal({ ...defaultProps, favorites: taggedFavorites });
-    expect(viewButtons(el)).toHaveLength(2);
+    expect(viewButtons(el)).toHaveLength(3);
     expect(listViewEl(el).style.display).not.toBe('none');
     expect(cloudEl(el).style.display).toBe('none');
   });

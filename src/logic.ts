@@ -534,3 +534,230 @@ export function resolveRedirectTarget(ctx: RedirectContext): string | null {
   if (!ctx.isWorkUrl(latest.href)) return null;
   return latest.href;
 }
+
+export interface TagGraphNode {
+  tag: Tag;
+  count: number;
+}
+
+export interface TagGraphLink {
+  source: string;
+  target: string;
+  /** Jaccard coefficient of the two tags (0..1] */
+  strength: number;
+}
+
+export interface TagGraph {
+  nodes: TagGraphNode[];
+  links: TagGraphLink[];
+}
+
+export const TAG_GRAPH_NODE_LIMIT = 50;
+const TAG_GRAPH_MIN_CO_OCCURRENCE = 2;
+const TAG_GRAPH_LINKS_PER_NODE = 3;
+
+function uniqueTags(tags: Tag[]): Tag[] {
+  return Array.from(new Map(tags.map(tag => [tag.text, tag])).values());
+}
+
+function countTagPairs(works: Array<{ tags: Tag[] }>, ids: ReadonlySet<string>): Array<{ source: string; target: string; together: number }> {
+  const pairs = new Map<string, { source: string; target: string; together: number }>();
+  for (const work of works) {
+    const texts = work.tags.map(tag => tag.text).filter(text => ids.has(text)).sort();
+    texts.forEach((source, i) => {
+      for (const target of texts.slice(i + 1)) {
+        const key = JSON.stringify([source, target]);
+        const together = (pairs.get(key)?.together ?? 0) + 1;
+        pairs.set(key, { source, target, together });
+      }
+    });
+  }
+  return Array.from(pairs.values());
+}
+
+/** Keep only the links that are among the strongest ones of at least one of their ends. */
+function pruneTagLinks(links: TagGraphLink[]): TagGraphLink[] {
+  const ranked = [...links].sort((a, b) =>
+    b.strength - a.strength || a.source.localeCompare(b.source) || a.target.localeCompare(b.target));
+  const used = new Map<string, number>();
+  return ranked.filter(({ source, target }) => {
+    const sourceUsed = used.get(source) ?? 0;
+    const targetUsed = used.get(target) ?? 0;
+    used.set(source, sourceUsed + 1);
+    used.set(target, targetUsed + 1);
+    return sourceUsed < TAG_GRAPH_LINKS_PER_NODE || targetUsed < TAG_GRAPH_LINKS_PER_NODE;
+  });
+}
+
+/**
+ * Build the tag co-occurrence graph of favorites.
+ * Nodes are the most frequent tags (ties by text); a tag is counted once per work.
+ * @param excludedTypes Tag types to exclude, applied before the node limit.
+ */
+export function buildTagGraph(
+  favorites: RelatedWork[],
+  excludedTypes: ReadonlySet<string | null> = new Set(),
+  limit: number = TAG_GRAPH_NODE_LIMIT
+): TagGraph {
+  const works = favorites.map(work => ({ ...work, tags: uniqueTags(work.tags ?? []) }));
+  const nodes = calculateTrends(works, 0, [], [], excludedTypes)
+    .sort((a, b) => b.count - a.count || a.tag.text.localeCompare(b.tag.text))
+    .slice(0, limit)
+    .map(({ tag, count }) => ({ tag, count }));
+  const counts = new Map(nodes.map(({ tag, count }) => [tag.text, count]));
+
+  const candidates = countTagPairs(works, new Set(counts.keys()))
+    .filter(({ together }) => together >= TAG_GRAPH_MIN_CO_OCCURRENCE)
+    .map(({ source, target, together }) => ({
+      source,
+      target,
+      strength: together / (counts.get(source)! + counts.get(target)! - together)
+    }));
+  return { nodes, links: pruneTagLinks(candidates) };
+}
+
+export interface GraphBody {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  /** A fixed body (being dragged) does not move by itself */
+  fixed: boolean;
+}
+
+export const GRAPH_ALPHA_MIN = 0.02;
+const GRAPH_ALPHA_DECAY = 0.985;
+const GRAPH_REPULSION = 120;
+const GRAPH_COLLISION_PADDING = 28;
+const GRAPH_COLLISION_STRENGTH = 0.25;
+const GRAPH_LINK_LENGTH = 80;
+const GRAPH_LINK_STRENGTH = 0.12;
+const GRAPH_GRAVITY_X = 0.025;
+const GRAPH_GRAVITY_Y = 0.07;
+/** Nothing holds an unlinked node back, so it needs a stronger pull to stay in view */
+const GRAPH_ISOLATED_GRAVITY_FACTOR = 3;
+const GRAPH_DAMPING = 0.8;
+const GRAPH_MAX_SPEED = 20;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+/** Deterministic initial placement on a spiral around the origin. */
+export function createGraphBody(id: string, index: number, radius: number): GraphBody {
+  const distance = 30 * Math.sqrt(index + 0.5);
+  const angle = index * GOLDEN_ANGLE;
+  return {
+    id,
+    x: distance * Math.cos(angle),
+    y: distance * Math.sin(angle),
+    vx: 0,
+    vy: 0,
+    radius,
+    fixed: false
+  };
+}
+
+function applyForce(a: GraphBody, b: GraphBody, fx: number, fy: number): void {
+  a.vx += fx;
+  a.vy += fy;
+  b.vx -= fx;
+  b.vy -= fy;
+}
+
+function applyRepulsion(a: GraphBody, b: GraphBody, alpha: number): void {
+  // Separate exactly overlapping bodies along the x axis
+  const dx = b.x - a.x || (a.y === b.y ? 1 : 0);
+  const dy = b.y - a.y;
+  const distance = Math.max(1, Math.hypot(dx, dy));
+  const overlap = Math.max(0, a.radius + b.radius + GRAPH_COLLISION_PADDING - distance);
+  const force = (GRAPH_REPULSION / distance + overlap * GRAPH_COLLISION_STRENGTH) * alpha;
+  applyForce(a, b, -(dx / distance) * force, -(dy / distance) * force);
+}
+
+function applySpring(a: GraphBody, b: GraphBody, stiffness: number, alpha: number): void {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const distance = Math.max(1, Math.hypot(dx, dy));
+  const force = (distance - GRAPH_LINK_LENGTH) * GRAPH_LINK_STRENGTH * stiffness * alpha;
+  applyForce(a, b, (dx / distance) * force, (dy / distance) * force);
+}
+
+function moveBody(body: GraphBody, gravity: number): void {
+  if (body.fixed) {
+    body.vx = 0;
+    body.vy = 0;
+    return;
+  }
+  const clamp = (v: number): number => Math.max(-GRAPH_MAX_SPEED, Math.min(GRAPH_MAX_SPEED, v));
+  body.vx = clamp((body.vx - body.x * GRAPH_GRAVITY_X * gravity) * GRAPH_DAMPING);
+  body.vy = clamp((body.vy - body.y * GRAPH_GRAVITY_Y * gravity) * GRAPH_DAMPING);
+  body.x += body.vx;
+  body.y += body.vy;
+}
+
+/**
+ * Advance the force simulation by one step. The input is not modified.
+ * @param alpha Current "temperature" (1 = hot); it decays on every step.
+ */
+export function stepTagGraph(
+  bodies: GraphBody[],
+  links: TagGraphLink[],
+  alpha: number
+): { bodies: GraphBody[]; alpha: number } {
+  const next = bodies.map(body => ({ ...body }));
+  next.forEach((a, i) => {
+    for (const b of next.slice(i + 1)) applyRepulsion(a, b, alpha);
+  });
+  const byId = new Map(next.map(body => [body.id, body]));
+  const degrees = new Map<string, number>();
+  for (const { source, target } of links) {
+    degrees.set(source, (degrees.get(source) ?? 0) + 1);
+    degrees.set(target, (degrees.get(target) ?? 0) + 1);
+  }
+  for (const { source, target, strength } of links) {
+    const a = byId.get(source);
+    const b = byId.get(target);
+    // Weaken the springs of hubs so that they do not collapse into a hairball
+    if (a && b) applySpring(a, b, (0.5 + strength) / Math.min(degrees.get(source)!, degrees.get(target)!), alpha);
+  }
+  for (const body of next) moveBody(body, degrees.has(body.id) ? alpha : alpha * GRAPH_ISOLATED_GRAVITY_FACTOR);
+  return { bodies: next, alpha: alpha * GRAPH_ALPHA_DECAY };
+}
+
+/** Pan offset and zoom scale of the graph, in viewBox units */
+export interface GraphView {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+export const GRAPH_MIN_SCALE = 0.3;
+export const GRAPH_MAX_SCALE = 4;
+
+/** Zoom by `factor` keeping the viewBox point under the pointer in place. */
+export function zoomGraphView(view: GraphView, point: { x: number; y: number }, factor: number): GraphView {
+  const scale = Math.max(GRAPH_MIN_SCALE, Math.min(GRAPH_MAX_SCALE, view.scale * factor));
+  const ratio = scale / view.scale;
+  return {
+    x: point.x - (point.x - view.x) * ratio,
+    y: point.y - (point.y - view.y) * ratio,
+    scale
+  };
+}
+
+/**
+ * Convert client coordinates to viewBox coordinates for a viewBox centered on the
+ * origin with preserveAspectRatio "xMidYMid meet".
+ */
+export function toViewBoxPoint(
+  client: { x: number; y: number },
+  rect: { left: number; top: number; width: number; height: number },
+  viewBox: { width: number; height: number }
+): { x: number; y: number } {
+  // An element that is not laid out has no size; fall back to 1:1
+  const scale = Math.min(rect.width / viewBox.width, rect.height / viewBox.height) || 1;
+  return {
+    x: (client.x - rect.left - rect.width / 2) / scale,
+    y: (client.y - rect.top - rect.height / 2) / scale
+  };
+}
