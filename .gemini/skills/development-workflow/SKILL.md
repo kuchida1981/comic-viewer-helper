@@ -1,72 +1,26 @@
 ---
 name: development-workflow
-description: このプロジェクトにおける開発ワークフロー
+description: このプロジェクトにおける開発ワークフローを確認・実行する。機能追加、リファクタリング、バグ修正の際に使用。
 metadata:
   author: Kosuke Uchida
-  version: "1.0"
+  version: "2.0"
 ---
 
-Use this skill when performing any development-related task in this project,
-including feature implementation, refactoring, bug fixing, or code review support.
+このプロジェクトにおける開発ワークフローを実行します。
+詳細なルール・禁止事項・品質基準の正本はリポジトリルートの `AGENTS.md` です。必ず `AGENTS.md` をあわせて参照してください。
 
-Follow the development workflow described below strictly.
-Do not skip steps unless the user explicitly instructs otherwise.
+## ワークフロー概要
 
-If the workflow has not yet reached the "implementation" step,
-do not write production code.
+1. **GitHub Issue の確認** → イシュー内容を理解する
+2. **OpenSpec 提案の作成** → `openspec-propose`（必要に応じて `openspec-explore`）で `proposal.md`, `specs/`, `design.md`, `tasks.md` を作成し、ユーザーレビューを受ける
+3. **トピックブランチ作成と提案のコミット** → GitHub Flow に従いトピックブランチを作成し、OpenSpec 提案を個別パス指定でコミットする
+4. **実装と検証** → `openspec-apply-change` に沿って実装し、必要に応じて `README.md` / `README.ja.md` を更新する。実装後は `make all`（`test`, `lint`, `typecheck`, `docs`, `build`）をすべてパスさせる
+5. **Draft プルリクエスト作成** → トピックブランチをプッシュし、`gh pr create --draft` で Draft PR を作成する（動作確認用 TODO チェックリストと `Closes #<issue>` を必須とする）
+6. **レビュー・動作確認後** → `openspec-archive-change` で変更をアーカイブし、コミット・プッシュしてユーザーにマージを依頼する
 
-When creating a pull request, always include a TODO checklist
-for user verification in the PR description.
+## ガードレール（抜粋・詳細は `AGENTS.md` 参照）
 
-# このプロジェクトにおける開発ワークフロー
-
-このプロジェクトにおける開発のワークフロー (主な流れ) を示します
-
-## 前提
-
-* GitHub Flow を使います
-* デフォルトブランチは master です
-* GitHub イシューをドリブンにします
-* OpenSpec 提案を作成し, レビューを経て実装
-* 必ず, ユーザーの動作確認を経ることとします
-* 開発者向けガイドはREADMEにも記載されています
-
-## 流れについて
-
-### Git操作に関する重要ルール
-
-* **一括ステージングの禁止**: `git add .` や `git add -A` は原則として使用しないでください。意図しないファイル（一時ファイルや設定ファイルなど）が混入する原因となります。
-* **明示的な指定**: 変更したファイルやディレクトリを明示的に指定してステージングしてください（例: `git add src/logic.js src/logic.test.js`）。
-* **状態確認**: コミットする前に必ず `git status` を実行し、ステージングされたファイルが意図通りか確認してください。
-
-### GitHubのイシューを確認する
-
-* 基本的にはユーザーが対象のイシューを提示するので, まずその内容を理解する必要があります.
-* 場合によっては, 自分自身でイシューを作成するケースもありえます.
-
-### OpenSpec提案を作成する
-
-* あらゆる機能追加やリファクタリング, バグ修正のためにOpenSpec による提案を作成します
-* イシューの内容とユーザーとの協議を行いつつ作成することになるはずです.
-
-### トピックブランチを作成し, 提案をコミットする
-
-* GitHub Flow を使うので, 変更のためのトピックブランチを作成してください.
-* そのブランチでOpenSpec提案ファイルをコミットします.
-
-### 実装する
-
-* 実装し, 追加・変更したコードをコミットします.
-* READMEやドキュメントへの反映が必要かどうか気にかけてください
-
-### プルリクエストを作成する
-
-* トピックブランチをpushし, プルリクエストを作成します.
-* このとき, プルリクエストのbodyにユーザーによる動作確認のためのTODOリストを作成してください.
-* ユーザーにプルリクエストを提示し, 動作確認することをもとめてください
-* プルリクエストにイシューを紐づけることを忘れないでください
-
-### コードレビューと動作確認のあと, OpenSpec提案をverify/archive する
-
-* OpenSpec 提案を検証・アーカイブする際, `dist/` ディレクトリ配下のファイル（ビルド成果物）はコミットに含めないでください. これらは `.gitignore` で除外されています.
-* そのあとユーザーにプルリクエストをマージするように促してください
+- **実装ステップに到達するまで本番コードを書かないこと**
+- **`--no-verify` / `-n` によるフックバイパス、および `git add .` / `git add -A` の一括ステージングを禁止する**
+- **PR は Draft で作成し、必ず動作確認用 TODO リストと Issue リンクを含めること**
+- **ユーザーの動作確認をスキップしないこと**
