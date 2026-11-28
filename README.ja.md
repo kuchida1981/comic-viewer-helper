@@ -30,8 +30,8 @@
 
 | 動作 | キー |
 | :--- | :--- |
-| **次の画像へ** | `↓` `→` `PageDown` `Space` `j` |
-| **前の画像へ** | `↑` `←` `PageUp` `Shift + Space` `k` |
+| **次の画像へ** | `↓` `←` `PageDown` `Space` `j` |
+| **前の画像へ** | `↑` `→` `PageUp` `Shift + Space` `k` |
 
 ### 画面UI
 
@@ -91,7 +91,7 @@
 2. `npm run check-types` - TypeScript 型チェック
 3. `npm test` - ユニットテスト（コアロジックは100%カバレッジ必須）
 4. `npm run build` - ビルドの検証
-5. `openspec validate --strict --all` - 仕様書の検証
+5. `npx openspec validate --strict --all` - 仕様書の検証
 
 これらのチェックのいずれかが失敗した場合、コミットは中断されます。
 
@@ -107,7 +107,7 @@ make pre-pr
 1. `npm test` - ユニットテスト（コアロジックは100%カバレッジ必須）
 2. `npm run lint` - ESLint チェック
 3. `npm run check-types` - TypeScript 型チェック
-4. `openspec validate --strict --all` - 仕様書の検証
+4. `npx openspec validate --strict --all` - 仕様書の検証
 5. `IS_UNSTABLE=true npm run build` - ビルドの検証
 
 **全てのチェックが成功してから** プルリクエストを作成してください。
@@ -124,10 +124,10 @@ Vitest を使用してユニットテストを実行します（カバレッジ�
 ```bash
 npm test
 ```
-コアロジック (`src/logic.js`) は **カバレッジ 100%** を維持しています。
+コアロジック (`src/logic.ts`) は **カバレッジ 100%** を維持しています。
 
 ### 型チェック
-JSDoc と TypeScript を使用した静的型解析を実行します：
+TypeScript による静的型解析を実行します：
 ```bash
 npm run check-types
 ```
