@@ -286,8 +286,8 @@ export class UIManager {
             this.store.setState({ favorites: newFavorites });
           },
           onRemoveHistory: (href) => {
-            const normalizedHref = normalizeUrl(href);
-            const newHistory = this.store.getState().luckyHistory.filter(e => normalizeUrl(e.href) !== normalizedHref);
+            const normalizedHref = normalizeUrl(href, window.location.origin);
+            const newHistory = this.store.getState().luckyHistory.filter(e => normalizeUrl(e.href, window.location.origin) !== normalizedHref);
             this.store.setState({ luckyHistory: newHistory });
           },
           onToggleFavorite: (work) => { this._toggleFavoriteWork(work); },
@@ -369,10 +369,10 @@ export class UIManager {
 
   private _toggleFavoriteWork = (work: RelatedWork): void => {
     const state = this.store.getState();
-    const normalizedHref = normalizeUrl(work.href);
-    const isFavorite = state.favorites.some(f => normalizeUrl(f.href) === normalizedHref);
+    const normalizedHref = normalizeUrl(work.href, window.location.origin);
+    const isFavorite = state.favorites.some(f => normalizeUrl(f.href, window.location.origin) === normalizedHref);
     if (isFavorite) {
-      const newFavorites = state.favorites.filter(f => normalizeUrl(f.href) !== normalizedHref);
+      const newFavorites = state.favorites.filter(f => normalizeUrl(f.href, window.location.origin) !== normalizedHref);
       this.store.setState({ favorites: newFavorites });
     } else {
       this.store.setState({ favorites: [...state.favorites, work] });

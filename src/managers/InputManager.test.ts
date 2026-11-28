@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { InputManager } from './InputManager.js';
 import * as logic from '../logic.js';
+import * as dom from '../dom.js';
 import { Store } from '../store.js';
 import { Navigator } from './Navigator.js';
 
 vi.mock('../logic.js', () => ({
-  getNavigationDirection: vi.fn(),
+  getNavigationDirection: vi.fn()
+}));
+
+vi.mock('../dom.js', () => ({
   getClickNavigationDirection: vi.fn()
 }));
 
@@ -431,22 +435,22 @@ describe('InputManager', () => {
     });
 
     it('画像クリック（移動なし）で次ページに移動する', () => {
-      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      vi.mocked(dom.getClickNavigationDirection).mockReturnValue('next');
       inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       inputManager.onMouseUp({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
-      expect(logic.getClickNavigationDirection).toHaveBeenCalledWith(img);
+      expect(dom.getClickNavigationDirection).toHaveBeenCalledWith(img);
       expect(navigator.scrollToImage).toHaveBeenCalledWith(1);
     });
 
     it('画像クリック（移動なし）で前ページに移動する（見開き右側）', () => {
-      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('prev');
+      vi.mocked(dom.getClickNavigationDirection).mockReturnValue('prev');
       inputManager.onMouseDown({ target: img, clientX: 50, clientY: 50 } as unknown as MouseEvent);
       inputManager.onMouseUp({ target: img, clientX: 50, clientY: 50 } as unknown as MouseEvent);
       expect(navigator.scrollToImage).toHaveBeenCalledWith(-1);
     });
 
     it('移動距離が閾値以上の場合はクリックとして扱わない', () => {
-      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      vi.mocked(dom.getClickNavigationDirection).mockReturnValue('next');
       inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       inputManager.onMouseUp({ target: img, clientX: 110, clientY: 100 } as unknown as MouseEvent);
       expect(navigator.scrollToImage).not.toHaveBeenCalled();
@@ -468,7 +472,7 @@ describe('InputManager', () => {
 
     it('スクリプト無効時はクリック移動しない', () => {
       (store.getState as Mock).mockReturnValue({ enabled: false, isMetadataModalOpen: false, isHelpModalOpen: false });
-      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      vi.mocked(dom.getClickNavigationDirection).mockReturnValue('next');
       inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       inputManager.onMouseUp({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       expect(navigator.scrollToImage).not.toHaveBeenCalled();
@@ -476,7 +480,7 @@ describe('InputManager', () => {
 
     it('モーダル表示中はクリック移動しない', () => {
       (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: true, isHelpModalOpen: false, isSearchModalOpen: false });
-      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      vi.mocked(dom.getClickNavigationDirection).mockReturnValue('next');
       inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       inputManager.onMouseUp({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       expect(navigator.scrollToImage).not.toHaveBeenCalled();
@@ -484,7 +488,7 @@ describe('InputManager', () => {
 
     it('検索モーダル表示中はクリック移動しない', () => {
       (store.getState as Mock).mockReturnValue({ enabled: true, isMetadataModalOpen: false, isHelpModalOpen: false, isSearchModalOpen: true });
-      vi.mocked(logic.getClickNavigationDirection).mockReturnValue('next');
+      vi.mocked(dom.getClickNavigationDirection).mockReturnValue('next');
       inputManager.onMouseDown({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       inputManager.onMouseUp({ target: img, clientX: 100, clientY: 100 } as unknown as MouseEvent);
       expect(navigator.scrollToImage).not.toHaveBeenCalled();

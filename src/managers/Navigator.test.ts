@@ -1,23 +1,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { Navigator } from './Navigator.js';
 import * as logic from '../logic.js';
+import * as dom from '../dom.js';
 import { Store, StoreListener } from '../store.js';
 import { DefaultAdapter } from '../adapters/DefaultAdapter.js';
 import { setupLocationMock } from '../test/mocks/dom.js';
 
-// Mock logic functions to isolate Navigator logic
+// Mock logic and dom functions to isolate Navigator logic
 vi.mock('../logic.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../logic.js')>();
   return {
     ...actual,
-    fitImagesToViewport: vi.fn(),
     getPrimaryVisibleImageIndex: vi.fn().mockReturnValue(0),
+    pickRandomWork: vi.fn()
+  };
+});
+
+vi.mock('../dom.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../dom.js')>();
+  return {
+    ...actual,
+    fitImagesToViewport: vi.fn(),
     getImageElementByIndex: vi.fn((imgs: HTMLImageElement[], idx: number) => imgs[idx]),
     revertToOriginal: vi.fn(),
     forceImageLoad: vi.fn(),
     waitForImageLoad: vi.fn().mockResolvedValue(undefined),
-    preloadImages: vi.fn(),
-    pickRandomWork: vi.fn()
+    preloadImages: vi.fn()
   };
 });
 
@@ -110,7 +118,7 @@ describe('Navigator', () => {
   });
 
   it('should handle invalid page jump', async () => {
-    vi.mocked(logic.getImageElementByIndex).mockReturnValue(null);
+    vi.mocked(dom.getImageElementByIndex).mockReturnValue(null);
     const success = await navigator.jumpToPage(999);
     expect(success).toBe(false);
     expect(logic.getPrimaryVisibleImageIndex).toHaveBeenCalled();
@@ -158,15 +166,15 @@ describe('Navigator', () => {
     const spy = vi.spyOn(navigator, 'applyLayout');
 
     await navigator.scrollToEdge('start');
-    expect(logic.forceImageLoad).toHaveBeenCalledWith(mockImages[0]);
+    expect(dom.forceImageLoad).toHaveBeenCalledWith(mockImages[0]);
     expect(spy).toHaveBeenCalledWith(0);
     expect(store.setState).not.toHaveBeenCalledWith({ isLoading: true });
 
     spy.mockClear();
-    vi.mocked(logic.forceImageLoad).mockClear();
+    vi.mocked(dom.forceImageLoad).mockClear();
 
     await navigator.scrollToEdge('end');
-    expect(logic.forceImageLoad).toHaveBeenCalledWith(mockImages[1]);
+    expect(dom.forceImageLoad).toHaveBeenCalledWith(mockImages[1]);
     expect(spy).toHaveBeenCalledWith(1);
   });
 
@@ -179,16 +187,16 @@ describe('Navigator', () => {
 
     await navigator.scrollToEdge('end');
 
-    expect(logic.forceImageLoad).toHaveBeenCalledWith(mockImages[1]);
+    expect(dom.forceImageLoad).toHaveBeenCalledWith(mockImages[1]);
     expect(store.setState).toHaveBeenCalledWith({ isLoading: true });
-    expect(logic.waitForImageLoad).toHaveBeenCalledWith(mockImages[1]);
+    expect(dom.waitForImageLoad).toHaveBeenCalledWith(mockImages[1]);
     expect(spy).toHaveBeenCalledWith(1);
     expect(store.setState).toHaveBeenCalledWith({ isLoading: false });
   });
 
   it('should apply layout', () => {
     navigator.applyLayout();
-    expect(logic.fitImagesToViewport).toHaveBeenCalled();
+    expect(dom.fitImagesToViewport).toHaveBeenCalled();
   });
 
   describe('Dynamic Preloading', () => {
@@ -200,7 +208,7 @@ describe('Navigator', () => {
         autoplayInterval: 5
       });
       navigator.updatePageCounter();
-      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 5);
+      expect(dom.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 5);
     });
 
     it('should double preload count (10) in dual view mode', () => {
@@ -211,7 +219,7 @@ describe('Navigator', () => {
         autoplayInterval: 5
       });
       navigator.updatePageCounter();
-      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 10);
+      expect(dom.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 10);
     });
 
     it('should double preload count (10) during fast autoplay', () => {
@@ -222,7 +230,7 @@ describe('Navigator', () => {
         autoplayInterval: 1
       });
       navigator.updatePageCounter();
-      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 10);
+      expect(dom.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 10);
     });
 
     it('should quadruple preload count (20) during fast autoplay in dual view mode', () => {
@@ -233,7 +241,7 @@ describe('Navigator', () => {
         autoplayInterval: 1
       });
       navigator.updatePageCounter();
-      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 20);
+      expect(dom.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 20);
     });
 
     it('should use base count (5) during slow autoplay', () => {
@@ -244,7 +252,7 @@ describe('Navigator', () => {
         autoplayInterval: 5
       });
       navigator.updatePageCounter();
-      expect(logic.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 5);
+      expect(dom.preloadImages).toHaveBeenCalledWith(expect.anything(), expect.anything(), 5);
     });
   });
 
@@ -276,7 +284,7 @@ describe('Navigator', () => {
       syncLastError: null
     });
     navigator.applyLayout();
-    expect(logic.revertToOriginal).toHaveBeenCalled();
+    expect(dom.revertToOriginal).toHaveBeenCalled();
   });
 
     it('init should handle image load listeners', () => {

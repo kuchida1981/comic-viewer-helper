@@ -1,15 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   calculateVisibleHeight,
   shouldPairWithNext,
   getPrimaryVisibleImageIndex,
-  getImageElementByIndex,
-  revertToOriginal,
-  fitImagesToViewport,
   getNavigationDirection,
-  waitForImageLoad,
-  preloadImages,
-  getClickNavigationDirection,
   normalizeUrl,
   pickRandomWork,
   getLuckyCandidatesCount,
@@ -25,115 +19,12 @@ import {
   isEncrypted,
   resolveRedirectTarget,
   RedirectContext
-  } from './logic';
+} from './logic';
 
 import { Metadata } from './types.js';
-import { createMockImage, setupLocationMock } from './test/mocks/dom.js';
+import { createMockImage } from './test/mocks/dom.js';
 
-describe('logic.js', () => {
-  describe('waitForImageLoad', () => {
-    it('should resolve immediately if image is already complete and has height', async () => {
-      const img = createMockImage({ complete: true, naturalHeight: 100 });
-      await expect(waitForImageLoad(img)).resolves.toBeUndefined();
-    });
-
-    it('should resolve when load event fires', async () => {
-      const listeners: Record<string, EventListener> = {};
-      const img = createMockImage({
-        complete: false,
-        addEventListener: vi.fn((event: string, cb: EventListenerOrEventListenerObject) => { listeners[event] = cb as EventListener; }),
-        removeEventListener: vi.fn()
-      });
-
-      const promise = waitForImageLoad(img);
-      listeners['load']({} as Event);
-      await expect(promise).resolves.toBeUndefined();
-      expect(img.removeEventListener).toHaveBeenCalledWith('load', expect.any(Function));
-    });
-
-    it('should resolve when error event fires', async () => {
-      const listeners: Record<string, EventListener> = {};
-      const img = createMockImage({
-        complete: false,
-        addEventListener: vi.fn((event: string, cb: EventListenerOrEventListenerObject) => { listeners[event] = cb as EventListener; }),
-        removeEventListener: vi.fn()
-      });
-
-      const promise = waitForImageLoad(img);
-      listeners['error']({} as Event);
-      await expect(promise).resolves.toBeUndefined();
-    });
-
-    it('should resolve on timeout', async () => {
-      vi.useFakeTimers();
-      const img = createMockImage({
-        complete: false,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn()
-      });
-
-      const promise = waitForImageLoad(img, 1000);
-      vi.advanceTimersByTime(1000);
-      await expect(promise).resolves.toBeUndefined();
-      vi.useRealTimers();
-    });
-  });
-
-  describe('preloadImages', () => {
-    it('should trigger decode for next images', () => {
-      const images = Array.from({ length: 5 }, () => createMockImage({
-        complete: false,
-        loading: 'lazy',
-        decode: vi.fn().mockResolvedValue(undefined)
-      }));
-      
-      preloadImages(images, 0, 2);
-      
-      expect(images[1].loading).toBe('eager');
-      expect(images[1].decode).toHaveBeenCalled();
-      expect(images[2].loading).toBe('eager');
-      expect(images[2].decode).toHaveBeenCalled();
-      expect(images[3].loading).toBe('lazy'); // Out of range
-    });
-
-    it('should handle images without decode method', () => {
-      const images = Array.from({ length: 3 }, () => createMockImage({
-        complete: false,
-        loading: 'lazy'
-      }));
-      
-      preloadImages(images, 0, 1);
-      
-      expect(images[1].loading).toBe('eager');
-    });
-
-    it('should skip already complete images', () => {
-      const decode0 = vi.fn();
-      const decode1 = vi.fn();
-      const images = [
-        createMockImage({ complete: true, loading: 'lazy', decode: decode0 }),
-        createMockImage({ complete: true, loading: 'lazy', decode: decode1 })
-      ];
-
-      preloadImages(images, 0, 1);
-
-      expect(images[1].loading).toBe('lazy');
-      expect(decode1).not.toHaveBeenCalled();
-    });
-
-    it('should preload previous images', () => {
-      const images = Array.from({ length: 5 }, () => createMockImage({
-        complete: false,
-        loading: 'lazy',
-        decode: vi.fn().mockResolvedValue(undefined)
-      }));
-      
-      preloadImages(images, 2, 1);
-      
-      expect(images[1].loading).toBe('eager'); // Previous
-      expect(images[3].loading).toBe('eager'); // Next
-    });
-  });
+describe('logic.ts', () => {
 
   describe('calculateVisibleHeight', () => {
 
@@ -211,272 +102,16 @@ describe('logic.js', () => {
     });
   });
 
-  describe('getImageElementByIndex', () => {
-    it('should return the element if index is within range', () => {
-      const imgs = [createMockImage({ id: 'img0' }), createMockImage({ id: 'img1' }), createMockImage({ id: 'img2' })];
-      expect(getImageElementByIndex(imgs, 1)).toBe(imgs[1]);
-    });
-
-    it('should return null if index is out of range', () => {
-      const imgs = [createMockImage({ id: 'img0' }), createMockImage({ id: 'img1' })];
-      expect(getImageElementByIndex(imgs, 2)).toBe(null);
-      expect(getImageElementByIndex(imgs, -1)).toBe(null);
-    });
-  });
-
-  describe('revertToOriginal', () => {
-    let container: HTMLElement;
-    let originalImages: HTMLImageElement[];
-    let wrappers: HTMLElement[];
-
-    beforeEach(() => {
-      container = document.createElement('div');
-      
-      const img1 = document.createElement('img');
-      const img2 = document.createElement('img');
-      originalImages = [img1, img2];
-
-      const wrapper = document.createElement('div');
-      wrapper.className = 'comic-row-wrapper';
-      wrapper.appendChild(img1);
-      wrapper.appendChild(img2);
-      
-      container.appendChild(wrapper);
-      wrappers = [wrapper];
-    });
-
-    it('should reset container styles', () => {
-      container.style.cssText = 'some-style';
-      revertToOriginal(originalImages, container);
-      expect(container.style.cssText).toBe('');
-    });
-
-    it('should reset image styles and append them to container', () => {
-      originalImages.forEach(img => { img.style.cssText = 'width: 100px;'; });
-      
-      revertToOriginal(originalImages, container);
-      
-      originalImages.forEach((img) => {
-        expect(img.style.cssText).toBe('');
-        expect(img.parentElement).toBe(container);
-      });
-    });
-
-    it('should remove wrappers', () => {
-      revertToOriginal(originalImages, container);
-      expect(container.querySelectorAll('.comic-row-wrapper').length).toBe(0);
-      expect(wrappers[0].parentElement).toBeNull();
-    });
-
-    it('should do nothing if container is null', () => {
-      // @ts-expect-error Testing null tolerance
-      revertToOriginal(originalImages, null);
-      // No errors should occur
-    });
-  });
-
-  describe('fitImagesToViewport', () => {
-    let container: HTMLElement;
-    let images: HTMLImageElement[];
-    const createdElements: HTMLElement[] = [];
-
-    beforeEach(() => {
-      createdElements.length = 0;
-      container = document.createElement('div');
-      
-      images = Array.from({ length: 4 }, (_, i) => {
-        const img = document.createElement('img');
-        img.id = `img${i}`;
-        Object.defineProperty(img, 'naturalWidth', { value: 100, writable: true });
-        Object.defineProperty(img, 'naturalHeight', { value: 200, writable: true });
-        container.appendChild(img);
-        return img;
-      });
-
-      // Spy on createElement to track wrappers
-      const originalCreateElement = document.createElement.bind(document);
-      vi.spyOn(document, 'createElement').mockImplementation((tagName: string, options?: ElementCreationOptions) => {
-        const el = originalCreateElement(tagName, options);
-        createdElements.push(el);
-        return el;
-      });
-      
-      // Stub window size
-      vi.stubGlobal('window', { ...window, innerWidth: 1000, innerHeight: 1000 });
-    });
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
-    it('should correctly handle multiple landscape images', () => {
-      // 0:P, 1:L, 2:L, 3:P
-      Object.defineProperty(images[1], 'naturalWidth', { value: 500 });
-      Object.defineProperty(images[1], 'naturalHeight', { value: 100 });
-      Object.defineProperty(images[2], 'naturalWidth', { value: 500 });
-      Object.defineProperty(images[2], 'naturalHeight', { value: 100 });
-
-      fitImagesToViewport(container, 0, true);
-      // Expected: 4 solo rows
-      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(4);
-      expect(container.children.length).toBe(4);
-    });
-
-    it('should show first page (index 0) and last page as solo regardless of offset', () => {
-      // 4 images (0, 1, 2, 3), all portrait
-      fitImagesToViewport(container, 0, true);
-      
-      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(4);
-      expect(wrappers[0].children[0]).toBe(images[0]);
-      expect(wrappers[1].children[0]).toBe(images[1]);
-      expect(wrappers[2].children[0]).toBe(images[2]);
-      expect(wrappers[3].children[0]).toBe(images[3]);
-    });
-
-    it('should show first page (index 0) and last page as solo with offset 1', () => {
-      // 4 images (0, 1, 2, 3), all portrait
-      fitImagesToViewport(container, 1, true);
-
-      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(3);
-      expect(wrappers[0].children[0]).toBe(images[0]);
-      expect(wrappers[1].children[0]).toBe(images[1]);
-      expect(wrappers[1].children[1]).toBe(images[2]);
-      expect(wrappers[2].children[0]).toBe(images[3]);
-    });
-
-    it('should show all pages as solo when there are only 2 pages', () => {
-      // 2 images (0, 1), both portrait
-      // Remove other images from container
-      images[2].remove();
-      images[3].remove();
-      const twoImages = images.slice(0, 2);
-      
-      fitImagesToViewport(container, 0, true);
-      
-      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(2);
-      expect(wrappers[0].children[0]).toBe(twoImages[0]);
-      expect(wrappers[1].children[0]).toBe(twoImages[1]);
-    });
-
-    it('should pair 1-2 when offset is 1 but 0 and last are solo', () => {
-      // 5 images (0, 1, 2, 3, 4), all portrait
-      const img4 = document.createElement('img');
-      img4.id = 'img4';
-      Object.defineProperty(img4, 'naturalWidth', { value: 100 });
-      Object.defineProperty(img4, 'naturalHeight', { value: 200 });
-      container.appendChild(img4);
-      images.push(img4);
-
-      fitImagesToViewport(container, 1, true);
-
-      const wrappers = createdElements.filter(e => e.tagName === 'DIV');
-      expect(wrappers.length).toBe(4);
-      expect(wrappers[0].children[0]).toBe(images[0]);
-      expect(wrappers[1].children[0]).toBe(images[1]);
-      expect(wrappers[1].children[1]).toBe(images[2]);
-      expect(wrappers[2].children[0]).toBe(images[3]);
-      expect(wrappers[3].children[0]).toBe(images[4]);
-    });
-
-    it('should maintain global order even when some images are paired and some are solo', () => {
-      // Image 1 is landscape
-      Object.defineProperty(images[1], 'naturalWidth', { value: 500 });
-      Object.defineProperty(images[1], 'naturalHeight', { value: 100 });
-
-      // New Logic with offset 0:
-      // i=0: [0] solo (first page)
-      // i=1: [1] solo (landscape)
-      // i=2: [2] solo (next is last page)
-      // i=3: [3] solo (last page)
-      
-      fitImagesToViewport(container, 0, true);
-
-      // Verify DOM order
-      expect(container.children.length).toBe(4);
-      const wrappers = Array.from(container.children).filter(el => el.tagName === 'DIV');
-      expect(wrappers.length).toBe(4);
-      expect(wrappers[0].children[0]).toBe(images[0]);
-      expect(wrappers[1].children[0]).toBe(images[1]);
-      expect(wrappers[2].children[0]).toBe(images[2]);
-      expect(wrappers[3].children[0]).toBe(images[3]);
-    });
-
-    it('should show all pages as solo for 3 images with offset 1', () => {
-      // Images: 0:P, 1:P, 2:P (total 3)
-      images[3].remove();
-      const threeImages = images.slice(0, 3);
-
-      fitImagesToViewport(container, 1, true);
-      // Expected: 0 solo (first), 1 solo (next is last), 2 solo (last) -> 3 rows
-      const wrappers = Array.from(container.children).filter(el => el.tagName === 'DIV');
-      expect(wrappers.length).toBe(3);
-      expect(wrappers[0].children[0]).toBe(threeImages[0]);
-      expect(wrappers[1].children[0]).toBe(threeImages[1]);
-      expect(wrappers[2].children[0]).toBe(threeImages[2]);
-    });
-
-    it('should remove unused wrappers', () => {
-      // Setup extra wrapper
-      const extraWrapper = document.createElement('div');
-      extraWrapper.className = 'comic-row-wrapper';
-      container.appendChild(extraWrapper);
-      
-      // Remove all images
-      images.forEach(img => img.remove());
-
-      fitImagesToViewport(container, 0, true);
-      
-      expect(container.querySelector('.comic-row-wrapper')).toBeNull();
-      expect(extraWrapper.parentElement).toBeNull();
-    });
-
-    it('should do nothing if container is null', () => {
-      // @ts-expect-error Testing null tolerance
-      fitImagesToViewport(null, 0, true);
-      // Should throw no error
-    });
-
-    it('should reuse existing wrappers when called with same state (Reconciliation)', () => {
-      // First call to set up DOM
-      fitImagesToViewport(container, 0, true);
-      const firstPassWrappers = Array.from(container.children) as HTMLElement[];
-      expect(firstPassWrappers.length).toBeGreaterThan(0);
-
-      // Reset createdElements spy tracking
-      createdElements.length = 0;
-
-      // Second call
-      fitImagesToViewport(container, 0, true);
-      
-      const secondPassWrappers = Array.from(container.children) as HTMLElement[];
-      
-      // Verify same instances are used
-      expect(secondPassWrappers.length).toBe(firstPassWrappers.length);
-      expect(secondPassWrappers[0]).toBe(firstPassWrappers[0]);
-      
-      // Verify no NEW wrappers were created via createElement
-      expect(createdElements.length).toBe(0);
-    });
-  });
-
   describe('normalizeUrl', () => {
     it('should remove query parameters and hashes', () => {
       expect(normalizeUrl('https://example.com/work/123?page=5#top')).toBe('https://example.com/work/123');
     });
 
-    it('should handle relative URLs by resolving against origin', () => {
-      setupLocationMock('https://site.com/foo');
-      // @ts-expect-error Mocked location might lack origin
-      window.location.origin = 'https://site.com';
-      expect(normalizeUrl('/work/456')).toBe('https://site.com/work/456');
+    it('should handle relative URLs by resolving against baseOrigin', () => {
+      expect(normalizeUrl('/work/456', 'https://site.com')).toBe('https://site.com/work/456');
     });
 
-    it('should return normalized URL even for strings that resolve against base', () => {
-      setupLocationMock('http://localhost/');
+    it('should return normalized URL even for strings that resolve against default base', () => {
       // normalizeUrl('not-a-url') will result in 'http://localhost/not-a-url'
       // This is expected behavior for relative-like strings
       expect(normalizeUrl('not-a-url')).toBe('http://localhost/not-a-url');
@@ -629,42 +264,6 @@ describe('logic.js', () => {
     });
   });
 
-  describe('getClickNavigationDirection', () => {
-    /**
-     * Helper: create a .comic-row-wrapper div containing the given images.
-     */
-    function wrapInRow(imgs: HTMLImageElement[]) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'comic-row-wrapper';
-      imgs.forEach(img => wrapper.appendChild(img));
-      return wrapper;
-    }
-
-    it('should return "next" for a single image with no wrapper', () => {
-      const img = document.createElement('img');
-      expect(getClickNavigationDirection(img)).toBe('next');
-    });
-
-    it('should return "next" for a single image inside a wrapper (見開き1枚だけ)', () => {
-      const img = document.createElement('img');
-      wrapInRow([img]);
-      expect(getClickNavigationDirection(img)).toBe('next');
-    });
-
-    it('should return "prev" for the first child (DOM先頭 = 画面右側) in a spread pair', () => {
-      const imgA = document.createElement('img');
-      const imgB = document.createElement('img');
-      wrapInRow([imgA, imgB]);
-      expect(getClickNavigationDirection(imgA)).toBe('prev');
-    });
-
-    it('should return "next" for the second child (DOM末尾 = 画面左側) in a spread pair', () => {
-      const imgA = document.createElement('img');
-      const imgB = document.createElement('img');
-      wrapInRow([imgA, imgB]);
-      expect(getClickNavigationDirection(imgB)).toBe('next');
-    });
-  });
 });
 
 describe('calculateTrends', () => {

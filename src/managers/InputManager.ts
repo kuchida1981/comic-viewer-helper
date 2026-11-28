@@ -1,4 +1,5 @@
-import { getNavigationDirection, getClickNavigationDirection } from '../logic';
+import { getNavigationDirection } from '../logic';
+import { getClickNavigationDirection } from '../dom';
 import { SHORTCUTS } from '../shortcuts';
 import { Store } from '../store';
 import { Navigator } from './Navigator';

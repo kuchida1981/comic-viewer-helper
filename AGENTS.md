@@ -17,8 +17,9 @@
   - `Managers`: Feature-specific logic (`Navigator`, `UIManager`, `ResumeManager`, etc.).
   - `Adapters`: Abstraction layer for site-specific DOM structures.
 - **Logic Separation**:
-  - `src/logic.ts`: 純粋関数のみを配置し DOM 依存を置かない方針（注: 一部の既存 DOM 操作関数については #286 で分離予定）。
-  - DOM manipulations are encapsulated within Managers and Adapters.
+  - `src/logic.ts`: 純粋関数のみを配置し、DOM / ブラウザグローバル依存を禁止する（ESLint で機械的に強制）。
+  - `src/dom.ts`: 複数マネージャから利用される汎用 DOM 操作ヘルパーを配置する。
+  - DOM manipulations are encapsulated within `src/dom.ts`, Managers, and Adapters.
 - **Key Conventions**:
   - Right-to-left (RTL) navigation for manga:
     - Next: `ArrowLeft` key, `'j'` key, single-page image click, or left-side image click in dual-page spread (`getClickNavigationDirection`).

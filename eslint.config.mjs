@@ -103,6 +103,13 @@ export default [
             "except": ["./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*"],
             "message": "Logic layer must not depend on other layers (pure functions only)."
           },
+          // dom.ts can only depend on logic and shared
+          {
+            "target": "./src/dom.ts",
+            "from": "./src",
+            "except": ["./logic.ts", "./types.ts", "./type-guards.ts", "./i18n.ts", "./shortcuts.ts", "./test/mocks/**/*"],
+            "message": "DOM helper layer can only depend on Logic and Shared layers."
+          },
           // store.ts can only depend on logic and shared
           {
             "target": "./src/store.ts",
@@ -128,11 +135,45 @@ export default [
       }]
     }
   },
-  // Specific suppressions
+  // Enforce pure functions (no browser globals or DOM types) in logic.ts
   {
-    files: ["src/logic.ts", "src/ui/utils.ts", "src/adapters/DefaultAdapter.ts", "src/managers/Navigator.ts"],
+    files: ["src/logic.ts"],
     rules: {
-      "@typescript-eslint/no-unnecessary-condition": "off"
+      "no-restricted-globals": [
+        "error",
+        { "name": "window", "message": "src/logic.ts must be DOM-independent (do not reference window)." },
+        { "name": "document", "message": "src/logic.ts must be DOM-independent (do not reference document)." },
+        { "name": "self", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "navigator", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "location", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "history", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "localStorage", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "sessionStorage", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "HTMLElement", "message": "src/logic.ts must not reference DOM types." },
+        { "name": "HTMLImageElement", "message": "src/logic.ts must not reference DOM types." },
+        { "name": "Element", "message": "src/logic.ts must not reference DOM types." },
+        { "name": "Node", "message": "src/logic.ts must not reference DOM types." },
+        { "name": "Document", "message": "src/logic.ts must not reference DOM types." },
+        { "name": "Window", "message": "src/logic.ts must not reference DOM types." },
+        { "name": "Event", "message": "src/logic.ts must not reference DOM types." },
+        { "name": "WheelEvent", "message": "src/logic.ts must not reference DOM types." },
+        { "name": "MutationObserver", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "IntersectionObserver", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "ResizeObserver", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "requestAnimationFrame", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "cancelAnimationFrame", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "getComputedStyle", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "alert", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "confirm", "message": "src/logic.ts must be DOM-independent." },
+        { "name": "prompt", "message": "src/logic.ts must be DOM-independent." }
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          "selector": "TSTypeReference > Identifier[name=/^(Window|Document|HTMLElement|HTMLImageElement|HTMLAnchorElement|HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement|Element|Node|NodeList|Event|WheelEvent|MouseEvent|KeyboardEvent)$/]",
+          "message": "src/logic.ts must not reference DOM types (pure functions only)."
+        }
+      ]
     }
   },
   // Test files: relaxed rules
