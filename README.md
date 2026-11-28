@@ -47,7 +47,7 @@ When you run `git commit`, the following checks are automatically executed:
 2. `npm run check-types` - TypeScript type checking
 3. `npm test` - Unit tests (100% coverage required for core logic)
 4. `npm run build` - Build verification
-5. `openspec validate --strict --all` - Specification validation
+5. `npx openspec validate --strict --all` - Specification validation
 
 If any of these checks fail, the commit will be blocked.
 
@@ -63,7 +63,7 @@ This runs:
 1. `npm test` - Unit tests (100% coverage required for core logic)
 2. `npm run lint` - ESLint checks
 3. `npm run check-types` - TypeScript type checking
-4. `openspec validate --strict --all` - Specification validation
+4. `npx openspec validate --strict --all` - Specification validation
 5. `IS_UNSTABLE=true npm run build` - Build verification
 
 **All checks must pass** before creating a PR.
@@ -73,17 +73,17 @@ To generate the `dist/comic-viewer-helper.user.js` file from source:
 ```bash
 npm run build
 ```
-Note: The `dist/` directory is excluded from the repository. The build artifacts are automatically deployed to the `release` branch by GitHub Actions upon merging to the master branch.
+Note: The `dist/` directory is excluded from the repository. The build artifacts are automatically deployed by GitHub Actions to the `unstable` branch when pushed to `master`, and to the `stable` branch when a version tag is pushed.
 
 ### Test
 To run unit tests using Vitest (includes coverage report):
 ```bash
 npm test
 ```
-Core logic (`src/logic.js`) is maintained with **100% code coverage**.
+Core logic (`src/logic.ts`) is maintained with **100% code coverage**.
 
 ### Type Check
-To run static type analysis using JSDoc and TypeScript:
+To run static type analysis using TypeScript:
 ```bash
 npm run check-types
 ```
